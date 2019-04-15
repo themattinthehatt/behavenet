@@ -10,4 +10,4 @@ To be able to use this environment for jupyter notebooks:
 ```
 python -m ipykernel install --user --name behavenet --display-name "behavenet"
 ``` 
-Install latest version of pytorch in accordance with platform/cuda requirements
+Install pytorch 1.0.1 in accordance with platform/cuda requirements
