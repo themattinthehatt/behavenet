@@ -1,0 +1,11 @@
+.DS_Store
+build/
+datta.egg-info
+*~
+*.so
+.ipynb_checkpoints
+results
+*.h5
+__pycache__
+.idea
+*.c
