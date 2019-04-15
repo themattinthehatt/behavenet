@@ -1,11 +1,6 @@
-Cython==0.29
-h5py==2.8.0
-matplotlib==3.0.0
-numpy==1.15.2
-scipy==1.1.0
-test-tube==0.53
-tqdm==4.27.0
--e git+https://github.com/slinderman/datta.git@db4fdb3e27160a39613bcb14e00d19a72cd20ec7#egg=datta
-
-
-
+matplotlib==3.0.3
+numpy==1.16.2
+scipy==1.2.1
+h5py==2.9.0  
+test-tube==0.6282 
+ipykernel==5.1.0
