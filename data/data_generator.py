@@ -9,8 +9,7 @@ from torch.utils.data import SubsetRandomSampler
 
 
 def split_trials(
-        num_trials, max_pad_amount=0, rng_seed=0,
-        train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
+        num_trials, rng_seed=0, train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
     """
     Split trials into train/val/test; use `num_trials` out of a total possible
     number `max_trials` (this is to ensure that the same number of trials are
@@ -21,7 +20,6 @@ def split_trials(
 
     Args:
         num_trials (int): number of trials to use in the split
-        max_pad_amount (int):
         rng_seed (int):
         train_tr (int): number of train trials per block
         val_tr (int): number of validation trials per block
@@ -82,8 +80,9 @@ class SingleSessionDataset(data.Dataset):
     """Dataset class for a single session"""
 
     def __init__(
-            self, data_dir, lab, expt, animal, session,
-            signals_list, transform_list, pad_amount, device, as_numpy=False):
+            self, data_dir, lab='', expt='', animal='', session='',
+            signals_list=None, transform_list=None, device='cpu',
+            as_numpy=False):
         """
         Read filenames
 
@@ -97,7 +96,6 @@ class SingleSessionDataset(data.Dataset):
                 'neural' | 'images'
             transform_list (list of lists): each entry corresponds to an entry
                 in `signals_list`
-            pad_amount (int):
             device (str):
                 'cpu' | 'cuda'
             as_numpy (bool): `True` to return numpy array, `False` to return
@@ -121,7 +119,6 @@ class SingleSessionDataset(data.Dataset):
         self.trials = np.unique(np.array(
             [int(os.path.basename(t)[3:7]) for t in self.filenames]))
 
-        self.pad_amount = pad_amount
         self.device = device
         self.as_numpy = as_numpy
 
@@ -182,8 +179,8 @@ class ConcatSessionsGenerator(object):
     _dtypes = {'train', 'val', 'test'}
 
     def __init__(
-            self, data_dir, ids, signals_list, transform_list,
-            pad_amount=0, max_pad_amount=0, device='cuda', rng_seed=0):
+            self, data_dir, ids, signals_list, transform_list, device='cuda',
+            rng_seed=0):
         """
 
         Args:
@@ -191,8 +188,6 @@ class ConcatSessionsGenerator(object):
             ids:
             signals_list:
             transform_list:
-            pad_amount:
-            max_pad_amount:
             device:
             rng_seed:
         """
@@ -216,8 +211,7 @@ class ConcatSessionsGenerator(object):
                     for session in sessions:
                         self.datasets.append(SingleSessionDataset(
                             data_dir, lab, expt, animal, session,
-                            signals_list, transform_list, pad_amount,
-                            device))
+                            signals_list, transform_list, device))
                         self.datasets_info.append({
                             'lab': lab, 'expt': expt, 'animal': animal,
                             'session': session})
@@ -230,8 +224,7 @@ class ConcatSessionsGenerator(object):
                 for session in sessions:
                     self.datasets.append(SingleSessionDataset(
                         data_dir, ids['lab'], expt, animal, session,
-                        signals_list, transform_list, pad_amount,
-                        device))
+                        signals_list, transform_list, device))
                     self.datasets_info.append({
                         'lab': lab, 'expt': expt, 'animal': animal,
                         'session': session})
@@ -242,15 +235,14 @@ class ConcatSessionsGenerator(object):
             for session in ids['session']:
                 self.datasets.append(SingleSessionDataset(
                     data_dir, ids['lab'], expt, animal, session,
-                    signals_list, transform_list, pad_amount,
-                    device))
+                    signals_list, transform_list, device))
                 self.datasets_info.append({
                     'lab': lab, 'expt': expt, 'animal': animal,
                     'session': session})
         else:
             self.datasets.append(SingleSessionDataset(
                 data_dir, ids['lab'], ids['expt'], ids['animal'], ids['session'],
-                signals_list, transform_list, pad_amount, device))
+                signals_list, transform_list, device))
             self.datasets_info.append({
                 'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})

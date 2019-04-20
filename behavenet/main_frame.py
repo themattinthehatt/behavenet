@@ -9,6 +9,7 @@ from variational import VanillaRecognitionNetwork
 from training import fit
 import random
 
+
 def main(hparams):
 
     # Start at random times (so test tube creates separate folders)
@@ -71,7 +72,8 @@ def main(hparams):
         fit(hparams,model,data_generator,exp,method=method,variational_posterior=variational_posterior)
     else:
         fit(hparams,model,data_generator,exp,method=method)
-    
+
+
 def get_params(strategy):
     parser = HyperOptArgumentParser(strategy=strategy)
 
@@ -151,7 +153,8 @@ def get_params(strategy):
         parser.add_argument('--low_d_type', default='vae', type=str) 
 
     return parser.parse_args()
-    
+
+
 if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 #    main(hyperparams)
@@ -159,10 +162,9 @@ if __name__ == '__main__':
     if hyperparams.device=='cuda':
         hyperparams.optimize_parallel_gpu_cuda(
             main,
-            gpu_ids = hyperparams.gpus_viz.split(';'),
+            gpu_ids=hyperparams.gpus_viz.split(';'),
             nb_trials=100,
             nb_workers=100
         )
     if hyperparams.device=='cpu':
         main(hyperparams)
-    
