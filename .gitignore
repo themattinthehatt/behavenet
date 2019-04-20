@@ -9,3 +9,5 @@ results
 __pycache__
 .idea
 *.c
+scratch/
+scratch.py

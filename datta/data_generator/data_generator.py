@@ -1,224 +1,334 @@
+import os
+import numpy as np
+import glob
+from collections import OrderedDict
+from skimage import io
 import torch
 from torch.utils import data
-import h5py
-from collections import OrderedDict
-from torchvision import transforms
-import numpy as np
 from torch.utils.data import SubsetRandomSampler
-from torch.utils.data.sampler import Sampler
 
-class SubsetSampler(Sampler):
-    """Samples elements from a given list of indices (no randomness)
 
-    Arguments:
-        indices (sequence): a sequence of indices
+def split_trials(
+        num_trials, max_pad_amount=0, rng_seed=0,
+        train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
+    """
+    Split trials into train/val/test; use `num_trials` out of a total possible
+    number `max_trials` (this is to ensure that the same number of trials are
+    used from each dataset when multiple are concatenated).
+
+    The data is split into blocks that have gap trials between tr/val/test:
+    train tr | gap tr | val tr | gap tr | test tr | gap tr
+
+    Args:
+        num_trials (int): number of trials to use in the split
+        max_pad_amount (int):
+        rng_seed (int):
+        train_tr (int): number of train trials per block
+        val_tr (int): number of validation trials per block
+        test_tr (int): number of test trials per block
+        gap_tr (int): number of gap trials between tr/val/test; there will be
+            a total of 3 * `gap_tr` gap trials per block
+
+    Returns:
+        dict
     """
 
-    def __init__(self, indices):
-        self.indices = indices
+    # same random seed for reproducibility
+    np.random.seed(rng_seed)
 
-    def __iter__(self):
-        return (i for i in self.indices)
+    tr_per_block = train_tr + gap_tr + val_tr + gap_tr + test_tr + gap_tr
 
-    def __len__(self):
-        return len(self.indices)
+    num_blocks = int(np.floor(num_trials / tr_per_block))
+    leftover_trials = num_trials - tr_per_block * num_blocks
+    if leftover_trials > 0:
+        offset = np.random.randint(0, high=leftover_trials)
+    else:
+        offset = 0
+    indxs_block = np.random.permutation(num_blocks)
 
-def get_train_val_test_batches(n_frames, max_pad_amount, batch_size, chunk_n_frames=[12600,2700,2700],gap_size=300):
+    batch_indxs = {'train': [], 'test': [], 'val': []}
+    for block in indxs_block:
 
-    np.random.seed(123) # same random seed for reproducibility
-    chunk_order = np.empty(0,)
-    for i in range(int(np.ceil(n_frames/chunk_n_frames[0]))):
-        chunk_order = np.append(chunk_order,np.random.permutation([0,1,2])).astype('int')
-    
-    batch_inds = [np.empty(0,).astype('int')]*3
-    current_frame = max_pad_amount
-    for i_chunk in chunk_order:
+        curr_tr = block * tr_per_block + offset
+        batch_indxs['train'].append(np.arange(curr_tr, curr_tr + train_tr))
+        curr_tr += (train_tr + gap_tr)
+        batch_indxs['val'].append(np.arange(curr_tr, curr_tr + val_tr))
+        curr_tr += (val_tr + gap_tr)
+        batch_indxs['test'].append(np.arange(curr_tr, curr_tr + test_tr))
 
-        max_frame = min(current_frame+chunk_n_frames[i_chunk],n_frames-max_pad_amount-batch_size)
-        batch_inds[i_chunk] = np.append(batch_inds[i_chunk],np.arange(current_frame, max_frame, batch_size),axis=0).astype('int')
-        if current_frame+chunk_n_frames[i_chunk]>n_frames:
-            break
-        current_frame += chunk_n_frames[i_chunk]
-        current_frame += gap_size
-    
-    return batch_inds
+    for dtype in ['train', 'val', 'test']:
+        batch_indxs[dtype] = np.concatenate(batch_indxs[dtype], axis=0)
+
+    return batch_indxs
+
+
+def get_img_filenames(img_dir='', img_ext='jpg', pattern=None):
+    if pattern is None:
+        filenames = glob.glob(os.path.join(img_dir, '*.%s' % img_ext))
+    else:
+        filenames = glob.glob(pattern)
+        img_dir = os.path.dirname(filenames[0])
+    filenames_rel = [os.path.basename(x) for x in filenames]
+    filenames_rel.sort()
+    filenames = [os.path.join(img_dir, x) for x in filenames_rel]
+    return filenames
+
+
+def imread(file, **load_func_kwargs):
+    return io._io.imread(file, **load_func_kwargs).astype(np.float32)
+
 
 class SingleSessionDataset(data.Dataset):
-    
-    def __init__(self, data_dir, session_name, signals_list, transform, batch_size, pad_amount,device):
-        
-        # Load data 
-        self.batch_size = batch_size
-        self.pad_amount = pad_amount
-        self.session_name = session_name
-        self.signals_list = signals_list
-        self.transform = transform
-        self.data_dir = data_dir
-        self.h5_pointer = h5py.File(self.data_dir+session_name+'/concatenated_data.h5', 'r') 
-        self.device = device
-          
-    def __len__(self):
-         return len(self.h5_pointer[list(self.h5_pointer.keys())[0]])
+    """Dataset class for a single session"""
 
-    def __getitem__(self, idx):
+    def __init__(
+            self, data_dir, lab, expt, animal, session,
+            signals_list, transform_list, pad_amount, device, as_numpy=False):
+        """
+        Read filenames
+
+        Args:
+            data_dir (str): root directory of data
+            lab (str)
+            expt (str)
+            animal (str)
+            session (str)
+            signals_list (list of strs):
+                'neural' | 'images'
+            transform_list (list of lists): each entry corresponds to an entry
+                in `signals_list`
+            pad_amount (int):
+            device (str):
+                'cpu' | 'cuda'
+            as_numpy (bool): `True` to return numpy array, `False` to return
+                pytorch tensor
+        """
+
+        # specify data
+        self.lab = lab
+        self.expt = expt
+        self.animal = animal
+        self.session = session
+        self.data_dir = os.path.join(
+            data_dir, self.lab, self.expt, self.animal, self.session)
+
+        self.signals_list = signals_list
+        self.transform_list = transform_list
+        self.filenames = get_img_filenames(
+            img_dir=os.path.join(self.data_dir, 'face'))
+        if len(self.filenames) == 0:
+            raise IOError('"%s" is not a valid data directory' % self.data_dir)
+        self.trials = np.unique(np.array(
+            [int(os.path.basename(t)[3:7]) for t in self.filenames]))
+
+        self.pad_amount = pad_amount
+        self.device = device
+        self.as_numpy = as_numpy
+
+    def __len__(self):
+        return len(self.trials)
+
+    def __getitem__(self, indx):
+        """Load images from filenames"""
 
         sample = OrderedDict()
         
         for i, signal in enumerate(self.signals_list):
-            
-            # Index correct section
-            sample[signal] = self.h5_pointer[signal][idx-self.pad_amount:idx+self.batch_size+self.pad_amount]
-        
-            # Apply transforms
-            if self.transform[i]:
 
-                if signal == 'loglikes': # need depth info for mask
-                    sample[signal] = self.transform[i](sample[signal],self.h5_pointer['depth'][idx-self.pad_amount:idx+self.batch_size+self.pad_amount])
-                else:
-                    sample[signal] = self.transform[i](sample[signal])
+            # index correct trial
+            if signal == 'images':
+                # if self.lab == 'steinmetz':
+                load_pattern = os.path.join(
+                    self.data_dir, 'face', 'img%04i*.jpg' % indx)
+                sample[signal] = io.ImageCollection(
+                    get_img_filenames(pattern=load_pattern),
+                    conserve_memory=False,
+                    load_func=imread,
+                    as_gray=True).concatenate()[:, None, :, :]
+                # elif self.lab == 'churchland':
+                #     load_pattern_face = os.path.join(
+                #         self.data_dir, 'face', 'img%04i*.jpg' % indx)
+                #     load_pattern_body = os.path.join(
+                #         self.data_dir, 'body', 'img%04i*.jpg' % indx)
+                #     sample[signal] = np.concatenate([
+                #         io.ImageCollection(
+                #             get_img_filenames(pattern=load_pattern_face),
+                #             conserve_memory=False,
+                #             load_func=imread,
+                #             as_gray=True).concatenate()[:, None, :, :],
+                #         io.ImageCollection(
+                #             get_img_filenames(pattern=load_pattern_body),
+                #             conserve_memory=False,
+                #             load_func=imread,
+                #             as_gray=True).concatenate()[:, None, :, :]],
+                #         axis=1)
+            else:
+                raise ValueError('"%s" is an invalid signal type' % signal)
+
+            # apply transforms
+            if self.transform_list[i]:
+                sample[signal] = self.transform_list[i](sample[signal])
                 
+            # transform into tensor
+            if not self.as_numpy:
+                sample[signal] = torch.from_numpy(sample[signal]).to(self.device)
+            sample['batch_indx'] = indx
 
-            # Transform into tensor
-            sample[signal] = torch.from_numpy(sample[signal]).to(self.device).float()
-            sample['batch_idx'] = idx
         return sample
 
-class ConcatSessionsGenerator():
-    
-    def __init__(self,data_dir, session_list, signals_list, transform, batch_size, pad_amount, max_pad_amount, device):
 
-        self.session_list = session_list
+class ConcatSessionsGenerator(object):
 
-        # Gather all datasets
-        self.datasets=[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            self.datasets[i] = SingleSessionDataset(data_dir, dataset,signals_list,transform=transform,batch_size=batch_size,pad_amount=pad_amount,device=device)
-        
-        # Cut to shortest length, give warning if cutting off batches
-        min_data_len = np.min([self.datasets[i].__len__() for i, session in enumerate(session_list)])
-        max_data_len = np.max([self.datasets[i].__len__() for i, session in enumerate(session_list)])
-        if (max_data_len-min_data_len)>batch_size:
-            print('WARNING: CUTTING OFF DATA')
+    _dtypes = {'train', 'val', 'test'}
 
-        # Get train/val/test batch indices 
-        self.batch_inds = [None]*len(session_list)
-        self.n_batches = [None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            self.n_batches[i] = [None]*3
-            self.batch_inds[i] = get_train_val_test_batches(min_data_len, max_pad_amount, batch_size) #get_train_val_test_batches(self.datasets[i].__len__(), max_pad_amount, batch_size)
-            for i_type in range(3):
-                self.n_batches[i][i_type] = len(self.batch_inds[i][i_type])
+    def __init__(
+            self, data_dir, ids, signals_list, transform_list,
+            pad_amount=0, max_pad_amount=0, device='cuda', rng_seed=0):
+        """
 
-        self.n_max_train_batches = np.max([item[0] for item in self.n_batches])
-        self.n_max_val_batches = np.max([item[1] for item in self.n_batches])
-        self.n_max_test_batches = np.max([item[2] for item in self.n_batches])
+        Args:
+            data_dir:
+            ids:
+            signals_list:
+            transform_list:
+            pad_amount:
+            max_pad_amount:
+            device:
+            rng_seed:
+        """
 
-        # Gather all train data loaders
-        self.train_dataset_loaders =[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            train_sampler = SubsetRandomSampler(self.batch_inds[i][0])
-            self.train_dataset_loaders[i] = torch.utils.data.DataLoader(self.datasets[i], batch_size=1,sampler=train_sampler)
+        self.ids = ids
+
+        # gather all datasets
+        def get_dirs(path):
+            return next(os.walk(path))[1]
+
+        self.datasets = []
+        self.datasets_info = []
+        lab = ids['lab']
+        if isinstance(ids['expt'], list):
+            # get all experiments from one lab
+            for expt in ids['expt']:
+                animals = get_dirs(os.path.join(data_dir, lab, expt))
+                for animal in animals:
+                    sessions = get_dirs(
+                        os.path.join(data_dir, lab, expt, animal))
+                    for session in sessions:
+                        self.datasets.append(SingleSessionDataset(
+                            data_dir, lab, expt, animal, session,
+                            signals_list, transform_list, pad_amount,
+                            device))
+                        self.datasets_info.append({
+                            'lab': lab, 'expt': expt, 'animal': animal,
+                            'session': session})
+        elif isinstance(ids['animal'], list):
+            # get all animals from one experiment
+            expt = ids['expt']
+            for animal in ids['animal']:
+                sessions = get_dirs(
+                    os.path.join(data_dir, lab, expt, animal))
+                for session in sessions:
+                    self.datasets.append(SingleSessionDataset(
+                        data_dir, ids['lab'], expt, animal, session,
+                        signals_list, transform_list, pad_amount,
+                        device))
+                    self.datasets_info.append({
+                        'lab': lab, 'expt': expt, 'animal': animal,
+                        'session': session})
+        elif isinstance(ids['session'], list):
+            # get all sessions from one animal
+            expt = ids['expt']
+            animal = ids['animal']
+            for session in ids['session']:
+                self.datasets.append(SingleSessionDataset(
+                    data_dir, ids['lab'], expt, animal, session,
+                    signals_list, transform_list, pad_amount,
+                    device))
+                self.datasets_info.append({
+                    'lab': lab, 'expt': expt, 'animal': animal,
+                    'session': session})
+        else:
+            self.datasets.append(SingleSessionDataset(
+                data_dir, ids['lab'], ids['expt'], ids['animal'], ids['session'],
+                signals_list, transform_list, pad_amount, device))
+            self.datasets_info.append({
+                'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
+                'session': ids['session']})
+
+        # collect info about datasets
+        self.num_datasets = len(self.datasets)
+
+        # get train/val/test batch indices for each dataset
+        self.batch_indxs = [None] * self.num_datasets
+        self.num_batches = [None] * self.num_datasets
+        self.batch_ratios = [None] * self.num_datasets
+        for i, dataset in enumerate(self.datasets):
+            self.batch_indxs[i] = split_trials(len(dataset), rng_seed=rng_seed)
+            self.num_batches[i] = {}
+            for dtype in self._dtypes:
+                self.num_batches[i][dtype] = len(self.batch_indxs[i][dtype])
+                if dtype == 'train':
+                    self.batch_ratios[i] = len(self.batch_indxs[i][dtype])
+                if ids['lab'] == 'churchland':
+                    self.batch_indxs[i][dtype] = self.batch_indxs[i][dtype] + 1
+        self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
+
+        # find total number of batches per data type; this will be iterated
+        # over in the training loop
+        self.num_tot_batches = {}
+        for dtype in self._dtypes:
+            self.num_tot_batches[dtype] = np.sum([
+                item[dtype] for item in self.num_batches])
+
+        # create data loaders (will shuffle/batch/etc datasets)
+        self.dataset_loaders = [None] * self.num_datasets
+        for i, dataset in enumerate(self.datasets):
+            self.dataset_loaders[i] = {}
+            for dtype in self._dtypes:
+                self.dataset_loaders[i][dtype] = torch.utils.data.DataLoader(
+                    dataset,
+                    batch_size=1,
+                    sampler=SubsetRandomSampler(self.batch_indxs[i][dtype]),
+                    num_workers=2)
         
-        # Create all train iterators
-        self.train_dataset_iter =[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            self.train_dataset_iter[i] = iter(self.train_dataset_loaders[i])
-        
-        # Gather all val data loaders
-        self.val_dataset_loaders =[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            val_sampler = SubsetSampler(self.batch_inds[i][1])
-            self.val_dataset_loaders[i] = torch.utils.data.DataLoader(self.datasets[i], batch_size=1,sampler=val_sampler)
-        
-        # Create all val iterators
-        self.val_dataset_iter =[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            self.val_dataset_iter[i] = iter(self.val_dataset_loaders[i])
-        
-        # Gather all test data loaders
-        self.test_dataset_loaders =[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            test_sampler = SubsetSampler(self.batch_inds[i][2])
-            self.test_dataset_loaders[i] = torch.utils.data.DataLoader(self.datasets[i], batch_size=1,sampler=test_sampler)
-        
-        # Create all test iterators
-        self.test_dataset_iter =[None]*len(session_list)
-        for i, dataset in enumerate(session_list):
-            self.test_dataset_iter[i] = iter(self.test_dataset_loaders[i])
-             
-    def reset_iterators(self,which_type):
-        
-        if which_type == 'train' or which_type=='all':
-            for i, dataset in enumerate(self.session_list):
-                self.train_dataset_iter[i] = iter(self.train_dataset_loaders[i])
-            
-        if which_type == 'val' or which_type=='all':
-            for i, dataset in enumerate(self.session_list):
-                self.val_dataset_iter[i] = iter(self.val_dataset_loaders[i])
-            
-        if which_type == 'test' or which_type=='all':
-            for i, dataset in enumerate(self.session_list):
-                self.test_dataset_iter[i] = iter(self.test_dataset_loaders[i])
-            
-    def next_train_batch(self):
-        
-        concat_sample = OrderedDict()
-        for i, dataset in enumerate(self.session_list):
-            
-            # Get this session data
+        # create all iterators (will iterate through data loaders)
+        self.dataset_iters = [None] * self.num_datasets
+        for i in range(self.num_datasets):
+            self.dataset_iters[i] = {}
+            for dtype in self._dtypes:
+                self.dataset_iters[i][dtype] = iter(self.dataset_loaders[i][dtype])
+
+    def reset_iterators(self, dtype):
+        """
+        Args:
+            dtype (str): 'train' | 'val' | 'test' | 'all'
+        """
+
+        for i in range(self.num_datasets):
+            if dtype == 'all':
+                for dtype_ in self._dtypes:
+                    self.dataset_iters[i][dtype_] = iter(
+                        self.dataset_loaders[i][dtype_])
+            else:
+                self.dataset_iters[i][dtype] = iter(
+                    self.dataset_loaders[i][dtype])
+
+    def next_batch(self, dtype):
+        """
+        Iterate randomly through sessions and trials; a batch from each session
+        is used before reseting the session iterator. Once a session runs out
+        of trials it is skipped.
+        """
+        while True:
+            # get next session
+            dataset = np.random.choice(
+                np.arange(self.num_datasets), p=self.batch_ratios)
+
+            # get this session data
             try:
-                sample = next(self.train_dataset_iter[i])
+                sample = next(self.dataset_iters[dataset][dtype])
+                break
             except StopIteration:
-                self.train_dataset_iter[i] = iter(self.train_dataset_loaders[i])
-                sample = next(self.train_dataset_iter[i])
-            
-            # Concat across sessions
-            for k, v in sample.items(): 
-                if k in concat_sample:
-                    concat_sample[k] = torch.cat((concat_sample[k],v),dim=0)
-                else:
-                    concat_sample[k] = v
-    
-        return concat_sample
+                continue
 
-    def next_val_batch(self):
-        
-        concat_sample = OrderedDict()
-        for i, dataset in enumerate(self.session_list):
-            
-            # Get this session data
-            try:
-                sample = next(self.val_dataset_iter[i])
-            except StopIteration:
-                self.val_dataset_iter[i] = iter(self.val_dataset_loaders[i])
-                sample = next(self.val_dataset_iter[i])
-            
-            # Concat across sessions
-            for k, v in sample.items(): 
-                if k in concat_sample:
-                    concat_sample[k] = torch.cat((concat_sample[k],v),dim=0)
-                else:
-                    concat_sample[k] = v
-    
-        return concat_sample
-    
-    def next_test_batch(self):
-        
-        concat_sample = OrderedDict()
-        for i, dataset in enumerate(self.session_list):
-            
-            # Get this session data
-            try:
-                sample = next(self.test_dataset_iter[i])
-            except StopIteration:
-                self.test_dataset_iter[i] = iter(self.test_dataset_loaders[i])
-                sample = next(self.test_dataset_iter[i])
-            
-            # Concat across sessions
-            for k, v in sample.items(): 
-                if k in concat_sample:
-                    concat_sample[k] = torch.cat((concat_sample[k],v),dim=0)
-                else:
-                    concat_sample[k] = v
-    
-        return concat_sample
+        return sample, dataset

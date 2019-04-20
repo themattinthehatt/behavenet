@@ -6,9 +6,11 @@ from torch import nn, optim
 import numpy as np
 import math
 import copy
+import os
 import time 
 
-def vae_loss(model, data,random_draw=1):
+
+def vae_loss(model, data, random_draw=1):
 
     total_loss=0
     NLL_loss=0
@@ -38,6 +40,7 @@ def vae_loss(model, data,random_draw=1):
         KL_loss += KLD.item()/y_mu.shape[0]/data['depth'].shape[0]
         MSE_loss += MSE.item()/data['depth'].shape[0]
     return loss, total_loss, NLL_loss, KL_loss, MSE_loss
+
 
 def ae_loss(model, data):
 
@@ -70,7 +73,8 @@ def ae_loss(model, data):
 
     return loss, total_loss, NLL_loss, MSE_loss
 
-def em_loss(model, data, nb_tng_batches,device):
+
+def em_loss(model, data, nb_tng_batches, device):
     """
     L(theta) = E_q(z) [log p(x, z; theta) - log q(z | x) | x]
     """
@@ -195,19 +199,28 @@ def svi_loss(model, data, variational_posterior, nb_tng_batches, device, N_sampl
     return loss, total_loss, prior_loss, ell_loss, log_likelihood_loss, log_q_loss
 
 
-def fit(hparams, model, data_generator,  exp, 
-        method="em",
-        variational_posterior=None):
-    
+def fit(hparams, model, data_generator, exp, method="em", variational_posterior=None):
+    """
 
+    Args:
+        hparams:
+        model:
+        data_generator:
+        exp:
+        method:
+        variational_posterior:
+    """
+    
     # Check inputs
-    assert method in ("em", "svi", "vae","ae")
+    assert method in ("em", "svi", "vae", "ae")
     if method == "svi":
         assert variational_posterior is not None
 
     # Extract parameters
     if method == "svi":
-        parameters = list(filter(lambda p: p.requires_grad, model.parameters())) + list(filter(lambda p: p.requires_grad, variational_posterior.parameters()))
+        parameters = \
+            list(filter(lambda p: p.requires_grad, model.parameters())) + \
+            list(filter(lambda p: p.requires_grad, variational_posterior.parameters()))
     else:
         parameters = filter(lambda p: p.requires_grad, model.parameters())  
 
@@ -218,7 +231,10 @@ def fit(hparams, model, data_generator,  exp,
     nb_epochs_since_check = 0
 
     if hparams.val_check_interval < 1:
-        val_check_batch = np.linspace(data_generator.n_max_train_batches*hparams.val_check_interval,data_generator.n_max_train_batches,1/hparams.val_check_interval).astype('int')
+        val_check_batch = np.linspace(
+            data_generator.n_max_train_batches*hparams.val_check_interval,
+            data_generator.n_max_train_batches,
+            1/hparams.val_check_interval).astype('int')
     elif hparams.val_check_interval % 1 ==0 :
         val_check_batch = data_generator.n_max_train_batches*hparams.val_check_interval
     else:
@@ -231,21 +247,26 @@ def fit(hparams, model, data_generator,  exp,
     for i_epoch in range(hparams.max_nb_epochs):
 
         train_loss = 0
+        data_generator.reset_iterators('train')
         model.train()
-        for i_train in tqdm(range(data_generator.n_max_train_batches)):
+        for i_train in tqdm(range(data_generator.num_tot_batches['train'])):
 
             # Zero out gradients. Don't want gradients from previous iterations
             optimizer.zero_grad()
 
             # Get next minibatch and put it on the device
-            data = data_generator.next_train_batch()
+            data = data_generator.next_batch('train')
 
             # Call the appropriate loss function
             if method == "em":
                 # TO DO: are gradients working how we want? think so based on toy examples
-                loss, total_loss, prior, NLL = em_loss(model, data, data_generator.n_max_train_batches,hparams.device)
+                loss, total_loss, prior, NLL = em_loss(
+                    model, data, data_generator.n_max_train_batches,
+                    hparams.device)
             elif method == "svi":
-                loss, total_loss, _, _, _, _ = svi_loss(model, data, variational_posterior, data_generator.n_max_train_batches,hparams.device)
+                loss, total_loss, _, _, _, _ = svi_loss(
+                    model, data, variational_posterior,
+                    data_generator.n_max_train_batches,hparams.device)
             elif method == "vae":
                 loss, total_loss, _, _, _ = vae_loss(model, data)
             elif method == "ae":
@@ -265,10 +286,10 @@ def fit(hparams, model, data_generator,  exp,
                 
                 data_generator.reset_iterators('val')
                 model.eval()
-                for i_val in range(data_generator.n_max_val_batches):
+                for i_val in range(data_generator.num_tot_batches['val']):
 
                     # Get next minibatch and put it on the device
-                    data = data_generator.next_val_batch()
+                    data = data_generator.next_batch('val')
 
                     # Call the appropriate loss function
                     if method == "em":
@@ -276,7 +297,9 @@ def fit(hparams, model, data_generator,  exp,
                             val_loss=0
                             val_NLL=0
                             val_prior=0
-                        loss, total_loss, prior_loss, NLL = em_loss(model, data, data_generator.n_max_train_batches,hparams.device)
+                        loss, total_loss, prior_loss, NLL = em_loss(
+                            model, data, data_generator.n_max_train_batches,
+                            hparams.device)
                         val_NLL += NLL
                         val_prior += prior_loss
                         val_loss += total_loss
@@ -287,7 +310,9 @@ def fit(hparams, model, data_generator,  exp,
                             val_prior=0
                             val_log_likelihood=0
                             val_log_q=0
-                        loss, total_loss, prior_loss, ell_loss, log_likelihood_loss, log_q_loss = svi_loss(model, data, variational_posterior, data_generator.n_max_train_batches,hparams.device)
+                        loss, total_loss, prior_loss, ell_loss, log_likelihood_loss, log_q_loss = svi_loss(
+                            model, data, variational_posterior,
+                            data_generator.n_max_train_batches,hparams.device)
                         val_loss += total_loss
                         val_ell += ell_loss
                         val_prior += prior_loss
@@ -318,18 +343,21 @@ def fit(hparams, model, data_generator,  exp,
 
 
                 # Save best val model
-                if val_loss/data_generator.n_max_val_batches < best_val_loss:
-                    best_val_loss = val_loss/data_generator.n_max_val_batches
-                    filepath = hparams.tt_save_path + '/test_tube_data/' + hparams.model_name + '/version_' + str(exp.version) + '/best_val_model.pt'
-                    torch.save(model.state_dict(),filepath)
-                    model.hparams=None
+                if val_loss / data_generator.num_tot_batches['val'] < best_val_loss:
+                    best_val_loss = val_loss / data_generator.num_tot_batches['val']
+                    filepath = os.path.join(
+                        hparams.tt_save_path, 'test_tube_data',
+                        hparams.model_name, 'version_' + str(exp.version),
+                        'best_val_model.pt')
+                    torch.save(model.state_dict(), filepath)
+                    model.hparams = None
                     best_val_model = copy.deepcopy(model)
-                    model.hparams=hparams
-                    best_val_model.hparams=hparams
+                    model.hparams = hparams
+                    best_val_model.hparams = hparams
                     best_val_epoch = i_epoch
 
                 if hparams.enable_early_stop:
-                    stop_train = early_stop.on_val_check(i_epoch,val_loss/i_val)
+                    stop_train = early_stop.on_val_check(i_epoch,val_loss / i_val)
                     met_min_epochs = i_epoch > hparams.min_nb_epochs
                     should_stop = stop_train and met_min_epochs
                     if should_stop:
@@ -340,13 +368,44 @@ def fit(hparams, model, data_generator,  exp,
 
                 nb_epochs_since_check=0
                 if method == "vae":
-                    val_row = {'epoch': i_epoch, 'batch_nb': i_train, 'tng_err': train_loss/(i_train+1), 'val_err':val_loss/data_generator.n_max_val_batches,'val_NLL':val_NLL/data_generator.n_max_val_batches,'val_KL':val_KL/data_generator.n_max_val_batches,'val_MSE':val_MSE/data_generator.n_max_val_batches,'best_val_epoch':best_val_epoch}
+                    val_row = {
+                        'epoch': i_epoch,
+                        'batch_nb': i_train,
+                        'tng_err': train_loss / (i_train+1),
+                        'val_err': val_loss / data_generator.num_tot_batches['val'],
+                        'val_NLL': val_NLL / data_generator.num_tot_batches['val'],
+                        'val_KL': val_KL / data_generator.num_tot_batches['val'],
+                        'val_MSE': val_MSE / data_generator.num_tot_batches['val'],
+                        'best_val_epoch': best_val_epoch}
                 elif method == "ae":
-                    val_row = {'epoch': i_epoch, 'batch_nb': i_train, 'tng_err': train_loss/(i_train+1), 'val_err':val_loss/data_generator.n_max_val_batches,'val_NLL':val_NLL/data_generator.n_max_val_batches,'val_MSE':val_MSE/data_generator.n_max_val_batches,'best_val_epoch':best_val_epoch}
+                    val_row = {
+                        'epoch': i_epoch,
+                        'batch_nb': i_train,
+                        'tng_err': train_loss / (i_train+1),
+                        'val_err': val_loss / data_generator.num_tot_batches['val'],
+                        'val_NLL': val_NLL / data_generator.num_tot_batches['val'],
+                        'val_MSE': val_MSE / data_generator.num_tot_batches['val'],
+                        'best_val_epoch': best_val_epoch}
                 elif method == "em":
-                    val_row = {'epoch': i_epoch, 'batch_nb': i_train, 'tng_err': train_loss/(i_train+1), 'val_err':val_loss/data_generator.n_max_val_batches,'val_NLL':val_NLL/data_generator.n_max_val_batches,'val_prior':val_prior/data_generator.n_max_val_batches,'best_val_epoch':best_val_epoch}
+                    val_row = {
+                        'epoch': i_epoch,
+                        'batch_nb': i_train,
+                        'tng_err': train_loss / (i_train+1),
+                        'val_err': val_loss / data_generator.num_tot_batches['val'],
+                        'val_NLL': val_NLL / data_generator.num_tot_batches['val'],
+                        'val_prior': val_prior / data_generator.num_tot_batches['val'],
+                        'best_val_epoch': best_val_epoch}
                 elif method == 'svi':
-                    val_row = {'epoch': i_epoch, 'batch_nb': i_train, 'tng_err': train_loss/(i_train+1), 'val_err':val_loss/data_generator.n_max_val_batches,'val_ell':val_ell/data_generator.n_max_val_batches,'val_prior':val_prior/data_generator.n_max_val_batches,'val_log_likelihood':val_log_likelihood/data_generator.n_max_val_batches,'val_log_q':val_log_q/data_generator.n_max_val_batches,'best_val_epoch':best_val_epoch}
+                    val_row = {
+                        'epoch': i_epoch,
+                        'batch_nb': i_train,
+                        'tng_err': train_loss / (i_train+1),
+                        'val_err': val_loss / data_generator.num_tot_batches['val'],
+                        'val_ell': val_ell / data_generator.num_tot_batches['val'],
+                        'val_prior': val_prior / data_generator.num_tot_batches['val'],
+                        'val_log_likelihood': val_log_likelihood / data_generator.num_tot_batches['val'],
+                        'val_log_q': val_log_q / data_generator.num_tot_batches['val'],
+                        'best_val_epoch': best_val_epoch}
  
                 exp.add_metric_row(val_row)
                 exp.save()
@@ -360,15 +419,14 @@ def fit(hparams, model, data_generator,  exp,
         if should_stop:
             break
 
-
     # Compute test loss
     data_generator.reset_iterators('test')   
     model.eval()
 
-    for i_test in range(data_generator.n_max_test_batches):
+    for i_test in range(data_generator.num_tot_batches['test']):
 
         # Get next minibatch and put it on the device
-        data = data_generator.next_test_batch()
+        data = data_generator.next_batch('test')
 
         # Call the appropriate loss function
         if method == "em":
@@ -376,7 +434,9 @@ def fit(hparams, model, data_generator,  exp,
                 test_loss=0
                 test_NLL=0
                 test_prior = 0
-            loss, total_loss, prior_loss, NLL  = em_loss(best_val_model, data, data_generator.n_max_train_batches,hparams.device)
+            loss, total_loss, prior_loss, NLL  = em_loss(
+                best_val_model, data, data_generator.n_max_train_batches,
+                hparams.device)
             test_NLL += NLL
             test_prior += prior_loss
             test_loss += total_loss
@@ -387,7 +447,9 @@ def fit(hparams, model, data_generator,  exp,
                 test_prior=0
                 test_log_likelihood=0
                 test_log_q=0
-            loss, total_loss, prior_loss, ell_loss, log_likelihood_loss, log_q_loss = svi_loss(best_val_model, data, variational_posterior, data_generator.n_max_train_batches,hparams.device)
+            loss, total_loss, prior_loss, ell_loss, log_likelihood_loss, log_q_loss = svi_loss(
+                best_val_model, data, variational_posterior,
+                data_generator.n_max_train_batches, hparams.device)
             test_loss += total_loss
             test_ell += ell_loss
             test_prior += prior_loss
@@ -416,18 +478,46 @@ def fit(hparams, model, data_generator,  exp,
         else:
             raise Exception("Invalid loss function!")
 
-   
     if method == "vae":
-        test_row = {'epoch': i_epoch, 'batch_nb': i_train, 'test_err':test_loss/data_generator.n_max_test_batches,'test_NLL':test_NLL/data_generator.n_max_test_batches,'test_KL':test_KL/data_generator.n_max_test_batches,'test_MSE':test_MSE/data_generator.n_max_test_batches,'best_val_epoch':best_val_epoch}
+        test_row = {
+            'epoch': i_epoch,
+            'batch_nb': i_train,
+            'test_err': test_loss / data_generator.num_tot_batches['test'],
+            'test_NLL': test_NLL / data_generator.num_tot_batches['test'],
+            'test_KL': test_KL / data_generator.num_tot_batches['test'],
+            'test_MSE': test_MSE / data_generator.num_tot_batches['test'],
+            'best_val_epoch': best_val_epoch}
     elif method == "ae":
-        test_row = {'epoch': i_epoch, 'batch_nb': i_train, 'test_err':test_loss/data_generator.n_max_test_batches,'test_NLL':test_NLL/data_generator.n_max_test_batches,'test_MSE':test_MSE/data_generator.n_max_test_batches,'best_val_epoch':best_val_epoch}
+        test_row = {
+            'epoch': i_epoch,
+            'batch_nb': i_train,
+            'test_err': test_loss / data_generator.num_tot_batches['test'],
+            'test_NLL': test_NLL / data_generator.num_tot_batches['test'],
+            'test_MSE': test_MSE / data_generator.num_tot_batches['test'],
+            'best_val_epoch': best_val_epoch}
     elif method == "em":
-        test_row = {'epoch': i_epoch, 'batch_nb': i_train, 'test_err':test_loss/data_generator.n_max_test_batches,'test_NLL':test_NLL/data_generator.n_max_test_batches,'test_prior':test_prior/data_generator.n_max_test_batches,'best_val_epoch':best_val_epoch}
+        test_row = {
+            'epoch': i_epoch,
+            'batch_nb': i_train,
+            'test_err': test_loss / data_generator.num_tot_batches['test'],
+            'test_NLL': test_NLL / data_generator.num_tot_batches['test'],
+            'test_prior': test_prior / data_generator.num_tot_batches['test'],
+            'best_val_epoch': best_val_epoch}
     elif method == 'svi':
-        test_row = {'epoch': i_epoch, 'batch_nb': i_train, 'test_err':test_loss/data_generator.n_max_test_batches,'test_ell':test_ell/data_generator.n_max_test_batches,'test_prior':test_prior/data_generator.n_max_test_batches,'test_log_likelihood':test_log_likelihood/data_generator.n_max_test_batches,'test_log_q':test_log_q/data_generator.n_max_test_batches,'best_val_epoch':best_val_epoch}
+        test_row = {
+            'epoch': i_epoch,
+            'batch_nb': i_train,
+            'test_err': test_loss / data_generator.num_tot_batches['test'],
+            'test_ell': test_ell / data_generator.num_tot_batches['test'],
+            'test_prior': test_prior / data_generator.num_tot_batches['test'],
+            'test_log_likelihood': test_log_likelihood / data_generator.num_tot_batches['test'],
+            'test_log_q': test_log_q / data_generator.num_tot_batches['test'],
+            'best_val_epoch': best_val_epoch}
   
     exp.add_metric_row(test_row)
     exp.save()
 
-    filepath = hparams.tt_save_path + '/test_tube_data/' + hparams.model_name + '/version_' + str(exp.version) + '/last_model.pt'
-    torch.save(model.state_dict(),filepath)
+    filepath = os.path.join(
+        hparams.tt_save_path, 'test_tube_data', hparams.model_name,
+        'version_' + str(exp.version), 'last_model.pt')
+    torch.save(model.state_dict(), filepath)
