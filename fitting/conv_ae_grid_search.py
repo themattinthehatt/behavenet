@@ -6,7 +6,7 @@ from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
 from fitting.ae_model_architecture_generator import draw_archs
 from data.data_generator import ConcatSessionsGenerator
-
+import random
 
 def main(hparams):
 
@@ -17,24 +17,21 @@ def main(hparams):
     # delete 'architecture_params' key
     hparams.pop('architecture_params', None)
     print(hparams)
-    # # Start at random times (so test tube creates separate folders)
-    # np.random.seed(random.randint(0,1000))
-    # time.sleep(np.random.randint(hparams.max_start_time))
 
-    # # Get all sessions present in directory
-    # if hparams.session_list == 'all':
-    #     ignored = ['preprocess_log.txt']
-    #     hparams.session_list = [x for x in os.listdir(hparams.data_dir) if x not in ignored] 
+    # Set numpy random seed so it's not the same every call
+    np.random.seed(random.randint(0,1000))
+    # Start at random times (so test tube creates separate folders)
+    time.sleep(np.random.randint(200))
 
     # #########################
     # ### Create Experiment ###
     # #########################
 
-    # exp = Experiment(name=hparams.model_name,
-    #         debug=False,
-    #         save_dir=hparams.tt_save_path)
-    # exp.add_argparse_meta(hparams)
-    # exp.save()
+    exp = Experiment(name=hparams['experiment_name'],
+            debug=False,
+            save_dir=hparams['tt_save_path'])
+    exp.tag(hparams)
+    exp.save()
 
     # ###########################
     # ### LOAD DATA GENERATOR ###
@@ -104,6 +101,10 @@ def get_params(strategy):
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
 
     namespace, extra = parser.parse_known_args()
+
+    # Saving arguments
+    parser.add_argument('--tt_save_path','-t',type=str)
+    parser.add_argument('--experiment_name','-m',default='conv_ae_grid_search',type=str)
 
     parser.add_argument('--model_type', default='ae', type=str)
 
