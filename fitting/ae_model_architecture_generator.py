@@ -2,7 +2,11 @@ import os
 import argparse
 import numpy as np
 import pickle
+import sys
+sys.path.insert(0,'../behavenet/')
 from models import AE
+from utils import estimate_model_footprint
+import copy
 
 def calculate_conv2d_maxpool2d_output_dim(input_dim,kernel,stride,padding):
     output_dim = (input_dim+2*padding-kernel)/stride + 1
@@ -213,15 +217,22 @@ def get_possible_arch(input_dim,n_latents):
     arch_params = {**encoding_block,**decoding_block}
     return arch_params
 
-def draw_archs(input_dim,n_latents,n_archs=100,check_memory=True):
+def draw_archs(batch_size, input_dim,n_latents,n_archs=100,check_memory=True):
     all_archs=[]
 
     while len(all_archs)<n_archs:
         new_arch = get_possible_arch(input_dim,n_latents)
 
+
         # Check max memory, should keep if smaller than 10 GB, print if rejecting
         if check_memory:
-            model = AE(hparams)
+            raise NotImplementedError
+             # copied_arch = copy.deepcopy(new_arch)
+             # copied_arch['model_type'] = 'ae'
+             # model = AE(copied_arch)
+             # mem_size = estimate_model_footprint(model, [batch_size] + input_dim)
+             # print('a')
+             # ver
 
         # Check against all previous arches
         matching=0
@@ -235,28 +246,6 @@ def draw_archs(input_dim,n_latents,n_archs=100,check_memory=True):
 
     return all_archs
 
-def main(args):
 
-    list_of_archs = draw_archs([args['input_channels'],args['x_pixels'],args['y_pixels']],args['n_latents'],args['n_archs'])
-
-    print('Saving list of architectures')
-    f = open(args['file_name']+'.pkl',"wb")
-    pickle.dump(list_of_archs,f)
-    f.close()
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--file_name', '-f', help='file for where to save list of architectures (without extension)')
-    parser.add_argument('--n_archs', '-n', help='number of architectures to randomly sample',type=int)
-    parser.add_argument('--input_channels', '-i', help='list of n_channels', type=int)
-    parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
-    parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
-    parser.add_argument('--n_latents', '-nl', help='number of latents',type=int)
-
-    args = vars(parser.parse_args())
-
-    main(args)
-  
 
 

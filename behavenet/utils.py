@@ -18,7 +18,9 @@ def estimate_model_footprint(model, input_size):
     allowed_modules = (
         torch.nn.Conv2d,
         torch.nn.ConvTranspose2d,
-        torch.nn.MaxPool2d
+        torch.nn.MaxPool2d,
+        torch.nn.MaxUnpool2d,
+        torch.nn.Linear
     )
 
     # assume everything is float32

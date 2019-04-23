@@ -47,8 +47,7 @@ class ConvAEEncoder(nn.Module):
             raise ValueError('Not valid model type')
             
     def forward(self, x):
-        if x.dim() == 3:
-            x = x.view(x.size(0), 1, x.size(1), x.size(2))
+        # x should be batch size x n channels x xdim x ydim
         
         pool_idx=[]
         target_output_size=[]
@@ -150,10 +149,10 @@ class AE(nn.Module):
 
     def __build_model(self):
 
-        if self.hparams.ae_conv_vs_linear=='conv':
+        if self.hparams['ae_conv_vs_linear']=='conv':
             self.encoding = ConvAEEncoder(self.hparams)
             self.decoding = ConvAEDecoder(self.hparams)
-        elif self.hparams.ae_conv_vs_linear=='linear':
+        elif self.hparams['ae_conv_vs_linear']=='linear':
             raise ValueError('linear ae not implemented yet')
     def forward(self, x):
 
