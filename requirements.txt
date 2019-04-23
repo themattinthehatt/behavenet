@@ -2,5 +2,5 @@ matplotlib==3.0.3
 numpy==1.16.2
 scipy==1.2.1
 h5py==2.9.0  
-test-tube==0.6282 
+test-tube==0.63
 ipykernel==5.1.0

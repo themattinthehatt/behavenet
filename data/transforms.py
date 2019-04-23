@@ -9,14 +9,14 @@ from skimage import transform
 
 class GetMask(object):
 
-    def __init__(self, ll_thresh,depth_thresh):
+    def __init__(self, ll_thresh, depth_thresh):
         self.ll_thresh = ll_thresh
         self.depth_thresh = depth_thresh
 
     def __call__(self, signal1, signal2):
-        # tranform the signal.
-        signal1 = signal1<self.ll_thresh  # ll < ll thresh
-        signal2 = signal2>self.depth_thresh  # depth > depth thresh
+        # tranform the signal
+        signal1 = signal1 < self.ll_thresh  # ll < ll thresh
+        signal2 = signal2 > self.depth_thresh  # depth > depth thresh
         # mask = ll < ll thresh || depth > depth thresh
         signal = ((signal1.astype('int')+signal2.astype('int'))<2).astype('int') #((signal1+signal2)<2).astype('int')
         return signal
@@ -24,12 +24,12 @@ class GetMask(object):
 
 class ClipNormalize(object):
 
-    def __init__(self,clip_val=100):
+    def __init__(self, clip_val=100):
         self.clip_val = clip_val
 
-    def __call__(self,signal):
-        signal = np.minimum(signal,self.clip_val)
-        signal = signal/self.clip_val
+    def __call__(self, signal):
+        signal = np.minimum(signal, self.clip_val)
+        signal = signal / self.clip_val
         return signal
 
 

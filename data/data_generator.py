@@ -2,10 +2,11 @@ import os
 import numpy as np
 import glob
 from collections import OrderedDict
-from skimage import io
+from skimage import io as sio
 import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
+import h5py
 
 
 def split_trials(
@@ -73,7 +74,7 @@ def get_img_filenames(img_dir='', img_ext='jpg', pattern=None):
 
 
 def imread(file, **load_func_kwargs):
-    return io._io.imread(file, **load_func_kwargs).astype(np.float32)
+    return sio._io.imread(file, **load_func_kwargs).astype(np.float32)
 
 
 class SingleSessionDataset(data.Dataset):
@@ -82,7 +83,7 @@ class SingleSessionDataset(data.Dataset):
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
             signals_list=None, transform_list=None, device='cpu',
-            as_numpy=False):
+            as_numpy=False, format='hdf5'):
         """
         Read filenames
 
@@ -94,12 +95,15 @@ class SingleSessionDataset(data.Dataset):
             session (str)
             signals_list (list of strs):
                 'neural' | 'images'
-            transform_list (list of lists): each entry corresponds to an entry
-                in `signals_list`
+            transform_list (list of transforms): each entry corresponds to an
+                entry in `signals_list`; for multiple transforms, chain
+                together using pt transforms.Compose
             device (str):
                 'cpu' | 'cuda'
             as_numpy (bool): `True` to return numpy array, `False` to return
                 pytorch tensor
+            format (str):
+                'jpg' | 'hdf5'
         """
 
         # specify data
@@ -112,6 +116,7 @@ class SingleSessionDataset(data.Dataset):
 
         self.signals_list = signals_list
         self.transform_list = transform_list
+
         self.filenames = get_img_filenames(
             img_dir=os.path.join(self.data_dir, 'face'))
         if len(self.filenames) == 0:
@@ -119,6 +124,7 @@ class SingleSessionDataset(data.Dataset):
         self.trials = np.unique(np.array(
             [int(os.path.basename(t)[3:7]) for t in self.filenames]))
 
+        self.format = format
         self.device = device
         self.as_numpy = as_numpy
 
@@ -134,14 +140,29 @@ class SingleSessionDataset(data.Dataset):
 
             # index correct trial
             if signal == 'images':
+                if self.format == 'jpg':
+                    load_pattern = os.path.join(
+                        self.data_dir, 'body', 'img%04i*.jpg' % indx)
+                    sample[signal] = sio.ImageCollection(
+                        get_img_filenames(pattern=load_pattern),
+                        conserve_memory=False,
+                        load_func=imread,
+                        as_gray=True).concatenate()[:, None, :, :]
+                elif self.format == 'hdf5':
+                    f = h5py.File(os.path.join(
+                        self.data_dir, 'images.hdf5'), 'r',
+                        libver='latest', swmr=True)
+                    sample[signal] = f['images'][
+                        str('trial_%04i' % indx)][()].astype('float32') / 255.0
+
                 # if self.lab == 'steinmetz':
-                load_pattern = os.path.join(
-                    self.data_dir, 'face', 'img%04i*.jpg' % indx)
-                sample[signal] = io.ImageCollection(
-                    get_img_filenames(pattern=load_pattern),
-                    conserve_memory=False,
-                    load_func=imread,
-                    as_gray=True).concatenate()[:, None, :, :]
+                #     load_pattern = os.path.join(
+                #         self.data_dir, 'face', 'img%04i*.jpg' % indx)
+                #     sample[signal] = io.ImageCollection(
+                #         get_img_filenames(pattern=load_pattern),
+                #         conserve_memory=False,
+                #         load_func=imread,
+                #         as_gray=True).concatenate()[:, None, :, :]
                 # elif self.lab == 'churchland':
                 #     load_pattern_face = os.path.join(
                 #         self.data_dir, 'face', 'img%04i*.jpg' % indx)
@@ -159,6 +180,7 @@ class SingleSessionDataset(data.Dataset):
                 #             load_func=imread,
                 #             as_gray=True).concatenate()[:, None, :, :]],
                 #         axis=1)
+
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
 
@@ -180,7 +202,7 @@ class ConcatSessionsGenerator(object):
 
     def __init__(
             self, data_dir, ids, signals_list, transform_list, device='cuda',
-            rng_seed=0):
+            rng_seed=0, format='jpg', num_workers=0):
         """
 
         Args:
@@ -210,8 +232,10 @@ class ConcatSessionsGenerator(object):
                         os.path.join(data_dir, lab, expt, animal))
                     for session in sessions:
                         self.datasets.append(SingleSessionDataset(
-                            data_dir, lab, expt, animal, session,
-                            signals_list, transform_list, device))
+                            data_dir, lab=lab, expt=expt, animal=animal,
+                            session=session, signals_list=signals_list,
+                            transform_list=transform_list, device=device,
+                            format=format))
                         self.datasets_info.append({
                             'lab': lab, 'expt': expt, 'animal': animal,
                             'session': session})
@@ -223,8 +247,10 @@ class ConcatSessionsGenerator(object):
                     os.path.join(data_dir, lab, expt, animal))
                 for session in sessions:
                     self.datasets.append(SingleSessionDataset(
-                        data_dir, ids['lab'], expt, animal, session,
-                        signals_list, transform_list, device))
+                        data_dir, lab=lab, expt=expt, animal=animal,
+                        session=session, signals_list=signals_list,
+                        transform_list=transform_list, device=device,
+                        format=format))
                     self.datasets_info.append({
                         'lab': lab, 'expt': expt, 'animal': animal,
                         'session': session})
@@ -234,15 +260,19 @@ class ConcatSessionsGenerator(object):
             animal = ids['animal']
             for session in ids['session']:
                 self.datasets.append(SingleSessionDataset(
-                    data_dir, ids['lab'], expt, animal, session,
-                    signals_list, transform_list, device))
+                    data_dir, lab=lab, expt=expt, animal=animal,
+                    session=session, signals_list=signals_list,
+                    transform_list=transform_list, device=device,
+                    format=format))
                 self.datasets_info.append({
                     'lab': lab, 'expt': expt, 'animal': animal,
                     'session': session})
         else:
             self.datasets.append(SingleSessionDataset(
-                data_dir, ids['lab'], ids['expt'], ids['animal'], ids['session'],
-                signals_list, transform_list, device))
+                data_dir, lab=ids['lab'], expt=ids['expt'],
+                animal=ids['animal'], session=ids['session'],
+                signals_list=signals_list, transform_list=transform_list,
+                device=device, format=format))
             self.datasets_info.append({
                 'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})
@@ -261,7 +291,7 @@ class ConcatSessionsGenerator(object):
                 self.num_batches[i][dtype] = len(self.batch_indxs[i][dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(self.batch_indxs[i][dtype])
-                if ids['lab'] == 'churchland':
+                if ids['lab'] == 'churchland' and format == 'jpg':
                     self.batch_indxs[i][dtype] = self.batch_indxs[i][dtype] + 1
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
@@ -281,7 +311,7 @@ class ConcatSessionsGenerator(object):
                     dataset,
                     batch_size=1,
                     sampler=SubsetRandomSampler(self.batch_indxs[i][dtype]),
-                    num_workers=2)
+                    num_workers=num_workers)
         
         # create all iterators (will iterate through data loaders)
         self.dataset_iters = [None] * self.num_datasets
