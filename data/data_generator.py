@@ -78,8 +78,13 @@ def imread(file, **load_func_kwargs):
     return sio._io.imread(file, **load_func_kwargs).astype(np.float32)
 
 
-class SingleSessionDataset(data.Dataset):
-    """Dataset class for a single session"""
+class SingleSessionDatasetBatchedLoad(data.Dataset):
+    """
+    Dataset class for a single session
+
+    Loads data one batch at a time; data transformations are applied to each
+    batch upon load.
+    """
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
@@ -95,7 +100,7 @@ class SingleSessionDataset(data.Dataset):
             animal (str)
             session (str)
             signals (list of strs):
-                'neural' | 'images'
+                'images'
             transforms (list of transforms): each entry corresponds to an
                 entry in `signals`; for multiple transforms, chain
                 together using pt transforms.Compose
@@ -196,8 +201,14 @@ class SingleSessionDataset(data.Dataset):
         return sample
 
 
-class SingleSessionDatasetGPU(data.Dataset):
-    """Dataset class for a single session; pins all data to GPU"""
+class SingleSessionDataset(data.Dataset):
+    """
+    Dataset class for a single session
+
+    Loads all data during Dataset creation and saves as an attribute. Batches
+    are then sampled from this stored data. All data transformations are
+    applied to the full dataset upon load, *not* for each batch.
+    """
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
@@ -270,7 +281,32 @@ class SingleSessionDatasetGPU(data.Dataset):
                 self.data[signal] = np.concatenate(temp_data, axis=0)
 
             elif signal == 'ae':
-                raise NotImplementedError
+
+                # build path to latents
+                if 'version' in load_kwargs:
+                    self.model_dir = os.path.join(
+                        self.data_dir, load_kwargs['view'], load_kwargs['dim'],
+                        load_kwargs['version'])
+                else:
+                    self.model_dir = get_best_version(os.path.join(
+                        self.data_dir, load_kwargs['view'], load_kwargs['dim']),
+                        'mse')
+                self.latents_file = os.path.join(
+                    self.model_dir, 'latents-05-fold.pkl')
+
+                # load numpy arrays via pickle
+                try:
+                    with open(self.path, 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    self.data = latents_dict['latents']
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create ae latents from model; currently not' + \
+                        ' implemented')
+
+                # self.region_type = str('ae-%s' % self.crop_type)
+                # self.region_indxs = {'ae': None}
+
             elif signal == 'arhmm':
                 raise NotImplementedError
 
@@ -300,7 +336,7 @@ class ConcatSessionsGenerator(object):
 
     def __init__(
             self, data_dir, ids, signals=None, transforms=None,
-            load_kwargs=None, device='cuda', as_numpy=False, pin_memory=False,
+            load_kwargs=None, device='cuda', as_numpy=False, batch_load=True,
             rng_seed=0):
         """
 
@@ -314,8 +350,9 @@ class ConcatSessionsGenerator(object):
                 'cpu' | 'cuda'
             as_numpy (bool): `True` to return numpy array, `False` to return
                 pytorch tensor
-            pin_memory (bool): `True` to load all data and pin to GPU,
-                otherwise data is loaded one batch at a time
+            batch_load (bool): `True` to load data in batches as model is
+                training, otherwise all data is loaded at once and stored on
+                `device`
             rng_seed (int):
         """
 
@@ -325,10 +362,8 @@ class ConcatSessionsGenerator(object):
         def get_dirs(path):
             return next(os.walk(path))[1]
 
-        if pin_memory:
-            SingleSession = SingleSessionDatasetGPU
-            device = 'cuda'
-            as_numpy = False
+        if batch_load:
+            SingleSession = SingleSessionDatasetBatchedLoad
         else:
             SingleSession = SingleSessionDataset
 
