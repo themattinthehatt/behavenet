@@ -40,9 +40,14 @@ def main(hparams):
     # ### LOAD DATA GENERATOR ###
     # ###########################
 
+    ids = {
+        'lab': hparams['lab'],
+        'expt': hparams['expt'],
+        'animal': hparams['animal'],
+        'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], hparams['ids'], signals=hparams['signals'],
-        transforms=hparams['transforms'], load_kwargs=hparams['load_kwargs'],
+        hparams['data_dir'], ids, signals=[hparams['signals']],
+        transforms=[hparams['transforms']], load_kwargs=[hparams['load_kwargs']],
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
 
@@ -72,20 +77,13 @@ def get_params(strategy):
     else:
         data_dir = ''
     parser.add_argument('--data_dir', '-d', default=data_dir, help='')
-    ids = {
-        'lab': 'musall',
-        'expt': 'vistrained',
-        'animal': 'mSM30',
-        'session': '10-Oct-2017'}
-    # parser.add_argument('--lab', '-l', default='musall', help='')
-    # parser.add_argument('--expt', '-e', default='vistrained', help='')
-    # parser.add_argument('--animal', '-a', default='mSM30', help='')
-    # parser.add_argument('--session', '-s', default='10-Oct-2017', help='')
-
-    parser.add_argument('--ids', default=ids)
-    parser.add_argument('--signals', default=['images'])
-    parser.add_argument('--transforms', default=[None])
-    parser.add_argument('--load_kwargs', default=[{}])
+    parser.add_argument('--lab', '-l', default='musall', help='')
+    parser.add_argument('--expt', '-e', default='vistrained', help='')
+    parser.add_argument('--animal', '-a', default='mSM30', help='')
+    parser.add_argument('--session', '-s', default='10-Oct-2017', help='')
+    parser.add_argument('--signals', default='images')
+    parser.add_argument('--transforms', default=None)
+    parser.add_argument('--load_kwargs', default={})
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--as_numpy', default=False)
     parser.add_argument('--batch_load', default=True)
