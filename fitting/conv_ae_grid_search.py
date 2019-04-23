@@ -104,7 +104,7 @@ def get_params(strategy):
     namespace, extra = parser.parse_known_args()
 
     # Saving arguments
-    parser.add_argument('--model_type', '-m', help='ae', type=int) # ae vs vae
+    parser.add_argument('--model_type', '-m', default='ae', type=str) # ae vs vae
 
     parser.add_argument('--tt_save_path','-t',type=str)
     parser.add_argument('--experiment_name','-m',default='conv_ae_grid_search',type=str)
