@@ -83,7 +83,7 @@ def get_params(strategy):
     parser.add_argument('--session', '-s', default='10-Oct-2017', help='')
     parser.add_argument('--signals', default='images')
     parser.add_argument('--transforms', default=None)
-    parser.add_argument('--load_kwargs', default={})
+    parser.add_argument('--load_kwargs', default=None)
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--as_numpy', default=False)
     parser.add_argument('--batch_load', default=True)
