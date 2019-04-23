@@ -3,6 +3,7 @@ import numpy as np
 import glob
 from collections import OrderedDict
 from skimage import io as sio
+from scipy.io import loadmat
 import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
@@ -82,8 +83,8 @@ class SingleSessionDataset(data.Dataset):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
-            signals_list=None, transform_list=None, device='cpu',
-            as_numpy=False, format='hdf5'):
+            signals=None, transforms=None, load_kwargs=None,
+            device='cpu', as_numpy=False):
         """
         Read filenames
 
@@ -93,17 +94,17 @@ class SingleSessionDataset(data.Dataset):
             expt (str)
             animal (str)
             session (str)
-            signals_list (list of strs):
+            signals (list of strs):
                 'neural' | 'images'
-            transform_list (list of transforms): each entry corresponds to an
-                entry in `signals_list`; for multiple transforms, chain
+            transforms (list of transforms): each entry corresponds to an
+                entry in `signals`; for multiple transforms, chain
                 together using pt transforms.Compose
+            load_kwargs (list of dicts): each entry corresponds to loading
+                parameters for an entry in `signals`
             device (str):
                 'cpu' | 'cuda'
             as_numpy (bool): `True` to return numpy array, `False` to return
                 pytorch tensor
-            format (str):
-                'jpg' | 'hdf5'
         """
 
         # specify data
@@ -114,41 +115,39 @@ class SingleSessionDataset(data.Dataset):
         self.data_dir = os.path.join(
             data_dir, self.lab, self.expt, self.animal, self.session)
 
-        self.signals_list = signals_list
-        self.transform_list = transform_list
+        self.signals = signals
+        self.transforms = transforms
+        self.load_kwargs = load_kwargs
+        self.z = zip(self.signals, self.transforms, self.load_kwargs)
 
-        self.filenames = get_img_filenames(
-            img_dir=os.path.join(self.data_dir, 'face'))
-        if len(self.filenames) == 0:
-            raise IOError('"%s" is not a valid data directory' % self.data_dir)
-        self.trials = np.unique(np.array(
-            [int(os.path.basename(t)[3:7]) for t in self.filenames]))
+        # get total number of trials by loading neural data
+        mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
+        self.num_trials = mat_contents['neural'].shape[0]
 
-        self.format = format
         self.device = device
         self.as_numpy = as_numpy
 
     def __len__(self):
-        return len(self.trials)
+        return self.num_trials
 
     def __getitem__(self, indx):
         """Load images from filenames"""
 
         sample = OrderedDict()
-        
-        for i, signal in enumerate(self.signals_list):
+        for signal, transform, load_kwargs in self.z:
 
             # index correct trial
             if signal == 'images':
-                if self.format == 'jpg':
+                if load_kwargs['format'] == 'jpg':
                     load_pattern = os.path.join(
-                        self.data_dir, 'body', 'img%04i*.jpg' % indx)
+                        self.data_dir, load_kwargs['view'],
+                        'img%04i*.jpg' % indx)
                     sample[signal] = sio.ImageCollection(
                         get_img_filenames(pattern=load_pattern),
                         conserve_memory=False,
                         load_func=imread,
                         as_gray=True).concatenate()[:, None, :, :]
-                elif self.format == 'hdf5':
+                elif load_kwargs['format'] == 'hdf5':
                     f = h5py.File(os.path.join(
                         self.data_dir, 'images.hdf5'), 'r',
                         libver='latest', swmr=True)
@@ -185,14 +184,113 @@ class SingleSessionDataset(data.Dataset):
                 raise ValueError('"%s" is an invalid signal type' % signal)
 
             # apply transforms
-            if self.transform_list[i]:
-                sample[signal] = self.transform_list[i](sample[signal])
+            if transform:
+                sample[signal] = transform(sample[signal])
                 
             # transform into tensor
             if not self.as_numpy:
                 sample[signal] = torch.from_numpy(sample[signal]).to(self.device)
-            sample['batch_indx'] = indx
 
+        sample['batch_indx'] = indx
+
+        return sample
+
+
+class SingleSessionDatasetGPU(data.Dataset):
+    """Dataset class for a single session; pins all data to GPU"""
+
+    def __init__(
+            self, data_dir, lab='', expt='', animal='', session='',
+            signals=None, transforms=None, load_kwargs=None,
+            device='cuda', as_numpy=False):
+        """
+        Read data
+
+        Args:
+            data_dir (str): root directory of data
+            lab (str)
+            expt (str)
+            animal (str)
+            session (str)
+            signals (list of strs):
+                'neural' | 'images' | 'ae' | 'arhmm'
+            transforms (list of transforms): each entry corresponds to an
+                entry in `signals`; for multiple transforms, chain
+                together using pt transforms.Compose
+            load_kwargs (list of dicts): each entry corresponds to loading
+                parameters for an entry in `signals`
+            device (str):
+                'cpu' | 'cuda'
+            as_numpy (bool): `True` to return numpy array, `False` to return
+                pytorch tensor
+        """
+
+        # specify data
+        self.lab = lab
+        self.expt = expt
+        self.animal = animal
+        self.session = session
+        self.data_dir = os.path.join(
+            data_dir, self.lab, self.expt, self.animal, self.session)
+
+        self.signals = signals
+        self.transforms = transforms
+        self.load_kwargs = load_kwargs
+
+        mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
+        self.num_trials = mat_contents['neural'].shape[0]
+
+        self.device = device
+        self.as_numpy = as_numpy
+
+        # load and process data
+        self.data = OrderedDict()
+        self.reg_indxs = None
+        z = zip(self.signals, self.transforms, self.load_kwargs)
+        for signal, transform, load_kwargs in z:
+
+            if signal == 'neural':
+
+                mat_contents = loadmat(
+                    os.path.join(self.data_dir, 'neural.mat'))
+                self.data[signal] = mat_contents['neural']
+                self.reg_indxs = mat_contents['reg_indxs_consolidate']
+
+            elif signal == 'images':
+
+                temp_data = []
+                for tr in range(self.num_trials):
+                    f = h5py.File(os.path.join(
+                        self.data_dir, 'images.hdf5'), 'r',
+                        libver='latest', swmr=True)
+                    temp_data.append(
+                        f['images'][str('trial_%04i' % tr)][()].astype(
+                        'float32')[None, :] / 255.0)
+
+                self.data[signal] = np.concatenate(temp_data, axis=0)
+
+            elif signal == 'ae':
+                raise NotImplementedError
+            elif signal == 'arhmm':
+                raise NotImplementedError
+
+            # apply transforms
+            if transform:
+                self.data[signal] = transform(self.data[signal])
+
+            # transform into tensor
+            if not self.as_numpy:
+                self.data[signal] = torch.from_numpy(self.data[signal]).to(
+                    self.device)
+
+    def __len__(self):
+        return self.num_trials
+
+    def __getitem__(self, indx):
+        sample = OrderedDict()
+        for signal in self.signals:
+            sample[signal] = self.data[signal][indx]
+        sample['batch_indx'] = indx
         return sample
 
 
@@ -201,17 +299,24 @@ class ConcatSessionsGenerator(object):
     _dtypes = {'train', 'val', 'test'}
 
     def __init__(
-            self, data_dir, ids, signals_list, transform_list, device='cuda',
-            rng_seed=0, format='jpg', num_workers=0):
+            self, data_dir, ids, signals=None, transforms=None,
+            load_kwargs=None, device='cuda', as_numpy=False, pin_memory=False,
+            rng_seed=0):
         """
 
         Args:
             data_dir:
             ids:
-            signals_list:
-            transform_list:
-            device:
-            rng_seed:
+            signals (list):
+            transforms (list):
+            load_kwargs (list):
+            device (str): location of model
+                'cpu' | 'cuda'
+            as_numpy (bool): `True` to return numpy array, `False` to return
+                pytorch tensor
+            pin_memory (bool): `True` to load all data and pin to GPU,
+                otherwise data is loaded one batch at a time
+            rng_seed (int):
         """
 
         self.ids = ids
@@ -219,6 +324,13 @@ class ConcatSessionsGenerator(object):
         # gather all datasets
         def get_dirs(path):
             return next(os.walk(path))[1]
+
+        if pin_memory:
+            SingleSession = SingleSessionDatasetGPU
+            device = 'cuda'
+            as_numpy = False
+        else:
+            SingleSession = SingleSessionDataset
 
         self.datasets = []
         self.datasets_info = []
@@ -231,11 +343,11 @@ class ConcatSessionsGenerator(object):
                     sessions = get_dirs(
                         os.path.join(data_dir, lab, expt, animal))
                     for session in sessions:
-                        self.datasets.append(SingleSessionDataset(
+                        self.datasets.append(SingleSession(
                             data_dir, lab=lab, expt=expt, animal=animal,
-                            session=session, signals_list=signals_list,
-                            transform_list=transform_list, device=device,
-                            format=format))
+                            session=session, signals=signals,
+                            transforms=transforms, load_kwargs=load_kwargs,
+                            device=device, as_numpy=as_numpy))
                         self.datasets_info.append({
                             'lab': lab, 'expt': expt, 'animal': animal,
                             'session': session})
@@ -246,11 +358,11 @@ class ConcatSessionsGenerator(object):
                 sessions = get_dirs(
                     os.path.join(data_dir, lab, expt, animal))
                 for session in sessions:
-                    self.datasets.append(SingleSessionDataset(
+                    self.datasets.append(SingleSession(
                         data_dir, lab=lab, expt=expt, animal=animal,
-                        session=session, signals_list=signals_list,
-                        transform_list=transform_list, device=device,
-                        format=format))
+                        session=session, signals=signals,
+                        transforms=transforms, load_kwargs=load_kwargs,
+                        device=device, as_numpy=as_numpy))
                     self.datasets_info.append({
                         'lab': lab, 'expt': expt, 'animal': animal,
                         'session': session})
@@ -259,20 +371,20 @@ class ConcatSessionsGenerator(object):
             expt = ids['expt']
             animal = ids['animal']
             for session in ids['session']:
-                self.datasets.append(SingleSessionDataset(
+                self.datasets.append(SingleSession(
                     data_dir, lab=lab, expt=expt, animal=animal,
-                    session=session, signals_list=signals_list,
-                    transform_list=transform_list, device=device,
-                    format=format))
+                    session=session, signals=signals,
+                    transforms=transforms, load_kwargs=load_kwargs,
+                    device=device, as_numpy=as_numpy))
                 self.datasets_info.append({
                     'lab': lab, 'expt': expt, 'animal': animal,
                     'session': session})
         else:
-            self.datasets.append(SingleSessionDataset(
+            self.datasets.append(SingleSession(
                 data_dir, lab=ids['lab'], expt=ids['expt'],
                 animal=ids['animal'], session=ids['session'],
-                signals_list=signals_list, transform_list=transform_list,
-                device=device, format=format))
+                signals=signals, transforms=transforms,
+                load_kwargs=load_kwargs, device=device, as_numpy=as_numpy))
             self.datasets_info.append({
                 'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})
@@ -291,7 +403,7 @@ class ConcatSessionsGenerator(object):
                 self.num_batches[i][dtype] = len(self.batch_indxs[i][dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(self.batch_indxs[i][dtype])
-                if ids['lab'] == 'churchland' and format == 'jpg':
+                if ids['lab'] == 'musall' and format == 'jpg':
                     self.batch_indxs[i][dtype] = self.batch_indxs[i][dtype] + 1
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
@@ -311,7 +423,7 @@ class ConcatSessionsGenerator(object):
                     dataset,
                     batch_size=1,
                     sampler=SubsetRandomSampler(self.batch_indxs[i][dtype]),
-                    num_workers=num_workers)
+                    num_workers=0)
         
         # create all iterators (will iterate through data loaders)
         self.dataset_iters = [None] * self.num_datasets

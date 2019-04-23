@@ -54,22 +54,19 @@ class Resize(object):
             order (int): interpolation order
         """
         assert isinstance(size, (tuple, int))
-        self.size = size
         self.order = order
+        if isinstance(size, tuple):
+            self.x = size[0]
+            self.y = size[1]
+        else:
+            self.x = self.y = size
 
     def __call__(self, sample):
         """Assumes image stack is of form (batch, channels, height, width)"""
+
         sh = sample.shape
 
-        if isinstance(self.size, tuple):
-            sample = transform.resize(
-                sample,
-                (sh[0], sh[1], self.size[0], self.size[1]),
-                order=self.order)
-        else:
-            sample = transform.resize(
-                sample,
-                (sh[0], sh[1], self.size, self.size),
-                order=self.order)
+        sample = transform.resize(
+            sample, (sh[0], sh[1], self.x, self.y), order=self.order)
 
         return sample

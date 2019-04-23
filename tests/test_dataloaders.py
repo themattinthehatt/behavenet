@@ -20,11 +20,17 @@ else:
 
 # build data generator
 # data_generator = ConcatSessionsGenerator(
-#     data_dir, ids, ['images'], [Resize(size=(128, 128), order=1)],
-#     format='hdf5', device='cpu')
+#     data_dir, ids,
+#     signals=['images'], transforms=[Resize(size=(128, 128), order=1)],
+#     load_kwargs=[{'format': 'hdf5'}], device='cpu', pin_memory=False)
+# data_generator = ConcatSessionsGenerator(
+#     data_dir, ids,
+#     signals=['images'], transforms=[None], load_kwargs=[{'format': 'hdf5'}],
+#     device='cpu', pin_memory=False)
 data_generator = ConcatSessionsGenerator(
-    data_dir, ids, ['images'], [None],
-    format='hdf5', device='cpu')
+    data_dir, ids,
+    signals=['neural'], transforms=[None], load_kwargs=[{}],
+    device='cpu', pin_memory=True)
 
 # iterate through all datasets
 for epoch in range(1):
@@ -33,7 +39,6 @@ for epoch in range(1):
     for batch in range(data_generator.num_tot_batches['train']):
         # get next minibatch
         data, dataset = data_generator.next_batch('train')
-        # data['images'], data['batch_indx']
         trial = data['batch_indx']
 
         print('Dataset: {}, Trial: {}'.format(dataset, trial))
