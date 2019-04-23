@@ -1,6 +1,6 @@
 .DS_Store
 build/
-datta.egg-info
+behavenet.egg-info
 *~
 *.so
 .ipynb_checkpoints

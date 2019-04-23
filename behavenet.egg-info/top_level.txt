@@ -1,4 +1,0 @@
-analyses
-behavenet
-data
-tests
