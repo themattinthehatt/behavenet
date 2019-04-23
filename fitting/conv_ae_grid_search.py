@@ -15,6 +15,9 @@ def main(hparams):
     hparams = {**hparams,**hparams['architecture_params']}
 
     # delete 'architecture_params' key
+    list_of_archs = pickle.load(open(hparams['arch_file_name'],'rb'))
+    hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
+
     hparams.pop('architecture_params', None)
     print(hparams)
 
@@ -78,6 +81,7 @@ def get_params(strategy):
     # parser.add_argument('--expt', '-e', default='vistrained', help='')
     # parser.add_argument('--animal', '-a', default='mSM30', help='')
     # parser.add_argument('--session', '-s', default='10-Oct-2017', help='')
+
     parser.add_argument('--ids', default=ids)
     parser.add_argument('--signals', default=['images'])
     parser.add_argument('--transforms', default=[None])
@@ -97,7 +101,7 @@ def get_params(strategy):
     parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
     parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
-
+    parser.add_argument('--batch_size', '-b', help='batch_size', type=int)
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
 
     namespace, extra = parser.parse_known_args()
@@ -105,15 +109,37 @@ def get_params(strategy):
     # Saving arguments
     parser.add_argument('--tt_save_path','-t',type=str)
     parser.add_argument('--experiment_name','-m',default='conv_ae_grid_search',type=str)
-    parser.add_argument('--gpus_viz', default='1', type=str)
+    parser.add_argument('--gpus_viz', default='0;1', type=str)
+    
+    # Load in file of architectures
 
+    if os.path.isfile(namespace.arch_file_name):
+        print('Using presaved list of architectures')
+        list_of_archs = pickle.load(open(namespace.arch_file_name,'rb'))
+        
+    else:
+        print('Creating new list of architectures and saving')
+        list_of_archs = draw_archs(batch_size=namespace.batch_size,input_dim=[namespace.input_channels,namespace.x_pixels,namespace.y_pixels], n_latents=namespace.n_latents, n_archs=namespace.n_archs, check_memory=False)
+        f = open(namespace.arch_file_name,"wb")
+        pickle.dump(list_of_archs,f)
+        f.close()
+
+    parser.opt_list('--architecture_params', options=list_of_archs,tunable=True)
+    return parser.parse_args()
 
 if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 
-    hyperparams.optimize_parallel_gpu_cuda(
-            main,
-            gpu_ids=hyperparams.gpus_viz.split(';'),
-            nb_trials=500,
-            nb_workers=100
-        )
+    if hyperparams.device=='cuda':
+        hyperparams.optimize_parallel_gpu(
+                main,
+                gpu_ids=hyperparams.gpus_viz.split(';'),
+                nb_trials=500,
+                nb_workers=100
+            )
+    elif hyperparams.device=='cpu':
+        hyperparams.optimize_parallel_cpu(
+                main,
+                nb_trials=500,
+                nb_workers=10
+            )
