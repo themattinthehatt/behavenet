@@ -24,7 +24,7 @@ def main(hparams):
     # Set numpy random seed so it's not the same every call
     np.random.seed(random.randint(0,1000))
     # Start at random times (so test tube creates separate folders)
-    time.sleep(np.random.randint(200))
+    time.sleep(np.random.randint(10))
 
     # #########################
     # ### Create Experiment ###
@@ -51,7 +51,7 @@ def main(hparams):
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
 
-
+    print('Data generator loaded')
     # ####################
     # ### CREATE MODEL ###
     # ####################
@@ -59,12 +59,12 @@ def main(hparams):
     model = AE(hparams)
     model.to(hparams['device'])
 
+    print('Model loaded')
     # ####################
     # ### TRAIN MODEL ###
     # ####################
 
     # fit(hparams,model,data_generator)
-
 
 def get_params(strategy):
     parser = HyperOptArgumentParser(strategy)
@@ -101,10 +101,11 @@ def get_params(strategy):
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
     parser.add_argument('--batch_size', '-b', help='batch_size', type=int)
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
-
     namespace, extra = parser.parse_known_args()
 
     # Saving arguments
+    parser.add_argument('--model_type', '-m', help='ae', type=int) # ae vs vae
+
     parser.add_argument('--tt_save_path','-t',type=str)
     parser.add_argument('--experiment_name','-m',default='conv_ae_grid_search',type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
