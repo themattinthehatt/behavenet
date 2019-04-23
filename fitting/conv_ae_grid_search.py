@@ -38,10 +38,10 @@ def main(hparams):
     # ###########################
 
     data_generator = ConcatSessionsGenerator(
-        hparams.data_dir, hparams.ids, signals=hparams.signals,
-        transforms=hparams.transforms, load_kwargs=hparams.load_kwargs,
-        device=hparams.device, as_numpy=hparams.as_numpy,
-        batch_load=hparams.batch_load, rng_seed=hparams.rng_seed)
+        hparams['data_dir'], hparams['ids'], signals=hparams['signals'],
+        transforms=hparams['transforms'], load_kwargs=hparams['load_kwargs'],
+        device=hparams['device'], as_numpy=hparams['as_numpy'],
+        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
 
 
     # ####################
@@ -49,7 +49,7 @@ def main(hparams):
     # ####################
 
     model = AE(hparams)
-    # model.to(hparams.device)
+    model.to(hparams['device'])
 
     # ####################
     # ### TRAIN MODEL ###
@@ -105,28 +105,15 @@ def get_params(strategy):
     # Saving arguments
     parser.add_argument('--tt_save_path','-t',type=str)
     parser.add_argument('--experiment_name','-m',default='conv_ae_grid_search',type=str)
-
-    parser.add_argument('--model_type', default='ae', type=str)
-
-    # Load in file of architectures
-    #list_of_archs = pickle.load(open(namespace.arch_file_name,'rb'))
-    
-    if os.path.isfile(namespace.arch_file_name):
-        print('Using presaved list of architectures')
-        list_of_archs = pickle.load(open(namespace.arch_file_name,'rb'))
-        
-    else:
-        print('Creating new list of architectures and saving')
-        list_of_archs = draw_archs(batch_size=namespace.batch_size,input_dim=[namespace.input_channels,namespace.x_pixels,namespace.y_pixels], n_latents=namespace.n_latents, n_archs=namespace.n_archs, check_memory=False)
-        f = open(namespace.arch_file_name,"wb")
-        pickle.dump(list_of_archs,f)
-        f.close()
-
-    parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
-    return parser.parse_args()
+    parser.add_argument('--gpus_viz', default='1', type=str)
 
 
 if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 
-    hyperparams.optimize_parallel_cpu(main, nb_trials=10)
+    hyperparams.optimize_parallel_gpu_cuda(
+            main,
+            gpu_ids=hyperparams.gpus_viz.split(';'),
+            nb_trials=500,
+            nb_workers=100
+        )
