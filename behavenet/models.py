@@ -1,5 +1,4 @@
 import torch
-import datta.core as core
 from torch import nn, optim
 import pandas as pd
 import torch.nn.functional as F
@@ -48,7 +47,7 @@ class ConvAEEncoder(nn.Module):
             
     def forward(self, x):
         # x should be batch size x n channels x xdim x ydim
-        
+
         pool_idx=[]
         target_output_size=[]
         for layer in self.encoder:
