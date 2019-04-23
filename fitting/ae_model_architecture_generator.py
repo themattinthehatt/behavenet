@@ -2,20 +2,21 @@ import os
 import argparse
 import numpy as np
 import pickle
-import sys
-sys.path.insert(0,'../behavenet/')
-from models import AE
-from utils import estimate_model_footprint
+from behavenet.models import AE
+from behavenet.utils import estimate_model_footprint
 import copy
+
 
 def calculate_conv2d_maxpool2d_output_dim(input_dim,kernel,stride,padding):
     output_dim = (input_dim+2*padding-kernel)/stride + 1
     return int(np.floor(output_dim))
 
+
 def calculate_convtranspose2d_output_dim(input_dim,kernel,stride,padding,target_output_dim):
     output_dim = (input_dim-1)*stride-2*padding+kernel
     output_padding = target_output_dim-output_dim
     return int(output_dim+output_padding), output_padding
+
 
 def get_encoding_conv_block(input_dim, n_latents):
     # input dims should be n channels by x pix by y pix

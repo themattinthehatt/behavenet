@@ -12,5 +12,5 @@ setup(name='behavenet',
       install_requires=['numpy', 'scipy', 'matplotlib'],
       packages=['analyses', 'data', 'behavenet', 'tests'],
       # ext_modules=cythonize('**/*.pyx'),
-      #include_dirs=[np.get_include(),],
+      # include_dirs=[np.get_include(),],
       )
