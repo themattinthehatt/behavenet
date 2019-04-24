@@ -23,10 +23,9 @@ def get_encoding_conv_block(input_dim, n_latents):
     
     # Set possible params
     possible_kernel_sizes = np.asarray([3,5,7,9,11,15])
-    possible_strides = np.asarray([1,2])
-    possible_max_pool_sizes = np.asarray([1,3,5])
-    # possible_n_channels = np.asarray([16,32,64,128,256,512, 1024])
-    possible_n_channels = np.asarray([16, 32, 64])
+    possible_strides = np.asarray([2]) # stride will be 1 if using max pooling layers
+    possible_max_pool_sizes = np.asarray([2])
+    possible_n_channels = np.asarray([16,32,64,128,256,512])
     prob_stopping = np.arange(0,1,.05)
     
     
@@ -80,10 +79,11 @@ def get_encoding_conv_block(input_dim, n_latents):
             remaining_channels=possible_n_channels[possible_n_channels>=encoding_block['ae_encoding_n_channels'][i_layer-1]]
         
         if len(remaining_channels)>1:
-            prob_channels = [.5]+[.5/(len(remaining_channels)-1) for i in range(len(remaining_channels)-1)] 
+            prob_channels = [.75]+[.25/(len(remaining_channels)-1) for i in range(len(remaining_channels)-1)] 
         else:
             prob_channels = [1]
-            
+
+
         n_channels = np.random.choice(remaining_channels,p=prob_channels)
 
 
