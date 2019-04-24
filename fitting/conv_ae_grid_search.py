@@ -22,8 +22,6 @@ def main(hparams):
     hparams.pop('architecture_params', None)
     print(hparams)
 
-    # Set numpy random seed so it's not the same every call
-    np.random.seed(random.randint(0,1000))
     # Start at random times (so test tube creates separate folders)
     time.sleep(np.random.randint(10))
 
@@ -123,6 +121,9 @@ def get_params(strategy):
     parser.add_argument('--tt_save_path','-t',type=str)
     parser.add_argument('--experiment_name','-en',default='conv_ae_grid_search',type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
+
+    # Set numpy random seed so it's not the same every call
+    np.random.seed(random.randint(0, 1000))
     
     # Load in file of architectures
 
