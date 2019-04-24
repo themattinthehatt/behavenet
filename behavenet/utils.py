@@ -43,19 +43,33 @@ def estimate_model_footprint(model, input_size):
         model_bytes += np.prod(np.array(size)) * bytes
 
     # estimate intermediate size
-    input_ = Variable(torch.FloatTensor(*input_size))
+    # input_ = Variable(torch.FloatTensor(*input_size))
+    # out_sizes = []
+    # for mod in mods:
+    #     if isinstance(mod, allowed_modules):
+    #         out = mod(input_)
+    #         if isinstance(out, tuple):
+    #             out_sizes.append(np.array(out[0].size()))
+    #         else:
+    #             out_sizes.append(np.array(out.size()))
+    #         input_ = out
+    #     else:
+    #         print(mod)
+    x = Variable(torch.FloatTensor(*input_size))
     out_sizes = []
-    for mod in mods:
-        if isinstance(mod, allowed_modules):
-            out = mod(input_)
-            out_sizes.append(np.array(out.size()))
-            input_ = out
+    for layer in model.encoding.encoder:
+        if isinstance(layer, torch.nn.MaxPool2d):
+            x, idx = layer(x)
+        else:
+            x = layer(x)
+        out_sizes.append(x.size())
 
     int_bytes = 0
     for out_size in out_sizes:
-        int_bytes += np.prod(np.array(out_size)) * bytes
+        # multiply by 2 - assume decoder is symmetric
+        int_bytes += np.prod(np.array(out_size)) * bytes * 2
 
     # multiply by 2 - we need to store values AND gradients
     int_bytes *= 2
 
-    return input_bytes + model_bytes + int_bytes
+    return (input_bytes + model_bytes + int_bytes) * 1.2  # safety blanket

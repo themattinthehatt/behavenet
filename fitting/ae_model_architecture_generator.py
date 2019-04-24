@@ -219,22 +219,29 @@ def get_possible_arch(input_dim,n_latents):
     arch_params = {**encoding_block,**decoding_block}
     return arch_params
 
+
 def draw_archs(batch_size, input_dim,n_latents,n_archs=100,check_memory=True):
     all_archs=[]
 
     while len(all_archs)<n_archs:
-        new_arch = get_possible_arch(input_dim,n_latents)
 
+        new_arch = get_possible_arch(input_dim, n_latents)
 
-        # Check max memory, should keep if smaller than 10 GB, print if rejecting
+        # Check max memory, keep if smaller than 10 GB, print if rejecting
         if check_memory:
-            raise NotImplementedError
-             # copied_arch = copy.deepcopy(new_arch)
-             # copied_arch['model_type'] = 'ae'
-             # model = AE(copied_arch)
-             # mem_size = estimate_model_footprint(model, [batch_size] + input_dim)
-             # print('a')
-             # ver
+            mem_limit_gb = 5.0
+            copied_arch = copy.deepcopy(new_arch)
+            copied_arch['model_type'] = 'ae'
+            model = AE(copied_arch)
+            mem_size = estimate_model_footprint(
+                model, tuple([batch_size] + input_dim))
+            mem_size_gb = mem_size / 1000000000
+            if mem_size_gb > mem_limit_gb:  # GB
+                print(
+                    'Model size of %02.3f GB is larger than limit of %1.3f GB;'
+                    ' skipping model' % (mem_size_gb, mem_limit_gb))
+                continue
+            new_arch['mem_size_gb'] = mem_size_gb
 
         # Check against all previous arches
         matching=0
@@ -247,7 +254,3 @@ def draw_archs(batch_size, input_dim,n_latents,n_archs=100,check_memory=True):
             all_archs.append(new_arch)
 
     return all_archs
-
-
-
-

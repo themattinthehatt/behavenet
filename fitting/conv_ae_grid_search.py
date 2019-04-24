@@ -2,21 +2,24 @@ import os
 import time
 import numpy as np
 import pickle
-import torch
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
+from behavenet.training import fit
 from fitting.ae_model_architecture_generator import draw_archs
 from data.data_generator import ConcatSessionsGenerator
 import random
 
+
 def main(hparams):
+
+    # TODO: log files
 
     hparams = vars(hparams)
     # Blend outer hparams with architecture hparams
-    hparams = {**hparams,**hparams['architecture_params']}
+    hparams = {**hparams, **hparams['architecture_params']}
 
     # delete 'architecture_params' key
-    list_of_archs = pickle.load(open(hparams['arch_file_name'],'rb'))
+    list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
     hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
 
     hparams.pop('architecture_params', None)
@@ -63,19 +66,19 @@ def main(hparams):
     # ### TRAIN MODEL ###
     # ####################
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    # t = time.time()
+    # optimizer = torch.optim.Adam(model.parameters(), lr=hparams['learning_rate'])
+    # for i in range(20):
+    #     optimizer.zero_grad()
+    #     batch, dataset = data_generator.next_batch('train')
+    #     y, x = model(batch['images'][0])
+    #     loss = torch.mean((y-batch['images'][0])**2)
+    #     loss.backward()
+    #     optimizer.step()
+    # print('Epoch processed!')
+    # print('Time elapsed: {}'.format(time.time() - t))
 
-    t = time.time()
-    for i in range(20):
-        optimizer.zero_grad()
-        batch, dataset = data_generator.next_batch('train')
-        y,x = model(batch['images'][0])
-        loss = torch.mean((y-batch['images'][0])**2)
-        loss.backward()
-        optimizer.step()
-    print('Epoch processed!')
-    print('Time elapsed: {}'.format(time.time() - t))
-    # fit(hparams,model,data_generator)
+    fit(hparams, model, data_generator, exp, method='ae')
 
 
 def get_params(strategy):
@@ -88,39 +91,45 @@ def get_params(strategy):
         data_dir = '/labs/abbott/behavenet/data/'
     else:
         data_dir = ''
-    parser.add_argument('--data_dir', '-d', default=data_dir, help='')
-    parser.add_argument('--lab', '-l', default='musall', help='')
-    parser.add_argument('--expt', '-e', default='vistrained', help='')
-    parser.add_argument('--animal', '-a', default='mSM30', help='')
-    parser.add_argument('--session', '-s', default='10-Oct-2017', help='')
-    parser.add_argument('--signals', default='images')
+    parser.add_argument('--data_dir', '-d', default=data_dir, type=str)
+    parser.add_argument('--lab', '-l', default='musall', type=str)
+    parser.add_argument('--expt', '-e', default='vistrained', type=str)
+    parser.add_argument('--animal', '-a', default='mSM30', type=str)
+    parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+    parser.add_argument('--signals', default='images', type=str)
     parser.add_argument('--transforms', default=None)
-    parser.add_argument('--load_kwargs', default=None)
-    parser.add_argument('--device', default='cuda')
-    parser.add_argument('--as_numpy', default=False)
-    parser.add_argument('--batch_load', default=True)
-    parser.add_argument('--rng_seed', default=0)
-
+    parser.add_argument('--load_kwargs', default=None)  # dict...:(
+    parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument('--as_numpy', default=False, type=bool)
+    parser.add_argument('--batch_load', default=True, type=bool)
+    parser.add_argument('--rng_seed', default=0, type=int)
 
     # add training arguments
+    parser.add_argument('--learning_rate', default=1e-3, type=float)
+    parser.add_argument('--val_check_interval', default=1)
+    parser.add_argument('--enable_early_stop', default=False, type=bool)
+    parser.add_argument('--early_stop_fraction', default=None, type=float)
+    parser.add_argument('--early_stop_patience', default=None, type=float)
+    parser.add_argument('--max_nb_epochs', default=5, type=int)
+    parser.add_argument('--export_latents', default=False, type=bool)
 
-    # parser.add_argument('--arch_file_name', type=str)
-    parser.add_argument('--file_name', '-f', help='file for where to save list of architectures (without extension)')
-    parser.add_argument('--n_archs', '-n', help='number of architectures to randomly sample',type=int)
+    # add architecture arguments
+    parser.add_argument('--file_name', '-f', help='file for where to save list of architectures (without extension)', type=str)
+    parser.add_argument('--n_archs', '-n', help='number of architectures to randomly sample', type=int)
     parser.add_argument('--input_channels', '-i', help='list of n_channels', type=int)
     parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
     parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
     parser.add_argument('--batch_size', '-b', help='batch_size', type=int)
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
-    namespace, extra = parser.parse_known_args()
 
-    # Saving arguments
+    # add saving arguments
     parser.add_argument('--model_type', '-m', default='ae', type=str) # ae vs vae
-
-    parser.add_argument('--tt_save_path','-t',type=str)
-    parser.add_argument('--experiment_name','-en',default='conv_ae_grid_search',type=str)
+    parser.add_argument('--tt_save_path', '-t', type=str)
+    parser.add_argument('--experiment_name', '-en', default='conv_ae_grid_search', type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
+
+    namespace, extra = parser.parse_known_args()
 
     # Set numpy random seed so it's not the same every call
     np.random.seed(random.randint(0, 1000))
@@ -133,13 +142,19 @@ def get_params(strategy):
         
     else:
         print('Creating new list of architectures and saving')
-        list_of_archs = draw_archs(batch_size=namespace.batch_size,input_dim=[namespace.input_channels,namespace.x_pixels,namespace.y_pixels], n_latents=namespace.n_latents, n_archs=namespace.n_archs, check_memory=False)
-        f = open(namespace.arch_file_name,"wb")
-        pickle.dump(list_of_archs,f)
+        list_of_archs = draw_archs(
+            batch_size=namespace.batch_size,
+            input_dim=[namespace.input_channels, namespace.x_pixels, namespace.y_pixels],
+            n_latents=namespace.n_latents,
+            n_archs=namespace.n_archs,
+            check_memory=True)
+        f = open(namespace.arch_file_name, "wb")
+        pickle.dump(list_of_archs, f)
         f.close()
 
-    parser.opt_list('--architecture_params', options=list_of_archs,tunable=True)
+    parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     hyperparams = get_params('grid_search')
@@ -149,11 +164,9 @@ if __name__ == '__main__':
                 main,
                 gpu_ids=hyperparams.gpus_viz.split(';'),
                 nb_trials=1,
-                nb_workers=1
-            )
+                nb_workers=1)
     elif hyperparams.device=='cpu':
         hyperparams.optimize_parallel_cpu(
                 main,
                 nb_trials=500,
-                nb_workers=10
-            )
+                nb_workers=10)

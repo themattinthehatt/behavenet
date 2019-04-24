@@ -129,6 +129,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         # TODO: load images if neural data is not present?
         mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
         self.num_trials = mat_contents['neural'].shape[0]
+        self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
         self.as_numpy = as_numpy
