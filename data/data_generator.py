@@ -123,7 +123,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.signals = signals
         self.transforms = transforms
         self.load_kwargs = load_kwargs
-        self.z = zip(self.signals, self.transforms, self.load_kwargs)
+        # self.z =
 
         # get total number of trials by loading neural data
         # TODO: load images if neural data is not present?
@@ -140,7 +140,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         """Load images from filenames"""
 
         sample = OrderedDict()
-        for signal, transform, load_kwargs in self.z:
+        for signal, transform, load_kwargs in zip(
+                self.signals, self.transforms, self.load_kwargs):
 
             # index correct trial
             if signal == 'images':
@@ -159,6 +160,9 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         libver='latest', swmr=True)
                     sample[signal] = f['images'][
                         str('trial_%04i' % indx)][()].astype('float32') / 255.0
+                else:
+                    raise ValueError(
+                        '"%s" is not a valid format' % load_kwargs['foramt'])
 
                 # if self.lab == 'steinmetz':
                 #     load_pattern = os.path.join(

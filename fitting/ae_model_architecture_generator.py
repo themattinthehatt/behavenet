@@ -25,7 +25,8 @@ def get_encoding_conv_block(input_dim, n_latents):
     possible_kernel_sizes = np.asarray([3,5,7,9,11,15])
     possible_strides = np.asarray([1,2])
     possible_max_pool_sizes = np.asarray([1,3,5])
-    possible_n_channels = np.asarray([16,32,64,128,256,512, 1024]) 
+    # possible_n_channels = np.asarray([16,32,64,128,256,512, 1024])
+    possible_n_channels = np.asarray([16, 32, 64])
     prob_stopping = np.arange(0,1,.05)
     
     

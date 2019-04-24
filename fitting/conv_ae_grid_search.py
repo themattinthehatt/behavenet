@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 import pickle
+import torch
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
 from fitting.ae_model_architecture_generator import draw_archs
@@ -47,7 +48,7 @@ def main(hparams):
         'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], ids, signals=[hparams['signals']],
-        transforms=[hparams['transforms']], load_kwargs=[hparams['load_kwargs']],
+        transforms=[hparams['transforms']], load_kwargs=[{'format': 'hdf5'}],
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
 
@@ -64,7 +65,20 @@ def main(hparams):
     # ### TRAIN MODEL ###
     # ####################
 
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+
+    t = time.time()
+    for i in range(20):
+        optimizer.zero_grad()
+        batch, dataset = data_generator.next_batch('train')
+        y,x = model(batch['images'][0])
+        loss = torch.mean((y-batch['images'][0])**2)
+        loss.backward()
+        optimizer.step()
+    print('Epoch processed!')
+    print('Time elapsed: {}'.format(time.time() - t))
     # fit(hparams,model,data_generator)
+
 
 def get_params(strategy):
     parser = HyperOptArgumentParser(strategy)
@@ -107,7 +121,7 @@ def get_params(strategy):
     parser.add_argument('--model_type', '-m', default='ae', type=str) # ae vs vae
 
     parser.add_argument('--tt_save_path','-t',type=str)
-    parser.add_argument('--experiment_name','-m',default='conv_ae_grid_search',type=str)
+    parser.add_argument('--experiment_name','-en',default='conv_ae_grid_search',type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
     
     # Load in file of architectures
@@ -133,8 +147,8 @@ if __name__ == '__main__':
         hyperparams.optimize_parallel_gpu(
                 main,
                 gpu_ids=hyperparams.gpus_viz.split(';'),
-                nb_trials=500,
-                nb_workers=100
+                nb_trials=1,
+                nb_workers=1
             )
     elif hyperparams.device=='cpu':
         hyperparams.optimize_parallel_cpu(

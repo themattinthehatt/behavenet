@@ -155,8 +155,8 @@ class AE(nn.Module):
             raise ValueError('linear ae not implemented yet')
     def forward(self, x):
 
-        x  = self.encoding(x)
-        y = self.decoding(x)
+        x, pool_idx, outsize = self.encoding(x)
+        y = self.decoding(x, pool_idx, outsize)
         
         return y, x
         
