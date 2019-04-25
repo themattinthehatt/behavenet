@@ -220,7 +220,10 @@ def get_possible_arch(input_dim,n_latents):
     return arch_params
 
 
-def draw_archs(batch_size, input_dim,n_latents,n_archs=100,check_memory=True):
+def draw_archs(
+        batch_size, input_dim, n_latents, n_archs=100, check_memory=True,
+        mem_limit_gb=5.0):
+
     all_archs=[]
 
     while len(all_archs)<n_archs:
@@ -229,13 +232,12 @@ def draw_archs(batch_size, input_dim,n_latents,n_archs=100,check_memory=True):
 
         # Check max memory, keep if smaller than 10 GB, print if rejecting
         if check_memory:
-            mem_limit_gb = 5.0
             copied_arch = copy.deepcopy(new_arch)
             copied_arch['model_type'] = 'ae'
             model = AE(copied_arch)
             mem_size = estimate_model_footprint(
                 model, tuple([batch_size] + input_dim))
-            mem_size_gb = mem_size / 1000000000
+            mem_size_gb = mem_size / 1e9
             print(mem_size_gb)
             if mem_size_gb > mem_limit_gb:  # GB
                 print(

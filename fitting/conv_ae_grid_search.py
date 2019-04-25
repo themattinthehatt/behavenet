@@ -122,6 +122,7 @@ def get_params(strategy):
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
     parser.add_argument('--batch_size', '-b', default=200, help='batch_size', type=int)
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
+    parser.add_argument('--mem_limit_gb', default=5.0, type=float)
 
     # add saving arguments
     parser.add_argument('--model_type', '-m', default='ae', type=str) # ae vs vae
@@ -148,7 +149,7 @@ def get_params(strategy):
             n_latents=namespace.n_latents,
             n_archs=namespace.n_archs,
             check_memory=True,
-            mem_limit_gb)
+            mem_limit_gb=namespace.mem_limit_gb)
         f = open(namespace.arch_file_name, "wb")
         pickle.dump(list_of_archs, f)
         f.close()
