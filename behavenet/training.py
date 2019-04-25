@@ -85,15 +85,34 @@ class AELoss(FitMethod):
 
         y = data['images'][0]
 
-        y_mu, _ = self.model(y)
+        chunk_size = 200
+        batch_size = y.shape[0]
 
-        # define loss
-        loss = torch.mean((y - y_mu)**2)
-        # compute gradients
-        loss.backward()
+        if batch_size > chunk_size:
+            # split into chunks
+            num_chunks = np.ceil(batch_size / chunk_size)
+            loss_val = 0
+            for chunk in range(num_chunks):
+                indx_beg = chunk * chunk_size
+                indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                y_mu, _ = self.model(y[indx_beg:indx_end])
+                loss = torch.mean((y - y_mu) ** 2)
+                # compute gradients
+                loss.backward()
+                # get loss value (weighted by batch size)
+                loss_val += loss.item() * (indx_end - indx_beg)
+            loss_val /= y.shape[0]
+        else:
+            y_mu, _ = self.model(y)
+            # define loss
+            loss = torch.mean((y - y_mu)**2)
+            # compute gradients
+            loss.backward()
+            # get loss value
+            loss_val = loss.item()
 
-        # store current metrics (normalize by trial size)
-        self.metrics['curr']['loss'] = loss.item() / y.shape[0]
+        # store current metrics
+        self.metrics['curr']['loss'] = loss_val
         self.metrics['curr']['batches'] = 1
 
     def create_metric_row(
@@ -296,7 +315,7 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
                     filepath = os.path.join(
                         hparams['tt_save_path'], 'test_tube_data',
                         hparams['experiment_name'],
-                        'version_' + str(exp.version),
+                        'version_%i' % exp.version,
                         'best_val_model.pt')
                     torch.save(model.state_dict(), filepath)
                     model.hparams = None
@@ -351,7 +370,7 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
     # save out best model
     filepath = os.path.join(
         hparams['tt_save_path'], 'test_tube_data', hparams['experiment_name'],
-        'version_' + str(exp.version), 'last_model.pt')
+        'version_%i' % exp.version, 'last_model.pt')
     torch.save(model.state_dict(), filepath)
 
     # export latents
@@ -372,17 +391,21 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
             data_generator.reset_iterators(dtype)
             for i in range(data_generator.num_tot_batches[dtype]):
                 data, dataset = data_generator.next_batch(dtype)
-                # _, curr_latents = model(data[hparams['signals']][0])
+                # TODO: max_chunk_size
                 curr_latents, _, _ = model.encoding(data[hparams['signals']][0])
-                latents[dataset][data['batch_indxs'].item(), :, :] = curr_latents
+                latents[dataset][data['batch_indx'].item(), :, :] = \
+                    curr_latents.cpu().detach().numpy()
 
         # save latents separately for each dataset
         for i, dataset in enumerate(data_generator.datasets):
             # get save name which includes lab/expt/animal/session
-            sess_id = str('%s_%s_%s_%s_latents.pkl')
+            sess_id = str(
+                '%s_%s_%s_%s_latents.pkl' % (
+                    dataset.lab, dataset.expt, dataset.animal,
+                    dataset.session))
             filepath = os.path.join(
                 hparams['tt_save_path'], 'test_tube_data',
-                hparams['experiment_name'], 'version_' + str(exp.version),
+                hparams['experiment_name'], 'version_%i' % exp.version,
                 sess_id)
             # save out array in pickle file
-            pickle.dump(latents[i], filepath)
+            pickle.dump({'latents': latents[i]}, open(filepath, 'wb'))

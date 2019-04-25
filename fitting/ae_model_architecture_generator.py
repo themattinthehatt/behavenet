@@ -236,6 +236,7 @@ def draw_archs(batch_size, input_dim,n_latents,n_archs=100,check_memory=True):
             mem_size = estimate_model_footprint(
                 model, tuple([batch_size] + input_dim))
             mem_size_gb = mem_size / 1000000000
+            print(mem_size_gb)
             if mem_size_gb > mem_limit_gb:  # GB
                 print(
                     'Model size of %02.3f GB is larger than limit of %1.3f GB;'

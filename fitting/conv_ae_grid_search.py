@@ -110,8 +110,8 @@ def get_params(strategy):
     parser.add_argument('--enable_early_stop', default=False, type=bool)
     parser.add_argument('--early_stop_fraction', default=None, type=float)
     parser.add_argument('--early_stop_patience', default=None, type=float)
-    parser.add_argument('--max_nb_epochs', default=5, type=int)
-    parser.add_argument('--export_latents', default=False, type=bool)
+    parser.add_argument('--max_nb_epochs', default=1, type=int)
+    parser.add_argument('--export_latents', default=True, type=bool)
 
     # add architecture arguments
     parser.add_argument('--file_name', '-f', help='file for where to save list of architectures (without extension)', type=str)
@@ -120,7 +120,7 @@ def get_params(strategy):
     parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
     parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
-    parser.add_argument('--batch_size', '-b', help='batch_size', type=int)
+    parser.add_argument('--batch_size', '-b', default=200, help='batch_size', type=int)
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
 
     # add saving arguments
@@ -138,7 +138,7 @@ def get_params(strategy):
 
     if os.path.isfile(namespace.arch_file_name):
         print('Using presaved list of architectures')
-        list_of_archs = pickle.load(open(namespace.arch_file_name,'rb'))
+        list_of_archs = pickle.load(open(namespace.arch_file_name, 'rb'))
         
     else:
         print('Creating new list of architectures and saving')
@@ -159,14 +159,14 @@ def get_params(strategy):
 if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 
-    if hyperparams.device=='cuda':
+    if hyperparams.device == 'cuda':
         hyperparams.optimize_parallel_gpu(
-                main,
-                gpu_ids=hyperparams.gpus_viz.split(';'),
-                nb_trials=1,
-                nb_workers=1)
-    elif hyperparams.device=='cpu':
+            main,
+            gpu_ids=hyperparams.gpus_viz.split(';'),
+            nb_trials=5,
+            nb_workers=1)
+    elif hyperparams.device == 'cpu':
         hyperparams.optimize_parallel_cpu(
-                main,
-                nb_trials=500,
-                nb_workers=10)
+            main,
+            nb_trials=500,
+            nb_workers=10)
