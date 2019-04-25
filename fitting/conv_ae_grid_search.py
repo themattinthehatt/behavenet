@@ -147,7 +147,8 @@ def get_params(strategy):
             input_dim=[namespace.input_channels, namespace.x_pixels, namespace.y_pixels],
             n_latents=namespace.n_latents,
             n_archs=namespace.n_archs,
-            check_memory=True)
+            check_memory=True,
+            mem_limit_gb)
         f = open(namespace.arch_file_name, "wb")
         pickle.dump(list_of_archs, f)
         f.close()
@@ -160,11 +161,12 @@ if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 
     if hyperparams.device == 'cuda':
+        gpu_ids = hyperparams.gpus_viz.split(';')
         hyperparams.optimize_parallel_gpu(
             main,
-            gpu_ids=hyperparams.gpus_viz.split(';'),
+            gpu_ids=gpu_ids,
             nb_trials=5,
-            nb_workers=1)
+            nb_workers=len(gpu_ids))
     elif hyperparams.device == 'cpu':
         hyperparams.optimize_parallel_cpu(
             main,
