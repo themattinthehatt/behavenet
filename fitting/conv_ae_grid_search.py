@@ -114,11 +114,10 @@ def get_params(strategy):
     parser.add_argument('--export_latents', default=True, type=bool)
 
     # add architecture arguments
-    parser.add_argument('--file_name', '-f', help='file for where to save list of architectures (without extension)', type=str)
-    parser.add_argument('--n_archs', '-n', help='number of architectures to randomly sample', type=int)
-    parser.add_argument('--input_channels', '-i', help='list of n_channels', type=int)
-    parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
-    parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
+    parser.add_argument('--n_archs', '-n', default=100, help='number of architectures to randomly sample', type=int)
+    parser.add_argument('--input_channels', '-i', default=2, help='list of n_channels', type=int)
+    parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
+    parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
     parser.add_argument('--batch_size', '-b', default=200, help='batch_size', type=int)
     parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
