@@ -7,15 +7,41 @@ from behavenet.utils import estimate_model_footprint
 import copy
 
 
-def calculate_conv2d_maxpool2d_output_dim(input_dim,kernel,stride,padding):
-    output_dim = (input_dim+2*padding-kernel)/stride + 1
-    return int(np.floor(output_dim))
+def calculate_conv2d_output_dim(input_dim,kernel,stride,padding_type):
+    # inspired by: https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/common_shape_fns.cc#L21
+    # https://github.com/pytorch/pytorch/issues/3867
+    if padding_type=='same':
+        output_dim = (input_dim+stride-1)//stride
+        total_padding_needed = max(0,(output_dim-1)*stride+kernel-input_dim)
+        before_pad = total_padding_needed//2
+        after_pad = total_padding_needed-before_pad
+    elif padding_type=='valid':
+        output_dim = int(np.floor((input_dim-kernel)/stride+1))
+        before_pad = 0
+        after_pad = 0
+    return output_dim, before_pad, after_pad
 
 
-def calculate_convtranspose2d_output_dim(input_dim,kernel,stride,padding,target_output_dim):
-    output_dim = (input_dim-1)*stride-2*padding+kernel
-    output_padding = target_output_dim-output_dim
-    return int(output_dim+output_padding), output_padding
+def calculate_maxpool2d_output_dim(input_dim,kernel,stride,padding_type):
+    # Using ceil mode in maxpool
+    if kernel!=2:
+        raise NotImplementedError
+
+    if padding_type=='same':
+        output_dim = int(np.ceil((input_dim-kernel)/stride+1))
+        before_pad=0
+        after_pad=0
+    elif padding_type=='valid':
+        output_dim = int(np.floor((input_dim-kernel)/stride+1))
+        before_pad = 0
+        after_pad = 0
+    return output_dim, before_pad, after_pad
+
+
+# def calculate_convtranspose2d_output_dim(input_dim,kernel,stride,padding,target_output_dim):
+#     output_dim = (input_dim-1)*stride-2*padding+kernel
+#     output_padding = target_output_dim-output_dim
+#     return int(output_dim+output_padding), output_padding
 
 
 def get_encoding_conv_block(input_dim, n_latents):
@@ -24,7 +50,7 @@ def get_encoding_conv_block(input_dim, n_latents):
     # Set possible params
     possible_kernel_sizes = np.asarray([3,5,7,9,11,15])
     possible_strides = np.asarray([2]) # stride will be 1 if using max pooling layers
-    possible_max_pool_sizes = np.asarray([2])
+    possible_max_pool_sizes = np.asarray([2]) ### MAX POOL SIZE > 2 NOT IMPLEMENTED YET - NEED TO FIGURE OUT HOW TO COMBINE PADDING/CEIL MODE
     possible_n_channels = np.asarray([16,32,64,128,256,512])
     prob_stopping = np.arange(0,1,.05)
     
@@ -40,7 +66,7 @@ def get_encoding_conv_block(input_dim, n_latents):
     encoding_block['ae_encoding_network_type'] = which_network_type
     
     # Then decide if padding is 0 (0) or same (1) for all layers
-    padding_types = ['zero','same']
+    padding_types = ['valid','same']
     which_padding_type = padding_types[np.random.randint(2)]
     encoding_block['ae_encoding_padding_type'] = which_padding_type
     
@@ -53,25 +79,25 @@ def get_encoding_conv_block(input_dim, n_latents):
     encoding_block['ae_encoding_n_channels'] = []
     encoding_block['ae_encoding_kernel_size'] = []
     encoding_block['ae_encoding_stride_size'] = []
-    encoding_block['ae_encoding_padding_size'] = []
+    encoding_block['ae_encoding_x_padding'] = []
+    encoding_block['ae_encoding_y_padding'] = []
     encoding_block['ae_encoding_layer_type'] = []
         
     i_layer=0
     global_layer=0
-    while last_dims > encoding_block['n_latents'] and smallest_pix>1: 
+    while last_dims > encoding_block['n_latents'] and smallest_pix>=1: 
 
         # Get conv2d layer
         kernel_size = np.random.choice(possible_kernel_sizes)
         stride_size = np.random.choice(possible_strides) if which_network_type == 'strides_only' else 1
-        padding_size = 0 if which_padding_type == 'zero' else (kernel_size-1)/2
 
         if i_layer == 0: # use input dimensions
             input_dim_x, input_dim_y = input_dim[1], input_dim[2]
         else:
             input_dim_x, input_dim_y = encoding_block['ae_encoding_x_dim'][i_layer-1], encoding_block['ae_encoding_y_dim'][i_layer-1]
 
-        output_dim_x = calculate_conv2d_maxpool2d_output_dim(input_dim_x,kernel_size,stride_size,padding_size)
-        output_dim_y = calculate_conv2d_maxpool2d_output_dim(input_dim_y,kernel_size,stride_size,padding_size)
+        output_dim_x, x_before_pad, x_after_pad= calculate_conv2d_output_dim(input_dim_x,kernel_size,stride_size,padding_type=which_padding_type)
+        output_dim_y, y_before_pad, y_after_pad  = calculate_conv2d_output_dim(input_dim_y,kernel_size,stride_size,padding_type=which_padding_type)
 
         if i_layer == 0:
             remaining_channels = possible_n_channels[possible_n_channels>=input_dim[0]]
@@ -96,8 +122,8 @@ def get_encoding_conv_block(input_dim, n_latents):
             # Automatically calculated
             encoding_block['ae_encoding_x_dim'].append(output_dim_x)
             encoding_block['ae_encoding_y_dim'].append(output_dim_y)
-            encoding_block['ae_encoding_padding_size'].append(int(padding_size))
-            
+            encoding_block['ae_encoding_x_padding'].append((x_before_pad,x_after_pad))
+            encoding_block['ae_encoding_y_padding'].append((y_before_pad,y_after_pad))
             encoding_block['ae_encoding_layer_type'].append('conv')
             i_layer+=1
         else:
@@ -108,24 +134,17 @@ def get_encoding_conv_block(input_dim, n_latents):
         if which_network_type == 'max_pooling':
             kernel_size = np.random.choice(possible_max_pool_sizes)
 
-            if which_padding_type == 'zero':
-                padding_size = 0
-            elif which_padding_type == 'same':
-                padding_size = (kernel_size-1)/2
-            else:
-                raise ValueError('Not implemented')   
+            output_dim_x, x_before_pad, x_after_pad = calculate_maxpool2d_output_dim(encoding_block['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_type=which_padding_type)
+            output_dim_y, y_before_pad, y_after_pad = calculate_maxpool2d_output_dim(encoding_block['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_type=which_padding_type)
 
-
-            output_dim_x = calculate_conv2d_maxpool2d_output_dim(encoding_block['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_size)
-            output_dim_y = calculate_conv2d_maxpool2d_output_dim(encoding_block['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_size)
 
             if np.prod(n_channels*output_dim_x*output_dim_y)> encoding_block['n_latents'] and np.min([output_dim_x,output_dim_y])>=1:
                 
                 encoding_block['ae_encoding_n_channels'].append(n_channels)
                 encoding_block['ae_encoding_kernel_size'].append(kernel_size)
                 encoding_block['ae_encoding_stride_size'].append(kernel_size) # for max pool layers have stride as kernel size
-                encoding_block['ae_encoding_padding_size'].append(int(padding_size))
-                
+                encoding_block['ae_encoding_x_padding'].append((0,0))
+                encoding_block['ae_encoding_y_padding'].append((0,0))
                 encoding_block['ae_encoding_x_dim'].append(output_dim_x)
                 encoding_block['ae_encoding_y_dim'].append(output_dim_y)
                 encoding_block['ae_encoding_layer_type'].append('maxpool')
@@ -136,11 +155,15 @@ def get_encoding_conv_block(input_dim, n_latents):
                 encoding_block['ae_encoding_n_channels'] = encoding_block['ae_encoding_n_channels'][:-1]
                 encoding_block['ae_encoding_kernel_size'] = encoding_block['ae_encoding_kernel_size'][:-1]
                 encoding_block['ae_encoding_stride_size'] = encoding_block['ae_encoding_stride_size'][:-1]
+                encoding_block['ae_encoding_x_padding'] = encoding_block['ae_encoding_x_padding'][:-1]
+                encoding_block['ae_encoding_y_padding'] = encoding_block['ae_encoding_y_padding'][:-1]
                 encoding_block['ae_encoding_x_dim'] = encoding_block['ae_encoding_x_dim'][:-1]
                 encoding_block['ae_encoding_y_dim'] = encoding_block['ae_encoding_y_dim'][:-1]
                 encoding_block['ae_encoding_layer_type'] = encoding_block['ae_encoding_layer_type'][:-1]
                 break
     
+        last_dims = encoding_block['ae_encoding_n_channels'][-1]*encoding_block['ae_encoding_x_dim'][-1]*encoding_block['ae_encoding_y_dim'][-1]
+        smallest_pix= min(encoding_block['ae_encoding_x_dim'][-1],encoding_block['ae_encoding_y_dim'][-1])
         stop_this_layer = np.random.choice([0,1],p=[1-prob_stopping[global_layer],prob_stopping[global_layer]])
 
         if stop_this_layer:
@@ -155,13 +178,12 @@ def get_decoding_conv_block(input_dim, encoding_block):
     decoding_block={}
     decoding_block['ae_decoding_x_dim'] = []
     decoding_block['ae_decoding_y_dim'] = []
-    decoding_block['ae_decoding_x_output_padding'] = []
-    decoding_block['ae_decoding_y_output_padding'] = []
-    
+
     decoding_block['ae_decoding_n_channels'] = []
     decoding_block['ae_decoding_kernel_size'] = []
     decoding_block['ae_decoding_stride_size'] = []
-    decoding_block['ae_decoding_padding_size'] = []
+    decoding_block['ae_decoding_x_padding'] = []
+    decoding_block['ae_decoding_y_padding'] = []
     decoding_block['ae_decoding_layer_type'] = []
     
     starting_dim = [encoding_block['ae_encoding_n_channels'][-1],encoding_block['ae_encoding_x_dim'][-1],encoding_block['ae_encoding_y_dim'][-1]]
@@ -178,7 +200,8 @@ def get_decoding_conv_block(input_dim, encoding_block):
         
         decoding_block['ae_decoding_kernel_size'].append(encoding_block['ae_encoding_kernel_size'][which_encoding_layer])
         decoding_block['ae_decoding_stride_size'].append(encoding_block['ae_encoding_stride_size'][which_encoding_layer])
-        decoding_block['ae_decoding_padding_size'].append(encoding_block['ae_encoding_padding_size'][which_encoding_layer])
+        decoding_block['ae_decoding_x_padding'].append(encoding_block['ae_encoding_x_padding'][which_encoding_layer])
+        decoding_block['ae_decoding_y_padding'].append(encoding_block['ae_encoding_y_padding'][which_encoding_layer])
 
         if i_layer==0:
             input_dim_x, input_dim_y = starting_dim[1:3]
@@ -189,25 +212,16 @@ def get_decoding_conv_block(input_dim, encoding_block):
         target_output_dim_y = encoding_block['ae_encoding_y_dim'][which_encoding_layer-1] if which_encoding_layer>0 else input_dim[2]
 
         if encoding_block['ae_encoding_layer_type'][which_encoding_layer]=='maxpool':
-            
             decoding_block['ae_decoding_layer_type'].append('unpool')
-            output_dim_x =  target_output_dim_x  
-            output_dim_y =  target_output_dim_y   
-            output_padding_x=0
-            output_padding_y=0
-                                       
         elif encoding_block['ae_encoding_layer_type'][which_encoding_layer]=='conv': # if conv layer
-            
             decoding_block['ae_decoding_layer_type'].append('convtranspose')
            
-            output_dim_x, output_padding_x = calculate_convtranspose2d_output_dim(input_dim_x,encoding_block['ae_encoding_kernel_size'][which_encoding_layer],encoding_block['ae_encoding_stride_size'][which_encoding_layer],encoding_block['ae_encoding_padding_size'][which_encoding_layer],target_output_dim_x)
-            output_dim_y, output_padding_y = calculate_convtranspose2d_output_dim(input_dim_y,encoding_block['ae_encoding_kernel_size'][which_encoding_layer],encoding_block['ae_encoding_stride_size'][which_encoding_layer],encoding_block['ae_encoding_padding_size'][which_encoding_layer],target_output_dim_y)
-
+        output_dim_x =  target_output_dim_x  
+        output_dim_y =  target_output_dim_y  
                                        
         decoding_block['ae_decoding_x_dim'].append(output_dim_x)
         decoding_block['ae_decoding_y_dim'].append(output_dim_y)
-        decoding_block['ae_decoding_x_output_padding'].append(output_padding_x)
-        decoding_block['ae_decoding_y_output_padding'].append(output_padding_y) 
+
         i_layer+=1
                                
     return decoding_block
