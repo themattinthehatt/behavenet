@@ -6,16 +6,16 @@ import numpy as np
 from ast import literal_eval
 
 class ConvAEEncoder(nn.Module):
-    
+
     def __init__(self, hparams):
 
         super(ConvAEEncoder, self).__init__()
-      
+
         self.hparams = hparams
         self.__build_model()
 
     def __build_model(self):
-        
+
         self.encoder = nn.ModuleList()
         global_layer_num=0
 
@@ -43,7 +43,7 @@ class ConvAEEncoder(nn.Module):
         # Don't want to include FF layer in ModuleList because may want to try out vae later
         last_conv_size = self.hparams['ae_encoding_n_channels'][-1]*self.hparams['ae_encoding_x_dim'][-1]*self.hparams['ae_encoding_y_dim'][-1]
         self.FF = nn.Linear(last_conv_size, self.hparams['n_latents'])
-    
+
         if self.hparams['model_type'] == 'vae':
             self.logvar = nn.Linear(last_conv_size, self.n_latents)
             self.softplus = nn.Softplus()
@@ -51,7 +51,7 @@ class ConvAEEncoder(nn.Module):
             pass
         else:
             raise ValueError('Not valid model type')
-            
+
     def forward(self, x):
         # x should be batch size x n channels x xdim x ydim
 
@@ -60,47 +60,47 @@ class ConvAEEncoder(nn.Module):
         for layer in self.encoder:
             if isinstance(layer, nn.MaxPool2d):
                 target_output_size.append(x.size())
-                x, idx = layer(x) 
+                x, idx = layer(x)
                 pool_idx.append(idx)
-               
+
             else:
                 x = layer(x)
 
         x = x.view(x.size(0), -1)
-        
+
         if self.hparams['model_type'] == 'ae':
             return self.FF(x), pool_idx, target_output_size
         elif self.hparams['model_type'] == 'vae':
             return self.FF(x),self.softplus(self.logvar(x))
         else:
             raise ValueError('Not Implemented Error')
-            
+
     def freeze(self):
         for param in self.parameters():
             param.requires_grad = False
-    
-    
+
+
 class ConvAEDecoder(nn.Module):
-    
+
     def __init__(self, hparams):
 
         super(ConvAEDecoder, self).__init__()
-      
+
         self.hparams=hparams
         self.__build_model()
 
     def __build_model(self):
         first_conv_size = self.hparams['ae_encoding_n_channels'][-1]*self.hparams['ae_encoding_x_dim'][-1]*self.hparams['ae_encoding_y_dim'][-1]
         self.FF = nn.Linear(self.hparams['n_latents'], first_conv_size)
-        
+
         self.decoder = nn.ModuleList()
         global_layer_num=0
 
         self.conv_t_pads = {}
         # Loop over conv/max pool layers and add
         for i_layer in range(0,len(self.hparams['ae_decoding_n_channels'])):
-            if self.hparams['ae_decoding_layer_type'][i_layer]=='convtranspose': # only add if conv transpose layer 
-                
+            if self.hparams['ae_decoding_layer_type'][i_layer]=='convtranspose': # only add if conv transpose layer
+
                 # If previous layer unpool, add
                 if i_layer>0 and self.hparams['ae_decoding_layer_type'][i_layer-1]=='unpool':
                     self.decoder.add_module('maxunpool'+str(global_layer_num),nn.MaxUnpool2d(kernel_size=(int(self.hparams['ae_decoding_kernel_size'][i_layer-1]),int(self.hparams['ae_decoding_kernel_size'][i_layer-1])),stride = (int(self.hparams['ae_decoding_stride_size'][i_layer-1]),int(self.hparams['ae_decoding_stride_size'][i_layer-1])),padding=(self.hparams['ae_decoding_x_padding'][i_layer-1][0],self.hparams['ae_decoding_y_padding'][i_layer-1][0])))
@@ -115,7 +115,7 @@ class ConvAEDecoder(nn.Module):
                     y_output_padding = self.hparams['ae_decoding_y_dim'][i_layer]-((input_y-1)*self.hparams['ae_decoding_stride_size'][i_layer]+self.hparams['ae_decoding_kernel_size'][i_layer])
                     self.decoder.add_module('convtranspose'+str(global_layer_num),nn.ConvTranspose2d(in_channels=in_channels,out_channels=self.hparams['ae_decoding_n_channels'][i_layer],kernel_size=(self.hparams['ae_decoding_kernel_size'][i_layer],self.hparams['ae_decoding_kernel_size'][i_layer]),stride=(self.hparams['ae_decoding_stride_size'][i_layer],self.hparams['ae_decoding_stride_size'][i_layer]),padding=(self.hparams['ae_decoding_x_padding'][i_layer][0],self.hparams['ae_decoding_y_padding'][i_layer][0]),output_padding=(x_output_padding,y_output_padding)))
                     self.conv_t_pads['convtranspose'+str(global_layer_num)] = None
-                
+
                 elif self.hparams['ae_encoding_padding_type']=='same':
                     if self.hparams['ae_decoding_x_padding'][i_layer][0] == self.hparams['ae_decoding_x_padding'][i_layer][1] and self.hparams['ae_decoding_y_padding'][i_layer][0] == self.hparams['ae_decoding_y_padding'][i_layer][1]:
                         self.decoder.add_module('convtranspose'+str(global_layer_num),nn.ConvTranspose2d(in_channels=in_channels,out_channels=self.hparams['ae_decoding_n_channels'][i_layer],kernel_size=(self.hparams['ae_decoding_kernel_size'][i_layer],self.hparams['ae_decoding_kernel_size'][i_layer]),stride=(self.hparams['ae_decoding_stride_size'][i_layer],self.hparams['ae_decoding_stride_size'][i_layer]),padding=(self.hparams['ae_decoding_x_padding'][i_layer][0],self.hparams['ae_decoding_y_padding'][i_layer][0])))
@@ -129,14 +129,14 @@ class ConvAEDecoder(nn.Module):
                     else:
                         self.decoder.add_module('relu'+str(global_layer_num),nn.LeakyReLU(0.05))
                 global_layer_num+=1
-         
+
         if self.hparams['model_type'] == 'vae':
             raise ValueError('Not implemented yet')
         elif self.hparams['model_type'] == 'ae':
             pass
         else:
             raise ValueError('Not valid model type')
-             
+
     def forward(self, x, pool_idx, target_output_size):
 
         x = self.FF(x)
@@ -146,7 +146,7 @@ class ConvAEDecoder(nn.Module):
             if isinstance(layer, nn.MaxUnpool2d):
                 idx = pool_idx.pop(-1)
                 outsize = target_output_size.pop(-1)
-                x = layer(x,idx,outsize) 
+                x = layer(x,idx,outsize)
             elif isinstance(layer, nn.ConvTranspose2d):
                 x = layer(x)
                 if self.conv_t_pads[name]is not None:
@@ -162,11 +162,11 @@ class ConvAEDecoder(nn.Module):
             raise ValueError('Not Implemented Error')
         else:
             raise ValueError('Not Implemented Error')
-        
+
     def freeze(self):
         for param in self.parameters():
-            param.requires_grad = False      
-    
+            param.requires_grad = False
+
 class AE(nn.Module):
 
     def __init__(self, hparams):
@@ -187,9 +187,9 @@ class AE(nn.Module):
 
         x, pool_idx, outsize = self.encoding(x)
         y = self.decoding(x, pool_idx, outsize)
-        
+
         return y, x
-        
+
 #         return y_mu, y_var, h_mu
 # class objectview(object):
 #     def __init__(self, d):
@@ -251,7 +251,7 @@ class AE(nn.Module):
 #             #  nn.BatchNorm2d(512),
 #               nn.LeakyReLU(0.05, inplace=True)
 #             )
-            
+
 #         self.out_img = (512, 5, 5)
 #         self.prior_mu = nn.Linear(512*5*5, self.latent_dim_size_h)
 #         #self.h_var = nn.Parameter(1e-6*torch.ones(100,10),requires_grad=False)
@@ -340,7 +340,7 @@ class AE(nn.Module):
 #               nn.Conv2d(in_channels=16, out_channels=1, kernel_size=3, stride=1,
 #                         padding=1),
 #               nn.Sigmoid()
-#             )    
+#             )
 
 #         if self.y_var_parameter:
 #             inv_softplus_var = np.log(np.exp(self.y_var_value)-1)
@@ -377,7 +377,7 @@ class AE(nn.Module):
 #         self.__build_model()
 
 #     def __build_model(self):
-      
+
 #         self.prior_mu = nn.Linear(self.pixel_size*self.pixel_size, self.latent_dim_size_h,bias=True)
 #         self.prior_logvar = nn.Linear(self.pixel_size*self.pixel_size, self.latent_dim_size_h,bias=True)
 #       # self.h_var = nn.Parameter(1e-1*torch.ones(100,10),requires_grad=True)
@@ -414,7 +414,7 @@ class AE(nn.Module):
 
 #     def forward(self, x):
 
-#         y_mu =  F.linear(x, self.encoding.prior_mu.weight.t()) + self.bias 
+#         y_mu =  F.linear(x, self.encoding.prior_mu.weight.t()) + self.bias
 #         y_mu = y_mu.view(y_mu.size(0), 1, self.pixel_size,self.pixel_size)
 
 #         if self.y_var_parameter:
@@ -443,7 +443,7 @@ class AE(nn.Module):
 
 #     def reparameterize(self, mu, var, random_draw):
 #        if random_draw:
-#           std = torch.pow(var,0.5) 
+#           std = torch.pow(var,0.5)
 #           eps = torch.randn_like(std)
 #           return eps.mul(std).add_(mu)
 #        else:
@@ -482,91 +482,100 @@ class AE(nn.Module):
 
 #         return y_mu, y_var, h_mu
 
-# class ARHMM(nn.Module):
-#     def __init__(self, hparams, dynamics="gaussian"):
-#         super(ARHMM, self).__init__()
-#         self.hparams = hparams
+class ARHMM(nn.Module):
+    def __init__(self, hparams, dynamics="gaussian"):
+        super(ARHMM, self).__init__()
+        self.hparams = hparams
 
-#         assert dynamics in ("gaussian", "studentst")
-#         self.dynamics = dynamics.lower()
+        assert dynamics in ("gaussian", "studentst")
+        self.dynamics = dynamics.lower()
 
-#         self.__build_model()
+        self.__build_model()
 
-#     def __build_model(self):
-#         hp = self.hparams
-#         dynamics = self.dynamics
-        
-#         # Dynamics parameters
-#         self.As = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h*hp.nlags, hp.latent_dim_size_h)))
-#         self.bs = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h)))
-#         self.inv_softplus_Qs = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
+    def __build_model(self):
+        hp = self.hparams
+        dynamics = self.dynamics
 
-#         if dynamics.lower() == "studentst":
-#             self.inv_softplus_nus = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
-        
-#         # Transition parameters
-#         self.stat_log_transition_proba = \
-#                 nn.Parameter(torch.log(
-#                 hp.transition_init * torch.eye(hp.n_discrete_states) + (1-hp.transition_init) / hp.n_discrete_states * torch.ones((hp.n_discrete_states, hp.n_discrete_states))))
+        # Dynamics parameters
+        self.As = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h*hp.nlags, hp.latent_dim_size_h)))
+        self.bs = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h)))
 
-#         if self.hparams.low_d_type == 'vae':
-#             hp = pd.read_csv(self.hparams.vae_model_path+'meta_tags.csv')
-#             hp = dict(zip(hp['key'], hp['value']))
-#             vae_hparams = objectview(hp)
+        if dynamics.lower() == "gaussian":
+            self.sqrt_Qs = nn.Parameter(
+                 torch.eye(hp.latent_dim_size_h).unsqueeze(0).repeat((hp.n_discrete_states, 1, 1)))
+        elif dynamics.lower == "diagonal_gaussian":
+            self.inv_softplus_Qs = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
+        elif dynamics.lower() == "studentst":
+            self.inv_softplus_nus = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
+        else:
+            raise Exception("Bad dynamics model: {}".format(dynamics))
 
-#             vae_model = VAE(vae_hparams)
+        # Transition parameters
+        self.stat_log_transition_proba = \
+                nn.Parameter(torch.log(
+                hp.transition_init * torch.eye(hp.n_discrete_states) + (1-hp.transition_init) / hp.n_discrete_states * torch.ones((hp.n_discrete_states, hp.n_discrete_states))))
 
-#             vae_model.load_state_dict(torch.load(self.hparams.vae_model_path+'best_val_model.pt', map_location=lambda storage, loc: storage))
-#             VAE_encoder_model = vae_model.encoding
-#             VAE_encoder_model.freeze()
-#             VAE_encoder_model.training=False
-#             VAE_encoder_model.to(self.hparams.device)
-#             self.VAE_encoder_model = VAE_encoder_model
+        if self.hparams.low_d_type == 'vae':
+            hp = pd.read_csv(self.hparams.vae_model_path+'meta_tags.csv')
+            hp = dict(zip(hp['key'], hp['value']))
+            vae_hparams = objectview(hp)
 
-#     def initialize(self,method="lr", *args, **kwargs):
-#         init_methods = dict(lr=self._initialize_with_lr)
-#         if method not in init_methods:
-#             raise Exception("Invalid initialization method: {}".format(method))
-#         return init_methods[method](*args, **kwargs)
-        
-#     def _initialize_with_lr(self, data_gen, L2_reg=0.01):
-#         self.As.data, self.bs.data, self.inv_softplus_Qs.data = core.initialize_with_lr(self, self.hparams,data_gen, L2_reg=L2_reg)
-        
-#     def log_pi0(self, *args):
-#         return core.uniform_initial_distn(self).to(self.hparams.device)
+            vae_model = VAE(vae_hparams)
 
-#     def log_prior(self,*args):
-#         return core.dirichlet_prior(self)
+            vae_model.load_state_dict(torch.load(self.hparams.vae_model_path+'best_val_model.pt', map_location=lambda storage, loc: storage))
+            VAE_encoder_model = vae_model.encoding
+            VAE_encoder_model.freeze()
+            VAE_encoder_model.training=False
+            VAE_encoder_model.to(self.hparams.device)
+            self.VAE_encoder_model = VAE_encoder_model
 
-#     def log_transition_proba(self, *args):
-#         return core.stationary_log_transition_proba(self)
+    def initialize(self,method="lr", *args, **kwargs):
+        init_methods = dict(lr=self._initialize_with_lr)
+        if method not in init_methods:
+            raise Exception("Invalid initialization method: {}".format(method))
+        return init_methods[method](*args, **kwargs)
 
-#     def log_dynamics_proba(self, data, *args):
-#         if self.dynamics == "gaussian":
-#             return core.gaussian_ar_log_proba(self,data)
-#         elif self.dynamics == "studentst":
-#             return core.studentst_ar_log_proba(self,data)
-#         else:
-#             raise Exception("Invalid dynamics: {}".format(self.dynamics))
-#     def get_low_d(self,signal):  
-#         if self.hparams.low_d_type == 'vae':
-#             self.VAE_encoder_model.training=False
-#             signal,_= self.VAE_encoder_model(signal)
-#             if self.hparams.whiten_vae:
-#                 mean_h = np.load('normalization_values/vae_mean.npy')
-#                 whiten_h = np.load('normalization_values/vae_whitening_matrix.npy')
-#                 apply_whitening = lambda x:  np.linalg.solve(whiten_h, (x-mean_h).T).T 
-#                 signal = apply_whitening(signal[:,:10].cpu().detach().numpy())
-#                 signal = torch.tensor(signal).to(self.hparams.device).float()
-#         elif self.hparams.low_d_type == 'pca':
-#             signal = signal[:,:10]
-#         else:
-#             raise NotImplementedError
-#         return signal
+    def _initialize_with_lr(self, data_gen, L2_reg=0.01):
+        self.As.data, self.bs.data, self.inv_softplus_Qs.data = core.initialize_with_lr(self, self.hparams,data_gen, L2_reg=L2_reg)
+
+    def log_pi0(self, *args):
+        return core.uniform_initial_distn(self).to(self.hparams.device)
+
+    def log_prior(self,*args):
+        return core.dirichlet_prior(self)
+
+    def log_transition_proba(self, *args):
+        return core.stationary_log_transition_proba(self)
+
+    def log_dynamics_proba(self, data, *args):
+        if self.dynamics == "gaussian":
+            return core.gaussian_ar_log_proba(self,data)
+        elif self.dynamics == "diagonal_gaussian":
+            return core.diagonal_gaussian_ar_log_proba(self,data)
+        elif self.dynamics == "studentst":
+            return core.studentst_ar_log_proba(self,data)
+        else:
+            raise Exception("Invalid dynamics: {}".format(self.dynamics))
+
+    def get_low_d(self,signal):
+        if self.hparams.low_d_type == 'vae':
+            self.VAE_encoder_model.training=False
+            signal,_= self.VAE_encoder_model(signal)
+            if self.hparams.whiten_vae:
+                mean_h = np.load('normalization_values/vae_mean.npy')
+                whiten_h = np.load('normalization_values/vae_whitening_matrix.npy')
+                apply_whitening = lambda x:  np.linalg.solve(whiten_h, (x-mean_h).T).T
+                signal = apply_whitening(signal[:,:10].cpu().detach().numpy())
+                signal = torch.tensor(signal).to(self.hparams.device).float()
+        elif self.hparams.low_d_type == 'pca':
+            signal = signal[:,:10]
+        else:
+            raise NotImplementedError
+        return signal
 
 # class SLDS(nn.Module):
 #     """
-#     This will look a lot like an ARHMM but it has a decoder for mapping 
+#     This will look a lot like an ARHMM but it has a decoder for mapping
 #     continuous latent states to observations.
 #     """
 
@@ -585,7 +594,7 @@ class AE(nn.Module):
 #     def __build_model(self):
 #         hp = self.hparams
 #         dynamics = self.dynamics
-        
+
 #         # Dynamics parameters
 #         self.As = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h*hp.nlags, hp.latent_dim_size_h)))
 #         self.bs = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h)))
@@ -593,11 +602,11 @@ class AE(nn.Module):
 
 #         if dynamics.lower() == "studentst":
 #             self.inv_softplus_nus = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
-        
+
 #         # Transition parameters
 #         self.stat_log_transition_proba = \
 #                 nn.Parameter(torch.log(
-#                 hp.transition_init * torch.eye(hp.n_discrete_states) + 
+#                 hp.transition_init * torch.eye(hp.n_discrete_states) +
 #                 (1-hp.transition_init) / hp.n_discrete_states * torch.ones((hp.n_discrete_states, hp.n_discrete_states))))
 
 #         if self.hparams.low_d_type == 'vae':
@@ -625,7 +634,7 @@ class AE(nn.Module):
 
 #     def decode(self, states):
 #         """
-#         Pass the continuous latent state through the decoder network 
+#         Pass the continuous latent state through the decoder network
 #         get the mean of the observations.
 
 #         @param states: a T (time) x H (latent dim)
@@ -634,18 +643,18 @@ class AE(nn.Module):
 #         return y_mu, y_var
 
 #     # The remainder of the methods look like those of the ARHMM,
-#     # but now we also have an emission probability of the data given 
+#     # but now we also have an emission probability of the data given
 #     # the continuous latent states.
 #     def initialize(self,method="lr", *args, **kwargs):
 #         init_methods = dict(lr=self._initialize_with_lr)
 #         if method not in init_methods:
 #             raise Exception("Invalid initialization method: {}".format(method))
 #         return init_methods[method](*args, **kwargs)
-        
+
 #     def _initialize_with_lr(self, data_gen, L2_reg=0.01):
 #         self.As.data, self.bs.data, self.inv_softplus_Qs.data = core.initialize_with_lr(self, self.hparams,data_gen, L2_reg=L2_reg)
-        
-#     def get_low_d(self,signal):  
+
+#     def get_low_d(self,signal):
 #         if self.hparams.low_d_type == 'vae':
 #             signal,_= self.VAE_encoder_model(signal)
 #         elif self.hparams.low_d_type == 'pca':

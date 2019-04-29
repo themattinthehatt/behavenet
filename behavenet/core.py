@@ -4,6 +4,7 @@ Functions to compute log_pi0, log_Ps, lls
 import torch
 import numpy as np
 from torch.nn import functional as F
+from torch.distributions.multivariate_normal import MultivariateNormal
 import math
 
 class EarlyStopping(object):
@@ -26,9 +27,9 @@ class EarlyStopping(object):
         self.wait = 0
         self.stopped_epoch = 0.0
         self.best = np.inf
-        
+
     def on_val_check(self, epoch, val_loss):
-        
+
         stop_training = False
 
         if np.less(val_loss, self.min_fraction*self.best):
@@ -61,7 +62,7 @@ def log_sum_exp(value, dim=None, keepdim=False):
         sum_exp = torch.sum(torch.exp(value - m))
         return m + torch.log(sum_exp)
 
-    
+
 # Log likelihoods
 def expected_log_likelihood(expectations, log_pi0, log_Ps, lls):
     Ez, Ezzp1, normalizer = expectations
@@ -73,11 +74,36 @@ def expected_log_likelihood(expectations, log_pi0, log_Ps, lls):
 # Dynamics models
 def gaussian_ar_log_proba(model, data):
     hparams = model.hparams
+    # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
     means = torch.transpose(
-        torch.matmul(torch.cat(([data[hparams.nlags-1-i:hparams.batch_size-1-i] for i in range(hparams.nlags,-1,-1)]), dim=1), model.As),1,0) + model.bs
-    means = torch.cat((model.bs.view(1, hparams.n_discrete_states, hparams.latent_dim_size_h).repeat(hparams.nlags,1,1) , means), 0)
-    lls = -0.5 * torch.sum((data.unsqueeze(1) - means)**2 / F.softplus(model.inv_softplus_Qs), dim=2)        
+        torch.matmul(torch.cat(([data[hparams.nlags-1-i:hparams.batch_size-1-i]
+                                 for i in range(hparams.nlags,-1,-1)]), dim=1), model.As),1,0)
+        + model.bs
+
+    covs = torch.matmul(model.sqrt_Qs, model.sqrt_Qs.transpose(0, 2, 1))
+    lls = MultivariateNormal(means, covs).log_prob(data[hparams.nlags:].unsqueeze(1))
+    assert lls.shape == (data.shape[0] - hparams.nlags, hparams.n_discrete_states)
+
+    lls = torch.cat((torch.zeros(hparams.nlags, hparams.n_discrete_states), lls), 0)
+
+    return lls
+
+
+def diagonal_gaussian_ar_log_proba(model, data):
+    hparams = model.hparams
+
+    # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
+    means = torch.transpose(
+        torch.matmul(torch.cat(([data[hparams.nlags-1-i:hparams.batch_size-1-i]
+                                 for i in range(hparams.nlags,-1,-1)]), dim=1), model.As),1,0)
+        + model.bs
+
+    # Concatenate the mean for the first t = 1...nlags
+    # means = torch.cat((model.bs.view(1, hparams.n_discrete_states, hparams.latent_dim_size_h).repeat(hparams.nlags,1,1) , means), 0)
+
+    lls = -0.5 * torch.sum((data[hparams.nlags:].unsqueeze(1) - means)**2 / F.softplus(model.inv_softplus_Qs), dim=2)
     lls += -0.5 * torch.sum(math.log(2 * math.pi) + torch.log(F.softplus(model.inv_softplus_Qs)), dim=1)
+    lls = torch.cat((torch.zeros(hparams.nlags, hparams.n_discrete_states), lls), 0)
     return lls
 
 # def studentst_ar_log_proba(model):
@@ -127,7 +153,7 @@ def gaussian_emissions_diagonal_variance(model, data, states):
     # TODO: We could allow states to be a 3-tensor whose last dim is posterior samples
     """
     hparams = model.hparams
-    means, variances = model.decode(states) 
+    means, variances = model.decode(states)
 
     lls = torch.sum((-0.5 * math.log(2 * math.pi) - 0.5 * torch.log(variances)-0.5 * (data - means)**2 / variances),dim=1)
 
@@ -163,11 +189,11 @@ def initialize_with_lr(model, hp, data_gen, L2_reg=0.01):
         for i_session in range(this_data.shape[0]):
 
             low_d = model.get_low_d(this_data[i_session])
-            X = torch.cat(([low_d[hp.nlags-1-i:low_d.shape[0]-1-i] for i in range(hp.nlags,-1,-1)]),dim=1) 
+            X = torch.cat(([low_d[hp.nlags-1-i:low_d.shape[0]-1-i] for i in range(hp.nlags,-1,-1)]),dim=1)
             X = F.pad(X,(1,0),value=1)
             Y = low_d[hp.nlags:]
 
-            # Collect X/Y/XTX/XTY 
+            # Collect X/Y/XTX/XTY
             if start_collecting: # start of a new chunk
                 all_X = X
                 all_Y = Y
@@ -191,7 +217,7 @@ def initialize_with_lr(model, hp, data_gen, L2_reg=0.01):
                 As.data[i_discrete_state] = W[1:,:].data
                 bs.data[i_discrete_state] = W[0,:].data
 
-                # Reconstruct to get residuals/covariances 
+                # Reconstruct to get residuals/covariances
                 Y_hat = torch.matmul(all_X,W)
                 residuals = Y_hat-all_Y
                 Qs = torch.var(residuals,0).data
