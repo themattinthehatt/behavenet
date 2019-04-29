@@ -242,7 +242,7 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
         loss = SVILoss(model, variational_posterior)
     elif method == 'vae':
         loss = VAELoss(model)
-    elif method == 'ae':
+    elif method == 'ae' or method == 'mse':
         loss = AELoss(model)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
@@ -254,7 +254,6 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
     # Early stopping set-up
     best_val_loss = math.inf
     best_val_epoch = None
-    nb_epochs_since_check = 0
 
     # enumerate batches on which validation metrics should be recorded
     val_check_batch = np.linspace(
@@ -313,7 +312,7 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
                 if loss.get_loss('val') < best_val_loss:
                     best_val_loss = loss.get_loss('val')
                     filepath = os.path.join(
-                        hparams['tt_save_path'], 'test_tube_data',
+                        hparams['results_dir'], 'test_tube_data',
                         hparams['experiment_name'],
                         'version_%i' % exp.version,
                         'best_val_model.pt')
@@ -369,7 +368,7 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
 
     # save out best model
     filepath = os.path.join(
-        hparams['tt_save_path'], 'test_tube_data', hparams['experiment_name'],
+        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
         'version_%i' % exp.version, 'last_model.pt')
     torch.save(model.state_dict(), filepath)
 
@@ -404,7 +403,7 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
                     dataset.lab, dataset.expt, dataset.animal,
                     dataset.session))
             filepath = os.path.join(
-                hparams['tt_save_path'], 'test_tube_data',
+                hparams['results_dir'], 'test_tube_data',
                 hparams['experiment_name'], 'version_%i' % exp.version,
                 sess_id)
             # save out array in pickle file

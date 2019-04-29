@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import glob
+import pickle
 from collections import OrderedDict
 from skimage import io as sio
 from scipy.io import loadmat
@@ -8,6 +9,7 @@ import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
 import h5py
+from behavenet.utils import get_best_model_version
 
 
 def split_trials(
@@ -88,8 +90,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
-            signals=None, transforms=None, load_kwargs=None,
-            device='cpu', as_numpy=False):
+            signals=None, transforms=None, load_kwargs=None, device='cpu'):
         """
         Read filenames
 
@@ -108,8 +109,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 parameters for an entry in `signals`
             device (str):
                 'cpu' | 'cuda'
-            as_numpy (bool): `True` to return numpy array, `False` to return
-                pytorch tensor
         """
 
         # specify data
@@ -123,7 +122,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.signals = signals
         self.transforms = transforms
         self.load_kwargs = load_kwargs
-        # self.z =
 
         # get total number of trials by loading neural data
         # TODO: load images if neural data is not present?
@@ -132,7 +130,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
-        self.as_numpy = as_numpy
 
     def __len__(self):
         return self.num_trials
@@ -199,8 +196,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 sample[signal] = transform(sample[signal])
                 
             # transform into tensor
-            if not self.as_numpy:
-                sample[signal] = torch.from_numpy(sample[signal]).to(self.device)
+            sample[signal] = torch.from_numpy(sample[signal]).to(self.device)
 
         sample['batch_indx'] = indx
 
@@ -218,8 +214,7 @@ class SingleSessionDataset(data.Dataset):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
-            signals=None, transforms=None, load_kwargs=None,
-            device='cuda', as_numpy=False):
+            signals=None, transforms=None, load_kwargs=None, device='cuda'):
         """
         Read data
 
@@ -238,8 +233,6 @@ class SingleSessionDataset(data.Dataset):
                 parameters for an entry in `signals`
             device (str):
                 'cpu' | 'cuda'
-            as_numpy (bool): `True` to return numpy array, `False` to return
-                pytorch tensor
         """
 
         # specify data
@@ -258,13 +251,12 @@ class SingleSessionDataset(data.Dataset):
         self.num_trials = mat_contents['neural'].shape[0]
 
         self.device = device
-        self.as_numpy = as_numpy
 
         # load and process data
         self.data = OrderedDict()
         self.reg_indxs = None
-        z = zip(self.signals, self.transforms, self.load_kwargs)
-        for signal, transform, load_kwargs in z:
+        for signal, transform, load_kwarg in zip(
+                self.signals, self.transforms, self.load_kwargs):
 
             if signal == 'neural':
 
@@ -283,47 +275,85 @@ class SingleSessionDataset(data.Dataset):
                     temp_data.append(
                         f['images'][str('trial_%04i' % tr)][()].astype(
                         'float32')[None, :] / 255.0)
-
                 self.data[signal] = np.concatenate(temp_data, axis=0)
 
             elif signal == 'ae':
 
                 # build path to latents
-                if 'version' in load_kwargs:
-                    self.model_dir = os.path.join(
-                        self.data_dir, load_kwargs['view'], load_kwargs['dim'],
-                        load_kwargs['version'])
+                if 'latents_file' in load_kwarg:
+                    self.ae_latents_file = load_kwarg['latents_file']
                 else:
-                    self.model_dir = get_best_version(os.path.join(
-                        self.data_dir, load_kwargs['view'], load_kwargs['dim']),
-                        'mse')
-                self.latents_file = os.path.join(
-                    self.model_dir, 'latents-05-fold.pkl')
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply ae directory or latents file')
+
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'loss')
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+
+                    # find file with "latents" in name
+                    self.ae_latents_file = glob.glob(os.path.join(
+                        model_dir, '*latents*.pkl'))[0]
 
                 # load numpy arrays via pickle
                 try:
-                    with open(self.path, 'rb') as f:
+                    with open(self.ae_latents_file, 'rb') as f:
                         latents_dict = pickle.load(f)
-                    self.data = latents_dict['latents']
+                    self.data[signal] = latents_dict['latents']
                 except IOError:
                     raise NotImplementedError(
-                        'Must create ae latents from model; currently not' + \
+                        'Must create ae latents from model; currently not' +
                         ' implemented')
 
-                # self.region_type = str('ae-%s' % self.crop_type)
-                # self.region_indxs = {'ae': None}
-
             elif signal == 'arhmm':
-                raise NotImplementedError
+
+                # build path to latents
+                if 'latents_file' in load_kwarg:
+                    self.arhmm_latents_file = load_kwarg['latents_file']
+                else:
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply ae directory or latents file')
+
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'loss')
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+
+                    # find file with "latents" in name
+                    self.arhmm_latents_file = glob.glob(os.path.join(
+                        model_dir, '*latents*.pkl'))[0]
+
+                # load numpy arrays via pickle
+                try:
+                    with open(self.arhmm_latents_file, 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    self.data[signal] = latents_dict['latents']
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create arhmm latents from model; currently not' +
+                        ' implemented')
 
             # apply transforms
             if transform:
                 self.data[signal] = transform(self.data[signal])
 
             # transform into tensor
-            if not self.as_numpy:
-                self.data[signal] = torch.from_numpy(self.data[signal]).to(
-                    self.device)
+            self.data[signal] = torch.from_numpy(self.data[signal]).to(
+                self.device)
 
     def __len__(self):
         return self.num_trials
@@ -363,6 +393,7 @@ class ConcatSessionsGenerator(object):
         """
 
         self.ids = ids
+        self.as_numpy = as_numpy
 
         # gather all datasets
         def get_dirs(path):
@@ -388,7 +419,7 @@ class ConcatSessionsGenerator(object):
                             data_dir, lab=lab, expt=expt, animal=animal,
                             session=session, signals=signals,
                             transforms=transforms, load_kwargs=load_kwargs,
-                            device=device, as_numpy=as_numpy))
+                            device=device))
                         self.datasets_info.append({
                             'lab': lab, 'expt': expt, 'animal': animal,
                             'session': session})
@@ -403,7 +434,7 @@ class ConcatSessionsGenerator(object):
                         data_dir, lab=lab, expt=expt, animal=animal,
                         session=session, signals=signals,
                         transforms=transforms, load_kwargs=load_kwargs,
-                        device=device, as_numpy=as_numpy))
+                        device=device))
                     self.datasets_info.append({
                         'lab': lab, 'expt': expt, 'animal': animal,
                         'session': session})
@@ -416,7 +447,7 @@ class ConcatSessionsGenerator(object):
                     data_dir, lab=lab, expt=expt, animal=animal,
                     session=session, signals=signals,
                     transforms=transforms, load_kwargs=load_kwargs,
-                    device=device, as_numpy=as_numpy))
+                    device=device))
                 self.datasets_info.append({
                     'lab': lab, 'expt': expt, 'animal': animal,
                     'session': session})
@@ -425,7 +456,7 @@ class ConcatSessionsGenerator(object):
                 data_dir, lab=ids['lab'], expt=ids['expt'],
                 animal=ids['animal'], session=ids['session'],
                 signals=signals, transforms=transforms,
-                load_kwargs=load_kwargs, device=device, as_numpy=as_numpy))
+                load_kwargs=load_kwargs, device=device))
             self.datasets_info.append({
                 'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})
@@ -505,5 +536,9 @@ class ConcatSessionsGenerator(object):
                 break
             except StopIteration:
                 continue
+
+        if self.as_numpy:
+            for i, signal in enumerate(sample):
+                sample[signal] = sample[signal].cpu().detach().numpy()
 
         return sample, dataset

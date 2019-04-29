@@ -73,3 +73,36 @@ def estimate_model_footprint(model, input_size):
     int_bytes *= 2
 
     return (input_bytes + model_bytes + int_bytes) * 1.2  # safety blanket
+
+
+def get_best_model_version(model_path, measure='loss'):
+
+    import pandas as pd
+    import os
+
+    # gather all versions
+    def get_dirs(path):
+        return next(os.walk(model_path))[1]
+
+    versions = get_dirs(model_path)
+
+    # load csv files with model metrics (saved out from test tube)
+    metrics = []
+    for i, version in enumerate(versions):
+        # read metrics csv file
+        try:
+            metric = pd.read_csv(
+                os.path.join(model_path, version, 'metrics.csv'))
+        except:
+            continue
+        # get validation loss of best model # TODO: user-supplied measure
+        val_loss = metric.val_loss.min()
+        metrics.append(pd.DataFrame({
+            'loss': val_loss,
+            'version': version}, index=[i]))
+    # put everything in pandas dataframe
+    metrics_df = pd.concat(metrics, sort=False)
+    # get version with smallest loss
+    best_version = metrics_df['version'][metrics_df['loss'].idxmin()]
+
+    return best_version
