@@ -5,7 +5,6 @@ import torch.nn.functional as F
 import numpy as np
 from ast import literal_eval
 
-
 class ConvAEEncoder(nn.Module):
     
     def __init__(self, hparams):
@@ -167,7 +166,6 @@ class ConvAEDecoder(nn.Module):
     def freeze(self):
         for param in self.parameters():
             param.requires_grad = False      
-
 
 class AE(nn.Module):
 
@@ -681,34 +679,3 @@ class AE(nn.Module):
 #             return core.gaussian_emissions_diagonal_variance(self, data, states)
 #         else:
 #             raise Exception("Invalid emissions: {}".format(self.emissions))
-
-
-class NN(nn.Module):
-
-    def __init__(self, hparams):
-
-        super().__init__()
-        self.hparams = hparams
-
-        self.__build_model()
-
-    def __build_model(self):
-
-        if self.hparams['ae_conv_vs_linear'] == 'conv':
-            self.encoding = ConvAEEncoder(self.hparams)
-            self.decoding = ConvAEDecoder(self.hparams)
-        elif self.hparams['ae_conv_vs_linear'] == 'linear':
-            raise ValueError('linear ae not implemented yet')
-
-    def forward(self, x):
-
-        x, pool_idx, outsize = self.encoding(x)
-        y = self.decoding(x, pool_idx, outsize)
-
-        return y, x
-
-
-class LSTM(nn.Module):
-
-    def __init__(self, hparams):
-        raise NotImplementedError
