@@ -16,7 +16,7 @@ def main(hparams):
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)
-    time.sleep(np.random.randint(10))
+    # time.sleep(np.random.randint(10))
 
     # #########################
     # ### Create Experiment ###
@@ -100,7 +100,7 @@ def main(hparams):
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    hparams['input_size'] = data_generator.datasets[0].dims[2]
+    hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
 
     print('Data generator loaded')
 
@@ -137,7 +137,10 @@ def main(hparams):
     # print('Epoch processed!')
     # print('Time elapsed: {}'.format(time.time() - t))
 
-    fit(hparams, model, data_generator, exp, method='nll')
+    batch, dataset = data_generator.next_batch('train')
+    x = model(batch['neural'][0])
+
+    # fit(hparams, model, data_generator, exp, method='nll')
 
 
 def get_params(strategy):
@@ -192,7 +195,7 @@ def get_params(strategy):
     parser.add_argument('--n_int_units', default=64, type=int)
     parser.opt_list('--n_lags', default=0, options=[0, 1, 3, 5, 9, 17], type=int, tunable=True)
     parser.add_argument('--n_max_lags', default=17)
-    parser.add_argument('--activation', default=['relu'], options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'])
+    parser.opt_list('--activation', default='relu', options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'], tunable=False)
 
     # add neural arguments
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)

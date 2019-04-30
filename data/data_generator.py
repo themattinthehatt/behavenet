@@ -357,7 +357,7 @@ class SingleSessionDataset(data.Dataset):
 
             # transform into tensor
             self.data[signal] = torch.from_numpy(self.data[signal]).to(
-                self.device)
+                device=self.device, dtype=torch.float32)
 
     def __len__(self):
         return self.num_trials

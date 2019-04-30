@@ -701,16 +701,27 @@ class NN(nn.Module):
         global_layer_num = 0
         for i_layer in range(self.hparams['n_hid_layers']):
 
-            # add dense layer
+            # add layer
             if i_layer == self.hparams['n_hid_layers'] - 1:
                 out_size = self.hparams['n_final_units']
             else:
                 out_size = self.hparams['n_int_units']
-            layer = nn.Linear(
-                in_features=in_size,
-                out_features=out_size)
-            self.decoder.add_module(
-                'layer_%02i' % global_layer_num, layer)
+
+            # first layer is 1d conv for incorporating past/future neural
+            # activity
+            if i_layer == 0:
+                layer = nn.Conv1d(
+                    in_channels=in_size,
+                    out_channels=out_size,
+                    kernel_size=self.hparams['n_lags'] * 2 + 1,  # window around t
+                    padding=self.hparams['n_lags'])  # same output
+                name = str('conv1d_layer_%02i' % global_layer_num)
+            else:
+                layer = nn.Linear(
+                    in_features=in_size,
+                    out_features=out_size)
+                name = str('dense_layer_%02i' % global_layer_num)
+            self.decoder.add_module(name, layer)
 
             # add activation
             if self.hparams['activation'] == 'linear':
@@ -729,7 +740,7 @@ class NN(nn.Module):
                     self.hparams['activation'])
 
             if activation:
-                self.encoder.add_module(
+                self.decoder.add_module(
                     '%s_%02i' % (self.hparams['activation'], global_layer_num),
                     activation)
 
@@ -742,7 +753,7 @@ class NN(nn.Module):
             in_features=in_size,
             out_features=self.hparams['output_size'])
         self.decoder.add_module(
-            'layer_%02i' % global_layer_num, layer)
+            'dense_layer_%02i' % global_layer_num, layer)
 
         if self.hparams['noise_dist'] == 'gaussian':
             activation = None
@@ -755,14 +766,33 @@ class NN(nn.Module):
                 '"%s" is an invalid noise dist' % self.hparams['noise_dist'])
 
         if activation:
-            self.encoder.add_module(
+            self.decoder.add_module(
                 '%s_%02i' % (self.hparams['activation'], global_layer_num),
                 activation)
 
     def forward(self, x):
+        """
 
+        Args:
+            x (torch.Tensor): time x neurons
+
+        Returns:
+
+        """
+        # print('Model input size is {}'.format(x.shape))
+        # print()
         for name, layer in self.decoder.named_children():
-            x = layer(x)
+            if name == 'conv1d_layer_00':
+                # input is batch x in_channels x time
+                # output is batch x out_channels x time
+                x = layer(x.transpose(1, 0).unsqueeze(0)).squeeze().transpose(1, 0)
+            else:
+                x = layer(x)
+            # print('Layer {}'.format(name))
+            # print('\toutput size: {}'.format(x.shape))
+            # for param in layer.parameters():
+            #     print('\tparam shape is {}'.format(param.size()))
+            # print()
 
         return x
 
