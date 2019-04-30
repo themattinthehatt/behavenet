@@ -1,5 +1,5 @@
 from behavenet.core import expected_log_likelihood, log_sum_exp
-from behavenet.messages import hmm_expectations, hmm_sample
+# from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
 import torch
 from torch import nn, optim
@@ -32,7 +32,8 @@ class FitMethod(object):
         return self.metrics[dtype]['loss']
 
     def create_metric_row(
-            self, dtype, epoch, batch, dataset, trial, best_epoch, **kwargs):
+            self, dtype, epoch, batch, dataset, trial, best_epoch=None,
+            **kwargs):
         if dtype == 'train':
             metric_row = {
                 'epoch': epoch,
@@ -275,6 +276,7 @@ class EMLoss(FitMethod):
             raise ValueError("%s is an invalid data type" % dtype)
 
         return metric_row
+
 
 class SVILoss(FitMethod):
 
@@ -595,8 +597,8 @@ def fit(
                 # process batch, perhaps in chunks if full batch is too large
                 # to fit on gpu
                 chunk_size = 200
-                batch_size = data[hparams['signals'][0]].shape[0]
                 y = data[hparams['signals']][0]
+                batch_size = y.shape[0]
                 if batch_size > chunk_size:
                     # split into chunks
                     num_chunks = int(np.ceil(batch_size / chunk_size))
