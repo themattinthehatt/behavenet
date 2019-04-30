@@ -724,15 +724,15 @@ class NN(nn.Module):
         global_layer_num = 0
         for i_layer in range(self.hparams['n_hid_layers']):
 
-            # add layer
             if i_layer == self.hparams['n_hid_layers'] - 1:
                 out_size = self.hparams['n_final_units']
             else:
                 out_size = self.hparams['n_int_units']
 
-            # first layer is 1d conv for incorporating past/future neural
-            # activity
+            # add layer
             if i_layer == 0:
+                # first layer is 1d conv for incorporating past/future neural
+                # activity
                 layer = nn.Conv1d(
                     in_channels=in_size,
                     out_channels=out_size,

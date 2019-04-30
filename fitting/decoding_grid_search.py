@@ -137,23 +137,21 @@ def main(hparams):
     # print('Epoch processed!')
     # print('Time elapsed: {}'.format(time.time() - t))
 
-    batch, dataset = data_generator.next_batch('train')
-    x = model(batch['neural'][0])
+    # batch, dataset = data_generator.next_batch('train')
+    # x = model(batch['neural'][0])
 
-    # fit(hparams, model, data_generator, exp, method='nll')
+    fit(hparams, model, data_generator, exp, method='nll')
 
 
 def get_params(strategy):
 
     parser = HyperOptArgumentParser(strategy)
 
-    parser.opt_list(
-        '--model_name',
-        default='neural-ae',
-        options=['neural-ae', 'neural-arhmm'],
-        type=str, tunable=False)
+    parser.opt_list('--model_name', default='neural-ae', options=['neural-ae', 'neural-arhmm'], type=str, tunable=False)
+    parser.opt_list('--model_type', default='ff', options=['ff', 'lstm'], type=str)
     namespace, extra = parser.parse_known_args()
     model_name = namespace.model_name
+    model_type = namespace.model_type
 
     # add data generator arguments
     if os.uname().nodename == 'white-noise':
@@ -189,14 +187,19 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add model hyperparameters
-    parser.opt_list('--model_type', default='ff', options=['ff', 'lstm'], type=str)
     parser.opt_list('--learning_rate', default=1e-3, options=[1e-3, 1e-4], type=float, tunable=True)
-    parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3], type=int, tunable=True)
-    parser.opt_list('--n_final_units', default=8, options=[16, 32, 64], type=int, tunable=True)
-    parser.add_argument('--n_int_units', default=64, type=int)
-    parser.opt_list('--n_lags', default=0, options=[0, 1, 3, 5, 9, 17], type=int, tunable=True)
-    parser.add_argument('--n_max_lags', default=17)
+    parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8, 16], type=int, tunable=True)
+    parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+    parser.add_argument('--n_max_lags', default=17)  # should match largest value in --n_lags options
     parser.opt_list('--activation', default='relu', options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'], tunable=False)
+    if model_type == 'linear':
+        parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
+    elif model_type == 'ff':
+        parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3], type=int, tunable=True)
+        parser.opt_list('--n_final_units', default=8, options=[16, 32, 64], type=int, tunable=True)
+        parser.add_argument('--n_int_units', default=64, type=int)
+    elif model_type == 'lstm':
+        raise NotImplementedError
 
     # add neural arguments
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)

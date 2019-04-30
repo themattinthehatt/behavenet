@@ -115,7 +115,7 @@ class AELoss(FitMethod):
 
     def calc_loss(self, data, device):
 
-        y = data['images'][0]
+        y = data[self.model.hparams['signals']][0]
 
         chunk_size = 200
         batch_size = y.shape[0]
@@ -162,31 +162,40 @@ class NLLLoss(FitMethod):
             self._loss = nn.CrossEntropyLoss()
 
     def calc_loss(self, data, device):
+        """data is 1 x T x N"""
 
         predictors = data[self.model.hparams['input_signal']][0]
-        targets = data[self.model.hparams['input_signal']][0]
+        targets = data[self.model.hparams['output_signal']][0]
+
+        max_lags = self.model.hparams['n_max_lags']
 
         chunk_size = 200
         batch_size = targets.shape[0]
 
         if batch_size > chunk_size:
             # split into chunks
-            num_chunks = np.ceil(batch_size / chunk_size)
+            num_chunks = int(np.ceil(batch_size / chunk_size))
             loss_val = 0
             for chunk in range(num_chunks):
-                indx_beg = chunk * chunk_size
-                indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                # take chunks of size chunk_size, plus overlap due to max_lags
+                indx_beg = np.max([chunk * chunk_size - max_lags, 0])
+                indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
                 outputs = self.model(predictors[indx_beg:indx_end])
-                loss = self._loss(outputs, targets)
+                # define loss on allowed window of data
+                loss = self._loss(
+                    outputs[max_lags:-max_lags],
+                    targets[max_lags:-max_lags])
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
-                loss_val += loss.item() * (indx_end - indx_beg)
+                loss_val += loss.item() * outputs[max_lags:-max_lags].shape[0]
             loss_val /= targets.shape[0]
         else:
             outputs = self.model(predictors)
-            # define loss
-            loss = self._loss(outputs, targets)
+            # define loss on allowed window of data
+            loss = self._loss(
+                outputs[max_lags:-max_lags],
+                targets[max_lags:-max_lags])
             # compute gradients
             loss.backward()
             # get loss value
@@ -427,11 +436,14 @@ def fit(
 
     # Optimizer set-up
     optimizer = torch.optim.Adam(
-        loss.get_parameters(), lr=hparams['learning_rate'])
+        loss.get_parameters(),
+        lr=hparams['learning_rate'],
+        weight_decay=hparams['l2_reg'])
 
     # enumerate batches on which validation metrics should be recorded
     best_val_loss = math.inf
     best_val_epoch = None
+    best_val_model = None
     val_check_batch = np.linspace(
         data_generator.num_tot_batches['train'] * hparams['val_check_interval'],
         data_generator.num_tot_batches['train'] * hparams['max_nb_epochs'],
@@ -440,8 +452,7 @@ def fit(
     # early stopping set-up
     if hparams['enable_early_stop']:
         early_stop = EarlyStopping(
-            min_fraction=hparams['early_stop_fraction'],
-            patience=hparams['early_stop_patience'],
+            history=hparams['history'],
             min_epochs=hparams['min_nb_epochs'])
 
     i_epoch = 0
@@ -493,6 +504,7 @@ def fit(
                         'version_%i' % exp.version,
                         'best_val_model.pt')
                     torch.save(model.state_dict(), filepath)
+
                     model.hparams = None
                     best_val_model = copy.deepcopy(model)
                     model.hparams = hparams
@@ -521,10 +533,29 @@ def fit(
         #     if early_stop.should_stop:
         #         break
 
+    # save out last model
+    filepath = os.path.join(
+        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
+        'version_%i' % exp.version, 'last_model.pt')
+    torch.save(model.state_dict(), filepath)
+
     # Compute test loss
-    loss.reset_metrics('test')
+    if method == 'em':
+        test_loss = EMLoss(best_val_model)
+    elif method == 'svi':
+        test_loss = SVILoss(best_val_model, variational_posterior)
+    elif method == 'vae':
+        test_loss = VAELoss(best_val_model)
+    elif method == 'ae':
+        test_loss = AELoss(best_val_model)
+    elif method == 'nll':
+        test_loss = NLLLoss(best_val_model)
+    else:
+        raise ValueError('"%s" is an invalid fitting method' % method)
+
+    test_loss.reset_metrics('test')
     data_generator.reset_iterators('test')
-    model.eval()
+    best_val_model.eval()
 
     for i_test in range(data_generator.num_tot_batches['test']):
 
@@ -532,23 +563,18 @@ def fit(
         data, dataset = data_generator.next_batch('test')
 
         # Call the appropriate loss function
-        loss.reset_metrics('test')
-        loss.calc_loss(data, hparams['device'])
-        loss.update_metrics('test')
+        test_loss.reset_metrics('test')
+        test_loss.calc_loss(data, hparams['device'])
+        test_loss.update_metrics('test')
 
         # calculate metrics for each batch
-        exp.log(loss.create_metric_row(
+        exp.log(test_loss.create_metric_row(
             'test', i_epoch, i_test, dataset, data['batch_indx'].item()))
     exp.save()
 
-    # save out best model
-    filepath = os.path.join(
-        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
-        'version_%i' % exp.version, 'last_model.pt')
-    torch.save(model.state_dict(), filepath)
-
     # export latents
-    if hparams['export_latents']:
+    # TODO: export decoder predictions?
+    if method == 'ae' and hparams['export_latents']:
 
         # initialize container for latents
         latents = [[] for _ in range(data_generator.num_datasets)]
@@ -565,10 +591,28 @@ def fit(
             data_generator.reset_iterators(dtype)
             for i in range(data_generator.num_tot_batches[dtype]):
                 data, dataset = data_generator.next_batch(dtype)
-                # TODO: max_chunk_size
-                curr_latents, _, _ = model.encoding(data[hparams['signals']][0])
-                latents[dataset][data['batch_indx'].item(), :, :] = \
-                    curr_latents.cpu().detach().numpy()
+
+                # process batch, perhaps in chunks if full batch is too large
+                # to fit on gpu
+                chunk_size = 200
+                batch_size = data[hparams['signals'][0]].shape[0]
+                y = data[hparams['signals']][0]
+                if batch_size > chunk_size:
+                    # split into chunks
+                    num_chunks = int(np.ceil(batch_size / chunk_size))
+                    for chunk in range(num_chunks):
+                        # take chunks of size chunk_size, plus overlap due to
+                        # max_lags
+                        indx_beg = chunk * chunk_size
+                        indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                        curr_latents, _, _ = best_val_model.encoding(
+                            y[indx_beg:indx_end])
+                        latents[dataset][data['batch_indx'].item(), indx_beg:indx_end, :] = \
+                            curr_latents.cpu().detach().numpy()
+                else:
+                    curr_latents, _, _ = best_val_model.encoding(y)
+                    latents[dataset][data['batch_indx'].item(), :, :] = \
+                        curr_latents.cpu().detach().numpy()
 
         # save latents separately for each dataset
         for i, dataset in enumerate(data_generator.datasets):

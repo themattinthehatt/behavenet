@@ -110,6 +110,7 @@ def get_params(strategy):
 
     # add training arguments
     parser.add_argument('--learning_rate', default=1e-3, type=float)
+    parser.add_argument('--l2_reg', default=0, type=float)
     parser.add_argument('--val_check_interval', default=1)
     parser.add_argument('--enable_early_stop', default=False, type=bool)
     parser.add_argument('--early_stop_fraction', default=None, type=float)
