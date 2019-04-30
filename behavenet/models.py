@@ -13,7 +13,7 @@ class ConvAEEncoder(nn.Module):
         super(ConvAEEncoder, self).__init__()
       
         self.hparams = hparams
-        self.__build_model()
+        self.build_model()
 
     def build_model(self):
         
