@@ -1,5 +1,6 @@
 # from behavenet.messages import hmm_expectations, hmm_sample
 from behavenet.core import expected_log_likelihood, EarlyStopping, log_sum_exp
+from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
 import torch
 from torch import nn, optim
@@ -154,28 +155,68 @@ class EMLoss(FitMethod):
         super().__init__(model, metric_strs)
 
     def calc_loss(self, data, device):
-        raise NotImplementedError
+        ae = data['ae'][0]
+        neural = data['neural'][0]
+
+        low_d = self.model.get_low_d(ae)
+        log_prior = self.model.log_prior()
+        log_pi0 = self.model.log_pi0(low_d)
+        log_Ps = self.model.log_transition_proba(low_d)
+        lls = self.model.log_dynamics_proba(low_d)
+
+        with torch.no_grad():
+            expectations = hmm_expectations(log_pi0, log_Ps, lls, device)
+        
+        prior = log_prior #/ int(nb_tng_batches)
+        likelihood = expected_log_likelihood(expectations, log_pi0, log_Ps, lls)
+
+        elp = prior + likelihood
+        if np.isnan(elp.item()):
+            raise Exception("Expected log probability is not finite")
+
+        loss = -elp / low_d.shape[0] / low_d.shape[1]
+
+        loss.backward()
+        loss_val = loss.item()
+
+        self.metrics['curr']['nll'] = -likelihood.item() / low_d.shape[0] / low_d.shape[1]
+        self.metrics['curr']['prior'] = prior.item() / low_d.shape[0] / low_d.shape[1]
+        self.metrics['curr']['batches'] = 1
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None):
-        raise NotImplementedError
-        # val_row = {
-        #     'epoch': i_epoch,
-        #     'batch_nb': i_train,
-        #     'tng_err': train_loss / (i_train + 1),
-        #     'val_err': val_loss / data_generator.num_tot_batches['val'],
-        #     'val_NLL': val_NLL / data_generator.num_tot_batches['val'],
-        #     'val_KL': val_KL / data_generator.num_tot_batches['val'],
-        #     'val_MSE': val_MSE / data_generator.num_tot_batches['val'],
-        #     'best_val_epoch': best_val_epoch}
-        # test_row = {
-        #     'epoch': i_epoch,
-        #     'batch_nb': i_train,
-        #     'test_err': test_loss / data_generator.num_tot_batches['test'],
-        #     'test_NLL': test_NLL / data_generator.num_tot_batches['test'],
-        #     'test_prior': test_prior / data_generator.num_tot_batches['test'],
-        #     'best_val_epoch': best_val_epoch}
+        if dtype == 'train':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_nll': self.metrics['train']['nll'] / self.metrics['train']['batches'],
+                'tr_prior': self.metrics['train']['prior'] / self.metrics['train']['batches']
+            }
+        elif dtype == 'val':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_nll': self.metrics['train']['nll'] / self.metrics['train']['batches'],
+                'val_nll': self.metrics['val']['nll'] / self.metrics['val']['batches'],
+                'tr_prior': self.metrics['train']['prior'] / self.metrics['train']['batches'],
+                'val_prior': self.metrics['val']['prior'] / self.metrics['val']['batches'],
+                'best_val_epoch': best_epoch}
+        elif dtype == 'test':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'test_nll': self.metrics['test']['nll'] / self.metrics['test']['batches'],
+                'test_prior': self.metrics['test']['prior'] / self.metrics['test']['batches']}
+        else:
+            raise ValueError("%s is an invalid data type" % dtype)
 
+        return metric_row
 
 class SVILoss(FitMethod):
 
