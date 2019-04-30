@@ -7,42 +7,6 @@ from torch.nn import functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 import math
 
-class EarlyStopping(object):
-    """Stop training when a monitored quantity has stopped improving.
-    # Arguments
-        monitor: quantity to be monitored.
-        min_fraction: minimum change in the monitored quantity
-            to qualify as an improvement, i.e.
-            change of less than min_fraction * best val loss
-            will count as no improvement.
-        patience: number of epochs with no improvement
-            after which training will be stopped.
-    """
-
-    def __init__(self, min_fraction=0.0, patience=0):
-        super(EarlyStopping, self).__init__()
-
-        self.patience = patience
-        self.min_fraction = min_fraction
-        self.wait = 0
-        self.stopped_epoch = 0.0
-        self.best = np.inf
-
-    def on_val_check(self, epoch, val_loss):
-
-        stop_training = False
-
-        if np.less(val_loss, self.min_fraction*self.best):
-            self.best = val_loss
-            self.wait = 0
-        else:
-            self.wait += 1
-            if self.wait >= self.patience:
-                self.stopped_epoch = epoch
-                stop_training = True
-
-        return stop_training
-
 
 # Helpers
 def log_sum_exp(value, dim=None, keepdim=False):
