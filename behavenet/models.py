@@ -679,3 +679,99 @@ class AE(nn.Module):
 #             return core.gaussian_emissions_diagonal_variance(self, data, states)
 #         else:
 #             raise Exception("Invalid emissions: {}".format(self.emissions))
+
+
+class NN(nn.Module):
+
+    def __init__(self, hparams):
+
+        super().__init__()
+
+        self.hparams = hparams
+
+        self.__build_model()
+
+    def __build_model(self):
+
+        self.decoder = nn.ModuleList()
+
+        in_size = self.hparams['input_size']
+
+        # loop over hidden layers (0 layers <-> linear regression)
+        global_layer_num = 0
+        for i_layer in range(self.hparams['n_hid_layers']):
+
+            # add dense layer
+            if i_layer == self.hparams['n_hid_layers'] - 1:
+                out_size = self.hparams['n_final_units']
+            else:
+                out_size = self.hparams['n_int_units']
+            layer = nn.Linear(
+                in_features=in_size,
+                out_features=out_size)
+            self.decoder.add_module(
+                'layer_%02i' % global_layer_num, layer)
+
+            # add activation
+            if self.hparams['activation'] == 'linear':
+                activation = None
+            elif self.hparams['activation'] == 'relu':
+                activation = nn.ReLU()
+            elif self.hparams['activation'] == 'lrelu':
+                activation = nn.LeakyReLU(0.05)
+            elif self.hparams['activation'] == 'sigmoid':
+                activation = nn.Sigmoid()
+            elif self.hparams['activation'] == 'tanh':
+                activation = nn.Tanh()
+            else:
+                raise ValueError(
+                    '"%s" is an invalid activation function' %
+                    self.hparams['activation'])
+
+            if activation:
+                self.encoder.add_module(
+                    '%s_%02i' % (self.hparams['activation'], global_layer_num),
+                    activation)
+
+            # update layer info
+            global_layer_num += 1
+            in_size = out_size
+
+        # final layer
+        layer = nn.Linear(
+            in_features=in_size,
+            out_features=self.hparams['output_size'])
+        self.decoder.add_module(
+            'layer_%02i' % global_layer_num, layer)
+
+        if self.hparams['noise_dist'] == 'gaussian':
+            activation = None
+        elif self.hparams['noise_dist'] == 'poisson':
+            activation = nn.Softplus()
+        elif self.hparams['noise_dist'] == 'categorical':
+            activation = None
+        else:
+            raise ValueError(
+                '"%s" is an invalid noise dist' % self.hparams['noise_dist'])
+
+        if activation:
+            self.encoder.add_module(
+                '%s_%02i' % (self.hparams['activation'], global_layer_num),
+                activation)
+
+    def forward(self, x):
+
+        for name, layer in self.decoder.named_children():
+            x = layer(x)
+
+        return x
+
+    def freeze(self):
+        for param in self.parameters():
+            param.requires_grad = False
+
+
+class LSTM(nn.Module):
+
+    def __init__(self, hparams):
+        raise NotImplementedError
