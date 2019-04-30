@@ -4,6 +4,7 @@ import pandas as pd
 import torch.nn.functional as F
 import numpy as np
 from ast import literal_eval
+import behavenet.core as core
 
 class ConvAEEncoder(nn.Module):
     
@@ -14,7 +15,7 @@ class ConvAEEncoder(nn.Module):
         self.hparams = hparams
         self.__build_model()
 
-    def __build_model(self):
+    def build_model(self):
         
         self.encoder = nn.ModuleList()
         global_layer_num=0
@@ -89,7 +90,7 @@ class ConvAEDecoder(nn.Module):
         self.hparams=hparams
         self.__build_model()
 
-    def __build_model(self):
+    def build_model(self):
         first_conv_size = self.hparams['ae_encoding_n_channels'][-1]*self.hparams['ae_encoding_x_dim'][-1]*self.hparams['ae_encoding_y_dim'][-1]
         self.FF = nn.Linear(self.hparams['n_latents'], first_conv_size)
         
@@ -176,7 +177,7 @@ class AE(nn.Module):
 
         self.__build_model()
 
-    def __build_model(self):
+    def build_model(self):
 
         if self.hparams['ae_conv_vs_linear']=='conv':
             self.encoding = ConvAEEncoder(self.hparams)
@@ -482,87 +483,109 @@ class AE(nn.Module):
 
 #         return y_mu, y_var, h_mu
 
-# class ARHMM(nn.Module):
-#     def __init__(self, hparams, dynamics="gaussian"):
-#         super(ARHMM, self).__init__()
-#         self.hparams = hparams
+class ARHMM(nn.Module):
+    def __init__(self, hparams):
+        super(ARHMM, self).__init__()
+        self.hparams = hparams
 
-#         assert dynamics in ("gaussian", "studentst")
-#         self.dynamics = dynamics.lower()
+        assert self.hparams['dynamics'] in ("gaussian", "diagonal_gaussian", "studentst")
+        self.dynamics = self.hparams['dynamics'].lower()
 
-#         self.__build_model()
+        self.build_model()
 
-#     def __build_model(self):
-#         hp = self.hparams
-#         dynamics = self.dynamics
-        
-#         # Dynamics parameters
-#         self.As = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h*hp.nlags, hp.latent_dim_size_h)))
-#         self.bs = nn.Parameter(torch.zeros((hp.n_discrete_states, hp.latent_dim_size_h)))
-#         self.inv_softplus_Qs = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
+    def build_model(self):
+        hp = self.hparams
+        dynamics = self.dynamics
 
-#         if dynamics.lower() == "studentst":
-#             self.inv_softplus_nus = nn.Parameter(torch.ones((hp.n_discrete_states, hp.latent_dim_size_h)))
-        
-#         # Transition parameters
-#         self.stat_log_transition_proba = \
-#                 nn.Parameter(torch.log(
-#                 hp.transition_init * torch.eye(hp.n_discrete_states) + (1-hp.transition_init) / hp.n_discrete_states * torch.ones((hp.n_discrete_states, hp.n_discrete_states))))
+        # Dynamics parameters
+        self.As = nn.Parameter(torch.zeros((hp['n_discrete_states'], hp['latent_dim_size_h']*hp['nlags'], hp['latent_dim_size_h'])))
+        self.bs = nn.Parameter(torch.zeros((hp['n_discrete_states'], hp['latent_dim_size_h'])))
 
-#         if self.hparams.low_d_type == 'vae':
-#             hp = pd.read_csv(self.hparams.vae_model_path+'meta_tags.csv')
-#             hp = dict(zip(hp['key'], hp['value']))
-#             vae_hparams = objectview(hp)
+        if dynamics.lower() == "gaussian":
+            self.sqrt_Qs = nn.Parameter(
+                 torch.eye(hp['latent_dim_size_h']).unsqueeze(0).repeat((hp['n_discrete_states'], 1, 1)))
+        elif dynamics.lower() == "diagonal_gaussian":
+            self.inv_softplus_Qs = nn.Parameter(torch.ones((hp['n_discrete_states'], hp['latent_dim_size_h'])))
+        elif dynamics.lower() == "studentst":
+            self.inv_softplus_nus = nn.Parameter(torch.ones((hp['n_discrete_states'], hp['latent_dim_size_h'])))
+        else:
+            raise Exception("Bad dynamics model: {}".format(dynamics))
 
-#             vae_model = VAE(vae_hparams)
+        # Transition parameters
+        self.stat_log_transition_proba = \
+                nn.Parameter(torch.log(
+                hp['transition_init'] * torch.eye(hp['n_discrete_states']) + (1-hp['transition_init']) / hp['n_discrete_states'] * torch.ones((hp['n_discrete_states'], hp['n_discrete_states']))))
 
-#             vae_model.load_state_dict(torch.load(self.hparams.vae_model_path+'best_val_model.pt', map_location=lambda storage, loc: storage))
-#             VAE_encoder_model = vae_model.encoding
-#             VAE_encoder_model.freeze()
-#             VAE_encoder_model.training=False
-#             VAE_encoder_model.to(self.hparams.device)
-#             self.VAE_encoder_model = VAE_encoder_model
+    def initialize(self,method="lr", *args, **kwargs):
+        init_methods = dict(lr=self._initialize_with_lr)
+        if method not in init_methods:
+            raise Exception("Invalid initialization method: {}".format(method))
+        return init_methods[method](*args, **kwargs)
 
-#     def initialize(self,method="lr", *args, **kwargs):
-#         init_methods = dict(lr=self._initialize_with_lr)
-#         if method not in init_methods:
-#             raise Exception("Invalid initialization method: {}".format(method))
-#         return init_methods[method](*args, **kwargs)
-        
-#     def _initialize_with_lr(self, data_gen, L2_reg=0.01):
-#         self.As.data, self.bs.data, self.inv_softplus_Qs.data = core.initialize_with_lr(self, self.hparams,data_gen, L2_reg=L2_reg)
-        
-#     def log_pi0(self, *args):
-#         return core.uniform_initial_distn(self).to(self.hparams.device)
+    def _initialize_with_lr(self, data_gen, L2_reg=0.01):
+        self.As.data, self.bs.data, self.inv_softplus_Qs.data = core.initialize_with_lr(self, self.hparams, data_gen, L2_reg=L2_reg)
 
-#     def log_prior(self,*args):
-#         return core.dirichlet_prior(self)
+    def log_pi0(self, *args):
+        return core.uniform_initial_distn(self).to(self.hparams['device'])
 
-#     def log_transition_proba(self, *args):
-#         return core.stationary_log_transition_proba(self)
+    def log_prior(self,*args):
+        return core.dirichlet_prior(self)
 
-#     def log_dynamics_proba(self, data, *args):
-#         if self.dynamics == "gaussian":
-#             return core.gaussian_ar_log_proba(self,data)
-#         elif self.dynamics == "studentst":
-#             return core.studentst_ar_log_proba(self,data)
-#         else:
-#             raise Exception("Invalid dynamics: {}".format(self.dynamics))
-#     def get_low_d(self,signal):  
-#         if self.hparams.low_d_type == 'vae':
-#             self.VAE_encoder_model.training=False
-#             signal,_= self.VAE_encoder_model(signal)
-#             if self.hparams.whiten_vae:
-#                 mean_h = np.load('normalization_values/vae_mean.npy')
-#                 whiten_h = np.load('normalization_values/vae_whitening_matrix.npy')
-#                 apply_whitening = lambda x:  np.linalg.solve(whiten_h, (x-mean_h).T).T 
-#                 signal = apply_whitening(signal[:,:10].cpu().detach().numpy())
-#                 signal = torch.tensor(signal).to(self.hparams.device).float()
-#         elif self.hparams.low_d_type == 'pca':
-#             signal = signal[:,:10]
-#         else:
-#             raise NotImplementedError
-#         return signal
+    def log_transition_proba(self, *args):
+        return core.stationary_log_transition_proba(self)
+
+    def log_dynamics_proba(self, data, *args):
+        if self.dynamics == "gaussian":
+            return core.gaussian_ar_log_proba(self,data)
+        elif self.dynamics == "diagonal_gaussian":
+            return core.diagonal_gaussian_ar_log_proba(self,data)
+        elif self.dynamics == "studentst":
+            return core.studentst_ar_log_proba(self,data)
+        else:
+            raise Exception("Invalid dynamics: {}".format(self.dynamics))
+
+    def get_low_d(self,signal):
+        return signal
+
+class InputDrivenARHMM(ARHMM):
+
+    def __init__(self, hparams):
+        super(InputDrivenARHMM, self).__init__(hparams)
+
+    def build_model(self):
+        super(InputDrivenARHMM,self).build_model()
+        #if hp['decoding_model_type']=='time_lagged_linear':
+        self.transition_matrix_bias = TimeLaggedLinear(self.hparams)
+
+    def log_transition_proba(self, inputs):
+        transition_matrix_bias = self.transition_matrix_bias(inputs)
+        return core.input_driven_log_transition_proba(self, transition_matrix_bias)
+
+
+class TimeLaggedLinear(nn.Module):
+
+    def __init__(self, hparams):
+        super(TimeLaggedLinear, self).__init__()
+        self.hparams = hparams
+
+        self.build_model()
+
+    def build_model(self):
+
+
+        self.linear = nn.Conv1d(self.hparams['n_neurons'],self.hparams['n_discrete_states'],self.hparams['neural_lags'],padding=int((self.hparams['neural_lags']-1)/2))
+
+
+    def forward(self, x):
+        # x should be timesteps x neurons
+
+        # have to reconfigure to 1 x neurons x timesteps
+        x = x.unsqueeze(0).transpose(1,2)
+
+        x = self.linear(x)
+
+        x = x.transpose(2,1).squeeze(0)
+        return x
 
 # class SLDS(nn.Module):
 #     """
