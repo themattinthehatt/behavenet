@@ -13,7 +13,7 @@ class ConvAEEncoder(nn.Module):
         super(ConvAEEncoder, self).__init__()
       
         self.hparams = hparams
-        self.__build_model()
+        self.build_model()
 
     def build_model(self):
         
@@ -88,7 +88,7 @@ class ConvAEDecoder(nn.Module):
         super(ConvAEDecoder, self).__init__()
       
         self.hparams=hparams
-        self.__build_model()
+        self.build_model()
 
     def build_model(self):
         first_conv_size = self.hparams['ae_encoding_n_channels'][-1]*self.hparams['ae_encoding_x_dim'][-1]*self.hparams['ae_encoding_y_dim'][-1]
@@ -175,7 +175,7 @@ class AE(nn.Module):
         super(AE, self).__init__()
         self.hparams = hparams
 
-        self.__build_model()
+        self.build_model()
 
     def build_model(self):
 
