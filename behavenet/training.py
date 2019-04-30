@@ -1,4 +1,4 @@
-from behavenet.core import expected_log_likelihood, EarlyStopping, log_sum_exp
+from behavenet.core import expected_log_likelihood, log_sum_exp
 from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
 import torch
