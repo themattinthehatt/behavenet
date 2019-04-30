@@ -179,6 +179,7 @@ def get_params(strategy):
     parser.add_argument('--enable_early_stop', default=True, type=bool)
     parser.add_argument('--early_stop_fraction', default=None, type=float)
     parser.add_argument('--early_stop_patience', default=None, type=float)
+    parser.add_argument('--min_nb_epochs', default=1, type=int)
     parser.add_argument('--max_nb_epochs', default=100, type=int)
     parser.add_argument('--export_latents', default=False, type=bool)
 
