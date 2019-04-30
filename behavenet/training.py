@@ -32,8 +32,40 @@ class FitMethod(object):
     def get_loss(self, dtype):
         return self.metrics[dtype]['loss']
 
-    def create_metric_row(self, dtype, epoch, batch, dataset, trial, **kwargs):
-        raise NotImplementedError
+    def create_metric_row(
+            self, dtype, epoch, batch, dataset, trial, best_epoch, **kwargs):
+        if dtype == 'train':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_loss': self.metrics['train']['loss'] /
+                           self.metrics['train']['batches']
+            }
+        elif dtype == 'val':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_loss': self.metrics['train']['loss'] /
+                           self.metrics['train']['batches'],
+                'val_loss': self.metrics['val']['loss'] /
+                            self.metrics['val']['batches'],
+                'best_val_epoch': best_epoch}
+        elif dtype == 'test':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'test_loss': self.metrics['test']['loss'] /
+                             self.metrics['test']['batches']}
+        else:
+            raise ValueError("%s is an invalid data type" % dtype)
+
+        return metric_row
 
     def reset_metrics(self, dtype):
         for key in self.metrics[dtype].keys():
@@ -116,36 +148,54 @@ class AELoss(FitMethod):
         self.metrics['curr']['loss'] = loss_val
         self.metrics['curr']['batches'] = 1
 
-    def create_metric_row(
-            self, dtype, epoch, batch, dataset, trial, best_epoch=None):
-        if dtype == 'train':
-            metric_row = {
-                'epoch': epoch,
-                'batch': batch,
-                'dataset': dataset,
-                'trial': trial,
-                'tr_loss': self.metrics['train']['loss'] / self.metrics['train']['batches']
-            }
-        elif dtype == 'val':
-            metric_row = {
-                'epoch': epoch,
-                'batch': batch,
-                'dataset': dataset,
-                'trial': trial,
-                'tr_loss': self.metrics['train']['loss'] / self.metrics['train']['batches'],
-                'val_loss': self.metrics['val']['loss'] / self.metrics['val']['batches'],
-                'best_val_epoch': best_epoch}
-        elif dtype == 'test':
-            metric_row = {
-                'epoch': epoch,
-                'batch': batch,
-                'dataset': dataset,
-                'trial': trial,
-                'test_loss': self.metrics['test']['loss'] / self.metrics['test']['batches']}
-        else:
-            raise ValueError("%s is an invalid data type" % dtype)
 
-        return metric_row
+class NLLLoss(FitMethod):
+
+    def __init__(self, model):
+        metric_strs = ['batches', 'loss']
+        super().__init__(model, metric_strs)
+
+        if self.model.hparams['noise_dist'] == 'gaussian':
+            self._loss = nn.MSELoss()
+        elif self.model.hparams['noise_dist'] == 'poisson':
+            self._loss = nn.PoissonNLLLoss(log_input=False)
+        elif self.model.hparams['noise_dist'] == 'categorical':
+            self._loss = nn.CrossEntropyLoss()
+
+    def calc_loss(self, data, device):
+
+        predictors = data[self.model.hparams['input_signal']][0]
+        targets = data[self.model.hparams['input_signal']][0]
+
+        chunk_size = 200
+        batch_size = targets.shape[0]
+
+        if batch_size > chunk_size:
+            # split into chunks
+            num_chunks = np.ceil(batch_size / chunk_size)
+            loss_val = 0
+            for chunk in range(num_chunks):
+                indx_beg = chunk * chunk_size
+                indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                outputs = self.model(predictors[indx_beg:indx_end])
+                loss = self._loss(outputs, targets)
+                # compute gradients
+                loss.backward()
+                # get loss value (weighted by batch size)
+                loss_val += loss.item() * (indx_end - indx_beg)
+            loss_val /= targets.shape[0]
+        else:
+            outputs = self.model(predictors)
+            # define loss
+            loss = self._loss(outputs, targets)
+            # compute gradients
+            loss.backward()
+            # get loss value
+            loss_val = loss.item()
+
+        # store current metrics
+        self.metrics['curr']['loss'] = loss_val
+        self.metrics['curr']['batches'] = 1
 
 
 class EMLoss(FitMethod):
@@ -265,7 +315,9 @@ class SVILoss(FitMethod):
         #     'best_val_epoch': best_val_epoch}
 
 
-def fit(hparams, model, data_generator, exp, method="em", variational_posterior=None):
+def fit(
+        hparams, model, data_generator, exp, method='em',
+        variational_posterior=None):
     """
     Args:
         hparams:
@@ -283,8 +335,10 @@ def fit(hparams, model, data_generator, exp, method="em", variational_posterior=
         loss = SVILoss(model, variational_posterior)
     elif method == 'vae':
         loss = VAELoss(model)
-    elif method == 'ae' or method == 'mse':
+    elif method == 'ae':
         loss = AELoss(model)
+    elif method == 'nll':
+        loss = NLLLoss(model)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 

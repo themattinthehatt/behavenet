@@ -16,7 +16,7 @@ def main(hparams):
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)
-    time.sleep(np.random.randint(10))
+    # time.sleep(np.random.randint(10))
 
     # #########################
     # ### Create Experiment ###
@@ -52,6 +52,8 @@ def main(hparams):
 
     # get model-specific signals/transforms/load_kwargs
     if hparams['model_name'] == 'neural-ae':
+        hparams['input_signal'] = 'neural'
+        hparams['output_signal'] = 'ae'
 
         signals = ['neural', 'ae']
 
@@ -71,7 +73,11 @@ def main(hparams):
         transforms = [neural_transforms, ae_transforms]
         load_kwargs = [neural_kwargs, ae_kwargs]
 
+        hparams['output_size'] = hparams['n_ae_latents']
+
     elif hparams['model_name'] == 'neural-arhmm':
+        hparams['input_signal'] = 'neural'
+        hparams['output_signal'] = 'arhmm'
 
         signals = ['neural', 'arhmm']
 
@@ -83,6 +89,8 @@ def main(hparams):
         transforms = [neural_transforms, arhmm_transforms]
         load_kwargs = [neural_kwargs, arhmm_kwargs]
 
+        hparams['output_size'] = hparams['n_arhmm_latents']
+
     else:
         raise ValueError('"%s" is an invalid model_name' % hparams['model_name'])
 
@@ -92,6 +100,7 @@ def main(hparams):
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
+    hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
 
     print('Data generator loaded')
 
@@ -101,19 +110,17 @@ def main(hparams):
 
     if hparams['model_name'] == 'neural-ae':
         hparams['noise_dist'] = 'gaussian'
-        method = 'mse'
     elif hparams['model_name'] == 'neural-arhmm':
         hparams['noise_dist'] = 'categorical'
-        method = 'cat'
     else:
         raise ValueError('"%s" is an invalid model_name' % hparams['model_name'])
 
-    # if hparams['model_type'] == 'ff' or hparams['model_type'] == 'linear':
-    #     model = NN(hparams)
-    # elif hparams['model_type'] == 'lstm':
-    #     model = LSTM(hparams)
-    #
-    # model.to(hparams['device'])
+    if hparams['model_type'] == 'ff' or hparams['model_type'] == 'linear':
+        model = NN(hparams)
+    elif hparams['model_type'] == 'lstm':
+        model = LSTM(hparams)
+
+    model.to(hparams['device'])
 
     print('Model loaded')
 
@@ -121,16 +128,19 @@ def main(hparams):
     # ### TRAIN MODEL ###
     # ####################
 
-    t = time.time()
-    for i in range(20):
-        batch, dataset = data_generator.next_batch('train')
-        print('Trial {}'.format(batch['batch_indx']))
-        print(batch['neural'].shape)
-        print(batch['ae'].shape)
-    print('Epoch processed!')
-    print('Time elapsed: {}'.format(time.time() - t))
+    # t = time.time()
+    # for i in range(20):
+    #     batch, dataset = data_generator.next_batch('train')
+    #     print('Trial {}'.format(batch['batch_indx']))
+    #     print(batch['neural'].shape)
+    #     print(batch['ae'].shape)
+    # print('Epoch processed!')
+    # print('Time elapsed: {}'.format(time.time() - t))
 
-    # fit(hparams, model, data_generator, exp, method=method)
+    batch, dataset = data_generator.next_batch('train')
+    x = model(batch['neural'][0])
+
+    # fit(hparams, model, data_generator, exp, method='nll')
 
 
 def get_params(strategy):
@@ -178,13 +188,14 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add model hyperparameters
-    parser.opt_list('--model_type', default='ff', options=['ff', 'linear', 'lstm'], type=str)
+    parser.opt_list('--model_type', default='ff', options=['ff', 'lstm'], type=str)
     parser.opt_list('--learning_rate', default=1e-3, options=[1e-3, 1e-4], type=float, tunable=True)
-    parser.opt_list('--n_layers', default=1, options=[1, 2, 3], type=int, tunable=True)
+    parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3], type=int, tunable=True)
     parser.opt_list('--n_final_units', default=8, options=[16, 32, 64], type=int, tunable=True)
     parser.add_argument('--n_int_units', default=64, type=int)
     parser.opt_list('--n_lags', default=0, options=[0, 1, 3, 5, 9, 17], type=int, tunable=True)
     parser.add_argument('--n_max_lags', default=17)
+    parser.opt_list('--activation', default='relu', options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'], tunable=False)
 
     # add neural arguments
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)
@@ -197,7 +208,7 @@ def get_params(strategy):
         # ae arguments
         #parser.opt_list('--ae_view', default='both', options=['both', 'face', 'body', 'full'])
         parser.add_argument('--ae_dir', type=str)
-        #parser.add_argument('--n_ae_latents', default=12, type=int)
+        parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_version', default='best')
     elif model_name == 'neural-arhmm':
         # ae arguments
@@ -205,7 +216,7 @@ def get_params(strategy):
         parser.add_argument('--n_ae_latents', default=12, type=int)
         # arhmm arguments
         parser.add_argument('--arhmm_dir', type=str)
-        #parser.add_argument('--n_arhmm_latents', default=12, type=int)
+        parser.add_argument('--n_arhmm_latents', default=12, type=int)
         parser.add_argument('--arhmm_version', default='best')
     elif model_name == 'neural-dlc':
         raise NotImplementedError

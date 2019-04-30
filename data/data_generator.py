@@ -130,6 +130,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
+        self.dims = OrderedDict()  # TODO
 
     def __len__(self):
         return self.num_trials
@@ -254,6 +255,7 @@ class SingleSessionDataset(data.Dataset):
 
         # load and process data
         self.data = OrderedDict()
+        self.dims = OrderedDict()
         self.reg_indxs = None
         for signal, transform, load_kwarg in zip(
                 self.signals, self.transforms, self.load_kwargs):
@@ -351,9 +353,11 @@ class SingleSessionDataset(data.Dataset):
             if transform:
                 self.data[signal] = transform(self.data[signal])
 
+            self.dims[signal] = self.data[signal].shape
+
             # transform into tensor
             self.data[signal] = torch.from_numpy(self.data[signal]).to(
-                self.device)
+                device=self.device, dtype=torch.float32)
 
     def __len__(self):
         return self.num_trials
