@@ -36,11 +36,15 @@ def expected_log_likelihood(expectations, log_pi0, log_Ps, lls):
     return ell
 
 # Dynamics models
-def gaussian_ar_log_proba(model, data):
+def gaussian_ar_log_proba(model, data, inputs=None):
     hparams = model.hparams
     # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
     means = torch.transpose(
         torch.matmul(torch.cat(([data[hparams['nlags']-i:hparams['batch_size']-i] for i in range(hparams['nlags'],0,-1)]), dim=1), model.As),1,0)+ model.bs
+
+    if inputs is not None:
+        input_bias = model.emission_bias(inputs)
+        means += input_bias[hparams['nlags']:].unsqueeze(1)
 
     covs = torch.matmul(model.sqrt_Qs, model.sqrt_Qs.transpose(1, 2))
     lls = MultivariateNormal(means, covs).log_prob(data[hparams['nlags']:].unsqueeze(1))
@@ -85,6 +89,12 @@ def stationary_log_transition_proba(model):
     hparams = model.hparams
     normalized_Ps = model.stat_log_transition_proba - log_sum_exp(model.stat_log_transition_proba, dim=-1, keepdim=True)
     return normalized_Ps.unsqueeze(0).repeat(hparams['batch_size']-1,1,1)
+
+def input_driven_log_transition_proba(model, inputs):
+    hparams = model.hparams
+    transition_matrix_bias = model.transition_matrix_bias(inputs)
+    normalized_Ps = model.stat_log_transition_proba - log_sum_exp(model.stat_log_transition_proba, dim=-1, keepdim=True)
+    return normalized_Ps.unsqueeze(0)+transition_matrix_bias[:-1].unsqueeze(1)
 
 
 def dirichlet_prior(model):
