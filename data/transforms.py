@@ -69,4 +69,5 @@ class Threshold(object):
             threshold:
             binsize:
         """
+        # TODO: implement Threshold transform
         raise NotImplementedError

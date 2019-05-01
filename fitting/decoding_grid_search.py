@@ -4,6 +4,7 @@ import numpy as np
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import NN, LSTM
 from behavenet.training import fit
+from behavenet.utils import export_predictions_best
 from data.data_generator import ConcatSessionsGenerator
 from data.transforms import Threshold
 
@@ -35,12 +36,6 @@ def main(hparams):
     # ###########################
     # ### LOAD DATA GENERATOR ###
     # ###########################
-
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
 
     if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
         # neural_transforms = Threshold(
@@ -95,6 +90,11 @@ def main(hparams):
         raise ValueError('"%s" is an invalid model_name' % hparams['model_name'])
 
     print('building data generator')
+    ids = {
+        'lab': hparams['lab'],
+        'expt': hparams['expt'],
+        'animal': hparams['animal'],
+        'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
@@ -119,6 +119,8 @@ def main(hparams):
         model = NN(hparams)
     elif hparams['model_type'] == 'lstm':
         model = LSTM(hparams)
+    else:
+        raise ValueError('"%s" is an invalid model_type' % hparams['model_type'])
 
     model.to(hparams['device'])
 
@@ -185,6 +187,8 @@ def get_params(strategy):
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--experiment_name', '-en', default='decoder_grid_search', type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
+    parser.add_argument('--export_predictions', default=False, type=bool, help='export predictions for each decoder')
+    parser.add_argument('--export_predictions_best', default=True, type=bool, help='export predictions best decoder in experiment')
 
     # add model hyperparameters
     parser.opt_list('--learning_rate', default=1e-3, options=[1e-3, 1e-4], type=float, tunable=True)
@@ -244,3 +248,6 @@ if __name__ == '__main__':
             main,
             nb_trials=1,
             nb_workers=1)
+
+    if hyperparams.export_predictions_best:
+        export_predictions_best(vars(hyperparams))

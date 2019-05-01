@@ -1,4 +1,5 @@
-from behavenet.core import expected_log_likelihood, log_sum_exp
+from behavenet.core import expected_log_likelihood, log_sum_exp\
+from behavenet.utils import export_latents, export_predictions
 # from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
 import torch
@@ -457,6 +458,7 @@ def fit(
             history=hparams['history'],
             min_epochs=hparams['min_nb_epochs'])
 
+    model.version = exp.version  # for exporting latents
     i_epoch = 0
     for i_epoch in range(hparams['max_nb_epochs']):
 
@@ -575,57 +577,7 @@ def fit(
     exp.save()
 
     # export latents
-    # TODO: export decoder predictions?
     if method == 'ae' and hparams['export_latents']:
-
-        # initialize container for latents
-        latents = [[] for _ in range(data_generator.num_datasets)]
-        for i, dataset in enumerate(data_generator.datasets):
-            trial_len = dataset.trial_len
-            num_trials = dataset.num_trials
-            latents[i] = np.full(
-                shape=(num_trials, trial_len, hparams['n_latents']),
-                fill_value=np.nan)
-
-        # partially fill container (gap trials will be included as nans)
-        dtypes = ['train', 'val', 'test']
-        for dtype in dtypes:
-            data_generator.reset_iterators(dtype)
-            for i in range(data_generator.num_tot_batches[dtype]):
-                data, dataset = data_generator.next_batch(dtype)
-
-                # process batch, perhaps in chunks if full batch is too large
-                # to fit on gpu
-                chunk_size = 200
-                y = data[hparams['signals']][0]
-                batch_size = y.shape[0]
-                if batch_size > chunk_size:
-                    # split into chunks
-                    num_chunks = int(np.ceil(batch_size / chunk_size))
-                    for chunk in range(num_chunks):
-                        # take chunks of size chunk_size, plus overlap due to
-                        # max_lags
-                        indx_beg = chunk * chunk_size
-                        indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                        curr_latents, _, _ = best_val_model.encoding(
-                            y[indx_beg:indx_end])
-                        latents[dataset][data['batch_indx'].item(), indx_beg:indx_end, :] = \
-                            curr_latents.cpu().detach().numpy()
-                else:
-                    curr_latents, _, _ = best_val_model.encoding(y)
-                    latents[dataset][data['batch_indx'].item(), :, :] = \
-                        curr_latents.cpu().detach().numpy()
-
-        # save latents separately for each dataset
-        for i, dataset in enumerate(data_generator.datasets):
-            # get save name which includes lab/expt/animal/session
-            sess_id = str(
-                '%s_%s_%s_%s_latents.pkl' % (
-                    dataset.lab, dataset.expt, dataset.animal,
-                    dataset.session))
-            filepath = os.path.join(
-                hparams['results_dir'], 'test_tube_data',
-                hparams['experiment_name'], 'version_%i' % exp.version,
-                sess_id)
-            # save out array in pickle file
-            pickle.dump({'latents': latents[i]}, open(filepath, 'wb'))
+        export_latents(data_generator, best_val_model)
+    elif method == 'nll' and hparams['export_predictions']:
+        export_predictions(data_generator, best_val_model)
