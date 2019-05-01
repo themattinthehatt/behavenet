@@ -33,17 +33,6 @@ class ClipNormalize(object):
         return signal
 
 
-class WhitenPCA(object):
-
-    def __init__(self):
-        self.mean_pca = np.load('normalization_values/pca_mean.npy')
-        self.whiten_pca = np.load('normalization_values/pca_whitening_matrix.npy')
-
-    def __call__(self, signal):
-        apply_whitening = lambda x:  np.linalg.solve(self.whiten_pca, (x-self.mean_pca).T).T 
-        return apply_whitening(signal[:,:10])
-
-
 class Resize(object):
     """Resize the sample images"""
 
@@ -70,3 +59,15 @@ class Resize(object):
             sample, (sh[0], sh[1], self.x, self.y), order=self.order)
 
         return sample
+
+
+class Threshold(object):
+
+    def __init__(self, threshold, binsize):
+        """
+        Args:
+            threshold:
+            binsize:
+        """
+        # TODO: implement Threshold transform
+        raise NotImplementedError

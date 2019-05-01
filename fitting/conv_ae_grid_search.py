@@ -32,9 +32,13 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    exp = Experiment(name=hparams['experiment_name'],
-            debug=False,
-            save_dir=hparams['tt_save_path'])
+    hparams['results_dir'] = os.path.join(
+        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+        hparams['animal'], hparams['session'])
+    exp = Experiment(
+        name=hparams['experiment_name'],
+        debug=False,
+        save_dir=hparams['results_dir'])
     exp.tag(hparams)
     exp.save()
 
@@ -106,6 +110,7 @@ def get_params(strategy):
 
     # add training arguments
     parser.add_argument('--learning_rate', default=1e-3, type=float)
+    parser.add_argument('--l2_reg', default=0, type=float)
     parser.add_argument('--val_check_interval', default=1)
     parser.add_argument('--enable_early_stop', default=False, type=bool)
     parser.add_argument('--early_stop_fraction', default=None, type=float)

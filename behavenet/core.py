@@ -7,42 +7,6 @@ from torch.nn import functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 import math
 
-class EarlyStopping(object):
-    """Stop training when a monitored quantity has stopped improving.
-    # Arguments
-        monitor: quantity to be monitored.
-        min_fraction: minimum change in the monitored quantity
-            to qualify as an improvement, i.e.
-            change of less than min_fraction * best val loss
-            will count as no improvement.
-        patience: number of epochs with no improvement
-            after which training will be stopped.
-    """
-
-    def __init__(self, min_fraction=0.0, patience=0):
-        super(EarlyStopping, self).__init__()
-
-        self.patience = patience
-        self.min_fraction = min_fraction
-        self.wait = 0
-        self.stopped_epoch = 0.0
-        self.best = np.inf
-
-    def on_val_check(self, epoch, val_loss):
-
-        stop_training = False
-
-        if np.less(val_loss, self.min_fraction*self.best):
-            self.best = val_loss
-            self.wait = 0
-        else:
-            self.wait += 1
-            if self.wait >= self.patience:
-                self.stopped_epoch = epoch
-                stop_training = True
-
-        return stop_training
-
 
 # Helpers
 def log_sum_exp(value, dim=None, keepdim=False):
@@ -72,19 +36,21 @@ def expected_log_likelihood(expectations, log_pi0, log_Ps, lls):
     return ell
 
 # Dynamics models
-def gaussian_ar_log_proba(model, data):
+def gaussian_ar_log_proba(model, data, inputs=None):
     hparams = model.hparams
     # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
     means = torch.transpose(
-        torch.matmul(torch.cat(([data[hparams.nlags-1-i:hparams.batch_size-1-i]
-                                 for i in range(hparams.nlags,-1,-1)]), dim=1), model.As),1,0)
-        + model.bs
+        torch.matmul(torch.cat(([data[hparams['nlags']-i:hparams['batch_size']-i] for i in range(hparams['nlags'],0,-1)]), dim=1), model.As),1,0)+ model.bs
 
-    covs = torch.matmul(model.sqrt_Qs, model.sqrt_Qs.transpose(0, 2, 1))
-    lls = MultivariateNormal(means, covs).log_prob(data[hparams.nlags:].unsqueeze(1))
-    assert lls.shape == (data.shape[0] - hparams.nlags, hparams.n_discrete_states)
+    if inputs is not None:
+        input_bias = model.emission_bias(inputs)
+        means += input_bias[hparams['nlags']:].unsqueeze(1)
 
-    lls = torch.cat((torch.zeros(hparams.nlags, hparams.n_discrete_states), lls), 0)
+    covs = torch.matmul(model.sqrt_Qs, model.sqrt_Qs.transpose(1, 2))
+    lls = MultivariateNormal(means, covs).log_prob(data[hparams['nlags']:].unsqueeze(1))
+    assert lls.shape == (data.shape[0] - hparams['nlags'], hparams['n_discrete_states'])
+
+    lls = torch.cat((torch.zeros(hparams['nlags'], hparams['n_discrete_states']), lls), 0)
 
     return lls
 
@@ -94,16 +60,15 @@ def diagonal_gaussian_ar_log_proba(model, data):
 
     # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
     means = torch.transpose(
-        torch.matmul(torch.cat(([data[hparams.nlags-1-i:hparams.batch_size-1-i]
-                                 for i in range(hparams.nlags,-1,-1)]), dim=1), model.As),1,0)
-        + model.bs
+        torch.matmul(torch.cat(([data[hparams['nlags']-i:hparams['batch_size']-i]
+                                 for i in range(hparams['nlags'],0,-1)]), dim=1), model.As),1,0)+ model.bs
 
     # Concatenate the mean for the first t = 1...nlags
     # means = torch.cat((model.bs.view(1, hparams.n_discrete_states, hparams.latent_dim_size_h).repeat(hparams.nlags,1,1) , means), 0)
 
-    lls = -0.5 * torch.sum((data[hparams.nlags:].unsqueeze(1) - means)**2 / F.softplus(model.inv_softplus_Qs), dim=2)
+    lls = -0.5 * torch.sum((data[hparams['nlags']:].unsqueeze(1) - means)**2 / F.softplus(model.inv_softplus_Qs), dim=2)
     lls += -0.5 * torch.sum(math.log(2 * math.pi) + torch.log(F.softplus(model.inv_softplus_Qs)), dim=1)
-    lls = torch.cat((torch.zeros(hparams.nlags, hparams.n_discrete_states), lls), 0)
+    lls = torch.cat((torch.zeros(hparams['nlags'], hparams['n_discrete_states']), lls), 0)
     return lls
 
 # def studentst_ar_log_proba(model):
@@ -123,7 +88,13 @@ def diagonal_gaussian_ar_log_proba(model, data):
 def stationary_log_transition_proba(model):
     hparams = model.hparams
     normalized_Ps = model.stat_log_transition_proba - log_sum_exp(model.stat_log_transition_proba, dim=-1, keepdim=True)
-    return normalized_Ps.unsqueeze(0).repeat(hparams.batch_size-1,1,1)
+    return normalized_Ps.unsqueeze(0).repeat(hparams['batch_size']-1,1,1)
+
+def input_driven_log_transition_proba(model, inputs):
+    hparams = model.hparams
+    transition_matrix_bias = model.transition_matrix_bias(inputs)
+    normalized_Ps = model.stat_log_transition_proba - log_sum_exp(model.stat_log_transition_proba, dim=-1, keepdim=True)
+    return normalized_Ps.unsqueeze(0)+transition_matrix_bias[:-1].unsqueeze(1)
 
 
 def dirichlet_prior(model):
@@ -131,9 +102,9 @@ def dirichlet_prior(model):
     log_Ps = model.stat_log_transition_proba-log_sum_exp(model.stat_log_transition_proba,dim=-1,keepdim=True)
 
     lp = 0
-    for i_state in range(hparams.n_discrete_states):
-        concentration = hparams.alpha*torch.ones(hparams.n_discrete_states).to(hparams.device) / hparams.n_discrete_states
-        concentration[i_state] += hparams.kappa
+    for i_state in range(hparams['n_discrete_states']):
+        concentration = hparams['alpha']*torch.ones(hparams['n_discrete_states']).to(hparams['device']) / hparams['n_discrete_states']
+        concentration[i_state] += hparams['kappa']
         lp += ((log_Ps[i_state] * (concentration - 1.0)).sum(-1) +
             torch.lgamma(concentration.sum(-1)) -
             torch.lgamma(concentration).sum(-1))
@@ -161,7 +132,7 @@ def gaussian_emissions_diagonal_variance(model, data, states):
 
 def uniform_initial_distn(model):
     hparams = model.hparams
-    return -math.log(hparams.n_discrete_states) * torch.ones(hparams.n_discrete_states)
+    return -math.log(hparams['n_discrete_states']) * torch.ones(hparams['n_discrete_states'])
 
 
 # Initialization helpers
