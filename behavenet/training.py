@@ -216,13 +216,17 @@ class EMLoss(FitMethod):
 
     def calc_loss(self, data, device):
         ae = data['ae'][0]
-        neural = data['neural'][0]
+
+        if 'neural' in data.keys():
+            inputs = data['neural'][0]
+        else:
+            inputs=None
 
         low_d = self.model.get_low_d(ae)
         log_prior = self.model.log_prior()
         log_pi0 = self.model.log_pi0(low_d)
-        log_Ps = self.model.log_transition_proba(low_d)
-        lls = self.model.log_dynamics_proba(low_d)
+        log_Ps = self.model.log_transition_proba(inputs)
+        lls = self.model.log_dynamics_proba(low_d, inputs)
 
         with torch.no_grad():
             expectations = hmm_expectations(log_pi0, log_Ps, lls, device)

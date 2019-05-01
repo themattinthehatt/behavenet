@@ -554,26 +554,33 @@ class InputDrivenARHMM(ARHMM):
 
     def build_model(self):
         super(InputDrivenARHMM,self).build_model()
-        #if hp['decoding_model_type']=='time_lagged_linear':
-        self.transition_matrix_bias = TimeLaggedLinear(self.hparams)
+        if self.hparams['decoding_model_type']=='time_lagged_linear':
+            self.transition_matrix_bias = TimeLaggedLinear(self.hparams,self.hparams['n_discrete_states'])
+            self.emission_bias = TimeLaggedLinear(self.hparams,self.hparams['latent_dim_size_h'])
 
     def log_transition_proba(self, inputs):
-        transition_matrix_bias = self.transition_matrix_bias(inputs)
-        return core.input_driven_log_transition_proba(self, transition_matrix_bias)
+        return core.input_driven_log_transition_proba(self, inputs)
+
+    def log_dynamics_proba(self, data, inputs, *args):
+        if self.dynamics == "gaussian":
+            return core.gaussian_ar_log_proba(self,data, inputs)
+        else:
+            raise Exception("Invalid input driven dynamics: {}".format(self.dynamics))
 
 
 class TimeLaggedLinear(nn.Module):
 
-    def __init__(self, hparams):
+    def __init__(self, hparams, output_size):
         super(TimeLaggedLinear, self).__init__()
         self.hparams = hparams
+        self.output_size = output_size
 
         self.build_model()
 
     def build_model(self):
 
 
-        self.linear = nn.Conv1d(self.hparams['n_neurons'],self.hparams['n_discrete_states'],self.hparams['neural_lags'],padding=int((self.hparams['neural_lags']-1)/2))
+        self.linear = nn.Conv1d(self.hparams['n_neurons'],self.output_size,self.hparams['neural_lags'],padding=int((self.hparams['neural_lags']-1)/2))
 
 
     def forward(self, x):
