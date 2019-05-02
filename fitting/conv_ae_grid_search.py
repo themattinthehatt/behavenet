@@ -62,6 +62,13 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
+    # save out hparams as dict for easy reloading
+    meta_file = os.path.join(
+        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
+        'version_%i' % exp.version, 'meta_tags.pkl')
+    with open(meta_file, 'wb') as f:
+        pickle.dump(hparams, f)
+
     model = AE(hparams)
     model.to(hparams['device'])
 

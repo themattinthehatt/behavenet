@@ -6,4 +6,5 @@ test-tube==0.63
 ipykernel==5.1.0
 pytorch==1.0.1
 scikit-image==0.15.0
+scikit-learn==0.20.3
 tqdm==4.31.1

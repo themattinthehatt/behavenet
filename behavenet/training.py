@@ -1,4 +1,4 @@
-from behavenet.core import expected_log_likelihood, log_sum_exp\
+from behavenet.core import expected_log_likelihood, log_sum_exp
 from behavenet.utils import export_latents, export_predictions
 # from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
@@ -10,6 +10,7 @@ import copy
 import os
 import pickle
 import time
+from sklearn.metrics import r2_score, accuracy_score
 
 
 class FitMethod(object):
@@ -30,7 +31,7 @@ class FitMethod(object):
         raise NotImplementedError
 
     def get_loss(self, dtype):
-        return self.metrics[dtype]['loss']
+        return self.metrics[dtype]['loss'] / self.metrics[dtype]['batches']
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None,
@@ -153,7 +154,7 @@ class AELoss(FitMethod):
 class NLLLoss(FitMethod):
 
     def __init__(self, model):
-        metric_strs = ['batches', 'loss']
+        metric_strs = ['batches', 'loss', 'r2']
         super().__init__(model, metric_strs)
 
         if self.model.hparams['noise_dist'] == 'gaussian':
@@ -177,6 +178,7 @@ class NLLLoss(FitMethod):
         if batch_size > chunk_size:
             # split into chunks
             num_chunks = int(np.ceil(batch_size / chunk_size))
+            outputs_all = []
             loss_val = 0
             for chunk in range(num_chunks):
                 # take chunks of size chunk_size, plus overlap due to max_lags
@@ -191,7 +193,10 @@ class NLLLoss(FitMethod):
                 loss.backward()
                 # get loss value (weighted by batch size)
                 loss_val += loss.item() * outputs[max_lags:-max_lags].shape[0]
+                outputs_all.append(
+                    outputs[max_lags:-max_lags].cpu().detach().numpy())
             loss_val /= targets.shape[0]
+            outputs_all = np.concatenate(outputs_all, axis=0)
         else:
             outputs = self.model(predictors)
             # define loss on allowed window of data
@@ -202,10 +207,68 @@ class NLLLoss(FitMethod):
             loss.backward()
             # get loss value
             loss_val = loss.item()
+            outputs_all = outputs[max_lags:-max_lags].cpu().detach().numpy()
+
+        if self.model.hparams['noise_dist'] == 'gaussian':
+            # use variance-weighted r2s to ignore small-variance latents
+            r2 = r2_score(
+                targets[max_lags:-max_lags].cpu().detach().numpy(),
+                outputs_all,
+                multioutput='variance_weighted')
+        elif self.model.hparams['noise_dist'] == 'poisson':
+            raise NotImplementedError
+        elif self.model.hparams['noise_dist'] == 'categorical':
+            r2 = accuracy_score(
+                np.argmax(targets[max_lags:-max_lags].cpu().detach().numpy(), axis=0),
+                np.argmax(outputs_all, axis=0))
+        else:
+            raise ValueError(
+                '"%s" is not a valid noise_dist' %
+                self.model.hparams['noise_dist'])
 
         # store current metrics
         self.metrics['curr']['loss'] = loss_val
+        self.metrics['curr']['r2'] = r2
         self.metrics['curr']['batches'] = 1
+
+    def create_metric_row(
+            self, dtype, epoch, batch, dataset, trial, best_epoch=None,
+            **kwargs):
+        if dtype == 'train':
+            norm = self.metrics['train']['batches']
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_loss': self.metrics['train']['loss'] / norm,
+                'tr_r2': self.metrics['train']['r2'] / norm}
+        elif dtype == 'val':
+            norm_tr = self.metrics['train']['batches']
+            norm_val = self.metrics['val']['batches']
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_loss': self.metrics['train']['loss'] / norm_tr,
+                'tr_r2': self.metrics['train']['r2'] / norm_tr,
+                'val_loss': self.metrics['val']['loss'] / norm_val,
+                'val_r2': self.metrics['val']['r2'] / norm_val,
+                'best_val_epoch': best_epoch}
+        elif dtype == 'test':
+            norm = self.metrics['test']['batches']
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'test_loss': self.metrics['test']['loss'] / norm,
+                'test_r2': self.metrics['test']['r2'] / norm}
+        else:
+            raise ValueError("%s is an invalid data type" % dtype)
+
+        return metric_row
 
 
 class EMLoss(FitMethod):
@@ -365,7 +428,7 @@ class EarlyStopping(object):
 
         # check if smoothed loss is starting to increase; exit training if so
         if epoch > self.min_epochs and curr_mean >= prev_mean:
-            print('\n== early stop criteria met; exiting train loop ==')
+            print('\n== early stopping criteria met; exiting train loop ==')
             print('training epochs: %d' % epoch)
             print('end cost: %04f' % curr_loss)
             print('best epoch: %i' % self.best_epoch)
@@ -459,7 +522,7 @@ def fit(
     # early stopping set-up
     if hparams['enable_early_stop']:
         early_stop = EarlyStopping(
-            history=hparams['history'],
+            history=hparams['early_stop_history'],
             min_epochs=hparams['min_nb_epochs'])
 
     model.version = exp.version  # for exporting latents
@@ -468,9 +531,10 @@ def fit(
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')
-        model.train()
 
         for i_train in tqdm(range(data_generator.num_tot_batches['train'])):
+
+            model.train()
 
             # Zero out gradients. Don't want gradients from previous iterations
             optimizer.zero_grad()
@@ -519,12 +583,6 @@ def fit(
                     best_val_model.hparams = hparams
                     best_val_epoch = i_epoch
 
-                # TODO: should this be here or outside batch loop?
-                if hparams['enable_early_stop']:
-                    early_stop.on_val_check(i_epoch, loss.get_loss('val'))
-                    if early_stop.should_stop:
-                        break
-
                 exp.log(loss.create_metric_row(
                     'val', i_epoch, i_train, dataset, None,
                     best_epoch=best_val_epoch))
@@ -536,10 +594,10 @@ def fit(
                     'train', i_epoch, i_train, dataset, None))
                 exp.save()
 
-        # if hparams['enable_early_stop']:
-        #     early_stop.on_val_check(i_epoch, loss.get_loss('val'))
-        #     if early_stop.should_stop:
-        #         break
+        if hparams['enable_early_stop']:
+            early_stop.on_val_check(i_epoch, loss.get_loss('val'))
+            if early_stop.should_stop:
+                break
 
     # save out last model
     filepath = os.path.join(

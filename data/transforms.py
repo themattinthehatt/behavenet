@@ -1,14 +1,45 @@
-import torch
-from torch.utils import data
-# import h5py
-from collections import OrderedDict
-from torchvision import transforms
 import numpy as np
+import copy
 from skimage import transform
+
+
+class Compose(object):
+    """
+    Composes several transforms together. Adapted from pytorch source code:
+    https://pytorch.org/docs/stable/_modules/torchvision/transforms/transforms.html#Compose
+
+    Super hacky way of keeping track of specific neural populations
+
+    Args:
+        transforms (list of `Transform` objects): list of transforms to compose
+
+    Example:
+        >> Compose([
+        >>     transforms.Subsample('mctx'),
+        >>     transforms.Threshold(threshold=1.0, bin_size=25),
+        >> ])
+    """
+
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, signal):
+        for t in self.transforms:
+            signal = t(signal)
+        return signal
+
+    def __repr__(self):
+        format_string = self.__class__.__name__ + '('
+        for t in self.transforms:
+            format_string += '\n'
+            format_string += '    {0}'.format(t)
+        format_string += '\n)'
+        return format_string
 
 
 class GetMask(object):
 
+    # TODO: update GetMask for DLC likelihoods
     def __init__(self, ll_thresh, depth_thresh):
         self.ll_thresh = ll_thresh
         self.depth_thresh = depth_thresh
@@ -51,7 +82,7 @@ class Resize(object):
             self.x = self.y = size
 
     def __call__(self, sample):
-        """Assumes image stack is of form (batch, channels, height, width)"""
+        """Assumes sample is of size (batch, channels, height, width)"""
 
         sh = sample.shape
 
@@ -63,11 +94,73 @@ class Resize(object):
 
 class Threshold(object):
 
-    def __init__(self, threshold, binsize):
+    def __init__(self, threshold, bin_size):
         """
+
         Args:
-            threshold:
-            binsize:
+            threshold (float): Hz
+            bin_size (float): ms
         """
-        # TODO: implement Threshold transform
+        self.threshold = threshold
+        self.bin_size = bin_size
+
+    def __call__(self, sample):
+        """
+        Assumes sample is of size (trial x batch/time x predictors)
+
+        Calculates firing rate over all trials/time points
+        """
+
+        # get firing rates
+        frs = np.squeeze(np.mean(sample, axis=(0, 1))) / (self.bin_size * 1e-3)
+        fr_mask = frs > self.threshold
+
+        # get rid of neurons below fr threshold
+        sample = sample[:, :, fr_mask]
+
+        # # !! PROBLEM HERE !!
+        # # get rid of indices if they are below threshold
+        # reg_indxs = copy.copy(region_indxs)
+        # keep_indxs = np.where(fr_mask)[0]
+        # for region in reg_indxs.keys():
+        #     # get overlap between region indices and keep indices
+        #     reg_keep_indxs = np.intersect1d(keep_indxs, reg_indxs[region])
+        #     reg_indxs[region] = reg_keep_indxs
+        #
+        # # get rid of regions if they have no neurons
+        # keys = reg_indxs.keys()
+        # keys_to_remove = []
+        # for k in keys:
+        #     if len(reg_indxs[k]) == 0:
+        #         keys_to_remove.append(k)
+        #
+        # for k in keys_to_remove:
+        #     reg_indxs.pop(k)
+
+        return sample.astype(np.float)  #, reg_indxs
+
+
+class ZScore(object):
+
+    def __init__(self):
+        pass
+
+    def __call__(self, sample):
+        """Assumes sample is of size (trial x batch/time x predictors)"""
+        sample -= np.mean(sample, axis=(0, 1))
+        sample /= np.std(sample, axis=(0, 1))
+        return sample
+
+
+class Subsample(object):
+
+    def __init__(self):
+        # TODO: implement region-based subsampling
+        raise NotImplementedError
+
+
+class Shuffle(object):
+
+    def __init__(self):
+        # TODO: implement shuffling
         raise NotImplementedError

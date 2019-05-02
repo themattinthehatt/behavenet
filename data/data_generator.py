@@ -226,7 +226,8 @@ class SingleSessionDataset(data.Dataset):
             animal (str)
             session (str)
             signals (list of strs):
-                'neural' | 'images' | 'ae' | 'arhmm'
+                'neural' | 'images' | 'ae' | 'arhmm' | 'ae_predictions' |
+                'arhmm_predictions'
             transforms (list of transforms): each entry corresponds to an
                 entry in `signals`; for multiple transforms, chain
                 together using pt transforms.Compose
@@ -250,6 +251,7 @@ class SingleSessionDataset(data.Dataset):
 
         mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
         self.num_trials = mat_contents['neural'].shape[0]
+        self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
 
@@ -265,7 +267,10 @@ class SingleSessionDataset(data.Dataset):
                 mat_contents = loadmat(
                     os.path.join(self.data_dir, 'neural.mat'))
                 self.data[signal] = mat_contents['neural']
-                self.reg_indxs = mat_contents['reg_indxs_consolidate']
+                try:
+                    self.reg_indxs = mat_contents['reg_indxs_consolidate']
+                except KeyError:
+                    self.reg_indxs = mat_contents['reg_indxs']
 
             elif signal == 'images':
 
@@ -314,6 +319,41 @@ class SingleSessionDataset(data.Dataset):
                         'Must create ae latents from model; currently not' +
                         ' implemented')
 
+            elif signal == 'ae_predictions':
+
+                # build path to latents
+                if 'predictions_file' in load_kwarg:
+                    self.ae_predictions_file = load_kwarg['predictions_file']
+                else:
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply ae directory or predictions file')
+
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'loss')
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+
+                    # find file with "latents" in name
+                    self.ae_predictions_file = glob.glob(os.path.join(
+                        model_dir, '*predictions*.pkl'))[0]
+
+                # load numpy arrays via pickle
+                try:
+                    with open(self.ae_predictions_file, 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    self.data[signal] = latents_dict['predictions']
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create ae predictions from model; currently not' +
+                        ' implemented')
+
             elif signal == 'arhmm':
 
                 # build path to latents
@@ -352,6 +392,8 @@ class SingleSessionDataset(data.Dataset):
             # apply transforms
             if transform:
                 self.data[signal] = transform(self.data[signal])
+                # TODO: how to keep track of reg_indxs through transforms?
+                # self.reg_indxs = transform(self.reg_indxs)
 
             self.dims[signal] = self.data[signal].shape
 
@@ -469,6 +511,7 @@ class ConcatSessionsGenerator(object):
         self.num_datasets = len(self.datasets)
 
         # get train/val/test batch indices for each dataset
+        # TODO: move info into SingleSessionDataset objects?
         self.batch_indxs = [None] * self.num_datasets
         self.num_batches = [None] * self.num_datasets
         self.batch_ratios = [None] * self.num_datasets

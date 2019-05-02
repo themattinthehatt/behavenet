@@ -189,7 +189,10 @@ def export_latents(data_generator, model, filename=None):
                 model.hparams['experiment_name'], 'version_%i' % model.version,
                 sess_id)
         # save out array in pickle file
-        pickle.dump({'latents': latents[i]}, open(filename, 'wb'))
+        pickle.dump({
+            'latents': latents[i],
+            'trials': data_generator.batch_indxs[i]},
+            open(filename, 'wb'))
 
 
 def export_predictions(data_generator, model, filename=None):
@@ -265,7 +268,10 @@ def export_predictions(data_generator, model, filename=None):
                 model.hparams['experiment_name'], 'version_%i' % model.version,
                 sess_id)
         # save out array in pickle file
-        pickle.dump({'predictions': predictions[i]}, open(filename, 'wb'))
+        pickle.dump({
+            'predictions': predictions[i],
+            'trials': data_generator.batch_indxs[i]},
+            open(filename, 'wb'))
 
 
 def export_predictions_best(hparams):
@@ -278,7 +284,9 @@ def export_predictions_best(hparams):
     """
 
     import os
+    import pickle
     from data.data_generator import ConcatSessionsGenerator
+    from data.transforms import Threshold
     from behavenet.models import NN, LSTM
 
     # ###########################
@@ -286,12 +294,18 @@ def export_predictions_best(hparams):
     # ###########################
 
     # expt_dir contains version_%i directories
-    expt_dir = os.path.join(
+    hparams['results_dir'] = os.path.join(
         hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'], 'test_tube_data',
-        hparams['experiment_name'])
+        hparams['animal'], hparams['session'])
+    expt_dir = os.path.join(
+        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'])
     best_version = get_best_model_version(expt_dir)
     best_model_file = os.path.join(expt_dir, best_version, 'best_val_model.pt')
+
+    # copy over hparams from best model
+    hparams_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
+    with open(hparams_file, 'rb') as f:
+        hparams = pickle.load(f)
 
     # ###########################
     # ### LOAD DATA GENERATOR ###
@@ -305,9 +319,9 @@ def export_predictions_best(hparams):
         'session': hparams['session']}
 
     if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
-        # neural_transforms = Threshold(
-        #     hparams['neural_thresh'], hparams['neural_binsize'])
-        neural_transforms = None
+        neural_transforms = Threshold(
+            threshold=hparams['neural_thresh'],
+            bin_size=hparams['neural_bin_size'])
     else:
         neural_transforms = None  # neural_region
     neural_kwargs = None
@@ -321,13 +335,9 @@ def export_predictions_best(hparams):
 
         ae_transforms = None
 
-        if hparams['ae_dir'] is None:
-            ae_dir = os.path.join(
-                hparams['results_dir'], 'test_tube_data',
-                'conv_ae_grid_search')
-        else:
-            ae_dir = os.path.join(
-                hparams['ae_dir'], 'test_tube_data')
+        ae_dir = os.path.join(
+            hparams['results_dir'], 'test_tube_data',
+            hparams['ae_experiment_name'])
 
         ae_kwargs = {  # TODO: base_dir + ids (here or in data generator?)
             'model_dir': ae_dir,
@@ -345,8 +355,12 @@ def export_predictions_best(hparams):
         signals = ['neural', 'arhmm']
 
         arhmm_transforms = None
+
+        arhmm_dir = os.path.join(
+            hparams['results_dir'], 'test_tube_data',
+            hparams['arhmm_experiment_name'])
         arhmm_kwargs = {
-            'model_dir': os.path.join(hparams['arhmm_dir'], 'test_tube_data'),
+            'model_dir': arhmm_dir,
             'model_version': hparams['arhmm_version']}
 
         transforms = [neural_transforms, arhmm_transforms]
@@ -358,7 +372,6 @@ def export_predictions_best(hparams):
         raise ValueError(
             '"%s" is an invalid model_name' % hparams['model_name'])
 
-    print('building data generator')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
@@ -386,6 +399,7 @@ def export_predictions_best(hparams):
         raise ValueError('"%s" is an invalid model_type' % hparams['model_type'])
 
     # load best model params
+    model.version = int(best_version[8:])  # omg this is awful
     model.load_state_dict(torch.load(best_model_file))
     model.to(hparams['device'])
     model.eval()
