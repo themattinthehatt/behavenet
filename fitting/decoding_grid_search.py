@@ -6,14 +6,13 @@ import pickle
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import NN, LSTM
 from behavenet.training import fit
-from behavenet.utils import export_predictions_best
+from behavenet.utils import export_predictions_best, experiment_exists
 from data.data_generator import ConcatSessionsGenerator
 from data.transforms import Threshold
 
 
 def main(hparams):
     # TODO: log files
-    # TODO: skip experiment if it already exists?
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
@@ -30,13 +29,19 @@ def main(hparams):
     hparams['results_dir'] = os.path.join(
         hparams['tt_save_path'], hparams['lab'], hparams['expt'],
         hparams['animal'], hparams['session'])
+
+    # check to see if experiment already exists
+    if experiment_exists(hparams):
+        print('Experiment exists! Aborting fit')
+        return
+
     exp = Experiment(
         name=hparams['experiment_name'],
         debug=False,
         save_dir=hparams['results_dir'])
     exp.tag(hparams)
     exp.save()
-    # also save
+
 
     # ###########################
     # ### LOAD DATA GENERATOR ###
@@ -209,20 +214,20 @@ def get_params(strategy):
 
     # add model hyperparameters
     parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
-    parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8, 16], type=int, tunable=True)
-    parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+    # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8, 16], type=int, tunable=True)
+    # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
     # parser.add_argument('--learning_rate', default=1e-3, type=float)
-    # parser.add_argument('--n_lags', default=4, type=int)
-    # parser.add_argument('--l2_reg', default=1e-3, type=float)
-    parser.add_argument('--n_max_lags', default=17)  # should match largest value in --n_lags options
+    parser.add_argument('--n_lags', default=4, type=int)
+    parser.add_argument('--l2_reg', default=1e-3, type=float)
+    parser.add_argument('--n_max_lags', default=16)  # should match largest value in --n_lags options
     parser.opt_list('--activation', default='relu', options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'], tunable=False)
     if model_type == 'linear':
         parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
     elif model_type == 'ff':
-        parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
-        parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
-        # parser.add_argument('--n_hid_layers', default=1, type=int)
-        # parser.add_argument('--n_final_units', default=16, type=int)
+        # parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
+        # parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
+        parser.add_argument('--n_hid_layers', default=1, type=int)
+        parser.add_argument('--n_final_units', default=16, type=int)
         parser.add_argument('--n_int_units', default=64, type=int)
     elif model_type == 'lstm':
         raise NotImplementedError

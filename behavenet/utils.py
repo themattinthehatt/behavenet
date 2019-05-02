@@ -1,6 +1,11 @@
+import os
 import numpy as np
 import torch
 from torch.autograd import Variable
+
+
+def get_dirs(path):
+    return next(os.walk(path))[1]
 
 
 def estimate_model_footprint(model, input_size):
@@ -89,12 +94,8 @@ def get_best_model_version(model_path, measure='loss'):
     """
 
     import pandas as pd
-    import os
 
     # gather all versions
-    def get_dirs(path):
-        return next(os.walk(model_path))[1]
-
     versions = get_dirs(model_path)
 
     # load csv files with model metrics (saved out from test tube)
@@ -117,6 +118,33 @@ def get_best_model_version(model_path, measure='loss'):
     best_version = metrics_df['version'][metrics_df['loss'].idxmin()]
 
     return best_version
+
+
+def experiment_exists(hparams):
+
+    import pickle
+
+    hparams['results_dir'] = os.path.join(
+        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+        hparams['animal'], hparams['session'])
+
+    tt_path = os.path.join(
+        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'])
+    tt_versions = get_dirs(tt_path)
+
+    found_match = False
+    for version in tt_versions:
+        try:
+            # load hparams
+            with open(os.path.join(tt_path, version, 'meta_tags.pkl'), 'rb') as f:
+                hparams_ = pickle.load(f)
+            if all([hparams[key] == hparams_[key] for key in hparams.keys()]):
+                found_match = True
+                break
+        except:
+            continue
+
+    return found_match
 
 
 def export_latents(data_generator, model, filename=None):
