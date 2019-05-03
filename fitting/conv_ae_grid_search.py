@@ -5,6 +5,7 @@ import pickle
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
 from behavenet.training import fit
+from behavenet.utils import export_latents_best, experiment_exists
 from fitting.ae_model_architecture_generator import draw_archs
 from data.data_generator import ConcatSessionsGenerator
 import random
@@ -18,15 +19,16 @@ def main(hparams):
     # Blend outer hparams with architecture hparams
     hparams = {**hparams, **hparams['architecture_params']}
 
+    # Start at random times (so test tube creates separate folders)
+    np.random.seed(random.randint(0, 1000))
+    time.sleep(np.random.uniform(10))
+
     # delete 'architecture_params' key
     list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
     hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
 
     hparams.pop('architecture_params', None)
     print(hparams)
-
-    # Start at random times (so test tube creates separate folders)
-    time.sleep(np.random.randint(10))
 
     # #########################
     # ### Create Experiment ###
@@ -35,11 +37,16 @@ def main(hparams):
     hparams['results_dir'] = os.path.join(
         hparams['tt_save_path'], hparams['lab'], hparams['expt'],
         hparams['animal'], hparams['session'])
+
+    # check to see if experiment already exists
+    if experiment_exists(hparams):
+        print('Experiment exists! Aborting fit')
+        return
+
     exp = Experiment(
         name=hparams['experiment_name'],
         debug=False,
         save_dir=hparams['results_dir'])
-    exp.tag(hparams)
     exp.save()
 
     # ###########################
@@ -56,8 +63,8 @@ def main(hparams):
         transforms=[hparams['transforms']], load_kwargs=[{'format': 'hdf5'}],
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-
     print('Data generator loaded')
+
     # ####################
     # ### CREATE MODEL ###
     # ####################
@@ -68,6 +75,9 @@ def main(hparams):
         'version_%i' % exp.version, 'meta_tags.pkl')
     with open(meta_file, 'wb') as f:
         pickle.dump(hparams, f)
+    # save out hparams as csv file
+    exp.tag(hparams)
+    exp.save()
 
     model = AE(hparams)
     model.to(hparams['device'])
@@ -93,7 +103,15 @@ def main(hparams):
 
 
 def get_params(strategy):
+
+    # TODO: fix argarse bools
+
     parser = HyperOptArgumentParser(strategy)
+
+    # add testtube arguments (nb_gpu_workers inferred from visible gpus)
+    parser.add_argument('--tt_nb_gpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_nb_cpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_nb_cpu_workers', default=5, type=int)
 
     # add data generator arguments
     if os.uname().nodename == 'white-noise':
@@ -170,17 +188,24 @@ def get_params(strategy):
 
 
 if __name__ == '__main__':
+
     hyperparams = get_params('grid_search')
 
-    if hyperparams.device == 'cuda':
+    t = time.time()
+    if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
+        if hyperparams.device == 'gpu':
+            hyperparams.device = 'cuda'
         gpu_ids = hyperparams.gpus_viz.split(';')
         hyperparams.optimize_parallel_gpu(
             main,
             gpu_ids=gpu_ids,
-            nb_trials=5,
+            nb_trials=hyperparams.tt_nb_gpu_trials,
             nb_workers=len(gpu_ids))
     elif hyperparams.device == 'cpu':
         hyperparams.optimize_parallel_cpu(
             main,
-            nb_trials=500,
-            nb_workers=10)
+            nb_trials=hyperparams.tt_nb_cpu_trials,
+            nb_workers=hyperparams.tt_nb_cpu_workers)
+    print('Total fit time: {}'.format(time.time() - t))
+    if hyperparams.export_latents_best:
+        export_latents_best(vars(hyperparams))

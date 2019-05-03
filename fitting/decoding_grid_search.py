@@ -14,13 +14,13 @@ from data.transforms import Threshold
 def main(hparams):
     # TODO: log files
 
-    # Start at random times (so test tube creates separate folders)
-    np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(0, 10))
-
     # turn matlab-style struct into dict
     hparams = vars(hparams)
     print(hparams)
+
+    # Start at random times (so test tube creates separate folders)
+    np.random.seed(random.randint(0, 1000))
+    time.sleep(np.random.uniform(0, 10))
 
     # #########################
     # ### Create Experiment ###
@@ -39,9 +39,7 @@ def main(hparams):
         name=hparams['experiment_name'],
         debug=False,
         save_dir=hparams['results_dir'])
-    exp.tag(hparams)
     exp.save()
-
 
     # ###########################
     # ### LOAD DATA GENERATOR ###
@@ -112,7 +110,6 @@ def main(hparams):
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
-
     print('Data generator loaded')
 
     # ####################
@@ -132,14 +129,17 @@ def main(hparams):
         'version_%i' % exp.version, 'meta_tags.pkl')
     with open(meta_file, 'wb') as f:
         pickle.dump(hparams, f)
+    # save out hparams as csv file
+    exp.tag(hparams)
+    exp.save()
 
+    # TODO: move this if statement to more general decoder class
     if hparams['model_type'] == 'ff' or hparams['model_type'] == 'linear':
         model = NN(hparams)
     elif hparams['model_type'] == 'lstm':
         model = LSTM(hparams)
     else:
         raise ValueError('"%s" is an invalid model_type' % hparams['model_type'])
-
     model.to(hparams['device'])
 
     print('Model loaded')
@@ -164,6 +164,8 @@ def main(hparams):
 
 
 def get_params(strategy):
+
+    # TODO: fix argarse bools
 
     parser = HyperOptArgumentParser(strategy)
 

@@ -605,6 +605,9 @@ def fit(
         'version_%i' % exp.version, 'last_model.pt')
     torch.save(model.state_dict(), filepath)
 
+    # add training complete key in pkl
+
+
     # Compute test loss
     if method == 'em':
         test_loss = EMLoss(best_val_model)

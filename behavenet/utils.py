@@ -124,6 +124,8 @@ def experiment_exists(hparams):
 
     import pickle
 
+    # TODO: check training complete tag
+
     hparams['results_dir'] = os.path.join(
         hparams['tt_save_path'], hparams['lab'], hparams['expt'],
         hparams['animal'], hparams['session'])
@@ -221,6 +223,11 @@ def export_latents(data_generator, model, filename=None):
             'latents': latents[i],
             'trials': data_generator.batch_indxs[i]},
             open(filename, 'wb'))
+
+
+def export_latents_best(hparams):
+    # TODO: implement
+    raise NotImplementedError
 
 
 def export_predictions(data_generator, model, filename=None):
