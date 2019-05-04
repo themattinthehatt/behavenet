@@ -147,6 +147,7 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
 def experiment_exists(hparams):
 
     import pickle
+    import copy
 
     try:
         tt_versions = get_subdirs(hparams['expt_dir'])
@@ -157,7 +158,13 @@ def experiment_exists(hparams):
     print(tt_versions)
 
     # get rid of extra dict
-    input_arch_params = hparams['architecture_params']
+    hparams_less = copy.copy(hparams)
+    hparams_less.pop('architecture_params')
+    hparams_less.pop('list_index')
+    hparams_less.pop('lab_example')
+    hparams_less.pop('tt_nb_gpu_trials')
+    hparams_less.pop('tt_nb_cpu_trials')
+    hparams_less.pop('tt_nb_cpu_workers')
 
     found_match = False
     for version in tt_versions:
@@ -166,16 +173,20 @@ def experiment_exists(hparams):
         try:
             with open(version_file, 'rb') as f:
                 hparams_ = pickle.load(f)
-
-            curr_arch_params = hparams_['architecture_params']
-            if all([
-                    curr_arch_params[key] == input_arch_params[key] for key in \
-                    input_arch_params.keys()]):
+            if all([hparams_[key] == hparams_less[key] for key in hparams_less.keys()]):
                 # found match - did it finish training?
                 if hparams_['training_completed']:
                     found_match = True
                     print('model found with complete training; aborting')
                     break
+            # else:
+            #     print()
+            #     print()
+            #     for key in hparams_less.keys():
+            #         val1 = hparams_[key]
+            #         val2 = hparams_less[key]
+            #         if val1 != val2:
+            #             print('Key: {}; val1: {}; val2 {}'.format(key, val1, val2))
         except IOError:
             continue
 

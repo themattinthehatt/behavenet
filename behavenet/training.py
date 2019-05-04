@@ -468,7 +468,7 @@ def fit(
     optimizer = torch.optim.Adam(
         loss.get_parameters(),
         lr=hparams['learning_rate'],
-        weight_decay=hparams['l2_reg'])
+        weight_decay=hparams.get('l2_reg', 0))
 
     # enumerate batches on which validation metrics should be recorded
     best_val_loss = math.inf

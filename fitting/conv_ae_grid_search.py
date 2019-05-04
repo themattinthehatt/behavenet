@@ -21,91 +21,90 @@ def main(hparams):
 
     hparams = vars(hparams)
 
-    print(hparams['as_numpy'])
-    # # Blend outer hparams with architecture hparams
-    # hparams = {**hparams, **hparams['architecture_params']}
-    #
-    # # Start at random times (so test tube creates separate folders)
-    # np.random.seed(random.randint(0, 1000))
-    # time.sleep(np.random.uniform(10))
-    #
-    # # Get index of architecture in list
-    # if hparams['search_type'] == 'initial':
-    #     list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
-    #     hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
-    #
-    # # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
-    #
-    # print(hparams)
-    #
-    # # #########################
-    # # ### Create Experiment ###
-    # # #########################
-    #
-    # # get session_dir, results_dir (session_dir + ae details), expt_dir (
-    # # results_dir + experiment details)
-    # hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-    #     get_output_dirs(hparams)
-    # if not os.path.isdir(hparams['expt_dir']):
-    #     os.makedirs(hparams['expt_dir'])
-    #
-    # # check to see if experiment already exists
-    # if experiment_exists(hparams):
-    #     print('Experiment exists! Aborting fit')
-    #     return
-    #
-    # exp = Experiment(
-    #     name=hparams['experiment_name'],
-    #     debug=False,
-    #     save_dir=hparams['results_dir'])
-    # exp.save()
-    #
-    # # ###########################
-    # # ### LOAD DATA GENERATOR ###
-    # # ###########################
-    #
-    # print('building data generator')
-    # hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    # ids = {
-    #     'lab': hparams['lab'],
-    #     'expt': hparams['expt'],
-    #     'animal': hparams['animal'],
-    #     'session': hparams['session']}
-    # data_generator = ConcatSessionsGenerator(
-    #     hparams['data_dir'], ids,
-    #     signals=signals, transforms=transforms, load_kwargs=load_kwargs,
-    #     device=hparams['device'], as_numpy=hparams['as_numpy'],
-    #     batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    # print('Data generator loaded')
-    #
-    # # ####################
-    # # ### CREATE MODEL ###
-    # # ####################
-    #
-    # torch_rnd_seed = torch.get_rng_state()
-    # hparams['model_build_rnd_seed'] = torch_rnd_seed
-    #
-    # # save out hparams as csv and dict
-    # hparams['training_completed'] = False
-    # export_hparams(hparams, exp)
-    #
-    #
-    # model = AE(hparams)
-    # model.to(hparams['device'])
-    #
-    # print('Model loaded')
-    #
-    # # ####################
-    # # ### TRAIN MODEL ###
-    # # ####################
-    # torch_rnd_seed = torch.get_rng_state()
-    # hparams['training_rnd_seed'] = torch_rnd_seed
-    #
-    # fit(hparams, model, data_generator, exp, method='ae')
-    #
-    # # update hparams upon successful training
-    # hparams['training_completed'] = True
-    # export_hparams(hparams, exp)
+    # Blend outer hparams with architecture hparams
+    hparams = {**hparams, **hparams['architecture_params']}
+
+    # Start at random times (so test tube creates separate folders)
+    np.random.seed(random.randint(0, 1000))
+    time.sleep(np.random.uniform(10))
+
+    # Get index of architecture in list
+    if hparams['search_type'] == 'initial':
+        list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
+        hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
+
+    # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
+
+    print(hparams)
+
+    # #########################
+    # ### Create Experiment ###
+    # #########################
+
+    # get session_dir, results_dir (session_dir + ae details), expt_dir (
+    # results_dir + experiment details)
+    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
+        get_output_dirs(hparams)
+    if not os.path.isdir(hparams['expt_dir']):
+        os.makedirs(hparams['expt_dir'])
+
+    # check to see if experiment already exists
+    if experiment_exists(hparams):
+        print('Experiment exists! Aborting fit')
+        return
+
+    exp = Experiment(
+        name=hparams['experiment_name'],
+        debug=False,
+        save_dir=hparams['results_dir'])
+    exp.save()
+
+    # ###########################
+    # ### LOAD DATA GENERATOR ###
+    # ###########################
+
+    print('building data generator')
+    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
+    ids = {
+        'lab': hparams['lab'],
+        'expt': hparams['expt'],
+        'animal': hparams['animal'],
+        'session': hparams['session']}
+    data_generator = ConcatSessionsGenerator(
+        hparams['data_dir'], ids,
+        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+        device=hparams['device'], as_numpy=hparams['as_numpy'],
+        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
+    print('Data generator loaded')
+
+    # ####################
+    # ### CREATE MODEL ###
+    # ####################
+
+    torch_rnd_seed = torch.get_rng_state()
+    hparams['model_build_rnd_seed'] = torch_rnd_seed
+
+    # save out hparams as csv and dict
+    hparams['training_completed'] = False
+    export_hparams(hparams, exp)
+
+
+    model = AE(hparams)
+    model.to(hparams['device'])
+
+    print('Model loaded')
+
+    # ####################
+    # ### TRAIN MODEL ###
+    # ####################
+    torch_rnd_seed = torch.get_rng_state()
+    hparams['training_rnd_seed'] = torch_rnd_seed
+
+    fit(hparams, model, data_generator, exp, method='ae')
+
+    # update hparams upon successful training
+    hparams['training_completed'] = True
+    export_hparams(hparams, exp)
 
 
 def get_params(strategy):
@@ -305,6 +304,6 @@ if __name__ == '__main__':
             nb_trials=hyperparams.tt_nb_cpu_trials,
             nb_workers=hyperparams.tt_nb_cpu_workers)
     print('Total fit time: {}'.format(time.time() - t))
-    # if hyperparams.export_latents_best:
-    #     print('Exporting latents from current best model in experiment')
-    #     export_latents_best(vars(hyperparams))
+    if hyperparams.export_latents_best:
+        print('Exporting latents from current best model in experiment')
+        export_latents_best(vars(hyperparams))
