@@ -746,6 +746,26 @@ class TimeLaggedLinear(nn.Module):
 #             raise Exception("Invalid emissions: {}".format(self.emissions))
 
 
+class Decoder(nn.Module):
+    """General wrapper class for decoding models"""
+
+    def __init__(self, hparams):
+
+        super().__init__()
+
+        self.hparams = hparams
+
+        if hparams['model_type'] == 'ff' or hparams['model_type'] == 'linear':
+            self.model = NN(hparams)
+        elif hparams['model_type'] == 'lstm':
+            self.model = LSTM(hparams)
+        else:
+            raise ValueError('"%s" is not a valid model type' % hparams['model_type'])
+
+    def forward(self, x):
+        return self.model(x)
+
+
 class NN(nn.Module):
 
     def __init__(self, hparams):

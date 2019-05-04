@@ -6,7 +6,7 @@ from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import Decoder
 from behavenet.training import fit
 from fitting.utils import export_predictions_best, experiment_exists, \
-    export_hparams, get_data_generator_inputs, set_output_dirs
+    export_hparams, get_data_generator_inputs, get_output_dirs
 from data.data_generator import ConcatSessionsGenerator
 
 
@@ -26,7 +26,10 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    hparams['results_dir'], hparams['expt_dir'] = set_output_dirs(hparams)
+    # get session_dir, results_dir (session_dir + decoding details),
+    # expt_dir (results_dir + experiment details)
+    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
+        get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
 
@@ -99,11 +102,9 @@ def get_params(strategy):
 
     parser = HyperOptArgumentParser(strategy)
 
-    parser.opt_list('--model_name', default='neural-ae', options=['neural-ae', 'neural-arhmm'], type=str, tunable=False)
+    parser.opt_list('--model_class', default='neural-ae', options=['neural-ae', 'neural-arhmm'], type=str, tunable=False)
     parser.opt_list('--model_type', default='ff', options=['ff', 'linear', 'lstm'], type=str)
     namespace, extra = parser.parse_known_args()
-    model_name = namespace.model_name
-    model_type = namespace.model_type
 
     # add testtube arguments (nb_gpu_workers inferred from visible gpus)
     parser.add_argument('--tt_nb_gpu_trials', default=1000, type=int)
@@ -153,15 +154,15 @@ def get_params(strategy):
     parser.add_argument('--l2_reg', default=1e-3, type=float)
     parser.add_argument('--n_max_lags', default=16)  # should match largest value in --n_lags options
     parser.opt_list('--activation', default='relu', options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'], tunable=False)
-    if model_type == 'linear':
+    if namespace.model_type == 'linear':
         parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
-    elif model_type == 'ff':
+    elif namespace.model_type == 'ff':
         # parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
         # parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
         parser.add_argument('--n_hid_layers', default=1, type=int)
         parser.add_argument('--n_final_units', default=16, type=int)
         parser.add_argument('--n_int_units', default=64, type=int)
-    elif model_type == 'lstm':
+    elif namespace.model_type == 'lstm':
         raise NotImplementedError
 
     # add neural arguments
@@ -171,21 +172,21 @@ def get_params(strategy):
     parser.opt_list('--neural_region', default='all', options=['all', 'single', 'loo'])
 
     # add data arguments
-    if model_name == 'neural-ae':
+    if namespace.model_class == 'neural-ae':
         # ae arguments
         #parser.opt_list('--ae_view', default='both', options=['both', 'face', 'body', 'full'])
         parser.add_argument('--ae_experiment_name', type=str)
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_version', default='best')
-    elif model_name == 'neural-arhmm':
+    elif namespace.model_class == 'neural-arhmm':
         # ae arguments
         parser.opt_list('--ae_view', default='both', options=['both', 'face', 'body', 'full'])
         parser.add_argument('--n_ae_latents', default=12, type=int)
         # arhmm arguments
         parser.add_argument('--arhmm_experiment_name', type=str)
-        parser.add_argument('--n_arhmm_latents', default=12, type=int)
+        parser.add_argument('--n_arhmm_states', default=12, type=int)
         parser.add_argument('--arhmm_version', default='best')
-    elif model_name == 'neural-dlc':
+    elif namespace.model_class == 'neural-dlc':
         raise NotImplementedError
 
     return parser.parse_args()

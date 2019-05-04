@@ -9,26 +9,40 @@ def get_subdirs(path):
     return next(os.walk(path))[1]
 
 
-def set_output_dirs(hparams):
+def get_output_dirs(hparams, model_class=None, expt_name=None):
+
+    if model_class is None:
+        model_class = hparams['model_class']
+
+    if expt_name is None:
+        expt_name = hparams['experiment_name']
 
     sess_dir = os.path.join(
             hparams['tt_save_path'], hparams['lab'], hparams['expt'],
             hparams['animal'], hparams['session'])
 
-    if hparams['model_class'] == 'ae':
+    if model_class == 'ae':
         results_dir = os.path.join(
-            sess_dir, 'ae_%02i_dim' % hparams['n_latents'])
-    elif hparams['model_class'] == 'neural-ae':
-        results_dir = None
-    elif hparams['model_class'] == 'neural-arhmm':
-        results_dir = None
+            sess_dir, 'ae', hparams['model_type'],
+            '%02i_latents' % hparams['n_ae_latents'])
+    elif model_class == 'neural-ae':
+        # TODO: include brain region, ae version
+        results_dir = os.path.join(
+            sess_dir, 'neural-ae',
+            '%02i_latents' % hparams['n_ae_latents'],
+            hparams['model_type'])
+    elif model_class == 'neural-arhmm':
+        results_dir = os.path.join(
+            sess_dir, 'neural-arhmm',
+            '%02i_latents' % hparams['n_ae_latents'],
+            '%02i_states' % hparams['n_arhmm_states'],
+            hparams['model_type'])
     else:
-        raise ValueError('"%s" is an invalid model name' % hparams['model_class'])
+        raise ValueError('"%s" is an invalid model class' % model_class)
 
-    expt_dir = os.path.join(
-        results_dir, 'test_tube_data', hparams['experiment_name'])
+    expt_dir = os.path.join(results_dir, 'test_tube_data', expt_name)
 
-    return results_dir, expt_dir
+    return sess_dir, results_dir, expt_dir
 
 
 def estimate_model_footprint(model, input_size, cutoff_size=20):
@@ -224,12 +238,12 @@ def get_data_generator_inputs(hparams):
         hparams['output_size'] = hparams['n_ae_latents']
         hparams['noise_dist'] = 'gaussian'
 
-        ae_dir = os.path.join(
-            hparams['results_dir'], 'test_tube_data',
-            hparams['ae_experiment_name'])
+        _, _, ae_dir = get_output_dirs(
+            hparams, model_class='ae',
+            expt_name=hparams['ae_experiment_name'])
 
         ae_transforms = None
-        ae_kwargs = {  # TODO: base_dir + ids (here or in data generator?)
+        ae_kwargs = {
             'model_dir': ae_dir,
             'model_version': hparams['ae_version']}
 
@@ -241,15 +255,15 @@ def get_data_generator_inputs(hparams):
 
         hparams['input_signal'] = 'neural'
         hparams['output_signal'] = 'arhmm'
-        hparams['output_size'] = hparams['n_arhmm_latents']
+        hparams['output_size'] = hparams['n_arhmm_states']
         hparams['noise_dist'] = 'categorical'
 
-        arhmm_dir = os.path.join(
-            hparams['results_dir'], 'test_tube_data',
-            hparams['arhmm_experiment_name'])
+        _, _, arhmm_dir = get_output_dirs(
+            hparams, model_class='arhmm',
+            expt_name=hparams['arhmm_experiment_name'])
 
         arhmm_transforms = None
-        arhmm_kwargs = {  # TODO: base_dir + ids (here or in data generator?)
+        arhmm_kwargs = {
             'model_dir': arhmm_dir,
             'model_version': hparams['arhmm_version']}
 
