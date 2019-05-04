@@ -110,8 +110,6 @@ def main(hparams):
 
 def get_params(strategy):
 
-    # TODO: fix argarse bools
-
     parser = HyperOptArgumentParser(strategy)
 
     parser.add_argument('--search_type', type=str) # initial, top_n, latent_search, test (one handcrafted arch)
@@ -128,9 +126,9 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
-        parser.add_argument('--export_latents', default=False, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=True, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=False)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     elif namespace.search_type == 'initial':
@@ -141,9 +139,9 @@ def get_params(strategy):
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_nb_epochs', default=20, type=int)
         parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
-        parser.add_argument('--export_latents', default=False, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=False, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=False)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=False)
         parser.add_argument('--early_stop_history', default=None, type=int)
     elif namespace.search_type == 'top_n':
         parser.add_argument('--saved_initial_archs', default='initial_grid_search', type=str) # experiment name to look for initial architectures in
@@ -153,9 +151,9 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
-        parser.add_argument('--export_latents', default=False, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=True, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=False)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     elif namespace.search_type == 'latent_search':
@@ -165,9 +163,9 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
-        parser.add_argument('--export_latents', default=True, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=True, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=True)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
@@ -209,8 +207,8 @@ def get_params(strategy):
     parser.add_argument('--transforms', default=None)
     parser.add_argument('--load_kwargs', default=None)  # dict...:(
     parser.add_argument('--device', default='cuda', type=str)
-    parser.add_argument('--as_numpy', default=False, type=bool)
-    parser.add_argument('--batch_load', default=True, type=bool)
+    parser.add_argument('--as_numpy', action='store_true', default=False)
+    parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
 
     parser.add_argument('--l2_reg', default=0)

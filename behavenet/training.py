@@ -396,7 +396,7 @@ class SVILoss(FitMethod):
 class EarlyStopping(object):
     """Stop training when a monitored quantity has stopped improving"""
 
-    def __init__(self, history=0, min_epochs=10):
+    def __init__(self, history=10, min_epochs=10):
         """
         Args:
             history (int): number of previous checks to average over when
@@ -427,7 +427,7 @@ class EarlyStopping(object):
             self.best_epoch = epoch
 
         # check if smoothed loss is starting to increase; exit training if so
-        if epoch > self.min_epochs and curr_mean >= prev_mean:
+        if epoch > max(self.min_epochs, self.history) and curr_mean >= prev_mean:
             print('\n== early stopping criteria met; exiting train loop ==')
             print('training epochs: %d' % epoch)
             print('end cost: %04f' % curr_loss)
@@ -435,46 +435,6 @@ class EarlyStopping(object):
             print('best cost: %04f\n' % self.best_loss)
             self.stopped_epoch = epoch
             self.should_stop = True
-
-
-# class EarlyStopping(object):
-#     """Stop training when a monitored quantity has stopped improving"""
-#
-#     def __init__(self, min_fraction=1.0, patience=0, min_epochs=10):
-#         """
-#         Args:
-#             min_fraction (float): minimum change in the monitored quantity
-#                 to qualify as an improvement, i.e. change of less than
-#                 min_fraction * best val loss will count as no improvement.
-#             patience (int): number of epochs with no improvement after which
-#                 training will be stopped.
-#             min_epochs (int): minimum number of epochs for training
-#         """
-#
-#         self.min_fraction = min_fraction
-#         self.patience = patience
-#         self.min_epochs = min_epochs
-#         self.wait = 0
-#         self.stopped_epoch = 0
-#         self.best = np.inf
-#         self.should_stop = False
-#
-#     def on_val_check(self, epoch, val_loss):
-#
-#         stop_training = False
-#
-#         if val_loss < self.min_fraction * self.best:
-#             self.best = val_loss
-#             self.wait = 0
-#         else:
-#             self.wait += 1
-#             if self.wait >= self.patience:
-#                 self.stopped_epoch = epoch
-#                 stop_training = True
-#
-#         met_min_epochs = epoch > self.min_epochs
-#
-#         self.should_stop = stop_training and met_min_epochs
 
 
 def fit(
@@ -508,7 +468,7 @@ def fit(
     optimizer = torch.optim.Adam(
         loss.get_parameters(),
         lr=hparams['learning_rate'],
-        weight_decay=hparams['l2_reg'])
+        weight_decay=hparams.get('l2_reg', 0))
 
     # enumerate batches on which validation metrics should be recorded
     best_val_loss = math.inf

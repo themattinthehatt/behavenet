@@ -98,9 +98,9 @@ def main(hparams):
 
 def get_params(strategy):
 
-    # TODO: fix argarse bools
-
     parser = HyperOptArgumentParser(strategy)
+
+    parser.add_argument('--data_dir', '-d', type=str)
 
     parser.opt_list('--model_class', default='neural-ae', options=['neural-ae', 'neural-arhmm'], type=str, tunable=False)
     parser.opt_list('--model_type', default='ff', options=['ff', 'linear', 'lstm'], type=str)
@@ -112,13 +112,6 @@ def get_params(strategy):
     parser.add_argument('--tt_nb_cpu_workers', default=5, type=int)
 
     # add data generator arguments
-    if os.uname().nodename == 'white-noise':
-        data_dir = '/home/mattw/data/'
-    elif os.uname().nodename[:3] == 'gpu':
-        data_dir = '/labs/abbott/behavenet/data/'
-    else:
-        data_dir = ''
-    parser.add_argument('--data_dir', '-d', default=data_dir, type=str)
     parser.add_argument('--lab', '-l', default='musall', type=str)
     parser.add_argument('--expt', '-e', default='vistrained', type=str)
     parser.add_argument('--animal', '-a', default='mSM30', type=str)
@@ -126,41 +119,40 @@ def get_params(strategy):
 
     # data generator arguments
     parser.add_argument('--device', default='cuda', type=str)
-    parser.add_argument('--as_numpy', default=False, type=bool)
-    parser.add_argument('--batch_load', default=False, type=bool)
+    parser.add_argument('--as_numpy', action='store_true', default=False)
+    parser.add_argument('--batch_load', action='store_true', default=False)
     parser.add_argument('--rng_seed', default=0, type=int)
 
     # add training arguments
     parser.add_argument('--val_check_interval', default=1)
-    parser.add_argument('--enable_early_stop', default=True, type=bool)
+    parser.add_argument('--enable_early_stop', action='store_true', default=True)
     parser.add_argument('--early_stop_history', default=10, type=float)
     parser.add_argument('--min_nb_epochs', default=1, type=int)
     parser.add_argument('--max_nb_epochs', default=100, type=int)
-    # parser.add_argument('--export_latents', default=False, type=bool)
 
     # add saving arguments
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--experiment_name', '-en', default='decoder_grid_search', type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
-    parser.add_argument('--export_predictions', default=False, type=bool, help='export predictions for each decoder')
-    parser.add_argument('--export_predictions_best', default=True, type=bool, help='export predictions best decoder in experiment')
+    parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
+    parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
 
     # add model hyperparameters
     parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
-    # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8, 16], type=int, tunable=True)
-    # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+    parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8, 16], type=int, tunable=True)
+    parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
     # parser.add_argument('--learning_rate', default=1e-3, type=float)
-    parser.add_argument('--n_lags', default=4, type=int)
-    parser.add_argument('--l2_reg', default=1e-3, type=float)
-    parser.add_argument('--n_max_lags', default=16)  # should match largest value in --n_lags options
+    # parser.add_argument('--n_lags', default=4, type=int)
+    # parser.add_argument('--l2_reg', default=1e-3, type=float)
+    parser.add_argument('--n_max_lags', default=8)  # should match largest value in --n_lags options
     parser.opt_list('--activation', default='relu', options=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'], tunable=False)
     if namespace.model_type == 'linear':
         parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
     elif namespace.model_type == 'ff':
-        # parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
-        # parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
-        parser.add_argument('--n_hid_layers', default=1, type=int)
-        parser.add_argument('--n_final_units', default=16, type=int)
+        parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3], type=int, tunable=True)
+        parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
+        # parser.add_argument('--n_hid_layers', default=1, type=int)
+        # parser.add_argument('--n_final_units', default=16, type=int)
         parser.add_argument('--n_int_units', default=64, type=int)
     elif namespace.model_type == 'lstm':
         raise NotImplementedError

@@ -161,6 +161,10 @@ def experiment_exists(hparams):
     hparams_less = copy.copy(hparams)
     hparams_less.pop('architecture_params')
     hparams_less.pop('list_index')
+    hparams_less.pop('lab_example')
+    hparams_less.pop('tt_nb_gpu_trials')
+    hparams_less.pop('tt_nb_cpu_trials')
+    hparams_less.pop('tt_nb_cpu_workers')
 
     found_match = False
     for version in tt_versions:
@@ -169,19 +173,21 @@ def experiment_exists(hparams):
         try:
             with open(version_file, 'rb') as f:
                 hparams_ = pickle.load(f)
-
-            if all([hparams[key] == hparams_[key] for key in hparams_less.keys()]):
+            if all([hparams_[key] == hparams_less[key] for key in hparams_less.keys()]):
                 # found match - did it finish training?
                 if hparams_['training_completed']:
                     found_match = True
                     print('model found with complete training; aborting')
                     break
-                else:
-                    print('model found with incomplete training; continuing')
-            else:
-                print('model architecture has not been fit')
+            # else:
+            #     print()
+            #     print()
+            #     for key in hparams_less.keys():
+            #         val1 = hparams_[key]
+            #         val2 = hparams_less[key]
+            #         if val1 != val2:
+            #             print('Key: {}; val1: {}; val2 {}'.format(key, val1, val2))
         except IOError:
-            print('failed to load %s' % version_file)
             continue
 
     return found_match
