@@ -188,7 +188,7 @@ class ConvAEDecoder(nn.Module):
                 x = x.view(-1,self.hparams['ae_input_dim'][0],self.hparams['ae_input_dim'][1],self.hparams['ae_input_dim'][2])
             else:
                 x = layer(x)
-                
+
         if self.hparams['model_class'] == 'ae':
             return x
         elif self.hparams['model_class'] == 'vae':

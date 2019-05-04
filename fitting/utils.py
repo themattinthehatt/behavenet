@@ -15,15 +15,15 @@ def set_output_dirs(hparams):
             hparams['tt_save_path'], hparams['lab'], hparams['expt'],
             hparams['animal'], hparams['session'])
 
-    if hparams['model_name'] == 'ae':
+    if hparams['model_class'] == 'ae':
         results_dir = os.path.join(
             sess_dir, 'ae_%02i_dim' % hparams['n_latents'])
-    elif hparams['model_name'] == 'neural-ae':
+    elif hparams['model_class'] == 'neural-ae':
         results_dir = None
-    elif hparams['model_name'] == 'neural-arhmm':
+    elif hparams['model_class'] == 'neural-arhmm':
         results_dir = None
     else:
-        raise ValueError('"%s" is an invalid model name' % hparams['model_name'])
+        raise ValueError('"%s" is an invalid model name' % hparams['model_class'])
 
     expt_dir = os.path.join(
         results_dir, 'test_tube_data', hparams['experiment_name'])
@@ -88,7 +88,7 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     return curr_bytes * 1.2  # safety blanket
 
 
-def get_best_model_version(model_path, measure='loss'):
+def get_best_model_version(model_path, measure='loss',n_best=1):
     """
 
     Args:
@@ -123,9 +123,16 @@ def get_best_model_version(model_path, measure='loss'):
     # put everything in pandas dataframe
     metrics_df = pd.concat(metrics, sort=False)
     # get version with smallest loss
-    best_version = metrics_df['version'][metrics_df['loss'].idxmin()]
+    
+    if n_best==1:
+        best_versions = metrics_df['version'][metrics_df['loss'].idxmin()]
+    else:
+        best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
 
-    return best_version
+    if best_versions.shape[0]!=n_best:
+        print('More versions than specified due to same validation loss') 
+        
+    return best_versions
 
 
 def experiment_exists(hparams):
@@ -191,7 +198,7 @@ def get_data_generator_inputs(hparams):
     from data.transforms import Threshold
 
     # get neural signals/transforms/load_kwargs
-    if hparams['model_name'].find('neural') > -1:
+    if hparams['model_class'].find('neural') > -1:
         if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
             neural_transforms = Threshold(
                 threshold=hparams['neural_thresh'],
@@ -204,13 +211,13 @@ def get_data_generator_inputs(hparams):
         neural_kwargs = None
 
     # get model-specific signals/transforms/load_kwargs
-    if hparams['model_name'] == 'ae':
+    if hparams['model_class'] == 'ae':
 
         signals = [hparams['signals']]
         transforms = [hparams['transforms']]
         load_kwargs = [None]
 
-    elif hparams['model_name'] == 'neural-ae':
+    elif hparams['model_class'] == 'neural-ae':
 
         hparams['input_signal'] = 'neural'
         hparams['output_signal'] = 'ae'
@@ -230,7 +237,7 @@ def get_data_generator_inputs(hparams):
         transforms = [neural_transforms, ae_transforms]
         load_kwargs = [neural_kwargs, ae_kwargs]
 
-    elif hparams['model_name'] == 'neural-arhmm':
+    elif hparams['model_class'] == 'neural-arhmm':
 
         hparams['input_signal'] = 'neural'
         hparams['output_signal'] = 'arhmm'
@@ -251,7 +258,7 @@ def get_data_generator_inputs(hparams):
         load_kwargs = [neural_kwargs, arhmm_kwargs]
 
     else:
-        raise ValueError('"%s" is an invalid model_name' % hparams['model_name'])
+        raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
 
     return hparams, signals, transforms, load_kwargs
 
@@ -373,13 +380,13 @@ def export_predictions_best(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    if hparams['model_name'] == 'neural-ae':
+    if hparams['model_class'] == 'neural-ae':
         hparams['noise_dist'] = 'gaussian'
-    elif hparams['model_name'] == 'neural-arhmm':
+    elif hparams['model_class'] == 'neural-arhmm':
         hparams['noise_dist'] = 'categorical'
     else:
         raise ValueError(
-            '"%s" is an invalid model_name' % hparams['model_name'])
+            '"%s" is an invalid model_class' % hparams['model_class'])
 
     model = Decoder(hparams)
 

@@ -26,11 +26,12 @@ def main(hparams):
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(10))
 
-    # delete 'architecture_params' key
-    list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
-    hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
+    # Get index of architecture in list
+    if hparams['search_type']== 'initial':
+        list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
+        hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
 
-   # hparams.pop('architecture_params', None)
+   # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
 
     print(hparams)
 
@@ -113,28 +114,34 @@ def get_params(strategy):
 
     namespace, extra = parser.parse_known_args()
 
-
     if namespace.search_type == 'initial':
         parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file)
         parser.add_argument('--n_archs', '-n', default=100, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_nb_epochs', default=20, type=int)
         parser.add_argument('--experiment_name', '-en', default='conv_ae_initial_grid_search', type=str)
+        parser.add_argument('--export_latents', default=False, type=bool)
+        parser.add_argument('--export_latents_best', default=True, type=bool)
     elif namespace.search_type == 'top_n':
-        parser.add_argument('--saved_initial_archs', type=str) # experiment name to look for initial architectures in
+        parser.add_argument('--saved_initial_archs', default='conv_ae_initial_grid_search', type=str) # experiment name to look for initial architectures in
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
         parser.add_argument('--max_nb_epochs', default=200, type=int)
         parser.add_argument('--experiment_name', '-en', default='conv_ae_top_n_grid_search', type=str)
+        parser.add_argument('--export_latents', default=False, type=bool)
+        parser.add_argument('--export_latents_best', default=True, type=bool)
     elif namespace.search_type == 'latent_search':
-        parser.add_argument('--saved_top_n_archs', type=str) # experiment name to look for top n architectures in
+        parser.add_argument('--saved_top_n_archs', default='conv_ae_top_n_grid_search', type=str) # experiment name to look for top n architectures in
         parser.add_argument('--max_nb_epochs', default=200, type=int)
         parser.add_argument('--experiment_name', '-en', default='best_conv_ae', type=str)
-
+        parser.add_argument('--export_latents', default=True, type=bool)
+        parser.add_argument('--export_latents_best', default=False, type=bool)
+        
     parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
     parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
     parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
     parser.add_argument('--mem_limit_gb', default=5.0, type=float)
     parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
-    
+    parser.add_argument('--batch_size', '-b', default=200, help='batch_size', type=int)
+
     parser.add_argument('--lab', '-l', default='musall', type=str)
     parser.add_argument('--expt', '-e', default='vistrained', type=str)
     parser.add_argument('--animal', '-a', default='mSM30', type=str)
@@ -172,12 +179,9 @@ def get_params(strategy):
     parser.add_argument('--enable_early_stop', default=False, type=bool)
     parser.add_argument('--early_stop_fraction', default=None, type=float)
     parser.add_argument('--early_stop_patience', default=None, type=float)
-
-    parser.add_argument('--export_latents', default=True, type=bool)
-    parser.add_argument('--export_latents_best', default=True, type=bool)
  
     # add architecture arguments
-    parser.add_argument('--batch_size', '-b', default=200, help='batch_size', type=int)
+    
 
     # add saving arguments
     parser.add_argument('--model_class', '-m', default='ae', type=str) # ae vs vae
@@ -209,7 +213,7 @@ def get_params(strategy):
             f.close()
 
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
-
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-4,1e-3,1e-2],type=float,tunable=False)
     elif namespace.search_type == 'top_n':
         # Get top n architectures in directory
         results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt,namespace.animal, namespace.session)
@@ -219,6 +223,7 @@ def get_params(strategy):
         for i_version in best_versions:
              filename = results_dir+'/test_tube_data/'+namespace.saved_initial_archs+'/version_'+str(i_version)+'/meta_tags.pkl'
              temp = pickle.load(open(namespace.arch_file_name, 'rb'))
+             temp['architecture_params']['source_architecture'] = filename
              list_of_archs.append(temp['architecture_params'])
         parser.opt_list('--learning_rate', default=1e-3, options=[1e-4,1e-3,1e-2],type=float,tunable=True)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
