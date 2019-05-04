@@ -133,9 +133,9 @@ def get_params(strategy):
 
     elif namespace.search_type == 'initial':
         parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file), if exists, assumes already contains handcrafted archs!
-        parser.add_argument('--which_handcrafted_archs', default='0;1;2') # empty string if you don't want any
         parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
 
+        parser.add_argument('--which_handcrafted_archs', default='0;1;2') # empty string if you don't want any
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_nb_epochs', default=20, type=int)
         parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
