@@ -164,10 +164,9 @@ def experiment_exists(hparams):
 
     found_match = False
     for version in tt_versions:
+        # load hparams
+        version_file = os.path.join(hparams['expt_dir'], version, 'meta_tags.pkl')
         try:
-            # load hparams
-            version_file = os.path.join(
-                hparams['expt_dir'], version, 'meta_tags.pkl')
             with open(version_file, 'rb') as f:
                 hparams_ = pickle.load(f)
 
@@ -309,7 +308,7 @@ def export_latents_best(hparams):
     hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
         get_output_dirs(hparams)
 
-    best_version = get_best_model_version(hparams['expt_dir'])
+    best_version = get_best_model_version(hparams['expt_dir'])[0]
     best_model_file = os.path.join(
         hparams['expt_dir'], best_version, 'best_val_model.pt')
 
@@ -374,7 +373,7 @@ def export_predictions_best(hparams):
     # expt_dir contains version_%i directories
     hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
         get_output_dirs(hparams)
-    best_version = get_best_model_version(hparams['expt_dir'])
+    best_version = get_best_model_version(hparams['expt_dir'])[0]
     best_model_file = os.path.join(
         hparams['expt_dir'], best_version, 'best_val_model.pt')
 
