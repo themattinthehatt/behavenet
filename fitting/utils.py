@@ -159,12 +159,12 @@ def experiment_exists(hparams):
 
     # get rid of extra dict
     hparams_less = copy.copy(hparams)
-    hparams_less.pop('architecture_params')
-    hparams_less.pop('list_index')
-    hparams_less.pop('lab_example')
-    hparams_less.pop('tt_nb_gpu_trials')
-    hparams_less.pop('tt_nb_cpu_trials')
-    hparams_less.pop('tt_nb_cpu_workers')
+    hparams_less.pop('architecture_params',None)
+    hparams_less.pop('list_index',None)
+    hparams_less.pop('lab_example',None)
+    hparams_less.pop('tt_nb_gpu_trials',None)
+    hparams_less.pop('tt_nb_cpu_trials',None)
+    hparams_less.pop('tt_nb_cpu_workers',None)
 
     found_match = False
     for version in tt_versions:

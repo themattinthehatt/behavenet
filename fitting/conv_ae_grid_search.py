@@ -148,7 +148,7 @@ def get_params(strategy):
         parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
 
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
@@ -160,7 +160,7 @@ def get_params(strategy):
         parser.add_argument('--source_n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
