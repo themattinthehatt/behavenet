@@ -133,6 +133,9 @@ def get_params(strategy):
         parser.add_argument('--export_latents', default=False, type=bool)
         parser.add_argument('--export_latents_best', default=True, type=bool)
         parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
+        parser.add_argument('--enable_early_stop', default=False, type=bool)
+        parser.add_argument('--early_stop_fraction', default=None, type=float)
+        parser.add_argument('--early_stop_patience', default=None, type=float)
     elif namespace.search_type == 'latent_search':
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
         parser.add_argument('--max_nb_epochs', default=200, type=int)
@@ -140,7 +143,9 @@ def get_params(strategy):
         parser.add_argument('--export_latents', default=True, type=bool)
         parser.add_argument('--export_latents_best', default=False, type=bool)
         parser.add_argument('--orig_n_ae_latents', help='number of latents', type=int)
-
+        parser.add_argument('--enable_early_stop', default=False, type=bool)
+        parser.add_argument('--early_stop_fraction', default=None, type=float)
+        parser.add_argument('--early_stop_patience', default=None, type=float)
     parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
     parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
     parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
@@ -182,9 +187,6 @@ def get_params(strategy):
     # add training arguments
     parser.add_argument('--l2_reg', default=0, type=float)
     parser.add_argument('--val_check_interval', default=1)
-    parser.add_argument('--enable_early_stop', default=False, type=bool)
-    parser.add_argument('--early_stop_fraction', default=None, type=float)
-    parser.add_argument('--early_stop_patience', default=None, type=float)
  
     # add saving arguments
 
