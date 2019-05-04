@@ -6,7 +6,7 @@ from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
 from behavenet.training import fit
 from fitting.utils import export_latents_best, experiment_exists, \
-    export_hparams, get_data_generator_inputs, set_output_dirs
+    export_hparams, get_data_generator_inputs, get_output_dirs
 from fitting.ae_model_architecture_generator import draw_archs
 from data.data_generator import ConcatSessionsGenerator
 import random
@@ -35,7 +35,10 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    hparams['results_dir'], hparams['expt_dir'] = set_output_dirs(hparams)
+    # get session_dir, results_dir (session_dir + ae details), expt_dir (
+    # results_dir + experiment details)
+    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
+        get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
 

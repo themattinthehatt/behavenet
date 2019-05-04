@@ -9,7 +9,7 @@ import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
 import h5py
-from behavenet.utils import get_best_model_version
+from fitting.utils import get_best_model_version
 
 
 def split_trials(
@@ -144,24 +144,11 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             # index correct trial
             if signal == 'images':
-                if load_kwargs['format'] == 'jpg':
-                    load_pattern = os.path.join(
-                        self.data_dir, load_kwargs['view'],
-                        'img%04i*.jpg' % indx)
-                    sample[signal] = sio.ImageCollection(
-                        get_img_filenames(pattern=load_pattern),
-                        conserve_memory=False,
-                        load_func=imread,
-                        as_gray=True).concatenate()[:, None, :, :]
-                elif load_kwargs['format'] == 'hdf5':
-                    f = h5py.File(os.path.join(
-                        self.data_dir, 'images.hdf5'), 'r',
-                        libver='latest', swmr=True)
-                    sample[signal] = f['images'][
-                        str('trial_%04i' % indx)][()].astype('float32') / 255.0
-                else:
-                    raise ValueError(
-                        '"%s" is not a valid format' % load_kwargs['foramt'])
+                f = h5py.File(os.path.join(
+                    self.data_dir, 'images.hdf5'), 'r',
+                    libver='latest', swmr=True)
+                sample[signal] = f['images'][
+                    str('trial_%04i' % indx)][()].astype('float32') / 255.0
 
                 # if self.lab == 'steinmetz':
                 #     load_pattern = os.path.join(
