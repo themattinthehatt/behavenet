@@ -181,7 +181,6 @@ def get_params(strategy):
 
     # add saving arguments
     parser.add_argument('--model_class', '-m', default='ae', type=str) # ae vs vae
-    parser.add_argument('--model_name', '-m', default='ae', type=str)
 
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
