@@ -50,11 +50,11 @@ class ConvAEEncoder(nn.Module):
 
         # Final FF layer to latents
         last_conv_size = self.hparams['ae_encoding_n_channels'][-1]*self.hparams['ae_encoding_y_dim'][-1]*self.hparams['ae_encoding_x_dim'][-1]
-        self.FF = nn.Linear(last_conv_size, self.hparams['ae_n_ae_latents'])
+        self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
     
         ## If VAE model, have additional FF layer to latent variances
         if self.hparams['model_class'] == 'vae':
-            self.logvar = nn.Linear(last_conv_size, self.hparams['ae_n_ae_latents'])
+            self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
             self.softplus = nn.Softplus()
         elif self.hparams['model_class'] == 'ae':
             pass
@@ -105,7 +105,7 @@ class ConvAEDecoder(nn.Module):
 
         # First FF layer (from latents to size of last encoding layer)
         first_conv_size = self.hparams['ae_decoding_starting_dim'][0]*self.hparams['ae_decoding_starting_dim'][1]*self.hparams['ae_decoding_starting_dim'][2]
-        self.FF = nn.Linear(self.hparams['ae_n_ae_latents'], first_conv_size)
+        self.FF = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
         
         self.decoder = nn.ModuleList()
 

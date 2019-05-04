@@ -288,7 +288,7 @@ class SingleSessionDataset(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')
+                            load_kwarg['model_dir'], 'loss')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
 
@@ -323,7 +323,7 @@ class SingleSessionDataset(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')
+                            load_kwarg['model_dir'], 'loss')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
 
@@ -358,7 +358,7 @@ class SingleSessionDataset(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')
+                            load_kwarg['model_dir'], 'loss')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
 

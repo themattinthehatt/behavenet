@@ -24,7 +24,7 @@ def export_latents(data_generator, model, filename=None):
         trial_len = dataset.trial_len
         num_trials = dataset.num_trials
         latents[i] = np.full(
-            shape=(num_trials, trial_len, model.hparams['n_latents']),
+            shape=(num_trials, trial_len, model.hparams['n_ae_latents']),
             fill_value=np.nan)
 
     # partially fill container (gap trials will be included as nans)
