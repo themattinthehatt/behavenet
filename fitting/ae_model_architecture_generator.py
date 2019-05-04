@@ -243,8 +243,10 @@ def draw_archs(
         # Check max memory, keep if smaller than 10 GB, print if rejecting
         if check_memory:
             copied_arch = copy.deepcopy(new_arch)
-            copied_arch['model_type'] = 'ae'
+            copied_arch['model_class'] = 'ae'
+            print(copied_arch)
             model = AE(copied_arch)
+            print(model)
             mem_size = estimate_model_footprint(
                 model, tuple([batch_size] + input_dim))
             mem_size_gb = mem_size / 1e9
