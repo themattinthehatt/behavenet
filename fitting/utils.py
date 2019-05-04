@@ -147,7 +147,6 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
 def experiment_exists(hparams):
 
     import pickle
-    import copy
 
     try:
         tt_versions = get_subdirs(hparams['expt_dir'])
@@ -158,9 +157,7 @@ def experiment_exists(hparams):
     print(tt_versions)
 
     # get rid of extra dict
-    hparams_less = copy.copy(hparams)
-    hparams_less.pop('architecture_params')
-    hparams_less.pop('list_index')
+    input_arch_params = hparams['architecture_params']
 
     found_match = False
     for version in tt_versions:
@@ -170,18 +167,16 @@ def experiment_exists(hparams):
             with open(version_file, 'rb') as f:
                 hparams_ = pickle.load(f)
 
-            if all([hparams[key] == hparams_[key] for key in hparams_less.keys()]):
+            curr_arch_params = hparams_['architecture_params']
+            if all([
+                    curr_arch_params[key] == input_arch_params[key] for key in \
+                    input_arch_params.keys()]):
                 # found match - did it finish training?
                 if hparams_['training_completed']:
                     found_match = True
                     print('model found with complete training; aborting')
                     break
-                else:
-                    print('model found with incomplete training; continuing')
-            else:
-                print('model architecture has not been fit')
         except IOError:
-            print('failed to load %s' % version_file)
             continue
 
     return found_match
