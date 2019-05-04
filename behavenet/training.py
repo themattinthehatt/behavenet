@@ -125,13 +125,13 @@ class AELoss(FitMethod):
 
         if batch_size > chunk_size:
             # split into chunks
-            num_chunks = np.ceil(batch_size / chunk_size)
+            num_chunks = int(np.ceil(batch_size / chunk_size))
             loss_val = 0
             for chunk in range(num_chunks):
                 indx_beg = chunk * chunk_size
                 indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
                 y_mu, _ = self.model(y[indx_beg:indx_end])
-                loss = torch.mean((y - y_mu) ** 2)
+                loss = torch.mean((y[indx_beg:indx_end] - y_mu) ** 2)
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
@@ -604,9 +604,6 @@ def fit(
         hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
         'version_%i' % exp.version, 'last_model.pt')
     torch.save(model.state_dict(), filepath)
-
-    # add training complete key in pkl
-
 
     # Compute test loss
     if method == 'em':

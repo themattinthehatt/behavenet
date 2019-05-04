@@ -5,7 +5,8 @@ import pickle
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
 from behavenet.training import fit
-from behavenet.utils import export_latents_best, experiment_exists
+from fitting.utils import export_latents_best, experiment_exists, \
+    export_hparams, get_data_generator_inputs, set_output_dirs
 from fitting.ae_model_architecture_generator import draw_archs
 from data.data_generator import ConcatSessionsGenerator
 import random
@@ -14,6 +15,7 @@ import random
 def main(hparams):
 
     # TODO: log files
+    # TODO: train/eval -> export_best_latents can be eval only mode
 
     hparams = vars(hparams)
     # Blend outer hparams with architecture hparams
@@ -26,7 +28,6 @@ def main(hparams):
     # delete 'architecture_params' key
     list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
     hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
-
     hparams.pop('architecture_params', None)
     print(hparams)
 
@@ -34,9 +35,9 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    hparams['results_dir'] = os.path.join(
-        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'])
+    hparams['results_dir'], hparams['expt_dir'] = set_output_dirs(hparams)
+    if not os.path.isdir(hparams['expt_dir']):
+        os.makedirs(hparams['expt_dir'])
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
@@ -53,14 +54,16 @@ def main(hparams):
     # ### LOAD DATA GENERATOR ###
     # ###########################
 
+    print('building data generator')
+    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
     ids = {
         'lab': hparams['lab'],
         'expt': hparams['expt'],
         'animal': hparams['animal'],
         'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids, signals=[hparams['signals']],
-        transforms=[hparams['transforms']], load_kwargs=[{'format': 'hdf5'}],
+        hparams['data_dir'], ids,
+        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     print('Data generator loaded')
@@ -69,37 +72,32 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    # save out hparams as dict for easy reloading
-    meta_file = os.path.join(
-        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
-        'version_%i' % exp.version, 'meta_tags.pkl')
-    with open(meta_file, 'wb') as f:
-        pickle.dump(hparams, f)
-    # save out hparams as csv file
-    exp.tag(hparams)
-    exp.save()
+    # save out hparams as csv and dict
+    hparams['training_completed'] = False
+    export_hparams(hparams, exp)
 
     model = AE(hparams)
     model.to(hparams['device'])
 
     print('Model loaded')
+
     # ####################
     # ### TRAIN MODEL ###
     # ####################
 
     # t = time.time()
-    # optimizer = torch.optim.Adam(model.parameters(), lr=hparams['learning_rate'])
     # for i in range(20):
-    #     optimizer.zero_grad()
     #     batch, dataset = data_generator.next_batch('train')
-    #     y, x = model(batch['images'][0])
-    #     loss = torch.mean((y-batch['images'][0])**2)
-    #     loss.backward()
-    #     optimizer.step()
+    #     print('Trial {}'.format(batch['batch_indx']))
+    #     print(batch['images'].shape)
     # print('Epoch processed!')
     # print('Time elapsed: {}'.format(time.time() - t))
 
     fit(hparams, model, data_generator, exp, method='ae')
+
+    # update hparams upon successful training
+    hparams['training_completed'] = True
+    export_hparams(hparams, exp)
 
 
 def get_params(strategy):
@@ -141,7 +139,8 @@ def get_params(strategy):
     parser.add_argument('--early_stop_fraction', default=None, type=float)
     parser.add_argument('--early_stop_patience', default=None, type=float)
     parser.add_argument('--max_nb_epochs', default=1, type=int)
-    parser.add_argument('--export_latents', default=True, type=bool)
+    parser.add_argument('--export_latents', default=False, type=bool)
+    parser.add_argument('--export_latents_best', default=True, type=bool)
 
     # add architecture arguments
     parser.add_argument('--n_archs', '-n', default=100, help='number of architectures to randomly sample', type=int)
@@ -154,7 +153,8 @@ def get_params(strategy):
     parser.add_argument('--mem_limit_gb', default=5.0, type=float)
 
     # add saving arguments
-    parser.add_argument('--model_type', '-m', default='ae', type=str) # ae vs vae
+    parser.add_argument('--model_name', '-m', default='ae', type=str)
+    parser.add_argument('--model_type', default='ae', type=str)
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--experiment_name', '-en', default='conv_ae_grid_search', type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
@@ -165,16 +165,15 @@ def get_params(strategy):
     np.random.seed(random.randint(0, 1000))
     
     # Load in file of architectures
-
     if os.path.isfile(namespace.arch_file_name):
         print('Using presaved list of architectures')
         list_of_archs = pickle.load(open(namespace.arch_file_name, 'rb'))
-        
+
     else:
         print('Creating new list of architectures and saving')
         list_of_archs = draw_archs(
             batch_size=namespace.batch_size,
-            input_dim=[namespace.input_channels, namespace.x_pixels, namespace.y_pixels],
+            input_dim=[namespace.input_channels, namespace.y_pixels, namespace.x_pixels],
             n_latents=namespace.n_latents,
             n_archs=namespace.n_archs,
             check_memory=True,

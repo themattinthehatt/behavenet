@@ -2,16 +2,16 @@ import os
 import time
 import numpy as np
 import random
-import pickle
 from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.models import NN, LSTM
+from behavenet.models import Decoder
 from behavenet.training import fit
-from behavenet.utils import export_predictions_best, experiment_exists
+from fitting.utils import export_predictions_best, experiment_exists, \
+    export_hparams, get_data_generator_inputs, set_output_dirs
 from data.data_generator import ConcatSessionsGenerator
-from data.transforms import Threshold
 
 
 def main(hparams):
+
     # TODO: log files
 
     # turn matlab-style struct into dict
@@ -26,9 +26,9 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    hparams['results_dir'] = os.path.join(
-        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'])
+    hparams['results_dir'], hparams['expt_dir'] = set_output_dirs(hparams)
+    if not os.path.isdir(hparams['expt_dir']):
+        os.makedirs(hparams['expt_dir'])
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
@@ -45,60 +45,8 @@ def main(hparams):
     # ### LOAD DATA GENERATOR ###
     # ###########################
 
-    if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
-        neural_transforms = Threshold(
-            threshold=hparams['neural_thresh'],
-            bin_size=hparams['neural_bin_size'])
-    else:
-        neural_transforms = None  # neural_region
-    neural_kwargs = None
-
-    # get model-specific signals/transforms/load_kwargs
-    if hparams['model_name'] == 'neural-ae':
-        hparams['input_signal'] = 'neural'
-        hparams['output_signal'] = 'ae'
-
-        signals = ['neural', 'ae']
-
-        ae_transforms = None
-
-        ae_dir = os.path.join(
-            hparams['results_dir'], 'test_tube_data',
-            hparams['ae_experiment_name'])
-
-        ae_kwargs = {  # TODO: base_dir + ids (here or in data generator?)
-            'model_dir': ae_dir,
-            'model_version': hparams['ae_version']}
-
-        transforms = [neural_transforms, ae_transforms]
-        load_kwargs = [neural_kwargs, ae_kwargs]
-
-        hparams['output_size'] = hparams['n_ae_latents']
-
-    elif hparams['model_name'] == 'neural-arhmm':
-        hparams['input_signal'] = 'neural'
-        hparams['output_signal'] = 'arhmm'
-
-        signals = ['neural', 'arhmm']
-
-        arhmm_transforms = None
-
-        arhmm_dir = os.path.join(
-            hparams['results_dir'], 'test_tube_data',
-            hparams['arhmm_experiment_name'])
-        arhmm_kwargs = {  # TODO: base_dir + ids (here or in data generator?)
-            'model_dir': arhmm_dir,
-            'model_version': hparams['arhmm_version']}
-
-        transforms = [neural_transforms, arhmm_transforms]
-        load_kwargs = [neural_kwargs, arhmm_kwargs]
-
-        hparams['output_size'] = hparams['n_arhmm_latents']
-
-    else:
-        raise ValueError('"%s" is an invalid model_name' % hparams['model_name'])
-
     print('building data generator')
+    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
     ids = {
         'lab': hparams['lab'],
         'expt': hparams['expt'],
@@ -116,30 +64,11 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    if hparams['model_name'] == 'neural-ae':
-        hparams['noise_dist'] = 'gaussian'
-    elif hparams['model_name'] == 'neural-arhmm':
-        hparams['noise_dist'] = 'categorical'
-    else:
-        raise ValueError('"%s" is an invalid model_name' % hparams['model_name'])
+    # save out hparams as csv and dict for easy reloading
+    hparams['training_completed'] = False
+    export_hparams(hparams, exp)
 
-    # save out hparams as dict for easy reloading
-    meta_file = os.path.join(
-        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
-        'version_%i' % exp.version, 'meta_tags.pkl')
-    with open(meta_file, 'wb') as f:
-        pickle.dump(hparams, f)
-    # save out hparams as csv file
-    exp.tag(hparams)
-    exp.save()
-
-    # TODO: move this if statement to more general decoder class
-    if hparams['model_type'] == 'ff' or hparams['model_type'] == 'linear':
-        model = NN(hparams)
-    elif hparams['model_type'] == 'lstm':
-        model = LSTM(hparams)
-    else:
-        raise ValueError('"%s" is an invalid model_type' % hparams['model_type'])
+    model = Decoder(hparams)
     model.to(hparams['device'])
 
     print('Model loaded')
@@ -157,10 +86,11 @@ def main(hparams):
     # print('Epoch processed!')
     # print('Time elapsed: {}'.format(time.time() - t))
 
-    # batch, dataset = data_generator.next_batch('train')
-    # x = model(batch['neural'][0])
-
     fit(hparams, model, data_generator, exp, method='nll')
+
+    # update hparams upon successful training
+    hparams['training_completed'] = True
+    export_hparams(hparams, exp)
 
 
 def get_params(strategy):
