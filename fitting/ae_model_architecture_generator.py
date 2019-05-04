@@ -6,8 +6,10 @@ from behavenet.models import AE
 from fitting.utils import estimate_model_footprint
 import copy
 
-def get_possible_arch(input_dim,n_ae_latents):
+def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
     ## Here is where you can set options/probabilities etc
+    if arch_seed:
+        np.random.seed(arch_seed)
 
     # Possible options for the architecture
     opts={}
@@ -77,7 +79,7 @@ def calculate_output_dim(input_dim,kernel,stride,padding_type, layer_type):
 
 def get_encoding_conv_block(arch,opts):
     # input dims should be n channels by y pix by x pix
-    
+
     last_dims = arch['ae_input_dim'][0]*arch['ae_input_dim'][1]*arch['ae_input_dim'][2]
     smallest_pix = min(arch['ae_input_dim'][1],arch['ae_input_dim'][2])
     
@@ -93,7 +95,7 @@ def get_encoding_conv_block(arch,opts):
         
     i_layer=0
     global_layer=0
-    while last_dims > opts['max_latents'] and smallest_pix>=1:
+    while last_dims >= opts['max_latents'] and smallest_pix>=1:
 
         # Get conv2d layer
         kernel_size = np.random.choice(opts['possible_kernel_sizes'])
@@ -120,7 +122,7 @@ def get_encoding_conv_block(arch,opts):
 
         n_channels = np.random.choice(remaining_channels,p=prob_channels)
 
-        if np.prod(n_channels*output_dim_x*output_dim_y)> opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
+        if np.prod(n_channels*output_dim_x*output_dim_y)>= opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
             # Choices ahead of time
             arch['ae_encoding_n_channels'].append(n_channels)
             arch['ae_encoding_kernel_size'].append(kernel_size)
@@ -144,7 +146,7 @@ def get_encoding_conv_block(arch,opts):
             output_dim_y, y_before_pad, y_after_pad = calculate_output_dim(arch['ae_encoding_y_dim'][i_layer-1],kernel_size,kernel_size,padding_type=arch['ae_padding_type'],layer_type='maxpool')
             output_dim_x, x_before_pad, x_after_pad = calculate_output_dim(arch['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_type=arch['ae_padding_type'],layer_type='maxpool')
 
-            if np.prod(n_channels*output_dim_x*output_dim_y)> opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
+            if np.prod(n_channels*output_dim_x*output_dim_y)>= opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
                 
                 arch['ae_encoding_n_channels'].append(n_channels)
                 arch['ae_encoding_kernel_size'].append(kernel_size)
@@ -238,11 +240,11 @@ def draw_archs(
     # input dim is [n_channels, y dim, x dim]
 
     all_archs=[]
-
+    arch_trial_num = 0
     while len(all_archs)<n_archs:
 
-        new_arch = get_possible_arch(input_dim, n_ae_latents)
-
+        new_arch = get_possible_arch(input_dim, n_ae_latents,arch_seed=arch_trial_num)
+        arch_trial_num+=1
         # Check max memory, keep if smaller than 10 GB, print if rejecting
         if check_memory:
             copied_arch = copy.deepcopy(new_arch)
@@ -258,6 +260,7 @@ def draw_archs(
                     ' skipping model' % (mem_size_gb, mem_limit_gb))
                 continue
             new_arch['mem_size_gb'] = mem_size_gb
+            
 
         # Check against all previous arches
         matching=0

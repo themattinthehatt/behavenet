@@ -125,7 +125,7 @@ def get_params(strategy):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--which_handcrafted_archs', default='0')
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
@@ -233,7 +233,7 @@ def get_params(strategy):
         parser.add_argument('--learning_rate', default=1e-3, type=float)     
 
     elif namespace.search_type == 'initial':
-        np.random.seed(5)
+
         if os.path.isfile(namespace.arch_file_name):
             print('Using presaved list of architectures (not appending handcrafted architectures')
             list_of_archs = pickle.load(open(namespace.arch_file_name, 'rb'))
