@@ -6,7 +6,8 @@ from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import AE
 from behavenet.training import fit
 from fitting.utils import export_latents_best, experiment_exists, \
-    export_hparams, get_data_generator_inputs, get_output_dirs
+    export_hparams, get_data_generator_inputs, get_output_dirs, \
+    get_best_model_version
 from fitting.ae_model_architecture_generator import draw_archs
 from data.data_generator import ConcatSessionsGenerator
 import random
@@ -27,11 +28,11 @@ def main(hparams):
     time.sleep(np.random.uniform(10))
 
     # Get index of architecture in list
-    if hparams['search_type']== 'initial':
+    if hparams['search_type'] == 'initial':
         list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
         hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
 
-   # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
+    # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
 
     print(hparams)
 
@@ -142,7 +143,7 @@ def get_params(strategy):
     parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
     parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
     parser.add_argument('--mem_limit_gb', default=5.0, type=float)
-    parser.add_argument('--n_latents', '-nl', help='number of latents', type=int)
+    parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
     parser.add_argument('--batch_size', '-b', default=200, help='batch_size', type=int)
 
     parser.add_argument('--lab', '-l', default='musall', type=str)
@@ -188,6 +189,7 @@ def get_params(strategy):
 
     # add saving arguments
     parser.add_argument('--model_class', '-m', default='ae', type=str) # ae vs vae
+    parser.add_argument('--model_type', default='conv', type=str)
 
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
@@ -206,8 +208,8 @@ def get_params(strategy):
             print('Creating new list of architectures and saving')
             list_of_archs = draw_archs(
                 batch_size=namespace.batch_size,
-                input_dim=[namespace.n_input_channels, namespace.x_pixels, namespace.y_pixels],
-                n_latents=namespace.n_latents,
+                input_dim=[namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
+                n_ae_latents=namespace.n_ae_latents,
                 n_archs=namespace.n_archs,
                 check_memory=True,
                 mem_limit_gb=namespace.mem_limit_gb)
@@ -236,7 +238,7 @@ def get_params(strategy):
 
         # search_latent_n = 
 
-        parser.opt_list('--n_latents', '-nl', default=[4,8,12,16,20,24,28,32], help='number of latents', type=int)
+        parser.opt_list('--n_ae_latents', '-nl', default=[4,8,12,16,20,24,28,32], help='number of latents', type=int)
     
     return parser.parse_args()
 
@@ -262,4 +264,5 @@ if __name__ == '__main__':
             nb_workers=hyperparams.tt_nb_cpu_workers)
     print('Total fit time: {}'.format(time.time() - t))
     if hyperparams.export_latents_best:
+        print('Exporting latents from current best model in experiment')
         export_latents_best(vars(hyperparams))

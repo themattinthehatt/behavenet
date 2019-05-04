@@ -72,19 +72,15 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     bytes = 4
 
     # estimate input size
-    curr_bytes = np.prod(input_size) * bytes
+    curr_bytes += np.prod(input_size) * bytes
 
     # estimate model size
     mods = list(model.modules())
     for mod in mods:
         if isinstance(mod, allowed_modules):
             p = list(mod.parameters())
-            sizes = []
             for p_ in p:
-                sizes.append(np.array(p_.size()))
-
-    for size in sizes:
-        curr_bytes += np.prod(np.array(size)) * bytes
+                curr_bytes += np.prod(np.array(p_.size())) * bytes
 
     # estimate intermediate size
     x = Variable(torch.FloatTensor(*input_size))
@@ -143,8 +139,8 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
     else:
         best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
 
-    if best_versions.shape[0]!=n_best:
-        print('More versions than specified due to same validation loss') 
+    # if best_versions.shape[0]!=n_best:
+    #     print('More versions than specified due to same validation loss')
         
     return best_versions
 
@@ -152,12 +148,20 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
 def experiment_exists(hparams):
 
     import pickle
+    import copy
 
     try:
         tt_versions = get_subdirs(hparams['expt_dir'])
     except StopIteration:
         # no versions yet
         return False
+
+    print(tt_versions)
+
+    # get rid of extra dict
+    hparams_less = copy.copy(hparams)
+    hparams_less.pop('architecture_params')
+    hparams_less.pop('list_index')
 
     found_match = False
     for version in tt_versions:
@@ -167,14 +171,19 @@ def experiment_exists(hparams):
                 hparams['expt_dir'], version, 'meta_tags.pkl')
             with open(version_file, 'rb') as f:
                 hparams_ = pickle.load(f)
-            if all([hparams[key] == hparams_[key] for key in hparams.keys()]):
+
+            if all([hparams[key] == hparams_[key] for key in hparams_less.keys()]):
                 # found match - did it finish training?
                 if hparams_['training_completed']:
                     found_match = True
+                    print('model found with complete training; aborting')
                     break
                 else:
-                    print('model found with incomplete training')
-        except:
+                    print('model found with incomplete training; continuing')
+            else:
+                print('model architecture has not been fit')
+        except IOError:
+            print('failed to load %s' % version_file)
             continue
 
     return found_match
@@ -295,17 +304,19 @@ def export_latents_best(hparams):
     # ### Get Best Experiment ###
     # ###########################
 
+    # get session_dir, results_dir (session_dir + ae details), expt_dir (
+    # results_dir + experiment details)
     # expt_dir contains version_%i directories
-    hparams['results_dir'] = os.path.join(
-        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'])
-    expt_dir = os.path.join(
-        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'])
-    best_version = get_best_model_version(expt_dir)
-    best_model_file = os.path.join(expt_dir, best_version, 'best_val_model.pt')
+    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
+        get_output_dirs(hparams)
+
+    best_version = get_best_model_version(hparams['expt_dir'])
+    best_model_file = os.path.join(
+        hparams['expt_dir'], best_version, 'best_val_model.pt')
 
     # copy over hparams from best model
-    hparams_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
+    hparams_file = os.path.join(
+        hparams['expt_dir'], best_version, 'meta_tags.pkl')
     with open(hparams_file, 'rb') as f:
         hparams = pickle.load(f)
 
@@ -359,17 +370,18 @@ def export_predictions_best(hparams):
     # ### Get Best Experiment ###
     # ###########################
 
+    # get session_dir, results_dir (session_dir + decoding details),
+    # expt_dir (results_dir + experiment details)
     # expt_dir contains version_%i directories
-    hparams['results_dir'] = os.path.join(
-        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'])
-    expt_dir = os.path.join(
-        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'])
-    best_version = get_best_model_version(expt_dir)
-    best_model_file = os.path.join(expt_dir, best_version, 'best_val_model.pt')
+    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
+        get_output_dirs(hparams)
+    best_version = get_best_model_version(hparams['expt_dir'])
+    best_model_file = os.path.join(
+        hparams['expt_dir'], best_version, 'best_val_model.pt')
 
     # copy over hparams from best model
-    hparams_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
+    hparams_file = os.path.join(
+        hparams['expt_dir'], best_version, 'meta_tags.pkl')
     with open(hparams_file, 'rb') as f:
         hparams = pickle.load(f)
 
@@ -393,14 +405,6 @@ def export_predictions_best(hparams):
     # ####################
     # ### CREATE MODEL ###
     # ####################
-
-    if hparams['model_class'] == 'neural-ae':
-        hparams['noise_dist'] = 'gaussian'
-    elif hparams['model_class'] == 'neural-arhmm':
-        hparams['noise_dist'] = 'categorical'
-    else:
-        raise ValueError(
-            '"%s" is an invalid model_class' % hparams['model_class'])
 
     model = Decoder(hparams)
 
