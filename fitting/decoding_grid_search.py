@@ -98,8 +98,6 @@ def main(hparams):
 
 def get_params(strategy):
 
-    # TODO: fix argarse bools
-
     parser = HyperOptArgumentParser(strategy)
 
     parser.add_argument('--data_dir', '-d', type=str)
@@ -121,24 +119,23 @@ def get_params(strategy):
 
     # data generator arguments
     parser.add_argument('--device', default='cuda', type=str)
-    parser.add_argument('--as_numpy', default=False, type=bool)
-    parser.add_argument('--batch_load', default=False, type=bool)
+    parser.add_argument('--as_numpy', action='store_true', default=False)
+    parser.add_argument('--batch_load', action='store_true', default=False)
     parser.add_argument('--rng_seed', default=0, type=int)
 
     # add training arguments
     parser.add_argument('--val_check_interval', default=1)
-    parser.add_argument('--enable_early_stop', default=True, type=bool)
+    parser.add_argument('--enable_early_stop', action='store_true', default=True)
     parser.add_argument('--early_stop_history', default=10, type=float)
     parser.add_argument('--min_nb_epochs', default=1, type=int)
     parser.add_argument('--max_nb_epochs', default=100, type=int)
-    # parser.add_argument('--export_latents', default=False, type=bool)
 
     # add saving arguments
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--experiment_name', '-en', default='decoder_grid_search', type=str)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
-    parser.add_argument('--export_predictions', default=False, type=bool, help='export predictions for each decoder')
-    parser.add_argument('--export_predictions_best', default=True, type=bool, help='export predictions best decoder in experiment')
+    parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
+    parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
 
     # add model hyperparameters
     parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)

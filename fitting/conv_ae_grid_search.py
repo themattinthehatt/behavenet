@@ -21,95 +21,94 @@ def main(hparams):
 
     hparams = vars(hparams)
 
-    # Blend outer hparams with architecture hparams
-    hparams = {**hparams, **hparams['architecture_params']}
-
-    # Start at random times (so test tube creates separate folders)
-    np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(10))
-
-    # Get index of architecture in list
-    if hparams['search_type'] == 'initial':
-        list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
-        hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
-
-    # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
-
-    print(hparams)
-
-    # #########################
-    # ### Create Experiment ###
-    # #########################
-
-    # get session_dir, results_dir (session_dir + ae details), expt_dir (
-    # results_dir + experiment details)
-    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-        get_output_dirs(hparams)
-    if not os.path.isdir(hparams['expt_dir']):
-        os.makedirs(hparams['expt_dir'])
-
-    # check to see if experiment already exists
-    if experiment_exists(hparams):
-        print('Experiment exists! Aborting fit')
-        return
-
-    exp = Experiment(
-        name=hparams['experiment_name'],
-        debug=False,
-        save_dir=hparams['results_dir'])
-    exp.save()
-
-    # ###########################
-    # ### LOAD DATA GENERATOR ###
-    # ###########################
-
-    print('building data generator')
-    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    print('Data generator loaded')
-
-    # ####################
-    # ### CREATE MODEL ###
-    # ####################
-
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['model_build_rnd_seed'] = torch_rnd_seed
-
-    # save out hparams as csv and dict
-    hparams['training_completed'] = False
-    export_hparams(hparams, exp)
-
-
-    model = AE(hparams)
-    model.to(hparams['device'])
-
-    print('Model loaded')
-
-    # ####################
-    # ### TRAIN MODEL ###
-    # ####################
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['training_rnd_seed'] = torch_rnd_seed
-
-    fit(hparams, model, data_generator, exp, method='ae')
-
-    # update hparams upon successful training
-    hparams['training_completed'] = True
-    export_hparams(hparams, exp)
+    print(hparams['as_numpy'])
+    # # Blend outer hparams with architecture hparams
+    # hparams = {**hparams, **hparams['architecture_params']}
+    #
+    # # Start at random times (so test tube creates separate folders)
+    # np.random.seed(random.randint(0, 1000))
+    # time.sleep(np.random.uniform(10))
+    #
+    # # Get index of architecture in list
+    # if hparams['search_type'] == 'initial':
+    #     list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
+    #     hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
+    #
+    # # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
+    #
+    # print(hparams)
+    #
+    # # #########################
+    # # ### Create Experiment ###
+    # # #########################
+    #
+    # # get session_dir, results_dir (session_dir + ae details), expt_dir (
+    # # results_dir + experiment details)
+    # hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
+    #     get_output_dirs(hparams)
+    # if not os.path.isdir(hparams['expt_dir']):
+    #     os.makedirs(hparams['expt_dir'])
+    #
+    # # check to see if experiment already exists
+    # if experiment_exists(hparams):
+    #     print('Experiment exists! Aborting fit')
+    #     return
+    #
+    # exp = Experiment(
+    #     name=hparams['experiment_name'],
+    #     debug=False,
+    #     save_dir=hparams['results_dir'])
+    # exp.save()
+    #
+    # # ###########################
+    # # ### LOAD DATA GENERATOR ###
+    # # ###########################
+    #
+    # print('building data generator')
+    # hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
+    # ids = {
+    #     'lab': hparams['lab'],
+    #     'expt': hparams['expt'],
+    #     'animal': hparams['animal'],
+    #     'session': hparams['session']}
+    # data_generator = ConcatSessionsGenerator(
+    #     hparams['data_dir'], ids,
+    #     signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+    #     device=hparams['device'], as_numpy=hparams['as_numpy'],
+    #     batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
+    # print('Data generator loaded')
+    #
+    # # ####################
+    # # ### CREATE MODEL ###
+    # # ####################
+    #
+    # torch_rnd_seed = torch.get_rng_state()
+    # hparams['model_build_rnd_seed'] = torch_rnd_seed
+    #
+    # # save out hparams as csv and dict
+    # hparams['training_completed'] = False
+    # export_hparams(hparams, exp)
+    #
+    #
+    # model = AE(hparams)
+    # model.to(hparams['device'])
+    #
+    # print('Model loaded')
+    #
+    # # ####################
+    # # ### TRAIN MODEL ###
+    # # ####################
+    # torch_rnd_seed = torch.get_rng_state()
+    # hparams['training_rnd_seed'] = torch_rnd_seed
+    #
+    # fit(hparams, model, data_generator, exp, method='ae')
+    #
+    # # update hparams upon successful training
+    # hparams['training_completed'] = True
+    # export_hparams(hparams, exp)
 
 
 def get_params(strategy):
-
-    # TODO: fix argarse bools
 
     parser = HyperOptArgumentParser(strategy)
 
@@ -127,9 +126,9 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
-        parser.add_argument('--export_latents', default=False, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=True, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=False)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     elif namespace.search_type == 'initial':
@@ -140,9 +139,9 @@ def get_params(strategy):
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_nb_epochs', default=20, type=int)
         parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
-        parser.add_argument('--export_latents', default=False, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=False, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=False)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=False)
         parser.add_argument('--early_stop_history', default=None, type=int)
     elif namespace.search_type == 'top_n':
         parser.add_argument('--saved_initial_archs', default='initial_grid_search', type=str) # experiment name to look for initial architectures in
@@ -152,9 +151,9 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
-        parser.add_argument('--export_latents', default=False, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=True, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=False)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     elif namespace.search_type == 'latent_search':
@@ -164,9 +163,9 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
-        parser.add_argument('--export_latents', default=True, type=bool)
-        parser.add_argument('--export_latents_best', default=False, type=bool)
-        parser.add_argument('--enable_early_stop', default=True, type=bool)
+        parser.add_argument('--export_latents', action='store_true', default=True)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
+        parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
@@ -208,8 +207,8 @@ def get_params(strategy):
     parser.add_argument('--transforms', default=None)
     parser.add_argument('--load_kwargs', default=None)  # dict...:(
     parser.add_argument('--device', default='cuda', type=str)
-    parser.add_argument('--as_numpy', default=False, type=bool, dest='as_numpy', )
-    parser.add_argument('--batch_load', default=True, type=bool)
+    parser.add_argument('--as_numpy', action='store_true', default=False)
+    parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
 
     parser.add_argument('--val_check_interval', default=1)
