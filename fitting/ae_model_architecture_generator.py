@@ -6,7 +6,7 @@ from behavenet.models import AE
 from fitting.utils import estimate_model_footprint
 import copy
 
-def get_possible_arch(input_dim,n_latents):
+def get_possible_arch(input_dim,n_ae_latents):
     ## Here is where you can set options/probabilities etc
 
     # Possible options for the architecture
@@ -21,7 +21,7 @@ def get_possible_arch(input_dim,n_latents):
     arch={}
     arch['ae_input_dim'] = input_dim
     arch['model_type'] = 'conv' 
-    arch['ae_n_latents'] = n_latents
+    arch['ae_n_ae_latents'] = n_ae_latents
     arch['ae_decoding_last_FF_layer'] = 0 #np.random.choice(np.asarray([0,1]),p=np.asarray([1-FF_layer_prob, FF_layer_prob]))
     arch['ae_batch_norm'] = 0 
 
@@ -89,7 +89,7 @@ def get_encoding_conv_block(arch,opts):
         
     i_layer=0
     global_layer=0
-    while last_dims > arch['ae_n_latents'] and smallest_pix>=1: 
+    while last_dims > arch['ae_n_ae_latents'] and smallest_pix>=1: 
 
         # Get conv2d layer
         kernel_size = np.random.choice(opts['possible_kernel_sizes'])
@@ -116,7 +116,7 @@ def get_encoding_conv_block(arch,opts):
 
         n_channels = np.random.choice(remaining_channels,p=prob_channels)
 
-        if np.prod(n_channels*output_dim_x*output_dim_y)> arch['ae_n_latents'] and np.min([output_dim_x,output_dim_y])>=1:
+        if np.prod(n_channels*output_dim_x*output_dim_y)> arch['ae_n_ae_latents'] and np.min([output_dim_x,output_dim_y])>=1:
             # Choices ahead of time
             arch['ae_encoding_n_channels'].append(n_channels)
             arch['ae_encoding_kernel_size'].append(kernel_size)
@@ -141,7 +141,7 @@ def get_encoding_conv_block(arch,opts):
             output_dim_x, x_before_pad, x_after_pad = calculate_output_dim(arch['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_type=arch['ae_padding_type'],layer_type='maxpool')
 
 
-            if np.prod(n_channels*output_dim_x*output_dim_y)> arch['ae_n_latents'] and np.min([output_dim_x,output_dim_y])>=1:
+            if np.prod(n_channels*output_dim_x*output_dim_y)> arch['ae_n_ae_latents'] and np.min([output_dim_x,output_dim_y])>=1:
                 
                 arch['ae_encoding_n_channels'].append(n_channels)
                 arch['ae_encoding_kernel_size'].append(kernel_size)
@@ -230,7 +230,7 @@ def get_decoding_conv_block(arch):
 
 
 def draw_archs(
-        batch_size, input_dim, n_latents, n_archs=100, check_memory=True,
+        batch_size, input_dim, n_ae_latents, n_archs=100, check_memory=True,
         mem_limit_gb=5.0):
     # input dim is [n_channels, y dim, x dim]
 
@@ -238,15 +238,13 @@ def draw_archs(
 
     while len(all_archs)<n_archs:
 
-        new_arch = get_possible_arch(input_dim, n_latents)
+        new_arch = get_possible_arch(input_dim, n_ae_latents)
 
         # Check max memory, keep if smaller than 10 GB, print if rejecting
         if check_memory:
             copied_arch = copy.deepcopy(new_arch)
             copied_arch['model_class'] = 'ae'
-            print(copied_arch)
             model = AE(copied_arch)
-            print(model)
             mem_size = estimate_model_footprint(
                 model, tuple([batch_size] + input_dim))
             mem_size_gb = mem_size / 1e9
