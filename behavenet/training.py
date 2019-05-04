@@ -476,8 +476,8 @@ def fit(
     best_val_model = None
     val_check_batch = np.linspace(
         data_generator.num_tot_batches['train'] * hparams['val_check_interval'],
-        data_generator.num_tot_batches['train'] * hparams['max_nb_epochs'],
-        int(hparams['max_nb_epochs'] / hparams['val_check_interval'])).astype('int')
+        data_generator.num_tot_batches['train'] * (hparams['max_nb_epochs']+1),
+        int((hparams['max_nb_epochs']+1) / hparams['val_check_interval'])).astype('int')
 
     # early stopping set-up
     if hparams['enable_early_stop']:

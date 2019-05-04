@@ -122,6 +122,8 @@ def get_params(strategy):
 
     if namespace.search_type == 'test':
 
+        parser.add_argument('--n_ae_latents', help='number of latents', type=int)
+
         parser.add_argument('--which_handcrafted_archs', default='0')
         parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
@@ -133,7 +135,7 @@ def get_params(strategy):
 
     elif namespace.search_type == 'initial':
         parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file), if exists, assumes already contains handcrafted archs!
-        parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
+        parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--which_handcrafted_archs', default='0;1') # empty string if you don't want any
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
@@ -145,7 +147,7 @@ def get_params(strategy):
         parser.add_argument('--early_stop_history', default=None, type=int)
     elif namespace.search_type == 'top_n':
         parser.add_argument('--saved_initial_archs', default='initial_grid_search', type=str) # experiment name to look for initial architectures in
-        parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
+        parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
         parser.add_argument('--max_nb_epochs', default=250, type=int)
@@ -223,7 +225,10 @@ def get_params(strategy):
     if namespace.search_type == 'test':
 
         which_handcrafted_archs = np.asarray(namespace.which_handcrafted_archs.split(';')).astype('int')
-        list_of_handcrafted_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs)
+        list_of_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs,                    
+                    check_memory=True,
+                    batch_size=namespace.approx_batch_size,
+                    mem_limit_gb=namespace.mem_limit_gb)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
         parser.add_argument('--learning_rate', default=1e-3, type=float)     
 
@@ -284,7 +289,7 @@ def get_params(strategy):
 
         # parser.add_argument('--learning_rate', default=arch['learning_rate']) 
         parser.opt_list('--architecture_params', options=[arch['architecture_params']],type=float,tunable=True) # have to pass in as a list since add_argument doesn't take dict
-        parser.opt_list('--n_ae_latents', '-nl', options=[4,8,12,16,24,32,64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
+        parser.opt_list('--n_ae_latents', options=[4,8,12,16,24,32,64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
 
     return parser.parse_args()
 
