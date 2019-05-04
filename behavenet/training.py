@@ -487,7 +487,7 @@ def fit(
 
     model.version = exp.version  # for exporting latents
     i_epoch = 0
-    for i_epoch in range(hparams['max_nb_epochs']):
+    for i_epoch in range(hparams['max_nb_epochs']+1): # the 0th epoch has no training so we cycle through hparams['max_nb_epochs'] of training epochs
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')
