@@ -139,12 +139,11 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
     # get version with smallest loss
     
     if n_best==1:
-        best_versions = metrics_df['version'][metrics_df['loss'].idxmin()]
+        best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
     else:
         best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
-
-    if best_versions.shape[0]!=n_best:
-        print('More versions than specified due to same validation loss') 
+        if best_versions.shape[0]!=n_best:
+            print('More versions than specified due to same validation loss') 
         
     return best_versions
 
