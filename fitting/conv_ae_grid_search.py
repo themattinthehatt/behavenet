@@ -113,7 +113,7 @@ def get_params(strategy):
     parser = HyperOptArgumentParser(strategy)
 
     parser.add_argument('--search_type', type=str) # initial, top_n, latent_search, test (one handcrafted arch)
-    parser.add_argument('--lab_example', type=str) # musall_example, steinmetz_example, markowitz_example
+    parser.add_argument('--lab_example', type=str) # musall, steinmetz, markowitz
 
     namespace, extra = parser.parse_known_args()
 
@@ -242,11 +242,10 @@ def get_params(strategy):
                 check_memory=True,
                 mem_limit_gb=namespace.mem_limit_gb)
 
-            if not namespace.which_handcrafted_archs:
+            if namespace.which_handcrafted_archs:
                 which_handcrafted_archs = np.asarray(namespace.which_handcrafted_archs.split(';')).astype('int')
                 list_of_handcrafted_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs)
-            
-            list_of_archs = list_of_archs + list_of_handcrafted_archs
+                list_of_archs = list_of_archs + list_of_handcrafted_archs
             f = open(namespace.arch_file_name, "wb")
             pickle.dump(list_of_archs, f)
             f.close()
