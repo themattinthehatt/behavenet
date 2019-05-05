@@ -6,8 +6,10 @@ from behavenet.models import AE
 from fitting.utils import estimate_model_footprint
 import copy
 
-def get_possible_arch(input_dim,n_ae_latents):
+def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
     ## Here is where you can set options/probabilities etc
+    if arch_seed:
+        np.random.seed(arch_seed)
 
     # Possible options for the architecture
     opts={}
@@ -28,6 +30,7 @@ def get_possible_arch(input_dim,n_ae_latents):
     arch['n_ae_latents'] = n_ae_latents
     arch['ae_decoding_last_FF_layer'] = 0 #np.random.choice(np.asarray([0,1]),p=np.asarray([1-FF_layer_prob, FF_layer_prob]))
     arch['ae_batch_norm'] = 0 
+    arch['ae_batch_norm_momentum'] = None
 
     # First decide if strides only or max pooling
     network_types = ['strides_only'] # ['strides_only','max_pooling']
@@ -77,7 +80,7 @@ def calculate_output_dim(input_dim,kernel,stride,padding_type, layer_type):
 
 def get_encoding_conv_block(arch,opts):
     # input dims should be n channels by y pix by x pix
-    
+
     last_dims = arch['ae_input_dim'][0]*arch['ae_input_dim'][1]*arch['ae_input_dim'][2]
     smallest_pix = min(arch['ae_input_dim'][1],arch['ae_input_dim'][2])
     
@@ -93,7 +96,7 @@ def get_encoding_conv_block(arch,opts):
         
     i_layer=0
     global_layer=0
-    while last_dims > opts['max_latents'] and smallest_pix>=1:
+    while last_dims >= opts['max_latents'] and smallest_pix>=1:
 
         # Get conv2d layer
         kernel_size = np.random.choice(opts['possible_kernel_sizes'])
@@ -120,7 +123,7 @@ def get_encoding_conv_block(arch,opts):
 
         n_channels = np.random.choice(remaining_channels,p=prob_channels)
 
-        if np.prod(n_channels*output_dim_x*output_dim_y)> opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
+        if np.prod(n_channels*output_dim_x*output_dim_y)>= opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
             # Choices ahead of time
             arch['ae_encoding_n_channels'].append(n_channels)
             arch['ae_encoding_kernel_size'].append(kernel_size)
@@ -144,7 +147,7 @@ def get_encoding_conv_block(arch,opts):
             output_dim_y, y_before_pad, y_after_pad = calculate_output_dim(arch['ae_encoding_y_dim'][i_layer-1],kernel_size,kernel_size,padding_type=arch['ae_padding_type'],layer_type='maxpool')
             output_dim_x, x_before_pad, x_after_pad = calculate_output_dim(arch['ae_encoding_x_dim'][i_layer-1],kernel_size,kernel_size,padding_type=arch['ae_padding_type'],layer_type='maxpool')
 
-            if np.prod(n_channels*output_dim_x*output_dim_y)> opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
+            if np.prod(n_channels*output_dim_x*output_dim_y)>= opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
                 
                 arch['ae_encoding_n_channels'].append(n_channels)
                 arch['ae_encoding_kernel_size'].append(kernel_size)
@@ -238,11 +241,11 @@ def draw_archs(
     # input dim is [n_channels, y dim, x dim]
 
     all_archs=[]
-
+    arch_trial_num = 0
     while len(all_archs)<n_archs:
 
-        new_arch = get_possible_arch(input_dim, n_ae_latents)
-
+        new_arch = get_possible_arch(input_dim, n_ae_latents,arch_seed=arch_trial_num)
+        arch_trial_num+=1
         # Check max memory, keep if smaller than 10 GB, print if rejecting
         if check_memory:
             copied_arch = copy.deepcopy(new_arch)
@@ -258,6 +261,7 @@ def draw_archs(
                     ' skipping model' % (mem_size_gb, mem_limit_gb))
                 continue
             new_arch['mem_size_gb'] = mem_size_gb
+            
 
         # Check against all previous arches
         matching=0
@@ -281,7 +285,7 @@ def get_handcrafted_dims(arch, symmetric=True):
     # ae_decoding_stride_size, ae_decoding_layer_type, ae_decoding_starting_dim
     # Assumes output padding is 0
     
-    arch['ae_conv_vs_linear'] = 'conv'
+    arch['model_type'] = 'conv'
     
     arch['ae_encoding_x_dim'] = []
     arch['ae_encoding_y_dim'] = []
@@ -294,9 +298,9 @@ def get_handcrafted_dims(arch, symmetric=True):
         stride_size = arch['ae_encoding_stride_size'][i_layer]
         
         if i_layer == 0: # use input dimensions
-            input_dim_x, input_dim_y = arch['ae_input_dim'][1], arch['ae_input_dim'][2]
+            input_dim_y, input_dim_x = arch['ae_input_dim'][1], arch['ae_input_dim'][2]
         else:
-            input_dim_x, input_dim_y = arch['ae_encoding_x_dim'][i_layer-1], arch['ae_encoding_y_dim'][i_layer-1]
+            input_dim_y, input_dim_x = arch['ae_encoding_y_dim'][i_layer-1], arch['ae_encoding_x_dim'][i_layer-1]
 
         output_dim_x, x_before_pad, x_after_pad = calculate_output_dim(input_dim_x,kernel_size,stride_size,padding_type=arch['ae_padding_type'],layer_type=arch['ae_encoding_layer_type'][i_layer])
         output_dim_y, y_before_pad, y_after_pad  = calculate_output_dim(input_dim_y,kernel_size,stride_size,padding_type=arch['ae_padding_type'],layer_type=arch['ae_encoding_layer_type'][i_layer])
@@ -322,9 +326,9 @@ def get_handcrafted_dims(arch, symmetric=True):
             stride_size = arch['ae_decoding_stride_size'][i_layer]
         
             if i_layer == 0: # use input dimensions
-                input_dim_x, input_dim_y = arch['ae_decoding_starting_dim'][1], arch['ae_decoding_starting_dim'][2]
+                input_dim_y, input_dim_x = arch['ae_decoding_starting_dim'][1], arch['ae_decoding_starting_dim'][2]
             else:
-                input_dim_x, input_dim_y = arch['ae_decoding_x_dim'][i_layer-1], arch['ae_decoding_y_dim'][i_layer-1]
+                input_dim_y, input_dim_x = arch['ae_decoding_y_dim'][i_layer-1], arch['ae_decoding_x_dim'][i_layer-1]
 
             if arch['ae_padding_type']=='valid':
                 before_pad = 0
@@ -345,7 +349,7 @@ def get_handcrafted_dims(arch, symmetric=True):
     return arch
 
 
-def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs):
+def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None, mem_limit_gb=None, check_memory=True):
 
     list_of_handcrafted_archs=[]
     max_latents = 64 # make sure no bottleneck smaller than this
@@ -368,6 +372,7 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs):
         arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv']
 
         arch['ae_batch_norm'] = 0
+        arch['ae_batch_norm_momentum'] = None
         arch['ae_decoding_last_FF_layer'] = 0
 
         arch = get_handcrafted_dims(arch, symmetric=True)
@@ -391,6 +396,7 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs):
         arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv','conv']
         arch['ae_decoding_last_FF_layer'] = 0
         arch['ae_batch_norm'] = 0
+        arch['ae_batch_norm_momentum'] = None
         arch = get_handcrafted_dims(arch, symmetric=True)
         arch = get_handcrafted_dims(arch, symmetric=True)
         if arch['ae_encoding_n_channels'][-1]*arch['ae_encoding_x_dim'][-1]*arch['ae_encoding_y_dim'][-1]<max_latents:
@@ -400,34 +406,48 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs):
 
 
     ## Architecture 2 (Matt's architecture)
-    if np.any(which_archs==2):
+    # if np.any(which_archs==2):
+
+    #     arch={}
+    #     arch['ae_input_dim'] = input_dim
+    #     arch['n_ae_latents'] = n_ae_latents
+
+    #     arch['ae_network_type']='strides_only'
+    #     arch['ae_padding_type']='same'
+
+    #     arch['ae_encoding_n_channels'] = [64, 64, 64, 64, 64]
+    #     arch['ae_encoding_kernel_size'] = [5, 5, 5, 5, 5]
+    #     arch['ae_encoding_stride_size'] = [2,2,2,2,1]
+    #     arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv','conv']
+
+    #     arch['ae_batch_norm'] = 0
+    #     arch['ae_decoding_last_FF_layer'] = 1
+
+    #     arch['ae_decoding_starting_dim'] = [1,8,8]
+    #     arch['ae_decoding_n_channels'] = [64, 64, 64] 
+    #     arch['ae_decoding_kernel_size'] = [5, 5, 5]
+    #     arch['ae_decoding_stride_size'] = [2, 1, 1]
+    #     arch['ae_decoding_layer_type'] = ['convtranspose','convtranspose','convtranspose']
+
+    #     arch = get_handcrafted_dims(arch, symmetric=False)
+    #     if arch['ae_encoding_n_channels'][-1]*arch['ae_encoding_x_dim'][-1]*arch['ae_encoding_y_dim'][-1]<max_latents:
+    #         raise ValueError('Bottleneck smaller than number of latents')
+
+    #     list_of_handcrafted_archs.append(arch)
+
+    if check_memory:
+        for new_arch in list_of_handcrafted_archs:
         
-        arch={}
-        arch['ae_input_dim'] = input_dim
-        arch['n_ae_latents'] = n_ae_latents
-
-        arch['ae_network_type']='strides_only'
-        arch['ae_padding_type']='same'
-
-        arch['ae_encoding_n_channels'] = [64, 64, 64, 64, 64]
-        arch['ae_encoding_kernel_size'] = [5, 5, 5, 5, 5]
-        arch['ae_encoding_stride_size'] = [2,2,2,2,1]
-        arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv','conv']
-
-        arch['ae_batch_norm'] = 0
-        arch['ae_decoding_last_FF_layer'] = 1
-
-        arch['ae_decoding_starting_dim'] = [1,8,8]
-        arch['ae_decoding_n_channels'] = [64, 64, 64] 
-        arch['ae_decoding_kernel_size'] = [5, 5, 5]
-        arch['ae_decoding_stride_size'] = [2, 1, 1]
-        arch['ae_decoding_layer_type'] = ['convtranspose','convtranspose','convtranspose']
-
-        arch = get_handcrafted_dims(arch, symmetric=False)
-        if arch['ae_encoding_n_channels'][-1]*arch['ae_encoding_x_dim'][-1]*arch['ae_encoding_y_dim'][-1]<max_latents:
-            raise ValueError('Bottleneck smaller than number of latents')
-
-        list_of_handcrafted_archs.append(arch)
+                copied_arch = copy.deepcopy(new_arch)
+                copied_arch['model_class'] = 'ae'
+                model = AE(copied_arch)
+                mem_size = estimate_model_footprint(
+                    model, tuple([batch_size] + input_dim))
+                mem_size_gb = mem_size / 1e9
+                print(mem_size_gb)
+                if mem_size_gb > mem_limit_gb:  # GB
+                    raise ValueError('Handcrafted architecture too big for memory')
+                new_arch['mem_size_gb'] = mem_size_gb
 
     return list_of_handcrafted_archs
 

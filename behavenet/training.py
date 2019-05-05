@@ -468,7 +468,8 @@ def fit(
     optimizer = torch.optim.Adam(
         loss.get_parameters(),
         lr=hparams['learning_rate'],
-        weight_decay=hparams.get('l2_reg', 0))
+        weight_decay=hparams.get('l2_reg', 0),
+        amsgrad=True)
 
     # enumerate batches on which validation metrics should be recorded
     best_val_loss = math.inf
@@ -476,8 +477,8 @@ def fit(
     best_val_model = None
     val_check_batch = np.linspace(
         data_generator.num_tot_batches['train'] * hparams['val_check_interval'],
-        data_generator.num_tot_batches['train'] * hparams['max_nb_epochs'],
-        int(hparams['max_nb_epochs'] / hparams['val_check_interval'])).astype('int')
+        data_generator.num_tot_batches['train'] * (hparams['max_nb_epochs']+1),
+        int((hparams['max_nb_epochs']+1) / hparams['val_check_interval'])).astype('int')
 
     # early stopping set-up
     if hparams['enable_early_stop']:
@@ -487,7 +488,7 @@ def fit(
 
     model.version = exp.version  # for exporting latents
     i_epoch = 0
-    for i_epoch in range(hparams['max_nb_epochs']):
+    for i_epoch in range(hparams['max_nb_epochs']+1): # the 0th epoch has no training so we cycle through hparams['max_nb_epochs'] of training epochs
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')

@@ -13,7 +13,6 @@ from data.data_generator import ConcatSessionsGenerator
 import random
 import torch
 
-
 def main(hparams):
 
     # TODO: log files
@@ -32,7 +31,9 @@ def main(hparams):
     if hparams['search_type'] == 'initial':
         list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
         hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
-
+    elif hparams['search_type']=='latent_search':
+        hparams['architecture_params']['n_ae_latents'] = hparams['n_ae_latents']
+        hparams['architecture_params'].pop('learning_rate',None)
     # hparams.pop('architecture_params', None) # not deleting as makes loading in architectures easier (even if messier in csv files)
 
     print(hparams)
@@ -121,8 +122,10 @@ def get_params(strategy):
 
     if namespace.search_type == 'test':
 
+        parser.add_argument('--n_ae_latents', help='number of latents', type=int)
+
         parser.add_argument('--which_handcrafted_archs', default='0')
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
@@ -132,9 +135,9 @@ def get_params(strategy):
 
     elif namespace.search_type == 'initial':
         parser.add_argument('--arch_file_name', type=str) # file name where storing list of architectures (.pkl file), if exists, assumes already contains handcrafted archs!
-        parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
+        parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
-        parser.add_argument('--which_handcrafted_archs', default='0;1;2') # empty string if you don't want any
+        parser.add_argument('--which_handcrafted_archs', default='0;1') # empty string if you don't want any
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_nb_epochs', default=20, type=int)
         parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
@@ -144,10 +147,10 @@ def get_params(strategy):
         parser.add_argument('--early_stop_history', default=None, type=int)
     elif namespace.search_type == 'top_n':
         parser.add_argument('--saved_initial_archs', default='initial_grid_search', type=str) # experiment name to look for initial architectures in
-        parser.add_argument('--n_ae_latents', '-nl', help='number of latents', type=int)
+        parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
@@ -159,7 +162,7 @@ def get_params(strategy):
         parser.add_argument('--source_n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
@@ -210,6 +213,7 @@ def get_params(strategy):
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
 
+    parser.add_argument('--l2_reg', default=0)
     parser.add_argument('--val_check_interval', default=1)
  
     # add saving arguments
@@ -221,12 +225,15 @@ def get_params(strategy):
     if namespace.search_type == 'test':
 
         which_handcrafted_archs = np.asarray(namespace.which_handcrafted_archs.split(';')).astype('int')
-        list_of_handcrafted_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs)
+        list_of_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs,                    
+                    check_memory=True,
+                    batch_size=namespace.approx_batch_size,
+                    mem_limit_gb=namespace.mem_limit_gb)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
         parser.add_argument('--learning_rate', default=1e-3, type=float)     
 
     elif namespace.search_type == 'initial':
-        np.random.seed(5)
+
         if os.path.isfile(namespace.arch_file_name):
             print('Using presaved list of architectures (not appending handcrafted architectures')
             list_of_archs = pickle.load(open(namespace.arch_file_name, 'rb'))
@@ -243,7 +250,10 @@ def get_params(strategy):
 
             if namespace.which_handcrafted_archs:
                 which_handcrafted_archs = np.asarray(namespace.which_handcrafted_archs.split(';')).astype('int')
-                list_of_handcrafted_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs)
+                list_of_handcrafted_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs,
+                    check_memory=True,
+                    batch_size=namespace.approx_batch_size,
+                    mem_limit_gb=namespace.mem_limit_gb)
                 list_of_archs = list_of_archs + list_of_handcrafted_archs
             f = open(namespace.arch_file_name, "wb")
             pickle.dump(list_of_archs, f)
@@ -278,8 +288,8 @@ def get_params(strategy):
         arch['architecture_params']['learning_rate'] = arch['learning_rate']
 
         # parser.add_argument('--learning_rate', default=arch['learning_rate']) 
-        parser.opt_list('--architecture_params', options=[arch['architecture_params']],type=float,tunable=True)
-        parser.opt_list('--n_ae_latents', '-nl', options=[4,8,12,16,24,32,64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
+        parser.opt_list('--architecture_params', options=[arch['architecture_params']],type=float,tunable=True) # have to pass in as a list since add_argument doesn't take dict
+        parser.opt_list('--n_ae_latents', options=[4,8,12,16,24,32,64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
 
     return parser.parse_args()
 
