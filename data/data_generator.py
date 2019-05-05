@@ -3,7 +3,6 @@ import numpy as np
 import glob
 import pickle
 from collections import OrderedDict
-from skimage import io as sio
 from scipy.io import loadmat
 import torch
 from torch.utils import data
@@ -62,22 +61,6 @@ def split_trials(
         batch_indxs[dtype] = np.concatenate(batch_indxs[dtype], axis=0)
 
     return batch_indxs
-
-
-def get_img_filenames(img_dir='', img_ext='jpg', pattern=None):
-    if pattern is None:
-        filenames = glob.glob(os.path.join(img_dir, '*.%s' % img_ext))
-    else:
-        filenames = glob.glob(pattern)
-        img_dir = os.path.dirname(filenames[0])
-    filenames_rel = [os.path.basename(x) for x in filenames]
-    filenames_rel.sort()
-    filenames = [os.path.join(img_dir, x) for x in filenames_rel]
-    return filenames
-
-
-def imread(file, **load_func_kwargs):
-    return sio._io.imread(file, **load_func_kwargs).astype(np.float32)
 
 
 class SingleSessionDatasetBatchedLoad(data.Dataset):
@@ -155,33 +138,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     libver='latest', swmr=True)
                 sample[signal] = f['images'][
                     str('trial_%04i' % indx)][()].astype('float32') / 255.0
-
-                # if self.lab == 'steinmetz':
-                #     load_pattern = os.path.join(
-                #         self.data_dir, 'face', 'img%04i*.jpg' % indx)
-                #     sample[signal] = io.ImageCollection(
-                #         get_img_filenames(pattern=load_pattern),
-                #         conserve_memory=False,
-                #         load_func=imread,
-                #         as_gray=True).concatenate()[:, None, :, :]
-                # elif self.lab == 'churchland':
-                #     load_pattern_face = os.path.join(
-                #         self.data_dir, 'face', 'img%04i*.jpg' % indx)
-                #     load_pattern_body = os.path.join(
-                #         self.data_dir, 'body', 'img%04i*.jpg' % indx)
-                #     sample[signal] = np.concatenate([
-                #         io.ImageCollection(
-                #             get_img_filenames(pattern=load_pattern_face),
-                #             conserve_memory=False,
-                #             load_func=imread,
-                #             as_gray=True).concatenate()[:, None, :, :],
-                #         io.ImageCollection(
-                #             get_img_filenames(pattern=load_pattern_body),
-                #             conserve_memory=False,
-                #             load_func=imread,
-                #             as_gray=True).concatenate()[:, None, :, :]],
-                #         axis=1)
-
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
 
