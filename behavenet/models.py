@@ -234,32 +234,100 @@ class LinearAEEncoder(nn.Module):
             param.requires_grad = False
 
 
+# class LinearVAEEncoder(nn.Module):
+
+#     def __init__(self, latent_dim_size_h, pixel_size):
+
+#         super(LinearVAEEncoder, self).__init__()
+
+#         self.latent_dim_size_h = latent_dim_size_h
+#         self.pixel_size=pixel_size
+#         self.__build_model()
+
+#     def __build_model(self):
+
+#         self.prior_mu = nn.Linear(self.pixel_size*self.pixel_size, self.latent_dim_size_h,bias=True)
+#         self.prior_logvar = nn.Linear(self.pixel_size*self.pixel_size, self.latent_dim_size_h,bias=True)
+#       # self.h_var = nn.Parameter(1e-1*torch.ones(100,10),requires_grad=True)
+#         self.softplus = nn.Softplus()
+#     def forward(self, x):
+#         x = x.view(x.size(0), -1)
+#         return self.prior_mu(x), self.softplus(self.prior_logvar(x))
+
+#     def freeze(self):
+#         for param in self.parameters():
+#             param.requires_grad = False
+
+
+# class LinearVAEDecoder(nn.Module):
+
+#     def __init__(self, latent_dim_size_h, pixel_size, y_var_value, y_var_parameter, encoding):
+
+#         super(LinearVAEDecoder, self).__init__()
+#         self.latent_dim_size_h = latent_dim_size_h
+#         self.y_var_value = y_var_value
+#         self.encoding = encoding
+#         self.pixel_size = pixel_size
+#         self.y_var_parameter = y_var_parameter
+#         self.__build_model()
+
+#     def __build_model(self):
+
+#         self.bias = nn.Parameter(torch.zeros(self.pixel_size*self.pixel_size),requires_grad=True)
+#         if self.y_var_parameter:
+#             inv_softplus_var = np.log(np.exp(self.y_var_value)-1)
+#             self.y_var = nn.Parameter(inv_softplus_var*torch.ones(self.pixel_size,self.pixel_size),requires_grad=True)
+#         else:
+#             self.y_var = nn.Parameter(self.y_var_value*torch.ones(1),requires_grad=False)
+
+#     def forward(self, x):
+
+#         y_mu =  F.linear(x, self.encoding.prior_mu.weight.t()) + self.bias
+#         y_mu = y_mu.view(y_mu.size(0), 1, self.pixel_size,self.pixel_size)
+
+#         if self.y_var_parameter:
+#             y_var = F.softplus(self.y_var).unsqueeze(0).unsqueeze(0).expand(y_mu.shape[0],-1,-1,-1)
+#         else:
+#             y_var = self.y_var
+#         return y_mu, y_var
+
 class LinearAEDecoder(nn.Module):
 
-    def __init__(self, n_latents, output_size):
+    def __init__(self, n_latents, output_size, encoder=None):
         """
 
         Args:
             n_latents (int):
             output_size (list or tuple): n_channels x y_pix x x_pix
+            encoder (nn.Module object): for linking encoder/decoder weights
         """
         super().__init__()
         self.n_latents = n_latents
         self.output_size = output_size
+        self.encoder = encoder
         self._build_model()
 
     def _build_model(self):
 
-        self.output = nn.Linear(
-            in_features=self.n_latents,
-            out_features=np.prod(self.output_size),
-            bias=True)
+        if self.encoder is None:
+            self.output = nn.Linear(
+                in_features=self.n_latents,
+                out_features=np.prod(self.output_size),
+                bias=True)
+        else:
+            self.bias = nn.Parameter(
+                torch.zeros(int(np.prod(self.output_size))), requires_grad=True)
 
     def forward(self, x):
         # push through
-        x = self.output(x)
+        if self.encoder is None:
+            x = self.output(x)
+        else:
+            x = F.linear(x, self.encoder.output.weight.t()) + self.bias
         # reshape
         x = x.view(x.size(0), *self.output_size)
+
+        return x
 
     def freeze(self):
         for param in self.parameters():
@@ -287,7 +355,7 @@ class AE(nn.Module):
                 self.hparams['y_pixels'],
                 self.hparams['x_pixels'])
             self.encoding = LinearAEEncoder(n_latents, img_size)
-            self.decoding = LinearAEDecoder(n_latents, img_size)
+            self.decoding = LinearAEDecoder(n_latents, img_size, self.encoding)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 

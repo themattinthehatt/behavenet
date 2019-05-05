@@ -91,11 +91,7 @@ def main(hparams):
     torch_rnd_seed = torch.get_rng_state()
     hparams['training_rnd_seed'] = torch_rnd_seed
 
-    # fit(hparams, model, data_generator, exp, method='ae')
-    batch, dataset = data_generator.next_batch('train')
-    print(batch['images'].shape)
-    out, _ = model(batch['images'][0])
-    print(out.shape)
+    fit(hparams, model, data_generator, exp, method='ae')
 
     # update hparams upon successful training
     hparams['training_completed'] = True
