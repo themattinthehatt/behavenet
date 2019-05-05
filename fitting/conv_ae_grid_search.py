@@ -183,7 +183,7 @@ def get_params(strategy):
         parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
     elif namespace.lab_example == 'steinmetz':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=196,help='number of pixels in x dimension', type=int)
+        parser.add_argument('--x_pixels', '-x', default=192,help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=112,help='number of pixels in y dimension', type=int)
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)

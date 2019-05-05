@@ -210,7 +210,7 @@ class LinearAEEncoder(nn.Module):
 
         Args:
             n_latents (int):
-            input_size (list or tuple): y_pix x x_pix
+            input_size (list or tuple): n_channels x y_pix x x_pix
         """
         super().__init__()
 
@@ -237,7 +237,12 @@ class LinearAEEncoder(nn.Module):
 class LinearAEDecoder(nn.Module):
 
     def __init__(self, n_latents, output_size):
+        """
 
+        Args:
+            n_latents (int):
+            output_size (list or tuple): n_channels x y_pix x x_pix
+        """
         super().__init__()
         self.n_latents = n_latents
         self.output_size = output_size
@@ -277,7 +282,10 @@ class AE(nn.Module):
             self.decoding = ConvAEDecoder(self.hparams)
         elif self.model_type == 'linear':
             n_latents = self.hparams['n_ae_latents']
-            img_size = (self.hparams['y_pixels'], self.hparams['x_pixels'])
+            img_size = (
+                self.hparams['n_input_channels'],
+                self.hparams['y_pixels'],
+                self.hparams['x_pixels'])
             self.encoding = LinearAEEncoder(n_latents, img_size)
             self.decoding = LinearAEDecoder(n_latents, img_size)
         else:
@@ -555,8 +563,7 @@ class LSTM(nn.Module):
         raise NotImplementedError
 
 
-class ConvVAEEncoder(nn.Module):
-    raise NotImplementedError
+# class ConvVAEEncoder(nn.Module):
 
 #     def __init__(self, latent_dim_size_h, bn):
 
@@ -625,8 +632,7 @@ class ConvVAEEncoder(nn.Module):
 #             param.requires_grad = False
 
 
-class ConvVAEDecoder(nn.Module):
-    raise NotImplementedError
+# class ConvVAEDecoder(nn.Module):
 
 #     def __init__(self, latent_dim_size_h, pixel_size, y_var_value, y_var_parameter, bn):
 
@@ -723,8 +729,7 @@ class ConvVAEDecoder(nn.Module):
 #             param.requires_grad = False
 
 
-class LinearVAEEncoder(nn.Module):
-    raise NotImplementedError
+# class LinearVAEEncoder(nn.Module):
 
 #     def __init__(self, latent_dim_size_h, pixel_size):
 
@@ -749,8 +754,7 @@ class LinearVAEEncoder(nn.Module):
 #             param.requires_grad = False
 
 
-class LinearVAEDecoder(nn.Module):
-    raise NotImplementedError
+# class LinearVAEDecoder(nn.Module):
 
 #     def __init__(self, latent_dim_size_h, pixel_size, y_var_value, y_var_parameter, encoding):
 
@@ -783,8 +787,7 @@ class LinearVAEDecoder(nn.Module):
 #         return y_mu, y_var
 
 
-class VAE(nn.Module):
-    raise NotImplementedError
+# class VAE(nn.Module):
 
 #     def __init__(self, hparams):
 
@@ -819,8 +822,7 @@ class VAE(nn.Module):
 #         return y_mu, y_var, h_mu, h_var
 
 
-class SLDS(nn.Module):
-    raise NotImplementedError
+# class SLDS(nn.Module):
 
 #     """
 #     This will look a lot like an ARHMM but it has a decoder for mapping 
