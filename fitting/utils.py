@@ -6,7 +6,10 @@ from behavenet.utils import export_latents, export_predictions
 
 
 def get_subdirs(path):
-    return next(os.walk(path))[1]
+    try:
+        return next(os.walk(path))[1]
+    except StopIteration:
+        raise Exception('%s does not contain any subdirectories' % path)
 
 
 def get_output_dirs(hparams, model_class=None, expt_name=None):
@@ -155,16 +158,15 @@ def experiment_exists(hparams):
         # no versions yet
         return False
 
-    print(tt_versions)
-
     # get rid of extra dict
+    # TODO: this is ugly and not easy to maintain
     hparams_less = copy.copy(hparams)
-    hparams_less.pop('architecture_params',None)
-    hparams_less.pop('list_index',None)
-    hparams_less.pop('lab_example',None)
-    hparams_less.pop('tt_nb_gpu_trials',None)
-    hparams_less.pop('tt_nb_cpu_trials',None)
-    hparams_less.pop('tt_nb_cpu_workers',None)
+    hparams_less.pop('architecture_params', None)
+    hparams_less.pop('list_index', None)
+    hparams_less.pop('lab_example', None)
+    hparams_less.pop('tt_nb_gpu_trials', None)
+    hparams_less.pop('tt_nb_cpu_trials', None)
+    hparams_less.pop('tt_nb_cpu_workers', None)
 
     found_match = False
     for version in tt_versions:
