@@ -30,6 +30,7 @@ def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
     arch['n_ae_latents'] = n_ae_latents
     arch['ae_decoding_last_FF_layer'] = 0 #np.random.choice(np.asarray([0,1]),p=np.asarray([1-FF_layer_prob, FF_layer_prob]))
     arch['ae_batch_norm'] = 0 
+    arch['ae_batch_norm_momentum'] = None
 
     # First decide if strides only or max pooling
     network_types = ['strides_only'] # ['strides_only','max_pooling']
@@ -371,6 +372,7 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
         arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv']
 
         arch['ae_batch_norm'] = 0
+        arch['ae_batch_norm_momentum'] = None
         arch['ae_decoding_last_FF_layer'] = 0
 
         arch = get_handcrafted_dims(arch, symmetric=True)
@@ -394,6 +396,7 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
         arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv','conv']
         arch['ae_decoding_last_FF_layer'] = 0
         arch['ae_batch_norm'] = 0
+        arch['ae_batch_norm_momentum'] = None
         arch = get_handcrafted_dims(arch, symmetric=True)
         arch = get_handcrafted_dims(arch, symmetric=True)
         if arch['ae_encoding_n_channels'][-1]*arch['ae_encoding_x_dim'][-1]*arch['ae_encoding_y_dim'][-1]<max_latents:
