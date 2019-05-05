@@ -101,6 +101,7 @@ def get_params(strategy):
     parser = HyperOptArgumentParser(strategy)
 
     parser.add_argument('--data_dir', '-d', type=str)
+    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
 
     parser.opt_list('--model_class', default='neural-ae', options=['neural-ae', 'neural-arhmm'], type=str, tunable=False)
     parser.opt_list('--model_type', default='ff', options=['ff', 'linear', 'lstm'], type=str)
@@ -111,11 +112,22 @@ def get_params(strategy):
     parser.add_argument('--tt_nb_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_nb_cpu_workers', default=5, type=int)
 
-    # add data generator arguments
-    parser.add_argument('--lab', '-l', default='musall', type=str)
-    parser.add_argument('--expt', '-e', default='vistrained', type=str)
-    parser.add_argument('--animal', '-a', default='mSM30', type=str)
-    parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+    # add lab-specific data generator arguments
+    if namespace.lab_example == 'musall':
+        parser.add_argument('--lab', '-l', default='musall', type=str)
+        parser.add_argument('--expt', '-e', default='vistrained', type=str)
+        parser.add_argument('--animal', '-a', default='mSM30', type=str)
+        parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+    elif namespace.lab_example == 'steinmetz':
+        parser.add_argument('--lab', '-l', default='steinmetz', type=str)
+        parser.add_argument('--expt', '-e', default='2-probe', type=str)
+        parser.add_argument('--animal', '-a', default='mouse-01', type=str)
+        parser.add_argument('--session', '-s', default='session-01', type=str)
+    else:
+        parser.add_argument('--lab', '-l', type=str)
+        parser.add_argument('--expt', '-e', type=str)
+        parser.add_argument('--animal', '-a', type=str)
+        parser.add_argument('--session', '-s', type=str)
 
     # data generator arguments
     parser.add_argument('--device', default='cuda', type=str)

@@ -159,6 +159,7 @@ def experiment_exists(hparams):
 
     # get rid of extra dict
     hparams_less = copy.copy(hparams)
+    # TODO: split params into model-specif/computing-environment-specific pieces
     hparams_less.pop('architecture_params')
     hparams_less.pop('list_index')
     hparams_less.pop('lab_example')
