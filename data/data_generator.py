@@ -124,10 +124,16 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.load_kwargs = load_kwargs
 
         # get total number of trials by loading neural data
-        # TODO: load images if neural data is not present?
-        mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
-        self.num_trials = mat_contents['neural'].shape[0]
-        self.trial_len = mat_contents['neural'].shape[1]
+        if 'images' in signals:
+            f = h5py.File(os.path.join(
+                self.data_dir, 'images.hdf5'), 'r', libver='latest', swmr=True)
+            self.num_trials = len(f['images'])
+            key_list = list(f['images'].keys())
+            self.trial_len = f['images'][key_list[0]].shape[0]
+        else:
+            mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
+            self.num_trials = mat_contents['neural'].shape[0]
+            self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
         self.dims = OrderedDict()  # TODO
@@ -236,9 +242,17 @@ class SingleSessionDataset(data.Dataset):
         self.transforms = transforms
         self.load_kwargs = load_kwargs
 
-        mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
-        self.num_trials = mat_contents['neural'].shape[0]
-        self.trial_len = mat_contents['neural'].shape[1]
+        # get number of trials
+        if 'images' in signals:
+            f = h5py.File(os.path.join(
+                self.data_dir, 'images.hdf5'), 'r', libver='latest', swmr=True)
+            self.num_trials = len(f['images'])
+            key_list = list(f['images'].keys())
+            self.trial_len = f['images'][key_list[0]].shape[0]
+        else:
+            mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
+            self.num_trials = mat_contents['neural'].shape[0]
+            self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
 
