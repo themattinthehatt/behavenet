@@ -27,7 +27,7 @@ def main(hparams):
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(1))
+    time.sleep(np.random.uniform(10))
 
     # #########################
     # ### Create Experiment ###
@@ -127,8 +127,8 @@ def get_params(strategy):
         parser.add_argument('--max_nb_epochs', default=250, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
-        parser.add_argument('--export_latents', action='store_true', default=False)
-        parser.add_argument('--export_latents_best', action='store_true', default=True)
+        parser.add_argument('--export_latents', action='store_true', default=True)
+        parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
