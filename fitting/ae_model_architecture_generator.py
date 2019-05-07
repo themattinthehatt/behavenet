@@ -6,6 +6,7 @@ from behavenet.models import AE
 from fitting.utils import estimate_model_footprint
 import copy
 
+
 def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
     ## Here is where you can set options/probabilities etc
     if arch_seed:
@@ -44,6 +45,7 @@ def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
     arch = get_decoding_conv_block(arch)
 
     return arch
+
 
 def calculate_output_dim(input_dim,kernel,stride,padding_type, layer_type):
     # inspired by: https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/common_shape_fns.cc#L21
@@ -182,6 +184,7 @@ def get_encoding_conv_block(arch,opts):
         
     return arch
 
+
 def get_decoding_conv_block(arch):
     
     arch['ae_decoding_x_dim'] = []
@@ -254,7 +257,6 @@ def draw_archs(
             mem_size = estimate_model_footprint(
                 model, tuple([batch_size] + input_dim))
             mem_size_gb = mem_size / 1e9
-            print(mem_size_gb)
             if mem_size_gb > mem_limit_gb:  # GB
                 print(
                     'Model size of %02.3f GB is larger than limit of %1.3f GB;'
@@ -274,6 +276,7 @@ def draw_archs(
             all_archs.append(new_arch)
 
     return all_archs
+
 
 def get_handcrafted_dims(arch, symmetric=True):
     # If symmetric=True: calculate decoding block based on encoding block
@@ -357,9 +360,14 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
     if n_ae_latents>max_latents:
         raise ValueError('Number of latents higher than max latents')
 
+    arch = {}
+    arch['n_input_channels'] = input_dim[0]
+    arch['y_pixels'] = input_dim[1]
+    arch['x_pixels'] = input_dim[2]
+
     ## Architecture 0 (similar to Ella's old architecture from Win)
     if np.any(which_archs==0):
-        arch={}
+
         arch['ae_input_dim'] = input_dim
         arch['n_ae_latents'] = n_ae_latents
 
@@ -383,7 +391,7 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
 
     ## Architecture 1 (Matt's encoder with different symmetric decoder)
     if np.any(which_archs==1):
-        arch={}
+
         arch['ae_input_dim'] = input_dim
         arch['n_ae_latents'] = n_ae_latents
 
@@ -444,7 +452,6 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
                 mem_size = estimate_model_footprint(
                     model, tuple([batch_size] + input_dim))
                 mem_size_gb = mem_size / 1e9
-                print(mem_size_gb)
                 if mem_size_gb > mem_limit_gb:  # GB
                     raise ValueError('Handcrafted architecture too big for memory')
                 new_arch['mem_size_gb'] = mem_size_gb

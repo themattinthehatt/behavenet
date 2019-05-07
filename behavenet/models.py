@@ -216,18 +216,18 @@ class LinearAEEncoder(nn.Module):
 
         self.n_latents = n_latents
         self.input_size = input_size
-        self._build_model()
+        self.build_model()
 
-    def _build_model(self):
-        self.output = nn.Linear(
-            in_features=np.prod(self.input_size),
+    def build_model(self):
+        self.encoder = nn.Linear(
             out_features=self.n_latents,
+            in_features=np.prod(self.input_size),
             bias=True)
 
     def forward(self, x):
         # reshape
         x = x.view(x.size(0), -1)
-        return self.output(x)
+        return self.encoder(x), None, None
 
     def freeze(self):
         for param in self.parameters():
@@ -305,14 +305,14 @@ class LinearAEDecoder(nn.Module):
         self.n_latents = n_latents
         self.output_size = output_size
         self.encoder = encoder
-        self._build_model()
+        self.build_model()
 
-    def _build_model(self):
+    def build_model(self):
 
         if self.encoder is None:
-            self.output = nn.Linear(
-                in_features=self.n_latents,
+            self.decoder = nn.Linear(
                 out_features=np.prod(self.output_size),
+                in_features=self.n_latents,
                 bias=True)
         else:
             self.bias = nn.Parameter(
@@ -321,7 +321,7 @@ class LinearAEDecoder(nn.Module):
     def forward(self, x):
         # push through
         if self.encoder is None:
-            x = self.output(x)
+            x = self.decoder(x)
         else:
             x = F.linear(x, self.encoder.output.weight.t()) + self.bias
         # reshape
@@ -341,6 +341,10 @@ class AE(nn.Module):
         super(AE, self).__init__()
         self.hparams = hparams
         self.model_type = self.hparams['model_type']
+        self.img_size = (
+                self.hparams['n_input_channels'],
+                self.hparams['y_pixels'],
+                self.hparams['x_pixels'])
         self.build_model()
 
     def build_model(self):
@@ -350,12 +354,8 @@ class AE(nn.Module):
             self.decoding = ConvAEDecoder(self.hparams)
         elif self.model_type == 'linear':
             n_latents = self.hparams['n_ae_latents']
-            img_size = (
-                self.hparams['n_input_channels'],
-                self.hparams['y_pixels'],
-                self.hparams['x_pixels'])
-            self.encoding = LinearAEEncoder(n_latents, img_size)
-            self.decoding = LinearAEDecoder(n_latents, img_size, self.encoding)
+            self.encoding = LinearAEEncoder(n_latents, self.img_size)
+            self.decoding = LinearAEDecoder(n_latents, self.img_size) #, self.encoding)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 
@@ -365,7 +365,7 @@ class AE(nn.Module):
             x, pool_idx, outsize = self.encoding(x)
             y = self.decoding(x, pool_idx, outsize)
         elif self.model_type == 'linear':
-            x = self.encoding(x)
+            x, _, _ = self.encoding(x)
             y = self.decoding(x)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)

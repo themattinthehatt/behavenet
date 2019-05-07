@@ -167,6 +167,7 @@ def experiment_exists(hparams):
     hparams_less.pop('tt_nb_gpu_trials', None)
     hparams_less.pop('tt_nb_cpu_trials', None)
     hparams_less.pop('tt_nb_cpu_workers', None)
+    hparams_less.pop('lib', None)
 
     found_match = False
     for version in tt_versions:

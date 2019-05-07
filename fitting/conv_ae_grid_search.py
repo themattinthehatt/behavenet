@@ -3,15 +3,17 @@ import time
 import numpy as np
 import pickle
 from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.models import AE
-from behavenet.training import fit
-from fitting.utils import export_latents_best, experiment_exists, \
-    export_hparams, get_data_generator_inputs, get_output_dirs, \
-    get_best_model_version
-from fitting.ae_model_architecture_generator import draw_archs, draw_handcrafted_archs
+from fitting.utils import export_latents_best
+from fitting.utils import experiment_exists
+from fitting.utils import export_hparams
+from fitting.utils import get_data_generator_inputs
+from fitting.utils import get_output_dirs
+from fitting.utils import get_best_model_version
+from fitting.ae_model_architecture_generator import draw_archs
+from fitting.ae_model_architecture_generator import draw_handcrafted_archs
 from data.data_generator import ConcatSessionsGenerator
 import random
-import torch
+
 
 def main(hparams):
 
@@ -19,6 +21,16 @@ def main(hparams):
     # TODO: train/eval -> export_best_latents can be eval only mode
 
     hparams = vars(hparams)
+
+    if hparams['lib'] == 'pytorch':
+        from behavenet.models import AE as AE
+        from behavenet.training import fit as fit
+        import torch
+    elif hparams['lib'] == 'tf':
+        from behavenet.models_tf import AE
+        from behavenet.training_tf import fit
+    else:
+        raise ValueError('"%s" is an invalid lib' % hparams['lib'])
 
     # Blend outer hparams with architecture hparams
     hparams = {**hparams, **hparams['architecture_params']}
@@ -82,13 +94,13 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['model_build_rnd_seed'] = torch_rnd_seed
+    if hparams['lib'] == 'pytorch':
+        torch_rnd_seed = torch.get_rng_state()
+        hparams['model_build_rnd_seed'] = torch_rnd_seed
 
     # save out hparams as csv and dict
     hparams['training_completed'] = False
     export_hparams(hparams, exp)
-
 
     model = AE(hparams)
     model.to(hparams['device'])
@@ -98,8 +110,10 @@ def main(hparams):
     # ####################
     # ### TRAIN MODEL ###
     # ####################
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['training_rnd_seed'] = torch_rnd_seed
+
+    if hparams['lib'] == 'pytorch':
+        torch_rnd_seed = torch.get_rng_state()
+        hparams['training_rnd_seed'] = torch_rnd_seed
 
     fit(hparams, model, data_generator, exp, method='ae')
 
@@ -117,6 +131,7 @@ def get_params(strategy):
 
     namespace, extra = parser.parse_known_args()
 
+    parser.add_argument('--lib', default='tf', type=str, choices=['pytorch', 'tf'])
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--data_dir', '-d', type=str)
 
@@ -125,7 +140,7 @@ def get_params(strategy):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--which_handcrafted_archs', default='0')
-        parser.add_argument('--max_nb_epochs', default=250, type=int)
+        parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
@@ -150,7 +165,7 @@ def get_params(strategy):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
-        parser.add_argument('--max_nb_epochs', default=250, type=int)
+        parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
@@ -162,7 +177,7 @@ def get_params(strategy):
         parser.add_argument('--source_n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
-        parser.add_argument('--max_nb_epochs', default=250, type=int)
+        parser.add_argument('--max_nb_epochs', default=500, type=int)
         parser.add_argument('--min_nb_epochs', default=100, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
@@ -183,8 +198,8 @@ def get_params(strategy):
         parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
     elif namespace.lab_example == 'steinmetz':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=192,help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=112,help='number of pixels in y dimension', type=int)
+        parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=112, help='number of pixels in y dimension', type=int)
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)
         parser.add_argument('--expt', '-e', default='2-probe', type=str)
@@ -193,7 +208,6 @@ def get_params(strategy):
     else:
         raise ValueError('Not valid lab example')
 
-    
     parser.add_argument('--model_class', '-m', default='ae', type=str) # ae vs vae
     parser.add_argument('--model_type', default='conv', type=str)
 
@@ -225,10 +239,13 @@ def get_params(strategy):
     if namespace.search_type == 'test':
 
         which_handcrafted_archs = np.asarray(namespace.which_handcrafted_archs.split(';')).astype('int')
-        list_of_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs,                    
-                    check_memory=True,
-                    batch_size=namespace.approx_batch_size,
-                    mem_limit_gb=namespace.mem_limit_gb)
+        list_of_archs = draw_handcrafted_archs(
+            [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
+            namespace.n_ae_latents,
+            which_handcrafted_archs,
+            check_memory=True,
+            batch_size=namespace.approx_batch_size,
+            mem_limit_gb=namespace.mem_limit_gb)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
         parser.add_argument('--learning_rate', default=1e-3, type=float)     
 
@@ -237,7 +254,6 @@ def get_params(strategy):
         if os.path.isfile(namespace.arch_file_name):
             print('Using presaved list of architectures (not appending handcrafted architectures')
             list_of_archs = pickle.load(open(namespace.arch_file_name, 'rb'))
-            
         else:
             print('Creating new list of architectures and saving')
             list_of_archs = draw_archs(
@@ -247,10 +263,12 @@ def get_params(strategy):
                 n_archs=namespace.n_archs,
                 check_memory=True,
                 mem_limit_gb=namespace.mem_limit_gb)
-
             if namespace.which_handcrafted_archs:
                 which_handcrafted_archs = np.asarray(namespace.which_handcrafted_archs.split(';')).astype('int')
-                list_of_handcrafted_archs = draw_handcrafted_archs([namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],namespace.n_ae_latents,which_handcrafted_archs,
+                list_of_handcrafted_archs = draw_handcrafted_archs(
+                    [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
+                    namespace.n_ae_latents,
+                    which_handcrafted_archs,
                     check_memory=True,
                     batch_size=namespace.approx_batch_size,
                     mem_limit_gb=namespace.mem_limit_gb)
@@ -258,7 +276,6 @@ def get_params(strategy):
             f = open(namespace.arch_file_name, "wb")
             pickle.dump(list_of_archs, f)
             f.close()
-
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
         parser.add_argument('--learning_rate', default=1e-3, type=float)
     elif namespace.search_type == 'top_n':
@@ -274,7 +291,6 @@ def get_params(strategy):
              list_of_archs.append(temp['architecture_params'])
         parser.opt_list('--learning_rate', default=1e-3, options=[1e-4,5e-4,1e-3],type=float,tunable=True)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
-
     elif namespace.search_type == 'latent_search':
         # Get top 1 architectures in directory
         results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt,namespace.animal, namespace.session,namespace.model_class, 'conv')

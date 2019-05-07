@@ -1,17 +1,14 @@
 import os
 import time
 import numpy as np
-import pickle
 from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.models import AE
-from behavenet.training import fit
-from fitting.utils import export_latents_best, experiment_exists, \
-    export_hparams, get_data_generator_inputs, get_output_dirs, \
-    get_best_model_version
-from fitting.ae_model_architecture_generator import draw_archs, draw_handcrafted_archs
+from fitting.utils import export_latents_best
+from fitting.utils import experiment_exists
+from fitting.utils import export_hparams
+from fitting.utils import get_data_generator_inputs
+from fitting.utils import get_output_dirs
 from data.data_generator import ConcatSessionsGenerator
 import random
-import torch
 
 
 def main(hparams):
@@ -21,6 +18,16 @@ def main(hparams):
 
     hparams = vars(hparams)
     print(hparams)
+
+    if hparams['lib'] == 'pytorch':
+        from behavenet.models import AE as AE
+        from behavenet.training import fit as fit
+        import torch
+    elif hparams['lib'] == 'tf':
+        from behavenet.models_tf import AE
+        from behavenet.training_tf import fit
+    else:
+        raise ValueError('"%s" is an invalid lib' % hparams['lib'])
 
     # Blend outer hparams with architecture hparams
     # hparams = {**hparams, **hparams['architecture_params']}
@@ -73,8 +80,9 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['model_build_rnd_seed'] = torch_rnd_seed
+    if hparams['lib'] == 'pytorch':
+        torch_rnd_seed = torch.get_rng_state()
+        hparams['model_build_rnd_seed'] = torch_rnd_seed
 
     # save out hparams as csv and dict
     hparams['training_completed'] = False
@@ -83,13 +91,15 @@ def main(hparams):
     model = AE(hparams)
     model.to(hparams['device'])
 
+    if hparams['lib'] == 'pytorch':
+        torch_rnd_seed = torch.get_rng_state()
+        hparams['training_rnd_seed'] = torch_rnd_seed
+
     print('Model loaded')
 
     # ####################
     # ### TRAIN MODEL ###
     # ####################
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['training_rnd_seed'] = torch_rnd_seed
 
     fit(hparams, model, data_generator, exp, method='ae')
 
@@ -104,6 +114,7 @@ def get_params(strategy):
 
     parser.add_argument('--search_type', type=str) # latent_search, test
     parser.add_argument('--lab_example', type=str) # musall, steinmetz, markowitz
+    parser.add_argument('--lib', default='tf', type=str, choices=['pytorch', 'tf'])
 
     namespace, extra = parser.parse_known_args()
 
@@ -114,8 +125,8 @@ def get_params(strategy):
 
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
-        parser.add_argument('--max_nb_epochs', default=250, type=int)
-        parser.add_argument('--min_nb_epochs', default=0, type=int)
+        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--min_nb_epochs', default=50, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -124,8 +135,8 @@ def get_params(strategy):
 
     elif namespace.search_type == 'latent_search':
 
-        parser.add_argument('--max_nb_epochs', default=250, type=int)
-        parser.add_argument('--min_nb_epochs', default=100, type=int)
+        parser.add_argument('--max_nb_epochs', default=500, type=int)
+        parser.add_argument('--min_nb_epochs', default=50, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -193,7 +204,7 @@ def get_params(strategy):
     if namespace.search_type == 'test':
         parser.add_argument('--learning_rate', default=1e-3, type=float)
     elif namespace.search_type == 'latent_search':
-        parser.opt_list('--learning_rate', options=[1e-4, 5e-4, 1e-3], type=float, tunable=True)
+        parser.opt_list('--learning_rate', options=[1e-4, 1e-3], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', options=[4, 8, 12, 16, 24, 32, 64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
 
     return parser.parse_args()
