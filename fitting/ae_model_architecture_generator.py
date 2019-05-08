@@ -360,13 +360,13 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
     if n_ae_latents>max_latents:
         raise ValueError('Number of latents higher than max latents')
 
-    arch = {}
-    arch['n_input_channels'] = input_dim[0]
-    arch['y_pixels'] = input_dim[1]
-    arch['x_pixels'] = input_dim[2]
-
     ## Architecture 0 (similar to Ella's old architecture from Win)
-    if np.any(which_archs==0):
+    if np.any(which_archs == 0):
+
+        arch = {}
+        arch['n_input_channels'] = input_dim[0]
+        arch['y_pixels'] = input_dim[1]
+        arch['x_pixels'] = input_dim[2]
 
         arch['ae_input_dim'] = input_dim
         arch['n_ae_latents'] = n_ae_latents
@@ -390,7 +390,12 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
         list_of_handcrafted_archs.append(arch)
 
     ## Architecture 1 (Matt's encoder with different symmetric decoder)
-    if np.any(which_archs==1):
+    if np.any(which_archs == 1):
+
+        arch = {}
+        arch['n_input_channels'] = input_dim[0]
+        arch['y_pixels'] = input_dim[1]
+        arch['x_pixels'] = input_dim[2]
 
         arch['ae_input_dim'] = input_dim
         arch['n_ae_latents'] = n_ae_latents
@@ -414,34 +419,49 @@ def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None,
 
 
     ## Architecture 2 (Matt's architecture)
-    # if np.any(which_archs==2):
+    if np.any(which_archs == 2):
 
-    #     arch={}
-    #     arch['ae_input_dim'] = input_dim
-    #     arch['n_ae_latents'] = n_ae_latents
+        arch = {}
+        arch['n_input_channels'] = input_dim[0]
+        arch['y_pixels'] = input_dim[1]
+        arch['x_pixels'] = input_dim[2]
 
-    #     arch['ae_network_type']='strides_only'
-    #     arch['ae_padding_type']='same'
+        arch['ae_input_dim'] = input_dim
+        arch['n_ae_latents'] = n_ae_latents
 
-    #     arch['ae_encoding_n_channels'] = [64, 64, 64, 64, 64]
-    #     arch['ae_encoding_kernel_size'] = [5, 5, 5, 5, 5]
-    #     arch['ae_encoding_stride_size'] = [2,2,2,2,1]
-    #     arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv','conv']
+        arch['ae_network_type'] = 'strides_only'
+        arch['ae_padding_type'] = 'same'
 
-    #     arch['ae_batch_norm'] = 0
-    #     arch['ae_decoding_last_FF_layer'] = 1
+        arch['ae_encoding_n_channels'] = [64, 64, 64, 64, 64]
+        arch['ae_encoding_kernel_size'] = [4, 4, 4, 4, 4]
+        arch['ae_encoding_stride_size'] = [2, 2, 2, 2, 1]
+        arch['ae_encoding_layer_type'] = ['conv', 'conv', 'conv', 'conv', 'conv']
 
-    #     arch['ae_decoding_starting_dim'] = [1,8,8]
-    #     arch['ae_decoding_n_channels'] = [64, 64, 64] 
-    #     arch['ae_decoding_kernel_size'] = [5, 5, 5]
-    #     arch['ae_decoding_stride_size'] = [2, 1, 1]
-    #     arch['ae_decoding_layer_type'] = ['convtranspose','convtranspose','convtranspose']
+        arch['ae_batch_norm'] = 0
+        arch['ae_decoding_last_FF_layer'] = 1
 
-    #     arch = get_handcrafted_dims(arch, symmetric=False)
-    #     if arch['ae_encoding_n_channels'][-1]*arch['ae_encoding_x_dim'][-1]*arch['ae_encoding_y_dim'][-1]<max_latents:
-    #         raise ValueError('Bottleneck smaller than number of latents')
+        # set inputs to the decoder
+        # we first have one fully connected layer with
+        # batch_size X (reshape_size*reshape_size) X channels shape
+        # and then reshape to
+        # batch_size X reshape_size X reshape_size X channels
+        integers = np.arange(1, 11)
+        two_powers = 2 ** integers
+        self_powers = two_powers ** 2
+        # make sure we are not shrinking to something smaller than n_latent
+        ind_min_input = np.argmax(self_powers >= n_ae_latents)
+        reshape_size = two_powers[ind_min_input]
+        arch['ae_decoding_starting_dim'] = [1, reshape_size, reshape_size]
+        arch['ae_decoding_n_channels'] = [64, 64, 64]
+        arch['ae_decoding_kernel_size'] = [4, 4, 4]
+        arch['ae_decoding_stride_size'] = [2, 1, 1]
+        arch['ae_decoding_layer_type'] = ['convtranspose','convtranspose','convtranspose']
 
-    #     list_of_handcrafted_archs.append(arch)
+        arch = get_handcrafted_dims(arch, symmetric=False)
+        if arch['ae_encoding_n_channels'][-1]*arch['ae_encoding_x_dim'][-1]*arch['ae_encoding_y_dim'][-1]<max_latents:
+            raise ValueError('Bottleneck smaller than number of latents')
+
+        list_of_handcrafted_archs.append(arch)
 
     if check_memory:
         for new_arch in list_of_handcrafted_archs:

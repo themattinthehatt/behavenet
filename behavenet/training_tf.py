@@ -218,7 +218,7 @@ def fit(
                         hparams['results_dir'], 'test_tube_data',
                         hparams['experiment_name'],
                         'version_%i' % exp.version,
-                        'best_val_model.ckpt')
+                        'best_val_model.pt')
                     saver.save(sess, filepath)
 
                     # model.hparams = None
@@ -247,7 +247,7 @@ def fit(
     # save out last model
     filepath = os.path.join(
         hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
-        'version_%i' % exp.version, 'last_model.ckpt')
+        'version_%i' % exp.version, 'last_model.pt')
     saver.save(sess, filepath)
 
     # Compute test loss

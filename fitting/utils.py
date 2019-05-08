@@ -1,4 +1,5 @@
 import os
+import pickle
 import numpy as np
 import torch
 from torch.autograd import Variable
@@ -137,14 +138,89 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
     metrics_df = pd.concat(metrics, sort=False)
     # get version with smallest loss
     
-    if n_best==1:
+    if n_best == 1:
         best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
     else:
         best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
-        if best_versions.shape[0]!=n_best:
+        if best_versions.shape[0] != n_best:
             print('More versions than specified due to same validation loss')
         
     return best_versions
+
+
+def get_best_model_and_data(hparams, Model, load_data=True):
+
+    from data.data_generator import ConcatSessionsGenerator
+
+    # get best model version
+    sess_dir, results_dir, expt_dir = get_output_dirs(hparams)
+    best_version = get_best_model_version(expt_dir)[0]
+    version_dir = os.path.join(expt_dir, best_version)
+    arch_file = os.path.join(version_dir, 'meta_tags.pkl')
+    model_file = os.path.join(version_dir, 'best_val_model.pt')
+    if not os.path.exists(model_file):
+        model_file = os.path.join(version_dir, 'best_val_model.ckpt')
+
+    with open(arch_file, 'rb') as f:
+        hparams_new = pickle.load(f)
+
+    # update paths if performing analysis on a different machine
+    hparams_new['data_dir'] = hparams['data_dir']
+    hparams_new['session_dir'] = sess_dir
+    hparams_new['results_dir'] = results_dir
+    hparams_new['expt_dir'] = expt_dir
+
+    # build data generator
+    hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
+        hparams_new)
+    ids = {
+        'lab': hparams_new['lab'],
+        'expt': hparams_new['expt'],
+        'animal': hparams_new['animal'],
+        'session': hparams_new['session']}
+    if load_data:
+        # sometimes we want a single data_generator for multiple models
+        data_generator = ConcatSessionsGenerator(
+            hparams_new['data_dir'], ids,
+            signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+            device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
+            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'])
+    else:
+        data_generator = None
+
+    # build models
+    if 'lib' not in hparams_new:
+        hparams_new['lib'] = 'torch'
+
+    model = Model(hparams_new)
+    model.version = best_version
+    if hparams_new['lib'] == 'torch':
+        model.load_state_dict(torch.load(model_file))
+        model.to(hparams_new['device'])
+        model.eval()
+        model_tuple = (model)
+    elif hparams_new['lib'] == 'tf':
+        import tensorflow as tf
+
+        # load trained weights into model
+        next_batch = tf.placeholder(
+            dtype=tf.float32,
+            shape=(
+                None,
+                hparams_new['y_pixels'],
+                hparams_new['x_pixels'],
+                hparams_new['n_input_channels']))
+        model.forward(next_batch)
+        sess_config = tf.ConfigProto(device_count={'GPU': 0})
+        saver = tf.train.Saver()
+        sess = tf.Session(config=sess_config)
+        sess.run(tf.global_variables_initializer())
+        saver.restore(sess, model_file)
+        model_tuple = (model, sess, next_batch)
+    else:
+        raise ValueError('"%s" is not a valid lib' % hparams_new['lib'])
+
+    return model_tuple, data_generator
 
 
 def experiment_exists(hparams):
@@ -228,6 +304,7 @@ def get_data_generator_inputs(hparams):
     from data.transforms import Threshold
 
     # get neural signals/transforms/load_kwargs
+    # TODO: normalize non-spiking data
     if hparams['model_class'].find('neural') > -1:
         if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
             neural_transforms = Threshold(
@@ -293,6 +370,87 @@ def get_data_generator_inputs(hparams):
     return hparams, signals, transforms, load_kwargs
 
 
+def add_lab_defaults_to_parser(parser, lab=None):
+
+    if lab == 'musall':
+        parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
+        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', '-l', default='musall', type=str)
+        parser.add_argument('--expt', '-e', default='vistrained', type=str)
+        parser.add_argument('--animal', '-a', default='mSM30', type=str)
+        parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+    elif lab == 'steinmetz':
+        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=112, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', '-l', default='steinmetz', type=str)
+        parser.add_argument('--expt', '-e', default='2-probe', type=str)
+        parser.add_argument('--animal', '-a', default='mouse-01', type=str)
+        parser.add_argument('--session', '-s', default='session-01', type=str)
+    elif lab == 'steinmetz-face':
+        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', '-x', default=170, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=130, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', '-l', default='steinmetz', type=str)
+        parser.add_argument('--expt', '-e', default='2-probe-face', type=str)
+        parser.add_argument('--animal', '-a', default='mouse-01', type=str)
+        parser.add_argument('--session', '-s', default='session-01', type=str)
+    elif lab == 'datta':
+        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', '-x', default=80, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=80, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', '-l', default='datta', type=str)
+        parser.add_argument('--expt', '-e', default='inscopix', type=str)
+        parser.add_argument('--animal', '-a', default='15566', type=str)
+        parser.add_argument('--session', '-s', default='2018-11-27', type=str)
+    else:
+        parser.add_argument('--n_input_channels', '-i', help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
+        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', '-l', type=str)
+        parser.add_argument('--expt', '-e', type=str)
+        parser.add_argument('--animal', '-a', type=str)
+        parser.add_argument('--session', '-s', type=str)
+
+
+def get_reconstruction(model_tuple, ims):
+    """
+
+    Args:
+        model_tuple (tuple):
+            (model) for pytorch models
+            (model, sess, next_batch op) for tf models
+        ims (torch.Tensor object):
+
+    Returns:
+        np array (ims_recon)
+    """
+
+    use_pytorch = False
+    if len(model_tuple) == 0:
+        use_pytorch = True
+
+    if use_pytorch:
+        model = model_tuple[0]
+        ims_recon, _, _ = model(ims)
+        ims_recon = ims_recon.cpu().detach().numpy()
+    else:
+        model = model_tuple[0]
+        sess = model_tuple[1]
+        next_batch = model_tuple[2]
+        ims_ = np.transpose(ims.cpu().detach().numpy(), (0, 2, 3, 1))
+        ims_recon = sess.run(model.y, feed_dict={next_batch: ims_})
+        ims_recon = np.transpose(ims_recon, (0, 3, 1, 2))
+
+    return ims_recon
+
+
 def export_latents_best(hparams):
     """
     Export predictions for the best decoding model in a test tube experiment.
@@ -302,61 +460,20 @@ def export_latents_best(hparams):
         hparams (dict):
     """
 
-    import os
-    import pickle
-    from data.data_generator import ConcatSessionsGenerator
-    from behavenet.models import AE
-
-    # ###########################
-    # ### Get Best Experiment ###
-    # ###########################
-
-    # get session_dir, results_dir (session_dir + ae details), expt_dir (
-    # results_dir + experiment details)
-    # expt_dir contains version_%i directories
-    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-        get_output_dirs(hparams)
-
-    best_version = get_best_model_version(hparams['expt_dir'])[0]
-    best_model_file = os.path.join(
-        hparams['expt_dir'], best_version, 'best_val_model.pt')
-
-    # copy over hparams from best model
-    hparams_file = os.path.join(
-        hparams['expt_dir'], best_version, 'meta_tags.pkl')
-    with open(hparams_file, 'rb') as f:
-        hparams = pickle.load(f)
-
-    # ###########################
-    # ### LOAD DATA GENERATOR ###
-    # ###########################
-
-    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-
-    # ####################
-    # ### CREATE MODEL ###
-    # ####################
-
-    model = AE(hparams)
-
-    # load best model params
-    model.version = int(best_version[8:])  # omg this is awful
-    model.load_state_dict(torch.load(best_model_file))
-    model.to(hparams['device'])
-    model.eval()
-
-    # push data through model
-    export_latents(data_generator, model)
+    if hparams['lib'] == 'pytorch':
+        from behavenet.models import AE
+        model_tuple, data_generator = get_best_model_and_data(hparams, AE)
+        export_latents(data_generator, model_tuple[0])
+    elif hparams['lib'] == 'tf':
+        from behavenet.models_tf import AE
+        model_tuple, data_generator = get_best_model_and_data(hparams, AE)
+        export_latents_tf(
+            data_generator,
+            model=model_tuple[0],
+            sess=model_tuple[1],
+            next_batch=model_tuple[2])
+    else:
+        raise ValueError('"%s" is an invalid model library')
 
 
 def export_predictions_best(hparams):
@@ -368,58 +485,77 @@ def export_predictions_best(hparams):
         hparams (dict):
     """
 
-    import os
-    import pickle
-    from data.data_generator import ConcatSessionsGenerator
     from behavenet.models import Decoder
 
-    # ###########################
-    # ### Get Best Experiment ###
-    # ###########################
+    if hparams['lib'] == 'tf':
+        raise NotImplementedError
 
-    # get session_dir, results_dir (session_dir + decoding details),
-    # expt_dir (results_dir + experiment details)
-    # expt_dir contains version_%i directories
-    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-        get_output_dirs(hparams)
-    best_version = get_best_model_version(hparams['expt_dir'])[0]
-    best_model_file = os.path.join(
-        hparams['expt_dir'], best_version, 'best_val_model.pt')
+    model_tuple, data_generator = get_best_model_and_data(hparams, Decoder)
+    export_predictions(data_generator, model_tuple[0])
 
-    # copy over hparams from best model
-    hparams_file = os.path.join(
-        hparams['expt_dir'], best_version, 'meta_tags.pkl')
-    with open(hparams_file, 'rb') as f:
-        hparams = pickle.load(f)
 
-    # ###########################
-    # ### LOAD DATA GENERATOR ###
-    # ###########################
+def export_latents_tf(
+        data_generator, model, sess, next_batch, filename=None):
+    """Port of behavenet.fitting.utils.export_latents for tf models"""
 
-    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
+    # initialize container for latents
+    latents = [[] for _ in range(data_generator.num_datasets)]
+    for i, dataset in enumerate(data_generator.datasets):
+        trial_len = dataset.trial_len
+        num_trials = dataset.num_trials
+        latents[i] = np.full(
+            shape=(num_trials, trial_len, model.hparams['n_ae_latents']),
+            fill_value=np.nan)
 
-    # ####################
-    # ### CREATE MODEL ###
-    # ####################
+        # partially fill container (gap trials will be included as nans)
+        dtypes = ['train', 'val', 'test']
+        for dtype in dtypes:
+            data_generator.reset_iterators(dtype)
+            for i in range(data_generator.num_tot_batches[dtype]):
+                data, dataset = data_generator.next_batch(dtype)
 
-    model = Decoder(hparams)
+                # process batch, perhaps in chunks if full batch is too large
+                # to fit on gpu
+                chunk_size = 200
+                y = np.transpose(
+                    data[model.hparams['signals']][0].cpu().detach().numpy(),
+                    (0, 2, 3, 1))
+                batch_size = y.shape[0]
+                if batch_size > chunk_size:
+                    # split into chunks
+                    num_chunks = int(np.ceil(batch_size / chunk_size))
+                    for chunk in range(num_chunks):
+                        # take chunks of size chunk_size, plus overlap due to
+                        # max_lags
+                        indx_beg = chunk * chunk_size
+                        indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
 
-    # load best model params
-    model.version = int(best_version[8:])  # omg this is awful
-    model.load_state_dict(torch.load(best_model_file))
-    model.to(hparams['device'])
-    model.eval()
+                        curr_latents = sess.run(
+                            model.x,
+                            feed_dict={next_batch: y[indx_beg:indx_end]})
 
-    # push data through model
-    export_predictions(data_generator, model)
+                        latents[dataset][data['batch_indx'].item(),
+                        indx_beg:indx_end, :] = curr_latents
+                else:
+                    curr_latents = sess.run(model.x, feed_dict={next_batch: y})
+                    latents[dataset][data['batch_indx'].item(), :, :] = \
+                        curr_latents
+
+    # save latents separately for each dataset
+    for i, dataset in enumerate(data_generator.datasets):
+        # get save name which includes lab/expt/animal/session
+        # sess_id = str(
+        #     '%s_%s_%s_%s_latents.pkl' % (
+        #         dataset.lab, dataset.expt, dataset.animal,
+        #         dataset.session))
+        if filename is None:
+            sess_id = 'latents.pkl'
+            filename = os.path.join(
+                model.hparams['results_dir'], 'test_tube_data',
+                model.hparams['experiment_name'], model.version,
+                sess_id)
+        # save out array in pickle file
+        pickle.dump({
+            'latents': latents[i],
+            'trials': data_generator.batch_indxs[i]},
+            open(filename, 'wb'))

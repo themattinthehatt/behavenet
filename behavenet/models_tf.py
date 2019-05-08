@@ -165,8 +165,7 @@ class ConvAEDecoder(object):
                 global_layer_num += 1
 
         # Optional final FF layer (rarely used)
-        if self.hparams[
-            'ae_decoding_last_FF_layer']:  # have last layer be feedforward if this is 1
+        if self.hparams['ae_decoding_last_FF_layer']:  # have last layer be feedforward if this is 1
             output_size = self.hparams['ae_decoding_x_dim'][-1] * \
                           self.hparams['ae_decoding_y_dim'][-1] * \
                           self.hparams['ae_decoding_n_channels'][-1] * \
@@ -274,11 +273,7 @@ class LinearAEDecoder(object):
     def forward(self, x):
         for layer in self.decoder:
             x = layer.apply(x)
-        img_size = (
-            self.output_size[1],
-            self.output_size[2],
-            self.output_size[0])
-        x = tf.reshape(x, (-1, *img_size))
+        x = tf.reshape(x, (-1, *self.output_size))
         return x
 
 

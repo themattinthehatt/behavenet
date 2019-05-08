@@ -9,6 +9,7 @@ from fitting.utils import export_hparams
 from fitting.utils import get_data_generator_inputs
 from fitting.utils import get_output_dirs
 from fitting.utils import get_best_model_version
+from fitting.utils import add_lab_defaults_to_parser
 from fitting.ae_model_architecture_generator import draw_archs
 from fitting.ae_model_architecture_generator import draw_handcrafted_archs
 from data.data_generator import ConcatSessionsGenerator
@@ -187,26 +188,7 @@ def get_params(strategy):
 
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
 
-    if namespace.lab_example == 'musall':
-        parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', default='musall', type=str)
-        parser.add_argument('--expt', '-e', default='vistrained', type=str)
-        parser.add_argument('--animal', '-a', default='mSM30', type=str)
-        parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
-    elif namespace.lab_example == 'steinmetz':
-        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=112, help='number of pixels in y dimension', type=int)
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', default='steinmetz', type=str)
-        parser.add_argument('--expt', '-e', default='2-probe', type=str)
-        parser.add_argument('--animal', '-a', default='mouse-01', type=str)
-        parser.add_argument('--session', '-s', default='session-01', type=str)
-    else:
-        raise ValueError('Not valid lab example')
+    add_lab_defaults_to_parser(parser, namespace.lab_example)
 
     parser.add_argument('--model_class', '-m', default='ae', type=str) # ae vs vae
     parser.add_argument('--model_type', default='conv', type=str)
