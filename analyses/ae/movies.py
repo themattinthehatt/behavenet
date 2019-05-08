@@ -13,25 +13,25 @@ def reconstruction(hparams, save_file, trial=None, include_linear=False):
     from behavenet.models_tf import AE
 
     # build model(s)
-    model_tuple_cae, data_generator = get_best_model_and_data(hparams, AE)
+    model_cae, data_generator = get_best_model_and_data(hparams, AE)
 
     if include_linear:
         import copy
         hparams_lin = copy.copy(hparams)
         hparams_lin['model_type'] = 'linear'
-        model_tuple_lin, _ = get_best_model_and_data(
-            hparams_lin, AE, load_data=False)
+        model_lin, _ = get_best_model_and_data(hparams_lin, AE, load_data=False)
 
     # push images through decoder
     if trial is None:
-        batch, dataset = data_generator.next_batch('test')[0]
+        batch, dataset = data_generator.next_batch('test')
+        ims_orig_pt = batch['images'][0, :200]
     else:
         batch = data_generator.datasets[0][trial]
-    ims_orig_pt = batch['images'][:200]
+        ims_orig_pt = batch['images'][:200]
 
-    ims_recon_cae = get_reconstruction(model_tuple_cae, ims_orig_pt)
+    ims_recon_cae = get_reconstruction(model_cae, ims_orig_pt)
     if include_linear:
-        ims_recon_lin = get_reconstruction(model_tuple_lin, ims_orig_pt)
+        ims_recon_lin = get_reconstruction(model_lin, ims_orig_pt)
     else:
         ims_recon_lin = None
 

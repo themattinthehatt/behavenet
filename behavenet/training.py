@@ -463,6 +463,7 @@ def fit(
     """
 
     # Check inputs
+    # TODO: add masks to loss
     if method == 'em':
         loss = EMLoss(model)
     elif method == 'svi':

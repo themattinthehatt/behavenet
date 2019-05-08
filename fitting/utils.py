@@ -169,6 +169,7 @@ def get_best_model_and_data(hparams, Model, load_data=True):
     hparams_new['session_dir'] = sess_dir
     hparams_new['results_dir'] = results_dir
     hparams_new['expt_dir'] = expt_dir
+    hparams_new['use_output_mask'] = hparams['use_output_mask'] # TODO: get rid of eventually
 
     # build data generator
     hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
@@ -198,29 +199,30 @@ def get_best_model_and_data(hparams, Model, load_data=True):
         model.load_state_dict(torch.load(model_file))
         model.to(hparams_new['device'])
         model.eval()
-        model_tuple = (model)
     elif hparams_new['lib'] == 'tf':
         import tensorflow as tf
-
         # load trained weights into model
-        next_batch = tf.placeholder(
-            dtype=tf.float32,
-            shape=(
-                None,
-                hparams_new['y_pixels'],
-                hparams_new['x_pixels'],
-                hparams_new['n_input_channels']))
-        model.forward(next_batch)
+        if not hasattr(model, 'encoder_input'):
+            next_batch = tf.placeholder(
+                dtype=tf.float32,
+                shape=(
+                    None,
+                    hparams_new['y_pixels'],
+                    hparams_new['x_pixels'],
+                    hparams_new['n_input_channels']))
+            model.encoder_input = next_batch
+            model.forward(next_batch)
+
         sess_config = tf.ConfigProto(device_count={'GPU': 0})
         saver = tf.train.Saver()
         sess = tf.Session(config=sess_config)
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, model_file)
-        model_tuple = (model, sess, next_batch)
+        model.sess = sess
     else:
         raise ValueError('"%s" is not a valid lib' % hparams_new['lib'])
 
-    return model_tuple, data_generator
+    return model, data_generator
 
 
 def experiment_exists(hparams):
@@ -244,6 +246,7 @@ def experiment_exists(hparams):
     hparams_less.pop('tt_nb_cpu_trials', None)
     hparams_less.pop('tt_nb_cpu_workers', None)
     hparams_less.pop('lib', None)
+    hparams_less.pop('use_output_mask', None)
 
     found_match = False
     for version in tt_versions:
@@ -320,9 +323,9 @@ def get_data_generator_inputs(hparams):
     # get model-specific signals/transforms/load_kwargs
     if hparams['model_class'] == 'ae':
 
-        if hparams['lab'] == 'datta':
-            signals = ['images', 'masks']
-            transforms = [None, None]
+        if hparams['use_output_mask']:
+            signals = [hparams['signals'], 'masks']
+            transforms = [hparams['transforms'], None]
             load_kwargs = [None, None]
         else:
             signals = [hparams['signals']]
@@ -381,6 +384,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='musall', type=str)
         parser.add_argument('--expt', '-e', default='vistrained', type=str)
@@ -390,6 +394,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=112, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)
         parser.add_argument('--expt', '-e', default='2-probe', type=str)
@@ -399,6 +404,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)
         parser.add_argument('--expt', '-e', default='2-probe-face', type=str)
@@ -408,6 +414,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=80, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=80, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=True, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='datta', type=str)
         parser.add_argument('--expt', '-e', default='inscopix', type=str)
@@ -417,6 +424,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--n_input_channels', '-i', help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', type=str)
         parser.add_argument('--expt', '-e', type=str)
@@ -424,33 +432,70 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', '-s', type=str)
 
 
-def get_reconstruction(model_tuple, ims):
+def get_lab_example(hparams, lab):
+    if lab == 'steinmetz':
+        hparams['lab'] = 'steinmetz'
+        hparams['expt'] = '2-probe'
+        hparams['animal'] = 'mouse-01'
+        hparams['session'] = 'session-01'
+        hparams['n_ae_latents'] = 12
+        hparams['use_output_mask'] = False
+    if lab == 'steinmetz-face':
+        hparams['lab'] = 'steinmetz'
+        hparams['expt'] = '2-probe-face'
+        hparams['animal'] = 'mouse-01'
+        hparams['session'] = 'session-01'
+        hparams['n_ae_latents'] = 12
+        hparams['use_output_mask'] = False
+    elif lab == 'musall':
+        hparams['lab'] = 'musall'
+        hparams['expt'] = 'vistrained'
+        hparams['animal'] = 'mSM30'
+        hparams['session'] = '10-Oct-2017'
+        hparams['n_ae_latents'] = 16
+        hparams['use_output_mask'] = False
+    elif lab == 'datta':
+        hparams['lab'] = 'datta'
+        hparams['expt'] = 'inscopix'
+        hparams['animal'] = '15566'
+        hparams['session'] = '2018-11-27'
+        hparams['n_ae_latents'] = 6
+        hparams['use_output_mask'] = True
+
+
+def get_reconstruction(model, inputs):
     """
 
     Args:
-        model_tuple (tuple):
-            (model) for pytorch models
-            (model, sess, next_batch op) for tf models
-        ims (torch.Tensor object):
+        model: pytorch or tf Model
+        inputs (torch.Tensor object):
+            images (batch x channels x y_pix x x_pix)
+            latents (batch x n_ae_latents)
 
     Returns:
-        np array (ims_recon)
+        np array (batch x channels x y_pix x x_pix)
     """
 
-    use_pytorch = False
-    if len(model_tuple) == 0:
-        use_pytorch = True
+    # check to see if inputs are images or latents
+    if len(inputs.shape) == 2:
+        input_type = 'latents'
+    else:
+        input_type = 'images'
 
-    if use_pytorch:
-        model = model_tuple[0]
-        ims_recon, _, _ = model(ims)
+    if isinstance(model, torch.nn.Module):
+        if input_type == 'images':
+            ims_recon, _, _ = model(inputs)
+        else:
+            ims_recon = model.decoding(inputs)
         ims_recon = ims_recon.cpu().detach().numpy()
     else:
-        model = model_tuple[0]
-        sess = model_tuple[1]
-        next_batch = model_tuple[2]
-        ims_ = np.transpose(ims.cpu().detach().numpy(), (0, 2, 3, 1))
-        ims_recon = sess.run(model.y, feed_dict={next_batch: ims_})
+        if input_type == 'images':
+            ims_ = np.transpose(inputs.cpu().detach().numpy(), (0, 2, 3, 1))
+            feed_dict = {model.encoder_input: ims_}
+        else:
+            feed_dict = {model.decoder_input: inputs}
+
+        ims_recon = model.sess.run(model.y, feed_dict=feed_dict)
         ims_recon = np.transpose(ims_recon, (0, 3, 1, 2))
 
     return ims_recon
@@ -467,16 +512,12 @@ def export_latents_best(hparams):
 
     if hparams['lib'] == 'pytorch':
         from behavenet.models import AE
-        model_tuple, data_generator = get_best_model_and_data(hparams, AE)
-        export_latents(data_generator, model_tuple[0])
+        model, data_generator = get_best_model_and_data(hparams, AE)
+        export_latents(data_generator, model)
     elif hparams['lib'] == 'tf':
         from behavenet.models_tf import AE
-        model_tuple, data_generator = get_best_model_and_data(hparams, AE)
-        export_latents_tf(
-            data_generator,
-            model=model_tuple[0],
-            sess=model_tuple[1],
-            next_batch=model_tuple[2])
+        model, data_generator = get_best_model_and_data(hparams, AE)
+        export_latents_tf(data_generator, model)
     else:
         raise ValueError('"%s" is an invalid model library')
 
@@ -495,12 +536,11 @@ def export_predictions_best(hparams):
     if hparams['lib'] == 'tf':
         raise NotImplementedError
 
-    model_tuple, data_generator = get_best_model_and_data(hparams, Decoder)
-    export_predictions(data_generator, model_tuple[0])
+    model, data_generator = get_best_model_and_data(hparams, Decoder)
+    export_predictions(data_generator, model)
 
 
-def export_latents_tf(
-        data_generator, model, sess, next_batch, filename=None):
+def export_latents_tf(data_generator, model, filename=None):
     """Port of behavenet.fitting.utils.export_latents for tf models"""
 
     # initialize container for latents
@@ -535,14 +575,15 @@ def export_latents_tf(
                         indx_beg = chunk * chunk_size
                         indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
 
-                        curr_latents = sess.run(
+                        curr_latents = model.sess.run(
                             model.x,
-                            feed_dict={next_batch: y[indx_beg:indx_end]})
+                            feed_dict={model.encoder_input: y[indx_beg:indx_end]})
 
                         latents[dataset][data['batch_indx'].item(),
                         indx_beg:indx_end, :] = curr_latents
                 else:
-                    curr_latents = sess.run(model.x, feed_dict={next_batch: y})
+                    curr_latents = model.sess.run(
+                        model.x, feed_dict={model.encoder_input: y})
                     latents[dataset][data['batch_indx'].item(), :, :] = \
                         curr_latents
 

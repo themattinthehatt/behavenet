@@ -78,7 +78,6 @@ class ConvAEEncoder(nn.Module):
 
         # Reshape for FF layer
         x = x.view(x.size(0), -1)
-        
 
         if self.hparams['model_class'] == 'ae':
             return self.FF(x), pool_idx, target_output_size
@@ -152,9 +151,8 @@ class ConvAEDecoder(nn.Module):
                 else:
                     if self.hparams['ae_batch_norm']:
                         self.decoder.add_module('batch norm'+str(global_layer_num),nn.BatchNorm2d(self.hparams['ae_decoding_n_channels'][i_layer],momentum=self.hparams['ae_batch_norm_momentum']))
-
                     self.decoder.add_module('relu'+str(global_layer_num),nn.LeakyReLU(0.05))
-                global_layer_num+=1
+                global_layer_num += 1
          
         ## Optional final FF layer (rarely used)
         if self.hparams['ae_decoding_last_FF_layer']: # have last layer be feedforward if this is 1
