@@ -352,7 +352,9 @@ def get_handcrafted_dims(arch, symmetric=True):
     return arch
 
 
-def draw_handcrafted_archs(input_dim,n_ae_latents, which_archs, batch_size=None, mem_limit_gb=None, check_memory=True):
+def draw_handcrafted_archs(
+        input_dim, n_ae_latents, which_archs, batch_size=None,
+        mem_limit_gb=None, check_memory=True):
 
     list_of_handcrafted_archs=[]
     max_latents = 64 # make sure no bottleneck smaller than this

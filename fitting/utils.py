@@ -374,8 +374,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
 
     if lab == 'musall':
         parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=128,help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=128,help='number of pixels in y dimension', type=int)
+        parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='musall', type=str)
         parser.add_argument('--expt', '-e', default='vistrained', type=str)
@@ -392,8 +392,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', '-s', default='session-01', type=str)
     elif lab == 'steinmetz-face':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=170, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=130, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)
         parser.add_argument('--expt', '-e', default='2-probe-face', type=str)

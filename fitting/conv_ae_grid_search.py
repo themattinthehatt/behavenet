@@ -38,7 +38,7 @@ def main(hparams):
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(10))
+    time.sleep(np.random.uniform(1))
 
     # Get index of architecture in list
     if hparams['search_type'] == 'initial':
