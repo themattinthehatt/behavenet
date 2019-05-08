@@ -251,6 +251,8 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
+    namespace, extra = parser.parse_known_args()
+
     # Load in file of architectures
     if namespace.search_type == 'test':
 

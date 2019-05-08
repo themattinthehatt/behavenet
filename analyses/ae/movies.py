@@ -10,7 +10,10 @@ def reconstruction(hparams, save_file, trial=None, include_linear=False):
 
     from fitting.utils import get_best_model_and_data
     from fitting.utils import get_reconstruction
-    from behavenet.models_tf import AE
+    if hparams['lib'] == 'torch':
+        from behavenet.models import AE
+    elif hparams['lib'] == 'tf':
+        from behavenet.models_tf import AE
 
     # build model(s)
     model_cae, data_generator = get_best_model_and_data(hparams, AE)

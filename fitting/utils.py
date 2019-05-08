@@ -160,6 +160,7 @@ def get_best_model_and_data(hparams, Model, load_data=True):
     model_file = os.path.join(version_dir, 'best_val_model.pt')
     if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
         model_file = os.path.join(version_dir, 'best_val_model.ckpt')
+    print('Loading model defined in %s' % arch_file)
 
     with open(arch_file, 'rb') as f:
         hparams_new = pickle.load(f)
@@ -195,7 +196,7 @@ def get_best_model_and_data(hparams, Model, load_data=True):
 
     model = Model(hparams_new)
     model.version = best_version
-    if hparams_new['lib'] == 'torch':
+    if hparams_new['lib'] == 'torch' or hparams_new['lib'] == 'pytorch':
         model.load_state_dict(torch.load(model_file))
         model.to(hparams_new['device'])
         model.eval()
@@ -484,7 +485,7 @@ def get_reconstruction(model, inputs):
 
     if isinstance(model, torch.nn.Module):
         if input_type == 'images':
-            ims_recon, _, _ = model(inputs)
+            ims_recon, _ = model(inputs)
         else:
             ims_recon = model.decoding(inputs)
         ims_recon = ims_recon.cpu().detach().numpy()
