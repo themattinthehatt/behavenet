@@ -119,7 +119,11 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
-        self.dims = OrderedDict()  # TODO
+
+        self.dims = OrderedDict()
+        for signal in self.signals:
+            key_list = list(f[signal].keys())
+            self.dims[signal] = f[signal][key_list[0]].shape
 
     def __len__(self):
         return self.num_trials
@@ -132,10 +136,10 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 self.signals, self.transforms, self.load_kwargs):
 
             # index correct trial
-            if signal == 'images':
-                f = h5py.File(os.path.join(
-                    self.data_dir, 'images.hdf5'), 'r',
-                    libver='latest', swmr=True)
+            if signal == 'images' or signal == 'masks':
+                f = h5py.File(
+                    os.path.join(self.data_dir, 'images.hdf5'),
+                    'r', libver='latest', swmr=True)
                 sample[signal] = f['images'][
                     str('trial_%04i' % indx)][()].astype('float32') / 255.0
             else:

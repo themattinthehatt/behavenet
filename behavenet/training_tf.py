@@ -16,13 +16,16 @@ from behavenet.training import FitMethod
 
 class FitMethodTF(FitMethod):
 
-    def __init__(self, model, metric_strs, optimizer, next_batch, objective):
+    def __init__(
+            self, model, metric_strs, optimizer, next_batch, objective,
+            mask=None):
 
         super().__init__(model, metric_strs)
 
         self.optimizer = optimizer
         self.next_batch = next_batch
         self.objective = objective
+        self.mask = mask
 
         # set up this loss object so that we can accumulate gradients and take
         # gradient steps like pytorch
@@ -61,6 +64,11 @@ class FitMethodTF(FitMethod):
             data[self.model.hparams['signals']][0].cpu().detach().numpy(),
             [0, 2, 3, 1])
 
+        if self.mask is not None:
+            mask = np.transpose(
+                data['masks'][0].cpu().detach().numpy(),
+                [0, 2, 3, 1])
+
         chunk_size = 200
         batch_size = y.shape[0]
 
@@ -73,6 +81,8 @@ class FitMethodTF(FitMethod):
                 indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
 
                 feed_dict = {self.next_batch: y[indx_beg:indx_end]}
+                if self.mask is not None:
+                    feed_dict[self.mask] = mask[indx_beg:indx_end]
                 # accumulate gradients
                 self.backward(sess, feed_dict)
                 # get loss value (weighted by batch size)
@@ -86,6 +96,8 @@ class FitMethodTF(FitMethod):
             loss_val /= y.shape[0]
         else:
             feed_dict = {self.next_batch: y}
+            if self.mask is not None:
+                feed_dict[self.mask] = mask
             # accumulate gradients
             self.backward(sess, feed_dict=feed_dict)
             # compute loss
@@ -106,13 +118,13 @@ class FitMethodTF(FitMethod):
 
 class AELoss(FitMethodTF):
 
-    def __init__(self, model, optimizer, next_batch, objective):
+    def __init__(self, model, optimizer, next_batch, objective, mask=None):
         metric_strs = ['batches', 'loss']
-        super().__init__(model, metric_strs, optimizer, next_batch, objective)
+        super().__init__(
+            model, metric_strs, optimizer, next_batch, objective, mask)
 
 
-def fit(
-        hparams, model, data_generator, exp, method='ae'):
+def fit(hparams, model, data_generator, exp, method='ae'):
     """
     Args:
         hparams:
@@ -137,10 +149,28 @@ def fit(
             model.hparams['n_input_channels']))
     model.forward(next_batch)
 
+    # add in mask (for cabled data)
+    if 'masks' in data_generator.datasets[0].signals:
+        mask = tf.placeholder(
+            dtype=tf.float32,
+            shape=(
+                None,
+                model.hparams['y_pixels'],
+                model.hparams['x_pixels'],
+                model.hparams['n_input_channels']))
+    else:
+        mask = None
+
     if method == 'ae':
-        objective = tf.reduce_mean(tf.squared_difference(
-            next_batch, model.y))
-        loss = AELoss(model, optimizer, next_batch, objective)
+        if mask is not None:
+            print('building masked objective')
+            objective = tf.reduce_mean(tf.multiply(
+                tf.squared_difference(next_batch, model.y),
+                mask))
+        else:
+            objective = tf.reduce_mean(tf.squared_difference(
+                next_batch, model.y))
+        loss = AELoss(model, optimizer, next_batch, objective, mask)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 

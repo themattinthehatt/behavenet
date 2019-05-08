@@ -158,7 +158,7 @@ def get_best_model_and_data(hparams, Model, load_data=True):
     version_dir = os.path.join(expt_dir, best_version)
     arch_file = os.path.join(version_dir, 'meta_tags.pkl')
     model_file = os.path.join(version_dir, 'best_val_model.pt')
-    if not os.path.exists(model_file):
+    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
         model_file = os.path.join(version_dir, 'best_val_model.ckpt')
 
     with open(arch_file, 'rb') as f:
@@ -320,9 +320,14 @@ def get_data_generator_inputs(hparams):
     # get model-specific signals/transforms/load_kwargs
     if hparams['model_class'] == 'ae':
 
-        signals = [hparams['signals']]
-        transforms = [hparams['transforms']]
-        load_kwargs = [None]
+        if hparams['lab'] == 'datta':
+            signals = ['images', 'masks']
+            transforms = [None, None]
+            load_kwargs = [None, None]
+        else:
+            signals = [hparams['signals']]
+            transforms = [hparams['transforms']]
+            load_kwargs = [None]
 
     elif hparams['model_class'] == 'neural-ae':
 

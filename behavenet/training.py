@@ -120,6 +120,11 @@ class AELoss(FitMethod):
 
         y = data[self.model.hparams['signals']][0]
 
+        if 'mask' in self.model.hparams['signals']:
+            mask = data['mask'][0]
+        else:
+            mask = None
+
         chunk_size = 200
         batch_size = y.shape[0]
 
@@ -131,7 +136,11 @@ class AELoss(FitMethod):
                 indx_beg = chunk * chunk_size
                 indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
                 y_mu, _ = self.model(y[indx_beg:indx_end])
-                loss = torch.mean((y[indx_beg:indx_end] - y_mu) ** 2)
+                if mask is not None:
+                    loss = torch.mean(
+                        ((y[indx_beg:indx_end] - y_mu) ** 2) * mask)
+                else:
+                    loss = torch.mean((y[indx_beg:indx_end] - y_mu) ** 2)
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
@@ -140,7 +149,10 @@ class AELoss(FitMethod):
         else:
             y_mu, _ = self.model(y)
             # define loss
-            loss = torch.mean((y - y_mu)**2)
+            if mask is not None:
+                loss = torch.mean(((y - y_mu)**2) * mask)
+            else:
+                loss = torch.mean((y - y_mu) ** 2)
             # compute gradients
             loss.backward()
             # get loss value

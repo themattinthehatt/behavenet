@@ -90,7 +90,6 @@ class ConvAEEncoder(object):
             # else:
             #     x = layer.apply(x)
             x = layer.apply(x)
-            print(x.get_shape())
 
         if self.hparams['model_class'] == 'ae':
             self.x = self.ff.apply(tf.contrib.layers.flatten(x))
@@ -210,7 +209,6 @@ class ConvAEDecoder(object):
                 x = tf.reshape(x, img_shape)
             else:
                 x = layer.apply(x)
-            print(x.get_shape())
 
         if self.hparams['model_class'] == 'ae':
             self.y = x
