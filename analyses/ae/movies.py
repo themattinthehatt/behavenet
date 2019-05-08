@@ -6,7 +6,8 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
 
 
-def reconstruction(hparams, save_file, trial=None, include_linear=False):
+def reconstruction(
+        hparams, save_file, trial=None, version='best', include_linear=False):
 
     from fitting.utils import get_best_model_and_data
     from fitting.utils import get_reconstruction
@@ -16,7 +17,8 @@ def reconstruction(hparams, save_file, trial=None, include_linear=False):
         from behavenet.models_tf import AE
 
     # build model(s)
-    model_cae, data_generator = get_best_model_and_data(hparams, AE)
+    model_cae, data_generator = get_best_model_and_data(
+        hparams, AE, version=version)
 
     if include_linear:
         import copy
