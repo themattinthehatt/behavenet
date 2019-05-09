@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+import random
 import pickle
 from test_tube import HyperOptArgumentParser, Experiment
 from fitting.utils import export_latents_best
@@ -13,7 +14,6 @@ from fitting.utils import add_lab_defaults_to_parser
 from fitting.ae_model_architecture_generator import draw_archs
 from fitting.ae_model_architecture_generator import draw_handcrafted_archs
 from data.data_generator import ConcatSessionsGenerator
-import random
 
 
 def main(hparams):
@@ -77,7 +77,7 @@ def main(hparams):
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    print('Data generator loaded')
+    print('data generator loaded')
 
     # ####################
     # ### CREATE MODEL ###
@@ -104,7 +104,7 @@ def main(hparams):
     hparams['training_completed'] = False
     export_hparams(hparams, exp)
 
-    print('Model loaded')
+    print('model loaded')
 
     # ####################
     # ### TRAIN MODEL ###
@@ -128,6 +128,7 @@ def get_params(strategy):
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--data_dir', '-d', type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
+    parser.add_argument('--model_class', '-m', default='ae', type=str)  # ae vs vae
 
     # arguments for computing resources
     parser.add_argument('--tt_nb_gpu_trials', default=1000, type=int)
@@ -146,9 +147,8 @@ def get_params(strategy):
     parser.add_argument('--rng_seed', default=0, type=int)
 
     # add fitting arguments
-    parser.add_argument('--model_class', '-m', default='ae', type=str)  # ae vs vae
-    parser.add_argument('--l2_reg', default=0)
     parser.add_argument('--val_check_interval', default=1)
+    parser.add_argument('--l2_reg', default=0)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()

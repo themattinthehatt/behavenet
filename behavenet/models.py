@@ -289,6 +289,7 @@ class LinearAEEncoder(nn.Module):
 #             y_var = self.y_var
 #         return y_mu, y_var
 
+
 class LinearAEDecoder(nn.Module):
 
     def __init__(self, n_latents, output_size, encoder=None):
@@ -353,7 +354,8 @@ class AE(nn.Module):
         elif self.model_type == 'linear':
             n_latents = self.hparams['n_ae_latents']
             self.encoding = LinearAEEncoder(n_latents, self.img_size)
-            self.decoding = LinearAEDecoder(n_latents, self.img_size) #, self.encoding)
+            self.decoding = LinearAEDecoder(
+                n_latents, self.img_size, self.encoding)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 

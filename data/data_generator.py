@@ -140,8 +140,10 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 f = h5py.File(
                     os.path.join(self.data_dir, 'images.hdf5'),
                     'r', libver='latest', swmr=True)
-                sample[signal] = f['images'][
-                    str('trial_%04i' % indx)][()].astype('float32') / 255.0
+                sample[signal] = f[signal][
+                    str('trial_%04i' % indx)][()].astype('float32')
+                if signal == 'images':
+                    sample[signal] /= 255.0  # put in [0, 1] range
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
 
