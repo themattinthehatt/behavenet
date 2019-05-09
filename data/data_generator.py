@@ -224,7 +224,9 @@ class SingleSessionDataset(data.Dataset):
         self.reg_indxs = None
         for signal, transform, load_kwarg in zip(
                 self.signals, self.transforms, self.load_kwargs):
-
+            print(signal)
+            print(transform)
+            print(load_kwarg)
             if signal == 'neural':
 
                 mat_contents = loadmat(
@@ -233,7 +235,10 @@ class SingleSessionDataset(data.Dataset):
                 try:
                     self.reg_indxs = mat_contents['reg_indxs_consolidate']
                 except KeyError:
-                    self.reg_indxs = mat_contents['reg_indxs']
+                    try:
+                        self.reg_indxs = mat_contents['reg_indxs']
+                    except KeyError:
+                        self.reg_indxs = None
 
             elif signal == 'images':
 

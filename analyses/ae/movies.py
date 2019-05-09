@@ -61,46 +61,40 @@ def reconstruction(
         ims_orig=ims_orig,
         ims_recon_cae=ims_recon_cae,
         ims_recon_lin=ims_recon_lin,
-        save_file=save_file,
-        n_ae_latents=hparams['n_ae_latents'])
+        save_file=save_file)
 
 
 def make_ae_reconstruction_movie(
-        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None,
-        n_ae_latents=None):
+        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None):
 
     n_channels, y_pix, x_pix = ims_orig.shape[1:]
-    n_cols = 3 if ims_recon_lin is None else 2
-    n_rows = 1 if ims_recon_lin is None else 3
-    scale_ = 4 if n_channels == 1 else 3.5
-    fig_width = scale_ * n_cols * n_channels
-    fig_height = y_pix / x_pix * scale_ * n_rows
-    offset = 1.5  # if n_channels == 1 else 0
+    n_cols = 3
+    n_rows = 1 if ims_recon_lin is None else 2
+    offset = 1 #0 if ims_recon_lin is None else 1
+    scale_ = 5
+    fig_width = scale_ * n_cols * n_channels / 2
+    fig_height = y_pix / x_pix * scale_ * n_rows / 2
     fig = plt.figure(figsize=(fig_width, fig_height + offset))
-    if n_ae_latents is not None:
-        title = str(
-            'Behavorial video compression\n%i dimensions' % n_ae_latents)
-    else:
-        title = 'Behavorial video compression'
-    fig.suptitle(title, fontsize=20)
+    # if n_ae_latents is not None:
+    #     title = str(
+    #         'Behavorial video compression\n%i dimensions' % n_ae_latents)
+    # else:
+    #     title = 'Behavorial video compression'
+    # fig.suptitle(title, fontsize=20)
 
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
-    if ims_recon_lin is None:
-        axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-        axs.append(fig.add_subplot(gs[0, 1]))  # 1: cae reconstructed frames
-        axs.append(fig.add_subplot(gs[0, 2]))  # 2: cae residuals
-    else:
-        axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-        axs.append(fig.add_subplot(gs[1, 0]))  # 1: cae reconstructed frames
-        axs.append(fig.add_subplot(gs[1, 1]))  # 2: cae residuals
-        axs.append(fig.add_subplot(gs[2, 0]))  # 3: linear reconstructed frames
-        axs.append(fig.add_subplot(gs[2, 1]))  # 4: linear residuals
+    axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
+    axs.append(fig.add_subplot(gs[0, 1]))  # 1: cae reconstructed frames
+    axs.append(fig.add_subplot(gs[0, 2]))  # 2: cae residuals
+    if ims_recon_lin is not None:
+        axs.append(fig.add_subplot(gs[1, 1]))  # 3: linear reconstructed frames
+        axs.append(fig.add_subplot(gs[1, 2]))  # 4: linear residuals
     for ax in fig.axes:
         ax.set_xticks([])
         ax.set_yticks([])
 
-    fontsize = 16
+    fontsize = 12
     axs[0].set_title('Original', fontsize=fontsize)
     axs[1].set_title('Conv reconstructed', fontsize=fontsize)
     axs[2].set_title('Conv residual', fontsize=fontsize)
@@ -167,6 +161,8 @@ def make_ae_reconstruction_movie(
             ims_curr.append(im)
 
         ims.append(ims_curr)
+
+    plt.tight_layout(pad=0)
 
     ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
     metadata = {'title': 'ae reconstruction'}

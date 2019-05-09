@@ -25,7 +25,7 @@ def main(hparams):
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(0, 10))
+    time.sleep(np.random.uniform(0, 5))
 
     # #########################
     # ### Create Experiment ###
@@ -187,9 +187,10 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--n_max_lags', default=8)  # should match largest value in --n_lags options
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
+        parser.add_argument('--experiment_name', '-en', default='test', type=str)
 
         if namespace.model_type == 'linear':
-            parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
+            parser.add_argument('--n_hid_layers', default=0, type=int)
         elif namespace.model_type == 'ff':
             parser.add_argument('--n_hid_layers', default=1, type=int)
             parser.add_argument('--n_final_units', default=16, type=int)
@@ -199,21 +200,25 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-3, 1e-4], type=float, tunable=True)
         parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         parser.add_argument('--n_max_lags', default=8)  # should match largest value in --n_lags options
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
+        parser.add_argument('--experiment_name', '-en', default='test', type=str)
 
         if namespace.model_type == 'linear':
             parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
         elif namespace.model_type == 'ff':
-            parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3], type=int, tunable=True)
+            parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
             parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
             parser.add_argument('--n_int_units', default=64, type=int)
         elif namespace.model_type == 'lstm':
             raise NotImplementedError
+
+    else:
+        raise Exception
 
 
 if __name__ == '__main__':

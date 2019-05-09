@@ -191,6 +191,9 @@ def get_linear_params(namespace, parser):
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
 
+    else:
+        raise Exception
+
 
 def get_conv_params(namespace, parser):
 
@@ -200,8 +203,8 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--which_handcrafted_archs', default='0')
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
-        parser.add_argument('--min_nb_epochs', default=100, type=int)
+        parser.add_argument('--max_nb_epochs', default=1000, type=int)
+        parser.add_argument('--min_nb_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -216,6 +219,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--which_handcrafted_archs', default='0;1') # empty string if you don't want any
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_nb_epochs', default=20, type=int)
+        parser.add_argument('--min_nb_epochs', default=0, type=int)
         parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -228,8 +232,8 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
-        parser.add_argument('--min_nb_epochs', default=100, type=int)
+        parser.add_argument('--max_nb_epochs', default=1000, type=int)
+        parser.add_argument('--min_nb_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -241,13 +245,16 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--source_n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
-        parser.add_argument('--min_nb_epochs', default=100, type=int)
+        parser.add_argument('--max_nb_epochs', default=1000, type=int)
+        parser.add_argument('--min_nb_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
         parser.add_argument('--early_stop_history', default=10, type=int)
+
+    else:
+        raise Exception
 
     namespace, extra = parser.parse_known_args()
 
@@ -263,7 +270,7 @@ def get_conv_params(namespace, parser):
             batch_size=namespace.approx_batch_size,
             mem_limit_gb=namespace.mem_limit_gb)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
-        parser.add_argument('--learning_rate', default=1e-3, type=float)
+        parser.add_argument('--learning_rate', default=1e-4, type=float)
 
     elif namespace.search_type == 'initial':
 
@@ -293,7 +300,7 @@ def get_conv_params(namespace, parser):
             pickle.dump(list_of_archs, f)
             f.close()
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
-        parser.add_argument('--learning_rate', default=1e-3, type=float)
+        parser.add_argument('--learning_rate', default=1e-4, type=float)
 
     elif namespace.search_type == 'top_n':
 
@@ -307,7 +314,7 @@ def get_conv_params(namespace, parser):
              temp = pickle.load(open(filename, 'rb'))
              temp['architecture_params']['source_architecture'] = filename
              list_of_archs.append(temp['architecture_params'])
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-4,5e-4,1e-3],type=float,tunable=True)
+        parser.opt_list('--learning_rate', default=1e-4, options=[1e-4, 1e-3],type=float,tunable=True)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
 
     elif namespace.search_type == 'latent_search':

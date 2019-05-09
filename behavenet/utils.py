@@ -128,7 +128,7 @@ def export_predictions(data_generator, model, filename=None):
                     indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
                     outputs = model(predictors[indx_beg:indx_end])
                     slc = (indx_beg + max_lags, indx_end - max_lags)
-                    predictors[dataset][data['batch_indx'].item(), slice(*slc), :] = \
+                    predictions[dataset][data['batch_indx'].item(), slice(*slc), :] = \
                         outputs[max_lags:-max_lags].cpu().detach().numpy()
             else:
                 outputs = model(predictors)

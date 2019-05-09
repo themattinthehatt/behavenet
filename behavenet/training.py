@@ -201,7 +201,7 @@ class NLLLoss(FitMethod):
                 # define loss on allowed window of data
                 loss = self._loss(
                     outputs[max_lags:-max_lags],
-                    targets[max_lags:-max_lags])
+                    targets[indx_beg:indx_end][max_lags:-max_lags])
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
