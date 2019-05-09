@@ -37,10 +37,11 @@ def expected_log_likelihood(expectations, log_pi0, log_Ps, lls):
 
 # Dynamics models
 def gaussian_ar_log_proba(model, data, inputs=None):
+    batch_size = data.shape[0]
     hparams = model.hparams
     # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
     means = torch.transpose(
-        torch.matmul(torch.cat(([data[hparams['nlags']-i:hparams['batch_size']-i] for i in range(hparams['nlags'],0,-1)]), dim=1), model.As),1,0)+ model.bs
+        torch.matmul(torch.cat(([data[hparams['nlags']-i:batch_size-i] for i in range(hparams['nlags'],0,-1)]), dim=1), model.As),1,0)+ model.bs
 
     if inputs is not None:
         input_bias = model.emission_bias(inputs)
@@ -50,17 +51,18 @@ def gaussian_ar_log_proba(model, data, inputs=None):
     lls = MultivariateNormal(means, covs).log_prob(data[hparams['nlags']:].unsqueeze(1))
     assert lls.shape == (data.shape[0] - hparams['nlags'], hparams['n_discrete_states'])
 
-    lls = torch.cat((torch.zeros(hparams['nlags'], hparams['n_discrete_states']), lls), 0)
+    lls = torch.cat((torch.zeros(hparams['nlags'], hparams['n_discrete_states']).to(hparams['device']), lls), 0)
 
     return lls
 
 
 def diagonal_gaussian_ar_log_proba(model, data):
+    batch_size = data.shape[0]
     hparams = model.hparams
 
     # Compute the mean, A_{z_t} x_{t-1} + b_{z_t}  for t > nlags
     means = torch.transpose(
-        torch.matmul(torch.cat(([data[hparams['nlags']-i:hparams['batch_size']-i]
+        torch.matmul(torch.cat(([data[hparams['nlags']-i:batch_size-i]
                                  for i in range(hparams['nlags'],0,-1)]), dim=1), model.As),1,0)+ model.bs
 
     # Concatenate the mean for the first t = 1...nlags
@@ -85,10 +87,10 @@ def diagonal_gaussian_ar_log_proba(model, data):
 
 
 # Transition models
-def stationary_log_transition_proba(model):
+def stationary_log_transition_proba(model, batch_size):
     hparams = model.hparams
     normalized_Ps = model.stat_log_transition_proba - log_sum_exp(model.stat_log_transition_proba, dim=-1, keepdim=True)
-    return normalized_Ps.unsqueeze(0).repeat(hparams['batch_size']-1,1,1)
+    return normalized_Ps.unsqueeze(0).repeat(batch_size-1,1,1)
 
 def input_driven_log_transition_proba(model, inputs):
     hparams = model.hparams
