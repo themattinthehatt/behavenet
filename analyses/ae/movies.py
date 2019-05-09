@@ -11,7 +11,7 @@ def reconstruction(
 
     from fitting.utils import get_best_model_and_data
     from fitting.utils import get_reconstruction
-    if hparams['lib'] == 'torch':
+    if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
         from behavenet.models import AE
     elif hparams['lib'] == 'tf':
         from behavenet.models_tf import AE
@@ -29,10 +29,10 @@ def reconstruction(
     # push images through decoder
     if trial is None:
         batch, dataset = data_generator.next_batch('test')
-        ims_orig_pt = batch['images'][0, :200]
+        ims_orig_pt = batch['images'][0, :400]
     else:
         batch = data_generator.datasets[0][trial]
-        ims_orig_pt = batch['images'][:200]
+        ims_orig_pt = batch['images'][:400]
 
     ims_recon_cae = get_reconstruction(model_cae, ims_orig_pt)
     if include_linear:

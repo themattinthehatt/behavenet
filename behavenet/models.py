@@ -322,7 +322,7 @@ class LinearAEDecoder(nn.Module):
         if self.encoder is None:
             x = self.decoder(x)
         else:
-            x = F.linear(x, self.encoder.output.weight.t()) + self.bias
+            x = F.linear(x, self.encoder.encoder.weight.t()) + self.bias
         # reshape
         x = x.view(x.size(0), *self.output_size)
 

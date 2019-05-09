@@ -19,7 +19,6 @@ from data.data_generator import ConcatSessionsGenerator
 def main(hparams):
 
     # TODO: log files
-    # TODO: train/eval -> export_best_latents can be eval only mode
 
     hparams = vars(hparams)
     if hparams['model_type'] == 'conv':
@@ -30,8 +29,7 @@ def main(hparams):
             list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
             hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
         elif hparams['search_type'] == 'latent_search':
-            hparams['architecture_params']['n_ae_latents'] = hparams[
-                'n_ae_latents']
+            hparams['architecture_params']['n_ae_latents'] = hparams['n_ae_latents']
             hparams['architecture_params'].pop('learning_rate', None)
     print(hparams)
 
@@ -83,7 +81,7 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    if hparams['lib'] == 'pytorch':
+    if hparams['lib'] == 'pt':
         from behavenet.models import AE as AE
         from behavenet.training import fit as fit
         import torch
@@ -124,7 +122,7 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str) # latent_search, test
     parser.add_argument('--lab_example', type=str) # musall, steinmetz, markowitz
-    parser.add_argument('--lib', default='tf', type=str, choices=['pytorch', 'tf'])
+    parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--data_dir', '-d', type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
@@ -170,10 +168,10 @@ def get_linear_params(namespace, parser):
     if namespace.search_type == 'test':
 
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
-        parser.add_argument('--learning_rate', default=1e-3, type=float)
+        parser.add_argument('--learning_rate', default=1e-4, type=float)
 
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
-        parser.add_argument('--min_nb_epochs', default=50, type=int)
+        parser.add_argument('--max_nb_epochs', default=1000, type=int)
+        parser.add_argument('--min_nb_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -182,11 +180,11 @@ def get_linear_params(namespace, parser):
 
     elif namespace.search_type == 'latent_search':
 
-        parser.opt_list('--n_ae_latents', options=[4, 8, 12, 16, 24, 32, 64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
+        parser.opt_list('--n_ae_latents', options=[4, 8, 12, 16, 32, 64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
         parser.opt_list('--learning_rate', options=[1e-4, 1e-3], type=float, tunable=True)
 
-        parser.add_argument('--max_nb_epochs', default=500, type=int)
-        parser.add_argument('--min_nb_epochs', default=50, type=int)
+        parser.add_argument('--max_nb_epochs', default=1000, type=int)
+        parser.add_argument('--min_nb_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)

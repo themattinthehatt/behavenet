@@ -381,7 +381,7 @@ def draw_handcrafted_archs(
         arch['ae_encoding_stride_size'] = [2,2,2,2]
         arch['ae_encoding_layer_type'] = ['conv','conv','conv','conv']
 
-        arch['ae_batch_norm'] = 1
+        arch['ae_batch_norm'] = 0
         arch['ae_batch_norm_momentum'] = None
         arch['ae_decoding_last_FF_layer'] = 0
 

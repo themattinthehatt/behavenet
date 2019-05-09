@@ -195,11 +195,11 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
 
     # build models
     if 'lib' not in hparams_new:
-        hparams_new['lib'] = 'torch'
+        hparams_new['lib'] = 'pt'
 
     model = Model(hparams_new)
     model.version = best_version
-    if hparams_new['lib'] == 'torch' or hparams_new['lib'] == 'pytorch':
+    if hparams_new['lib'] == 'pt' or hparams_new['lib'] == 'pytorch':
         model.load_state_dict(torch.load(model_file))
         model.to(hparams_new['device'])
         model.eval()
@@ -308,18 +308,20 @@ def get_data_generator_inputs(hparams):
     common models
     """
 
-    from data.transforms import Threshold
+    from data.transforms import Threshold, ZScore
 
     # get neural signals/transforms/load_kwargs
-    # TODO: normalize non-spiking data
     if hparams['model_class'].find('neural') > -1:
+        neural_transforms = None  # neural_region
+        neural_kwargs = None
         if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
             neural_transforms = Threshold(
                 threshold=hparams['neural_thresh'],
                 bin_size=hparams['neural_bin_size'])
+        elif hparams['neural_type'] == 'ca':
+            neural_transforms = ZScore()
         else:
-            neural_transforms = None  # neural_region
-        neural_kwargs = None
+            raise ValueError('"%s" is an invalid neural type')
     else:
         neural_transforms = None
         neural_kwargs = None
@@ -394,6 +396,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--expt', '-e', default='vistrained', type=str)
         parser.add_argument('--animal', '-a', default='mSM30', type=str)
         parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
     elif lab == 'steinmetz':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
@@ -404,6 +408,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--expt', '-e', default='2-probe', type=str)
         parser.add_argument('--animal', '-a', default='mouse-01', type=str)
         parser.add_argument('--session', '-s', default='session-01', type=str)
+        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     elif lab == 'steinmetz-face':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
@@ -414,6 +420,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--expt', '-e', default='2-probe-face', type=str)
         parser.add_argument('--animal', '-a', default='mouse-01', type=str)
         parser.add_argument('--session', '-s', default='session-01', type=str)
+        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     elif lab == 'datta':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=80, help='number of pixels in x dimension', type=int)
@@ -424,6 +432,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--expt', '-e', default='inscopix', type=str)
         parser.add_argument('--animal', '-a', default='15566', type=str)
         parser.add_argument('--session', '-s', default='2018-11-27', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
     else:
         parser.add_argument('--n_input_channels', '-i', help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
@@ -434,6 +444,8 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--expt', '-e', type=str)
         parser.add_argument('--animal', '-a', type=str)
         parser.add_argument('--session', '-s', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
 
 
 def get_lab_example(hparams, lab):
@@ -463,7 +475,7 @@ def get_lab_example(hparams, lab):
         hparams['expt'] = 'inscopix'
         hparams['animal'] = '15566'
         hparams['session'] = '2018-11-27'
-        hparams['n_ae_latents'] = 6
+        hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = True
 
 
@@ -471,7 +483,7 @@ def get_reconstruction(model, inputs):
     """
 
     Args:
-        model: pytorch or tf Model
+        model: pt or tf Model
         inputs (torch.Tensor object):
             images (batch x channels x y_pix x x_pix)
             latents (batch x n_ae_latents)
@@ -514,7 +526,7 @@ def export_latents_best(hparams):
         hparams (dict):
     """
 
-    if hparams['lib'] == 'pytorch':
+    if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
         from behavenet.models import AE
         model, data_generator = get_best_model_and_data(hparams, AE)
         export_latents(data_generator, model)

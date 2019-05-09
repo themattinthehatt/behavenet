@@ -117,7 +117,7 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
-    parser.add_argument('--lib', default='pytorch', type=str, choices=['pytorch', 'tf'])
+    parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--data_dir', '-d', type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'linear', 'lstm'], type=str)
@@ -153,11 +153,9 @@ def get_params(strategy):
 
 def get_decoding_params(namespace, parser):
 
-    # add neural arguments
+    # add neural arguments (others are dataset-specific)
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)
-    parser.add_argument('--neural_bin_size', default=None, help='ms')
-    parser.opt_list('--neural_type', default='spikes', options=['spikes', 'wf'])
-    parser.opt_list('--neural_region', default='all', options=['all', 'single', 'loo'])
+    parser.add_argument('--neural_region', default='all', choices=['all', 'single', 'loo'])
 
     # add data arguments
     if namespace.model_class == 'neural-ae':
