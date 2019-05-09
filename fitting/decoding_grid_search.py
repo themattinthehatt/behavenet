@@ -163,9 +163,11 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--ae_experiment_name', type=str)
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_version', default='best')
+        parser.add_argument('--ae_model_type', default='conv')
     elif namespace.model_class == 'neural-arhmm':
         # ae arguments
         parser.add_argument('--n_ae_latents', default=12, type=int)
+        parser.add_argument('--ae_model_type', default='conv')
         # arhmm arguments
         parser.add_argument('--arhmm_experiment_name', type=str)
         parser.add_argument('--n_arhmm_states', default=12, type=int)

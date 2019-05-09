@@ -261,6 +261,7 @@ def experiment_exists(hparams):
     hparams_less.pop('tt_nb_cpu_workers', None)
     hparams_less.pop('lib', None)
     hparams_less.pop('use_output_mask', None)
+    hparams_less.pop('ae_model_type', None)
 
     found_match = False
     for version in tt_versions:
