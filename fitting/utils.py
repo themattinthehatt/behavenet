@@ -13,7 +13,7 @@ def get_subdirs(path):
         raise Exception('%s does not contain any subdirectories' % path)
 
 
-def get_output_dirs(hparams, model_class=None, expt_name=None):
+def get_output_dirs(hparams, model_class=None, expt_name=None, model_type=None):
 
     if model_class is None:
         model_class = hparams['model_class']
@@ -21,26 +21,36 @@ def get_output_dirs(hparams, model_class=None, expt_name=None):
     if expt_name is None:
         expt_name = hparams['experiment_name']
 
+    if model_type is None:
+        model_type = hparams['model_type']
+
     sess_dir = os.path.join(
             hparams['tt_save_path'], hparams['lab'], hparams['expt'],
             hparams['animal'], hparams['session'])
 
     if model_class == 'ae':
         results_dir = os.path.join(
-            sess_dir, 'ae', hparams['model_type'],
+            sess_dir, 'ae', model_type,
             '%02i_latents' % hparams['n_ae_latents'])
     elif model_class == 'neural-ae':
         # TODO: include brain region, ae version
         results_dir = os.path.join(
             sess_dir, 'neural-ae',
             '%02i_latents' % hparams['n_ae_latents'],
-            hparams['model_type'])
+            model_type)
     elif model_class == 'neural-arhmm':
         results_dir = os.path.join(
             sess_dir, 'neural-arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            hparams['model_type'])
+            model_type)
+    elif model_class == 'arhmm':
+        results_dir = os.path.join(
+            sess_dir, 'neural-arhmm',
+            '%02i_latents' % hparams['n_ae_latents'],
+            '%02i_states' % hparams['n_arhmm_states'],
+            '%02i_kappa' % hparams['kappa'],
+            hparams['noise_type'])
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
 
@@ -347,7 +357,8 @@ def get_data_generator_inputs(hparams):
 
         _, _, ae_dir = get_output_dirs(
             hparams, model_class='ae',
-            expt_name=hparams['ae_experiment_name'])
+            expt_name=hparams['ae_experiment_name'],
+            model_type=hparams['ae_model_type'])
 
         ae_transforms = None
         ae_kwargs = {
@@ -377,6 +388,30 @@ def get_data_generator_inputs(hparams):
         signals = ['neural', 'arhmm']
         transforms = [neural_transforms, arhmm_transforms]
         load_kwargs = [neural_kwargs, arhmm_kwargs]
+
+    elif hparams['model_class'] == 'arhmm':
+
+        _, _, ae_dir = get_output_dirs(
+            hparams, model_class='ae',
+            expt_name=hparams['ae_experiment_name'],
+            model_type=hparams['ae_model_type'])
+
+        ae_transforms = None
+        ae_kwargs = {
+            'model_dir': ae_dir,
+            'model_version': hparams['ae_version']}
+
+        signals=['ae']
+        transforms=[ae_transforms]
+        load_kwargs=[ae_kwargs]
+        # if hparams['use_output_mask']:
+        #     signals = ['ae','images','masks']
+        #     transforms = [ae_transforms, None, None]
+        #     load_kwargs = [ae_kwargs, None, None]
+        # else:
+        #     signals = ['ae','images']
+        #     transforms = [ae_transforms, None]
+        #     load_kwargs = [ae_kwargs, None]
 
     else:
         raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
