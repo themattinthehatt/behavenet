@@ -308,7 +308,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 sample[signal] = transform(sample[signal])
                 
             # transform into tensor
-            sample[signal] = torch.from_numpy(sample[signal]).to(self.device)
+            sample[signal] = torch.from_numpy(
+                sample[signal]).float().to(self.device)
 
         sample['batch_indx'] = indx
 
@@ -354,6 +355,12 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
         # grab all data as a single batch
         self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
+        self.data.pop('batch_indx')
+
+        # collect dims for easy reference
+        self.dims = OrderedDict()
+        for signal, data in self.data.items():
+            self.dims[signal] = data.shape
 
     def __len__(self):
         return self.num_trials
