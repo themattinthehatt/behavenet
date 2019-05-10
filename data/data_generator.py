@@ -106,26 +106,107 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.transforms = transforms
         self.load_kwargs = load_kwargs
 
-        # get total number of trials by loading neural data
+        # get total number of trials by loading images/neural data
         if 'images' in signals:
-            f = h5py.File(os.path.join(
-                self.data_dir, 'images.hdf5'), 'r', libver='latest', swmr=True)
-            self.num_trials = len(f['images'])
-            key_list = list(f['images'].keys())
-            self.trial_len = f['images'][key_list[0]].shape[0]
+            img_dir = os.path.join(self.data_dir, 'images.hdf5')
+            with h5py.File(img_dir, 'r', libver='latest', swmr=True) as f:
+                self.num_trials = len(f['images'])
+                key_list = list(f['images'].keys())
+                self.trial_len = f['images'][key_list[0]].shape[0]
         else:
             mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
             self.num_trials = mat_contents['neural'].shape[0]
             self.trial_len = mat_contents['neural'].shape[1]
 
         self.device = device
-        self.dims = OrderedDict()  # TODO
+
+        # TODO: not all signals are stored in hdf5 file
+        # self.dims = OrderedDict()
+        # for signal in self.signals:
+        #     key_list = list(f[signal].keys())
+        #     self.dims[signal] = f[signal][key_list[0]].shape
+
+        # get data paths
+        self.paths = OrderedDict()
+        for signal, transform, load_kwarg in zip(
+                self.signals, self.transforms, self.load_kwargs):
+            if signal == 'images':
+                self.paths[signal] = os.path.join(self.data_dir, 'images.hdf5')
+            elif signal == 'masks':
+                self.paths[signal] = os.path.join(self.data_dir, 'images.hdf5')
+            elif signal == 'neural':
+                self.paths[signal] = os.path.join(self.data_dir, 'neural.mat')
+            elif signal == 'ae':
+                # build path to latents
+                if 'latents_file' in load_kwarg:
+                    self.paths[signal] = load_kwarg['latents_file']
+                else:
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply ae directory or latents file')
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'loss')[0]
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+                    # find file with "latents" in name
+                    self.paths[signal] = glob.glob(os.path.join(
+                        model_dir, '*latents*.pkl'))[0]
+            elif signal == 'ae_predictions':
+                # build path to latents
+                if 'predictions_file' in load_kwarg:
+                    self.paths[signal] = load_kwarg['predictions_file']
+                else:
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply ae directory or predictions file')
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'loss')[0]
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+                    # find file with "latents" in name
+                    self.paths[signal] = glob.glob(os.path.join(
+                        model_dir, '*predictions*.pkl'))[0]
+            elif signal == 'arhmm':
+                # build path to latents
+                if 'latents_file' in load_kwarg:
+                    self.paths[signal] = load_kwarg['latents_file']
+                else:
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply arhmm directory or latents file')
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'loss')[0]
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+                    # find file with "latents" in name
+                    self.paths[signal] = glob.glob(os.path.join(
+                        model_dir, '*latents*.pkl'))[0]
+            else:
+                raise ValueError('"%s" is an invalid signal type')
 
     def __len__(self):
         return self.num_trials
 
     def __getitem__(self, indx):
-        """Load images from filenames"""
+        """Return batch of data; if indx is None, return all data"""
 
         sample = OrderedDict()
         for signal, transform, load_kwargs in zip(
@@ -133,11 +214,92 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             # index correct trial
             if signal == 'images':
-                f = h5py.File(os.path.join(
-                    self.data_dir, 'images.hdf5'), 'r',
-                    libver='latest', swmr=True)
-                sample[signal] = f['images'][
-                    str('trial_%04i' % indx)][()].astype('float32') / 255.0
+
+                with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
+                    if indx is None:
+                        print('Warning: loading all images!')
+                        temp_data = []
+                        for tr in range(self.num_trials):
+                            temp_data.append(f[signal][
+                                str('trial_%04i' % tr)][()].astype('float32')[None, :])
+                        sample[signal] = np.concatenate(temp_data, axis=0)
+                    else:
+                        sample[signal] = f[signal][
+                            str('trial_%04i' % indx)][()].astype('float32')
+                # normalize to range [0, 1]
+                sample[signal] /= 255.0
+
+            elif signal == 'masks':
+
+                with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
+                    if indx is None:
+                        print('Warning: loading all masks!')
+                        temp_data = []
+                        for tr in range(self.num_trials):
+                            temp_data.append(f[signal][
+                                str('trial_%04i' % tr)][()].astype('float32')[None, :])
+                        sample[signal] = np.concatenate(temp_data, axis=0)
+                    else:
+                        sample[signal] = f[signal][
+                            str('trial_%04i' % indx)][()].astype('float32')
+
+            elif signal == 'neural':
+
+                mat_contents = loadmat(self.paths[signal])
+                if indx is None:
+                    sample[signal] = mat_contents['neural']
+                    # try:
+                    #     self.reg_indxs = mat_contents['reg_indxs_consolidate']
+                    # except KeyError:
+                    #     try:
+                    #         self.reg_indxs = mat_contents['reg_indxs']
+                    #     except KeyError:
+                    #         self.reg_indxs = None
+                else:
+                    sample[signal] = mat_contents['neural'][indx]
+
+            elif signal == 'ae':
+
+                try:
+                    with open(self.paths[signal], 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    if indx is None:
+                        sample[signal] = latents_dict['latents']
+                    else:
+                        sample[signal] = latents_dict['latents'][indx]
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create ae latents from model; currently not' +
+                        ' implemented')
+
+            elif signal == 'ae_predictions':
+
+                try:
+                    with open(self.paths[signal], 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    if indx is None:
+                        sample[signal] = latents_dict['predictions']
+                    else:
+                        sample[signal] = latents_dict['predictions'][indx]
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create ae predictions from model; currently not' +
+                        ' implemented')
+
+            elif signal == 'arhmm':
+
+                try:
+                    with open(self.paths[signal], 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    if indx is None:
+                        sample[signal] = latents_dict['latents']
+                    else:
+                        sample[signal] = latents_dict['latents'][indx]
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create arhmm latents from model; currently not' +
+                        ' implemented')
+
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
 
@@ -146,14 +308,15 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 sample[signal] = transform(sample[signal])
                 
             # transform into tensor
-            sample[signal] = torch.from_numpy(sample[signal]).to(self.device)
+            sample[signal] = torch.from_numpy(
+                sample[signal]).float().to(self.device)
 
         sample['batch_indx'] = indx
 
         return sample
 
 
-class SingleSessionDataset(data.Dataset):
+class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
     """
     Dataset class for a single session
 
@@ -186,177 +349,18 @@ class SingleSessionDataset(data.Dataset):
                 'cpu' | 'cuda'
         """
 
-        # specify data
-        self.lab = lab
-        self.expt = expt
-        self.animal = animal
-        self.session = session
-        self.data_dir = os.path.join(
-            data_dir, self.lab, self.expt, self.animal, self.session)
+        super().__init__(
+            data_dir, lab, expt, animal, session, signals, transforms,
+            load_kwargs, device)
 
-        self.signals = signals
-        self.transforms = transforms
-        self.load_kwargs = load_kwargs
+        # grab all data as a single batch
+        self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
+        self.data.pop('batch_indx')
 
-        # get number of trials
-        if 'images' in signals:
-            f = h5py.File(os.path.join(
-                self.data_dir, 'images.hdf5'), 'r', libver='latest', swmr=True)
-            self.num_trials = len(f['images'])
-            key_list = list(f['images'].keys())
-            self.trial_len = f['images'][key_list[0]].shape[0]
-        else:
-            mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
-            self.num_trials = mat_contents['neural'].shape[0]
-            self.trial_len = mat_contents['neural'].shape[1]
-
-        self.device = device
-
-        # load and process data
-        self.data = OrderedDict()
+        # collect dims for easy reference
         self.dims = OrderedDict()
-        self.reg_indxs = None
-        for signal, transform, load_kwarg in zip(
-                self.signals, self.transforms, self.load_kwargs):
-
-            if signal == 'neural':
-
-                mat_contents = loadmat(
-                    os.path.join(self.data_dir, 'neural.mat'))
-                self.data[signal] = mat_contents['neural']
-                try:
-                    self.reg_indxs = mat_contents['reg_indxs_consolidate']
-                except KeyError:
-                    self.reg_indxs = mat_contents['reg_indxs']
-
-            elif signal == 'images':
-
-                temp_data = []
-                for tr in range(self.num_trials):
-                    f = h5py.File(os.path.join(
-                        self.data_dir, 'images.hdf5'), 'r',
-                        libver='latest', swmr=True)
-                    temp_data.append(
-                        f['images'][str('trial_%04i' % tr)][()].astype(
-                        'float32')[None, :] / 255.0)
-                self.data[signal] = np.concatenate(temp_data, axis=0)
-
-            elif signal == 'ae':
-
-                # build path to latents
-                if 'latents_file' in load_kwarg:
-                    self.ae_latents_file = load_kwarg['latents_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply ae directory or latents file')
-
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-
-                    # find file with "latents" in name
-                    self.ae_latents_file = glob.glob(os.path.join(
-                        model_dir, '*latents*.pkl'))[0]
-
-                # load numpy arrays via pickle
-                try:
-                    with open(self.ae_latents_file, 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    self.data[signal] = latents_dict['latents']
-                except IOError:
-                    raise NotImplementedError(
-                        'Must create ae latents from model; currently not' +
-                        ' implemented')
-
-            elif signal == 'ae_predictions':
-
-                # build path to latents
-                if 'predictions_file' in load_kwarg:
-                    self.ae_predictions_file = load_kwarg['predictions_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply ae directory or predictions file')
-
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-
-                    # find file with "latents" in name
-                    self.ae_predictions_file = glob.glob(os.path.join(
-                        model_dir, '*predictions*.pkl'))[0]
-
-                # load numpy arrays via pickle
-                try:
-                    with open(self.ae_predictions_file, 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    self.data[signal] = latents_dict['predictions']
-                except IOError:
-                    raise NotImplementedError(
-                        'Must create ae predictions from model; currently not' +
-                        ' implemented')
-
-            elif signal == 'arhmm':
-
-                # build path to latents
-                if 'latents_file' in load_kwarg:
-                    self.arhmm_latents_file = load_kwarg['latents_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply ae directory or latents file')
-
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-
-                    # find file with "latents" in name
-                    self.arhmm_latents_file = glob.glob(os.path.join(
-                        model_dir, '*latents*.pkl'))[0]
-
-                # load numpy arrays via pickle
-                try:
-                    with open(self.arhmm_latents_file, 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    self.data[signal] = latents_dict['latents']
-                except IOError:
-                    raise NotImplementedError(
-                        'Must create arhmm latents from model; currently not' +
-                        ' implemented')
-
-            # apply transforms
-            if transform:
-                self.data[signal] = transform(self.data[signal])
-                # TODO: how to keep track of reg_indxs through transforms?
-                # self.reg_indxs = transform(self.reg_indxs)
-
-            self.dims[signal] = self.data[signal].shape
-
-            # transform into tensor
-            self.data[signal] = torch.from_numpy(self.data[signal]).to(
-                device=self.device, dtype=torch.float32)
+        for signal, data in self.data.items():
+            self.dims[signal] = data.shape
 
     def __len__(self):
         return self.num_trials
@@ -479,8 +483,6 @@ class ConcatSessionsGenerator(object):
                 self.num_batches[i][dtype] = len(self.batch_indxs[i][dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(self.batch_indxs[i][dtype])
-                if ids['lab'] == 'musall' and format == 'jpg':
-                    self.batch_indxs[i][dtype] = self.batch_indxs[i][dtype] + 1
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
         # find total number of batches per data type; this will be iterated

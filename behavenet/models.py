@@ -78,7 +78,6 @@ class ConvAEEncoder(nn.Module):
 
         # Reshape for FF layer
         x = x.view(x.size(0), -1)
-        
 
         if self.hparams['model_class'] == 'ae':
             return self.FF(x), pool_idx, target_output_size
@@ -152,9 +151,8 @@ class ConvAEDecoder(nn.Module):
                 else:
                     if self.hparams['ae_batch_norm']:
                         self.decoder.add_module('batch norm'+str(global_layer_num),nn.BatchNorm2d(self.hparams['ae_decoding_n_channels'][i_layer],momentum=self.hparams['ae_batch_norm_momentum']))
-
                     self.decoder.add_module('relu'+str(global_layer_num),nn.LeakyReLU(0.05))
-                global_layer_num+=1
+                global_layer_num += 1
          
         ## Optional final FF layer (rarely used)
         if self.hparams['ae_decoding_last_FF_layer']: # have last layer be feedforward if this is 1
@@ -291,6 +289,7 @@ class LinearAEEncoder(nn.Module):
 #             y_var = self.y_var
 #         return y_mu, y_var
 
+
 class LinearAEDecoder(nn.Module):
 
     def __init__(self, n_latents, output_size, encoder=None):
@@ -323,7 +322,7 @@ class LinearAEDecoder(nn.Module):
         if self.encoder is None:
             x = self.decoder(x)
         else:
-            x = F.linear(x, self.encoder.output.weight.t()) + self.bias
+            x = F.linear(x, self.encoder.encoder.weight.t()) + self.bias
         # reshape
         x = x.view(x.size(0), *self.output_size)
 
@@ -355,7 +354,8 @@ class AE(nn.Module):
         elif self.model_type == 'linear':
             n_latents = self.hparams['n_ae_latents']
             self.encoding = LinearAEEncoder(n_latents, self.img_size)
-            self.decoding = LinearAEDecoder(n_latents, self.img_size) #, self.encoding)
+            self.decoding = LinearAEDecoder(
+                n_latents, self.img_size, self.encoding)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 

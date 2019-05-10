@@ -1,5 +1,56 @@
 import numpy as np
 
+def export_states(hparams, exp, data_generator, model, filename=None):
+    """
+    Export predicted latents using an already initialized data_generator and
+    model; latents are saved based on the model's hparams dict unless another
+    file is provided.
+
+    Args:
+        data_generator (ConcatSessionGenerator):
+        model (AE):
+        filename (str): absolute path
+    """
+
+    import pickle
+    import os
+
+    # initialize container for states
+    states = [[] for _ in range(data_generator.num_datasets)]
+    for i, dataset in enumerate(data_generator.datasets):
+        trial_len = dataset.trial_len
+        num_trials = dataset.num_trials
+        states[i] = np.full(
+            shape=(num_trials, trial_len),
+            fill_value=np.nan)
+
+    # partially fill container (gap trials will be included as nans)
+    dtypes = ['train', 'val', 'test']
+    for dtype in dtypes:
+        data_generator.reset_iterators(dtype)
+        for i in range(data_generator.num_tot_batches[dtype]):
+            data, dataset = data_generator.next_batch(dtype)
+
+            # process batch, 
+            y = data['ae'][0]
+            batch_size = y.shape[0]
+
+            curr_states = model.most_likely_states(y)
+            states[dataset][data['batch_indx'].item(), :] = curr_states
+
+    # save states separately for each dataset
+    for i, dataset in enumerate(data_generator.datasets):
+        if filename is None:
+            sess_id = 'states.pkl'
+            filename = os.path.join(
+                hparams['results_dir'], 'test_tube_data',
+                hparams['experiment_name'], 'version_%i' % exp.version,
+                sess_id)
+        # save out array in pickle file
+        pickle.dump({
+            'states': states[i],
+            'trials': data_generator.batch_indxs[i]},
+            open(filename, 'wb'))
 
 def export_latents(data_generator, model, filename=None):
     """
@@ -128,7 +179,7 @@ def export_predictions(data_generator, model, filename=None):
                     indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
                     outputs = model(predictors[indx_beg:indx_end])
                     slc = (indx_beg + max_lags, indx_end - max_lags)
-                    predictors[dataset][data['batch_indx'].item(), slice(*slc), :] = \
+                    predictions[dataset][data['batch_indx'].item(), slice(*slc), :] = \
                         outputs[max_lags:-max_lags].cpu().detach().numpy()
             else:
                 outputs = model(predictors)
@@ -147,8 +198,7 @@ def export_predictions(data_generator, model, filename=None):
             sess_id = 'predictions.pkl'
             filename = os.path.join(
                 model.hparams['results_dir'], 'test_tube_data',
-                model.hparams['experiment_name'], 'version_%i' % model.version,
-                sess_id)
+                model.hparams['experiment_name'], model.version, sess_id)
         # save out array in pickle file
         pickle.dump({
             'predictions': predictions[i],

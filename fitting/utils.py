@@ -13,10 +13,13 @@ def get_subdirs(path):
         raise Exception('%s does not contain any subdirectories' % path)
 
 
-def get_output_dirs(hparams, model_class=None, expt_name=None):
+def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
 
     if model_class is None:
         model_class = hparams['model_class']
+
+    if model_type is None:
+        model_type = hparams['model_type']
 
     if expt_name is None:
         expt_name = hparams['experiment_name']
@@ -27,20 +30,27 @@ def get_output_dirs(hparams, model_class=None, expt_name=None):
 
     if model_class == 'ae':
         results_dir = os.path.join(
-            sess_dir, 'ae', hparams['model_type'],
+            sess_dir, 'ae', model_type,
             '%02i_latents' % hparams['n_ae_latents'])
     elif model_class == 'neural-ae':
         # TODO: include brain region, ae version
         results_dir = os.path.join(
             sess_dir, 'neural-ae',
             '%02i_latents' % hparams['n_ae_latents'],
-            hparams['model_type'])
+            model_type)
     elif model_class == 'neural-arhmm':
         results_dir = os.path.join(
             sess_dir, 'neural-arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            hparams['model_type'])
+            model_type)
+    elif model_class == 'arhmm':
+        results_dir = os.path.join(
+            sess_dir, 'arhmm',
+            '%02i_latents' % hparams['n_ae_latents'],
+            '%02i_states' % hparams['n_arhmm_states'],
+            '%.0e_kappa' % hparams['kappa'],
+            hparams['noise_type'])
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
 
@@ -102,7 +112,7 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     return curr_bytes * 1.2  # safety blanket
 
 
-def get_best_model_version(model_path, measure='loss',n_best=1):
+def get_best_model_version(model_path, measure='loss', n_best=1):
     """
 
     Args:
@@ -148,18 +158,22 @@ def get_best_model_version(model_path, measure='loss',n_best=1):
     return best_versions
 
 
-def get_best_model_and_data(hparams, Model, load_data=True):
+def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
 
     from data.data_generator import ConcatSessionsGenerator
 
     # get best model version
     sess_dir, results_dir, expt_dir = get_output_dirs(hparams)
-    best_version = get_best_model_version(expt_dir)[0]
+    if version == 'best':
+        best_version = get_best_model_version(expt_dir)[0]
+    else:
+        best_version = str('version_{}'.format(version))
     version_dir = os.path.join(expt_dir, best_version)
     arch_file = os.path.join(version_dir, 'meta_tags.pkl')
     model_file = os.path.join(version_dir, 'best_val_model.pt')
-    if not os.path.exists(model_file):
+    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
         model_file = os.path.join(version_dir, 'best_val_model.ckpt')
+    print('Loading model defined in %s' % arch_file)
 
     with open(arch_file, 'rb') as f:
         hparams_new = pickle.load(f)
@@ -169,6 +183,7 @@ def get_best_model_and_data(hparams, Model, load_data=True):
     hparams_new['session_dir'] = sess_dir
     hparams_new['results_dir'] = results_dir
     hparams_new['expt_dir'] = expt_dir
+    hparams_new['use_output_mask'] = hparams['use_output_mask'] # TODO: get rid of eventually
 
     # build data generator
     hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
@@ -190,37 +205,38 @@ def get_best_model_and_data(hparams, Model, load_data=True):
 
     # build models
     if 'lib' not in hparams_new:
-        hparams_new['lib'] = 'torch'
+        hparams_new['lib'] = 'pt'
 
     model = Model(hparams_new)
     model.version = best_version
-    if hparams_new['lib'] == 'torch':
+    if hparams_new['lib'] == 'pt' or hparams_new['lib'] == 'pytorch':
         model.load_state_dict(torch.load(model_file))
         model.to(hparams_new['device'])
         model.eval()
-        model_tuple = (model)
     elif hparams_new['lib'] == 'tf':
         import tensorflow as tf
-
         # load trained weights into model
-        next_batch = tf.placeholder(
-            dtype=tf.float32,
-            shape=(
-                None,
-                hparams_new['y_pixels'],
-                hparams_new['x_pixels'],
-                hparams_new['n_input_channels']))
-        model.forward(next_batch)
+        if not hasattr(model, 'encoder_input'):
+            next_batch = tf.placeholder(
+                dtype=tf.float32,
+                shape=(
+                    None,
+                    hparams_new['y_pixels'],
+                    hparams_new['x_pixels'],
+                    hparams_new['n_input_channels']))
+            model.encoder_input = next_batch
+            model.forward(next_batch)
+
         sess_config = tf.ConfigProto(device_count={'GPU': 0})
         saver = tf.train.Saver()
         sess = tf.Session(config=sess_config)
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, model_file)
-        model_tuple = (model, sess, next_batch)
+        model.sess = sess
     else:
         raise ValueError('"%s" is not a valid lib' % hparams_new['lib'])
 
-    return model_tuple, data_generator
+    return model, data_generator
 
 
 def experiment_exists(hparams):
@@ -244,6 +260,8 @@ def experiment_exists(hparams):
     hparams_less.pop('tt_nb_cpu_trials', None)
     hparams_less.pop('tt_nb_cpu_workers', None)
     hparams_less.pop('lib', None)
+    hparams_less.pop('use_output_mask', None)
+    hparams_less.pop('ae_model_type', None)
 
     found_match = False
     for version in tt_versions:
@@ -301,18 +319,20 @@ def get_data_generator_inputs(hparams):
     common models
     """
 
-    from data.transforms import Threshold
+    from data.transforms import Threshold, ZScore
 
     # get neural signals/transforms/load_kwargs
-    # TODO: normalize non-spiking data
     if hparams['model_class'].find('neural') > -1:
+        neural_transforms = None  # neural_region
+        neural_kwargs = None
         if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
             neural_transforms = Threshold(
                 threshold=hparams['neural_thresh'],
                 bin_size=hparams['neural_bin_size'])
+        elif hparams['neural_type'] == 'ca':
+            neural_transforms = ZScore()
         else:
-            neural_transforms = None  # neural_region
-        neural_kwargs = None
+            raise ValueError('"%s" is an invalid neural type')
     else:
         neural_transforms = None
         neural_kwargs = None
@@ -320,9 +340,14 @@ def get_data_generator_inputs(hparams):
     # get model-specific signals/transforms/load_kwargs
     if hparams['model_class'] == 'ae':
 
-        signals = [hparams['signals']]
-        transforms = [hparams['transforms']]
-        load_kwargs = [None]
+        if hparams['use_output_mask']:
+            signals = [hparams['signals'], 'masks']
+            transforms = [hparams['transforms'], None]
+            load_kwargs = [None, None]
+        else:
+            signals = [hparams['signals']]
+            transforms = [hparams['transforms']]
+            load_kwargs = [None]
 
     elif hparams['model_class'] == 'neural-ae':
 
@@ -333,7 +358,8 @@ def get_data_generator_inputs(hparams):
 
         _, _, ae_dir = get_output_dirs(
             hparams, model_class='ae',
-            expt_name=hparams['ae_experiment_name'])
+            expt_name=hparams['ae_experiment_name'],
+            model_type=hparams['ae_model_type'])
 
         ae_transforms = None
         ae_kwargs = {
@@ -364,6 +390,27 @@ def get_data_generator_inputs(hparams):
         transforms = [neural_transforms, arhmm_transforms]
         load_kwargs = [neural_kwargs, arhmm_kwargs]
 
+    elif hparams['model_class'] == 'arhmm':
+
+        _, _, ae_dir = get_output_dirs(
+            hparams, model_class='ae',
+            expt_name=hparams['ae_experiment_name'],
+            model_type=hparams['ae_model_type'])
+
+        ae_transforms = None
+        ae_kwargs = {
+            'model_dir': ae_dir,
+            'model_version': hparams['ae_version']}
+
+        if hparams['use_output_mask']:
+            signals = ['ae','images','masks']
+            transforms = [ae_transforms, None, None]
+            load_kwargs = [ae_kwargs, None, None]
+        else:
+            signals = ['ae','images']
+            transforms = [ae_transforms, None]
+            load_kwargs = [ae_kwargs, None]
+
     else:
         raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
 
@@ -376,76 +423,130 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='musall', type=str)
         parser.add_argument('--expt', '-e', default='vistrained', type=str)
         parser.add_argument('--animal', '-a', default='mSM30', type=str)
         parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
     elif lab == 'steinmetz':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=112, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)
         parser.add_argument('--expt', '-e', default='2-probe', type=str)
         parser.add_argument('--animal', '-a', default='mouse-01', type=str)
         parser.add_argument('--session', '-s', default='session-01', type=str)
+        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     elif lab == 'steinmetz-face':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='steinmetz', type=str)
         parser.add_argument('--expt', '-e', default='2-probe-face', type=str)
         parser.add_argument('--animal', '-a', default='mouse-01', type=str)
         parser.add_argument('--session', '-s', default='session-01', type=str)
+        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     elif lab == 'datta':
         parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', default=80, help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', default=80, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=True, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', default='datta', type=str)
         parser.add_argument('--expt', '-e', default='inscopix', type=str)
         parser.add_argument('--animal', '-a', default='15566', type=str)
         parser.add_argument('--session', '-s', default='2018-11-27', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
     else:
         parser.add_argument('--n_input_channels', '-i', help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
         parser.add_argument('--lab', '-l', type=str)
         parser.add_argument('--expt', '-e', type=str)
         parser.add_argument('--animal', '-a', type=str)
         parser.add_argument('--session', '-s', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
 
 
-def get_reconstruction(model_tuple, ims):
+def get_lab_example(hparams, lab):
+    if lab == 'steinmetz':
+        hparams['lab'] = 'steinmetz'
+        hparams['expt'] = '2-probe'
+        hparams['animal'] = 'mouse-01'
+        hparams['session'] = 'session-01'
+        hparams['n_ae_latents'] = 12
+        hparams['use_output_mask'] = False
+    if lab == 'steinmetz-face':
+        hparams['lab'] = 'steinmetz'
+        hparams['expt'] = '2-probe-face'
+        hparams['animal'] = 'mouse-01'
+        hparams['session'] = 'session-01'
+        hparams['n_ae_latents'] = 12
+        hparams['use_output_mask'] = False
+    elif lab == 'musall':
+        hparams['lab'] = 'musall'
+        hparams['expt'] = 'vistrained'
+        hparams['animal'] = 'mSM30'
+        hparams['session'] = '10-Oct-2017'
+        hparams['n_ae_latents'] = 16
+        hparams['use_output_mask'] = False
+    elif lab == 'datta':
+        hparams['lab'] = 'datta'
+        hparams['expt'] = 'inscopix'
+        hparams['animal'] = '15566'
+        hparams['session'] = '2018-11-27'
+        hparams['n_ae_latents'] = 8
+        hparams['use_output_mask'] = True
+
+
+def get_reconstruction(model, inputs):
     """
+    Reconstruct an image from either image or latent inputs
 
     Args:
-        model_tuple (tuple):
-            (model) for pytorch models
-            (model, sess, next_batch op) for tf models
-        ims (torch.Tensor object):
+        model: pt or tf Model
+        inputs (torch.Tensor object):
+            images (batch x channels x y_pix x x_pix)
+            latents (batch x n_ae_latents)
 
     Returns:
-        np array (ims_recon)
+        np array (batch x channels x y_pix x x_pix)
     """
 
-    use_pytorch = False
-    if len(model_tuple) == 0:
-        use_pytorch = True
+    # check to see if inputs are images or latents
+    if len(inputs.shape) == 2:
+        input_type = 'latents'
+    else:
+        input_type = 'images'
 
-    if use_pytorch:
-        model = model_tuple[0]
-        ims_recon, _, _ = model(ims)
+    if isinstance(model, torch.nn.Module):
+        if input_type == 'images':
+            ims_recon, _ = model(inputs)
+        else:
+            # TODO: how to incorporate maxpool layers for decoding only?
+            ims_recon = model.decoding(inputs, None, None)
         ims_recon = ims_recon.cpu().detach().numpy()
     else:
-        model = model_tuple[0]
-        sess = model_tuple[1]
-        next_batch = model_tuple[2]
-        ims_ = np.transpose(ims.cpu().detach().numpy(), (0, 2, 3, 1))
-        ims_recon = sess.run(model.y, feed_dict={next_batch: ims_})
+        if input_type == 'images':
+            ims_ = np.transpose(inputs.cpu().detach().numpy(), (0, 2, 3, 1))
+            feed_dict = {model.encoder_input: ims_}
+        else:
+            feed_dict = {model.decoder_input: inputs}
+
+        ims_recon = model.sess.run(model.y, feed_dict=feed_dict)
         ims_recon = np.transpose(ims_recon, (0, 3, 1, 2))
 
     return ims_recon
@@ -460,18 +561,14 @@ def export_latents_best(hparams):
         hparams (dict):
     """
 
-    if hparams['lib'] == 'pytorch':
+    if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
         from behavenet.models import AE
-        model_tuple, data_generator = get_best_model_and_data(hparams, AE)
-        export_latents(data_generator, model_tuple[0])
+        model, data_generator = get_best_model_and_data(hparams, AE)
+        export_latents(data_generator, model)
     elif hparams['lib'] == 'tf':
         from behavenet.models_tf import AE
-        model_tuple, data_generator = get_best_model_and_data(hparams, AE)
-        export_latents_tf(
-            data_generator,
-            model=model_tuple[0],
-            sess=model_tuple[1],
-            next_batch=model_tuple[2])
+        model, data_generator = get_best_model_and_data(hparams, AE)
+        export_latents_tf(data_generator, model)
     else:
         raise ValueError('"%s" is an invalid model library')
 
@@ -490,12 +587,11 @@ def export_predictions_best(hparams):
     if hparams['lib'] == 'tf':
         raise NotImplementedError
 
-    model_tuple, data_generator = get_best_model_and_data(hparams, Decoder)
-    export_predictions(data_generator, model_tuple[0])
+    model, data_generator = get_best_model_and_data(hparams, Decoder)
+    export_predictions(data_generator, model)
 
 
-def export_latents_tf(
-        data_generator, model, sess, next_batch, filename=None):
+def export_latents_tf(data_generator, model, filename=None):
     """Port of behavenet.fitting.utils.export_latents for tf models"""
 
     # initialize container for latents
@@ -530,14 +626,15 @@ def export_latents_tf(
                         indx_beg = chunk * chunk_size
                         indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
 
-                        curr_latents = sess.run(
+                        curr_latents = model.sess.run(
                             model.x,
-                            feed_dict={next_batch: y[indx_beg:indx_end]})
+                            feed_dict={model.encoder_input: y[indx_beg:indx_end]})
 
                         latents[dataset][data['batch_indx'].item(),
                         indx_beg:indx_end, :] = curr_latents
                 else:
-                    curr_latents = sess.run(model.x, feed_dict={next_batch: y})
+                    curr_latents = model.sess.run(
+                        model.x, feed_dict={model.encoder_input: y})
                     latents[dataset][data['batch_indx'].item(), :, :] = \
                         curr_latents
 
