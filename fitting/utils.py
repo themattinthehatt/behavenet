@@ -13,16 +13,16 @@ def get_subdirs(path):
         raise Exception('%s does not contain any subdirectories' % path)
 
 
-def get_output_dirs(hparams, model_class=None, expt_name=None, model_type=None):
+def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
 
     if model_class is None:
         model_class = hparams['model_class']
 
-    if expt_name is None:
-        expt_name = hparams['experiment_name']
-
     if model_type is None:
         model_type = hparams['model_type']
+
+    if expt_name is None:
+        expt_name = hparams['experiment_name']
 
     sess_dir = os.path.join(
             hparams['tt_save_path'], hparams['lab'], hparams['expt'],
@@ -112,7 +112,7 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     return curr_bytes * 1.2  # safety blanket
 
 
-def get_best_model_version(model_path, measure='loss',n_best=1):
+def get_best_model_version(model_path, measure='loss', n_best=1):
     """
 
     Args:
@@ -514,6 +514,7 @@ def get_lab_example(hparams, lab):
 
 def get_reconstruction(model, inputs):
     """
+    Reconstruct an image from either image or latent inputs
 
     Args:
         model: pt or tf Model
@@ -535,7 +536,8 @@ def get_reconstruction(model, inputs):
         if input_type == 'images':
             ims_recon, _ = model(inputs)
         else:
-            ims_recon = model.decoding(inputs)
+            # TODO: how to incorporate maxpool layers for decoding only?
+            ims_recon = model.decoding(inputs, None, None)
         ims_recon = ims_recon.cpu().detach().numpy()
     else:
         if input_type == 'images':

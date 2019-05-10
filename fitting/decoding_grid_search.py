@@ -178,7 +178,7 @@ def get_decoding_params(namespace, parser):
     parser.add_argument('--enable_early_stop', action='store_true', default=True)
     parser.add_argument('--early_stop_history', default=10, type=float)
     parser.add_argument('--min_nb_epochs', default=1, type=int)
-    parser.add_argument('--max_nb_epochs', default=100, type=int)
+    parser.add_argument('--max_nb_epochs', default=500, type=int)
     parser.add_argument('--activation', default='relu', choices=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'])
 
     if namespace.search_type == 'test':
@@ -202,19 +202,19 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-3, 1e-4], type=float, tunable=True)
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
         parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
-        parser.add_argument('--n_max_lags', default=8)  # should match largest value in --n_lags options
+        parser.add_argument('--n_max_lags', default=8)  # should match largest n_lags value
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
-        parser.add_argument('--experiment_name', '-en', default='test', type=str)
+        parser.add_argument('--experiment_name', '-en', default='grid_search', type=str)
 
         if namespace.model_type == 'linear':
-            parser.add_argument('--n_hid_layers', default=0, type=int, tunable=False)
+            parser.add_argument('--n_hid_layers', default=0, type=int)
         elif namespace.model_type == 'ff':
-            parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
-            parser.opt_list('--n_final_units', default=16, options=[16, 32, 64], type=int, tunable=True)
+            parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3, 4], type=int, tunable=True)
+            parser.opt_list('--n_final_units', default=64, options=[64], type=int, tunable=True)
             parser.add_argument('--n_int_units', default=64, type=int)
         elif namespace.model_type == 'lstm':
             raise NotImplementedError
