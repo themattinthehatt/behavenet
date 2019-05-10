@@ -513,41 +513,44 @@ class NN(nn.Module):
 
         self.hparams = hparams
 
-        self.__build_model()
+        self.build_model()
 
-    def __build_model(self):
+    def build_model(self):
 
         self.decoder = nn.ModuleList()
 
+        global_layer_num = 0
+
         in_size = self.hparams['input_size']
 
-        # loop over hidden layers (0 layers <-> linear regression)
-        global_layer_num = 0
-        for i_layer in range(self.hparams['n_hid_layers']):
+        # first layer is 1d conv for incorporating past/future neural activity
+        if self.hparams['n_hid_layers'] == 0:
+            out_size = self.hparams['output_size']
+        elif self.hparams['n_hid_layers'] == 1:
+            out_size = self.hparams['n_final_units']
+        else:
+            out_size = self.hparams['n_int_units']
 
-            if i_layer == self.hparams['n_hid_layers'] - 1:
-                out_size = self.hparams['n_final_units']
+        layer = nn.Conv1d(
+            in_channels=in_size,
+            out_channels=out_size,
+            kernel_size=self.hparams['n_lags'] * 2 + 1,  # window around t
+            padding=self.hparams['n_lags'])  # same output
+        name = str('conv1d_layer_%02i' % global_layer_num)
+        self.decoder.add_module(name, layer)
+
+        # add activation
+        if self.hparams['n_hid_layers'] == 0:
+            if self.hparams['noise_dist'] == 'gaussian':
+                activation = None
+            elif self.hparams['noise_dist'] == 'poisson':
+                activation = nn.Softplus()
+            elif self.hparams['noise_dist'] == 'categorical':
+                activation = None
             else:
-                out_size = self.hparams['n_int_units']
-
-            # add layer
-            if i_layer == 0:
-                # first layer is 1d conv for incorporating past/future neural
-                # activity
-                layer = nn.Conv1d(
-                    in_channels=in_size,
-                    out_channels=out_size,
-                    kernel_size=self.hparams['n_lags'] * 2 + 1,  # window around t
-                    padding=self.hparams['n_lags'])  # same output
-                name = str('conv1d_layer_%02i' % global_layer_num)
-            else:
-                layer = nn.Linear(
-                    in_features=in_size,
-                    out_features=out_size)
-                name = str('dense_layer_%02i' % global_layer_num)
-            self.decoder.add_module(name, layer)
-
-            # add activation
+                raise ValueError(
+                    '"%s" is an invalid noise dist' % self.hparams['noise_dist'])
+        else:
             if self.hparams['activation'] == 'linear':
                 activation = None
             elif self.hparams['activation'] == 'relu':
@@ -563,6 +566,58 @@ class NN(nn.Module):
                     '"%s" is an invalid activation function' %
                     self.hparams['activation'])
 
+        if activation:
+            name = '%s_%02i' % (self.hparams['activation'], global_layer_num)
+            self.decoder.add_module(name, activation)
+
+        # update layer info
+        global_layer_num += 1
+        in_size = out_size
+
+        # loop over hidden layers (0 layers <-> linear regression)
+        for i_layer in range(self.hparams['n_hid_layers']):
+
+            if i_layer == self.hparams['n_hid_layers'] - 1:
+                out_size = self.hparams['output_size']
+            elif i_layer == self.hparams['n_hid_layers'] - 2:
+                out_size = self.hparams['n_final_units']
+            else:
+                out_size = self.hparams['n_int_units']
+
+            # add layer
+            layer = nn.Linear(
+                in_features=in_size,
+                out_features=out_size)
+            name = str('dense_layer_%02i' % global_layer_num)
+            self.decoder.add_module(name, layer)
+
+            # add activation
+            if i_layer == self.hparams['n_hid_layers'] - 1:
+                if self.hparams['noise_dist'] == 'gaussian':
+                    activation = None
+                elif self.hparams['noise_dist'] == 'poisson':
+                    activation = nn.Softplus()
+                elif self.hparams['noise_dist'] == 'categorical':
+                    activation = None
+                else:
+                    raise ValueError(
+                        '"%s" is an invalid noise dist' % self.hparams['noise_dist'])
+            else:
+                if self.hparams['activation'] == 'linear':
+                    activation = None
+                elif self.hparams['activation'] == 'relu':
+                    activation = nn.ReLU()
+                elif self.hparams['activation'] == 'lrelu':
+                    activation = nn.LeakyReLU(0.05)
+                elif self.hparams['activation'] == 'sigmoid':
+                    activation = nn.Sigmoid()
+                elif self.hparams['activation'] == 'tanh':
+                    activation = nn.Tanh()
+                else:
+                    raise ValueError(
+                        '"%s" is an invalid activation function' %
+                        self.hparams['activation'])
+
             if activation:
                 self.decoder.add_module(
                     '%s_%02i' % (self.hparams['activation'], global_layer_num),
@@ -571,28 +626,6 @@ class NN(nn.Module):
             # update layer info
             global_layer_num += 1
             in_size = out_size
-
-        # final layer
-        layer = nn.Linear(
-            in_features=in_size,
-            out_features=self.hparams['output_size'])
-        self.decoder.add_module(
-            'dense_layer_%02i' % global_layer_num, layer)
-
-        if self.hparams['noise_dist'] == 'gaussian':
-            activation = None
-        elif self.hparams['noise_dist'] == 'poisson':
-            activation = nn.Softplus()
-        elif self.hparams['noise_dist'] == 'categorical':
-            activation = None
-        else:
-            raise ValueError(
-                '"%s" is an invalid noise dist' % self.hparams['noise_dist'])
-
-        if activation:
-            self.decoder.add_module(
-                '%s_%02i' % (self.hparams['activation'], global_layer_num),
-                activation)
 
     def forward(self, x):
         """
