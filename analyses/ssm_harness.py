@@ -29,7 +29,7 @@ from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 
-from ssm.models import HMM
+from ssm import HMM
 from ssm.primitives import hmm_sample, lds_sample
 from ssm.observations import GaussianObservations
 from ssm.init_state_distns import InitialStateDistribution
@@ -63,13 +63,13 @@ def cached(output_dir, results_name):
 
 
 # Estimate firing rates and then run PCA
-def preprocess_neural_data(neural_data, fs=40, window=0.1):
+def preprocess_neural_data(neural_data, num_components=20, fs=40, window=0.1):
     filter_size = int(window * fs)
     rates = gaussian_filter1d(neural_data, filter_size, axis=0) * fs
     max_rates = np.max(rates, axis=0)
     normalized_rates = rates / max_rates
 
-    pca = PCA(20)
+    pca = PCA(num_components)
     pca.fit(normalized_rates)
     lowd_neural_data = pca.transform(normalized_rates)
 
@@ -117,7 +117,7 @@ def fit_model(num_discrete_states,
 
 
 # Sample from the arhmm
-def sample_arhmm(arhmm_orig, test_input, num_samples=100):
+def sample_arhmm(arhmm_orig, test_input, num_samples=100, with_noise=True):
     arhmm = copy.deepcopy(arhmm_orig)
     # Reduce noise, increase stickiness
     # arhmm.observations._sqrt_Sigmas = np.linalg.cholesky(arhmm.observations.Sigmas * .1)
@@ -125,10 +125,9 @@ def sample_arhmm(arhmm_orig, test_input, num_samples=100):
     # arhmm.transitions.log_Ps += 1 * np.eye(arhmm.K)
 
     T = test_input.shape[0]
-    num_samples = 100
     z_smpls, x_smpls = [], []
     for smpl in trange(num_samples):
-        z_smpl, x_smpl = arhmm.sample(T=T, input=test_input, with_noise=True)
+        z_smpl, x_smpl = arhmm.sample(T=T, input=test_input, with_noise=with_noise)
         z_smpls.append(z_smpl)
         x_smpls.append(x_smpl)
 
@@ -172,7 +171,7 @@ def plot_validation_likelihoods(all_results, line_styles={}, T_val=1):
     return fig
 
 
-def plot_sampled_latents(training_data, x_smpls):
+def plot_sampled_latents(training_data, x_smpls, lw=0.5):
     T, D = training_data.shape
 
     # Compute mean and std of sampels
@@ -181,9 +180,15 @@ def plot_sampled_latents(training_data, x_smpls):
 
     fig = plt.figure(figsize=(8, 6))
     for d in range(D):
-        h = plt.plot(x_smpls[0][:, d] - 5 * d, lw=.5)[0]
-        for i in range(1, 10):
-            plt.plot(x_smpls[i][:, d] - 5 * d, color=h.get_color(), lw=0.5)
+        h = plt.plot(x_smpls[0][:, d] - 5 * d, lw=lw)[0]
+
+        if len(x_smpls) > 10:
+            i_plot = np.arange(len(x_smpls))
+        else:
+            i_plot = np.random.choice(len(x_smpls), size=10, replace=False)
+
+        for i in i_plot:
+            plt.plot(x_smpls[i][:, d] - 5 * d, color=h.get_color(), lw=lw)
 
         # Plot standard deviation of samples
         plt.fill_between(np.arange(T),
@@ -194,8 +199,8 @@ def plot_sampled_latents(training_data, x_smpls):
         # Plot sample mean
         # plt.plot(x_smpl_mean[:, d] - 5 * d, color=h.get_color(), lw=2)
 
-        plt.plot(training_data[:, d] - 5 * d, '-k', alpha=0.5,
-                 label="data" if d==0 else None)
+        plt.plot(training_data[:, d] - 5 * d, '-k', alpha=0.5)
+                 # label="data" if d==0 else None)
 
     plt.legend(loc="lower right")
 
@@ -235,8 +240,8 @@ def plot_neural_and_discrete_samples(training_input, z_smpls, z_inf):
     return fig
 
 
-def make_hollywood_movie(K, real_image_stack, z_inf, decoded_image_stacks, z_smpls,
-                         filename="hollywood.mp4", name="real and decoded movies"):
+def make_hollywood_movie(K, real_image_stack, z_inf, decoded_image_stacks, z_smpls, titles=None,
+                         filename="hollywood.mp4", name="real and decoded movies", same_vlim=True):
     """
     Make "Hollywood Squares" movie of real and comparison data
     """
@@ -244,32 +249,42 @@ def make_hollywood_movie(K, real_image_stack, z_inf, decoded_image_stacks, z_smp
     metadata = dict(title="decoded_movie")
     writer = FFMpegWriter(fps=30, bitrate=-1, metadata=metadata)
 
-    vmin = real_image_stack.min()
-    vmax = real_image_stack.max()
 
     N_samples = len(decoded_image_stacks)
     assert N_samples < 10
     width = 1 / (N_samples + 1)
 
+    if same_vlim:
+        vmin = real_image_stack.min() * np.ones(N_samples + 1)
+        vmax = real_image_stack.max() * np.ones(N_samples + 1)
+    else:
+        vmin = [real_image_stack.min()] + [np.percentile(stack, 0) for stack in decoded_image_stacks]
+        vmax = [real_image_stack.max()] + [np.percentile(stack, 99.99) for stack in decoded_image_stacks]
+
+    if titles is None:
+        titles = ["Real"] + ["Decoded {}".format(j + 1) for j in range(N_samples)]
+    else:
+        assert len(titles) == N_samples + 1
+
     fig = plt.figure(figsize=(3 * (N_samples + 1), 3))
     ax1 = plt.axes((0, 0, width, 1))
-    im1 = ax1.imshow(real_image_stack[0, :, :, 0], extent=(0, 1, 0, 1), vmin=vmin, vmax=vmax, cmap="Greys_r")
+    im1 = ax1.imshow(real_image_stack[0, :, :, 0], extent=(0, 1, 0, 1), vmin=vmin[0], vmax=vmax[0], cmap="Greys_r")
     r1 = Rectangle((.9, .9), .05, .05, color=jet(z_inf[0] / (K - 1)))
     ax1.add_patch(r1)
     ax1.set_xticks([])
     ax1.set_yticks([])
-    ti = ax1.set_title("Real", pad=-15)
+    ti = ax1.set_title(titles[0], pad=-15)
     ti.set_color("white")
 
     axs, ims, rs = [], [], []
     for j in range(N_samples):
         ax = plt.axes(((j+1) * width, 0, width, 1))
-        im = ax.imshow(decoded_image_stacks[j][0, :, :, 0], extent=(0, 1, 0, 1), vmin=vmin, vmax=vmax, cmap="Greys_r")
+        im = ax.imshow(decoded_image_stacks[j][0, :, :, 0], extent=(0, 1, 0, 1), vmin=vmin[j+1], vmax=vmax[j+1], cmap="Greys_r")
         r = Rectangle((.9, .9), .05, .05, color=jet(z_smpls[j][0] / (K - 1)))
         ax.add_patch(r)
         ax.set_xticks([])
         ax.set_yticks([])
-        ti = ax.set_title("Decoded {}".format(j+1), pad=-15)
+        ti = ax.set_title(titles[j+1], pad=-15)
         ti.set_color("white")
 
 

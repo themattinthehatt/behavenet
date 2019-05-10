@@ -46,10 +46,10 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
             model_type)
     elif model_class == 'arhmm':
         results_dir = os.path.join(
-            sess_dir, 'neural-arhmm',
+            sess_dir, 'arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%02i_kappa' % hparams['kappa'],
+            '%.0e_kappa' % hparams['kappa'],
             hparams['noise_type'])
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
@@ -404,17 +404,14 @@ def get_data_generator_inputs(hparams):
             'model_dir': ae_dir,
             'model_version': hparams['ae_version']}
 
-        signals=['ae']
-        transforms=[ae_transforms]
-        load_kwargs=[ae_kwargs]
-        # if hparams['use_output_mask']:
-        #     signals = ['ae','images','masks']
-        #     transforms = [ae_transforms, None, None]
-        #     load_kwargs = [ae_kwargs, None, None]
-        # else:
-        #     signals = ['ae','images']
-        #     transforms = [ae_transforms, None]
-        #     load_kwargs = [ae_kwargs, None]
+        if hparams['use_output_mask']:
+            signals = ['ae','images','masks']
+            transforms = [ae_transforms, None, None]
+            load_kwargs = [ae_kwargs, None, None]
+        else:
+            signals = ['ae','images']
+            transforms = [ae_transforms, None]
+            load_kwargs = [ae_kwargs, None]
 
     else:
         raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
