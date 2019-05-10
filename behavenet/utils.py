@@ -147,8 +147,7 @@ def export_predictions(data_generator, model, filename=None):
             sess_id = 'predictions.pkl'
             filename = os.path.join(
                 model.hparams['results_dir'], 'test_tube_data',
-                model.hparams['experiment_name'], 'version_%i' % model.version,
-                sess_id)
+                model.hparams['experiment_name'], model.version, sess_id)
         # save out array in pickle file
         pickle.dump({
             'predictions': predictions[i],
