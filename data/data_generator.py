@@ -106,13 +106,13 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.transforms = transforms
         self.load_kwargs = load_kwargs
 
-        # get total number of trials by loading neural data
+        # get total number of trials by loading images/neural data
         if 'images' in signals:
-            f = h5py.File(os.path.join(
-                self.data_dir, 'images.hdf5'), 'r', libver='latest', swmr=True)
-            self.num_trials = len(f['images'])
-            key_list = list(f['images'].keys())
-            self.trial_len = f['images'][key_list[0]].shape[0]
+            img_dir = os.path.join(self.data_dir, 'images.hdf5')
+            with h5py.File(img_dir, 'r', libver='latest', swmr=True) as f:
+                self.num_trials = len(f['images'])
+                key_list = list(f['images'].keys())
+                self.trial_len = f['images'][key_list[0]].shape[0]
         else:
             mat_contents = loadmat(os.path.join(self.data_dir, 'neural.mat'))
             self.num_trials = mat_contents['neural'].shape[0]
@@ -126,6 +126,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         #     key_list = list(f[signal].keys())
         #     self.dims[signal] = f[signal][key_list[0]].shape
 
+        # get data paths
         self.paths = OrderedDict()
         for signal, transform, load_kwarg in zip(
                 self.signals, self.transforms, self.load_kwargs):
@@ -198,37 +199,74 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     # find file with "latents" in name
                     self.paths[signal] = glob.glob(os.path.join(
                         model_dir, '*latents*.pkl'))[0]
+            else:
+                raise ValueError('"%s" is an invalid signal type')
 
     def __len__(self):
         return self.num_trials
 
     def __getitem__(self, indx):
-        """Load images from filenames"""
+        """Return batch of data; if indx is None, return all data"""
 
         sample = OrderedDict()
         for signal, transform, load_kwargs in zip(
                 self.signals, self.transforms, self.load_kwargs):
 
             # index correct trial
-            if signal == 'images' or signal == 'masks':
+            if signal == 'images':
 
-                f = h5py.File(self.paths[signal], 'r', libver='latest', swmr=True)
-                sample[signal] = f[signal][
-                    str('trial_%04i' % indx)][()].astype('float32')
-                if signal == 'images':
-                    sample[signal] /= 255.0  # put in [0, 1] range
+                with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
+                    if indx is None:
+                        print('Warning: loading all images!')
+                        temp_data = []
+                        for tr in range(self.num_trials):
+                            temp_data.append(f[signal][
+                                str('trial_%04i' % tr)][()].astype('float32')[None, :])
+                        sample[signal] = np.concatenate(temp_data, axis=0)
+                    else:
+                        sample[signal] = f[signal][
+                            str('trial_%04i' % indx)][()].astype('float32')
+                # normalize to range [0, 1]
+                sample[signal] /= 255.0
+
+            elif signal == 'masks':
+
+                with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
+                    if indx is None:
+                        print('Warning: loading all masks!')
+                        temp_data = []
+                        for tr in range(self.num_trials):
+                            temp_data.append(f[signal][
+                                str('trial_%04i' % tr)][()].astype('float32')[None, :])
+                        sample[signal] = np.concatenate(temp_data, axis=0)
+                    else:
+                        sample[signal] = f[signal][
+                            str('trial_%04i' % indx)][()].astype('float32')
 
             elif signal == 'neural':
 
                 mat_contents = loadmat(self.paths[signal])
-                sample[signal] = mat_contents['neural'][indx]
+                if indx is None:
+                    sample[signal] = mat_contents['neural']
+                    # try:
+                    #     self.reg_indxs = mat_contents['reg_indxs_consolidate']
+                    # except KeyError:
+                    #     try:
+                    #         self.reg_indxs = mat_contents['reg_indxs']
+                    #     except KeyError:
+                    #         self.reg_indxs = None
+                else:
+                    sample[signal] = mat_contents['neural'][indx]
 
             elif signal == 'ae':
 
                 try:
                     with open(self.paths[signal], 'rb') as f:
                         latents_dict = pickle.load(f)
-                    sample[signal] = latents_dict['latents'][indx]
+                    if indx is None:
+                        sample[signal] = latents_dict['latents']
+                    else:
+                        sample[signal] = latents_dict['latents'][indx]
                 except IOError:
                     raise NotImplementedError(
                         'Must create ae latents from model; currently not' +
@@ -236,11 +274,13 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             elif signal == 'ae_predictions':
 
-                # load numpy arrays via pickle
                 try:
                     with open(self.paths[signal], 'rb') as f:
                         latents_dict = pickle.load(f)
-                    sample[signal] = latents_dict['predictions'][indx]
+                    if indx is None:
+                        sample[signal] = latents_dict['predictions']
+                    else:
+                        sample[signal] = latents_dict['predictions'][indx]
                 except IOError:
                     raise NotImplementedError(
                         'Must create ae predictions from model; currently not' +
@@ -251,7 +291,10 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 try:
                     with open(self.paths[signal], 'rb') as f:
                         latents_dict = pickle.load(f)
-                    sample[signal] = latents_dict['latents'][indx]
+                    if indx is None:
+                        sample[signal] = latents_dict['latents']
+                    else:
+                        sample[signal] = latents_dict['latents'][indx]
                 except IOError:
                     raise NotImplementedError(
                         'Must create arhmm latents from model; currently not' +
@@ -309,80 +352,8 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
             data_dir, lab, expt, animal, session, signals, transforms,
             load_kwargs, device)
 
-        # load and process data
-        self.data = OrderedDict()
-        self.dims = OrderedDict()
-        self.reg_indxs = None
-        for signal, transform, load_kwarg in zip(
-                self.signals, self.transforms, self.load_kwargs):
-
-            if signal == 'neural':
-
-                mat_contents = loadmat(self.paths[signal])
-                self.data[signal] = mat_contents['neural']
-                try:
-                    self.reg_indxs = mat_contents['reg_indxs_consolidate']
-                except KeyError:
-                    try:
-                        self.reg_indxs = mat_contents['reg_indxs']
-                    except KeyError:
-                        self.reg_indxs = None
-            elif signal == 'images':
-
-                temp_data = []
-                for tr in range(self.num_trials):
-                    f = h5py.File(
-                        self.paths[signal], 'r', libver='latest', swmr=True)
-                    temp_data.append(
-                        f['images'][str('trial_%04i' % tr)][()].astype(
-                        'float32')[None, :] / 255.0)
-                self.data[signal] = np.concatenate(temp_data, axis=0)
-
-            elif signal == 'ae':
-
-                try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    self.data[signal] = latents_dict['latents']
-                except IOError:
-                    raise NotImplementedError(
-                        'Must create ae latents from model; currently not' +
-                        ' implemented')
-
-            elif signal == 'ae_predictions':
-
-                # load numpy arrays via pickle
-                try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    self.data[signal] = latents_dict['predictions']
-                except IOError:
-                    raise NotImplementedError(
-                        'Must create ae predictions from model; currently not' +
-                        ' implemented')
-
-            elif signal == 'arhmm':
-
-                try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    self.data[signal] = latents_dict['latents']
-                except IOError:
-                    raise NotImplementedError(
-                        'Must create arhmm latents from model; currently not' +
-                        ' implemented')
-
-            # apply transforms
-            if transform:
-                self.data[signal] = transform(self.data[signal])
-                # TODO: how to keep track of reg_indxs through transforms?
-                # self.reg_indxs = transform(self.reg_indxs)
-
-            self.dims[signal] = self.data[signal].shape
-
-            # transform into tensor
-            self.data[signal] = torch.from_numpy(self.data[signal]).to(
-                device=self.device, dtype=torch.float32)
+        # grab all data as a single batch
+        self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
 
     def __len__(self):
         return self.num_trials
@@ -505,8 +476,6 @@ class ConcatSessionsGenerator(object):
                 self.num_batches[i][dtype] = len(self.batch_indxs[i][dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(self.batch_indxs[i][dtype])
-                if ids['lab'] == 'musall' and format == 'jpg':
-                    self.batch_indxs[i][dtype] = self.batch_indxs[i][dtype] + 1
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
         # find total number of batches per data type; this will be iterated
