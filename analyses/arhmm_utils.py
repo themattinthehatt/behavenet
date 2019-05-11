@@ -18,7 +18,7 @@ def make_overview_arhmm_figures(hparams):
 
     filepath = os.path.join(
             hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-            hparams['animal'], hparams['session'], 'arhmm', str(hparams['n_ae_latents'])+'_latents')
+            hparams['animal'], hparams['session'], 'arhmm', str(hparams['n_ae_latents']).zfill(2)+'_latents')
 
     # Search over K/kappa/noise distribution
     # TO DO: make this less hacky (use best feature?)
@@ -33,16 +33,18 @@ def make_overview_arhmm_figures(hparams):
             for noise_dir in noise_dirs:
                 ver_dirs = os.listdir(os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name']))
                 for ver_dir in ver_dirs:
-                    filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
-                    arch_file = pickle.load(open(os.path.join(filename,'meta_tags.pkl'),'rb'))
-                    metrics_file = pd.read_csv(os.path.join(filename,'metrics.csv'))
-                    if arch_file['training_completed']:
-                        val_ll = metrics_file['val_ll'][0]
-                        median_dur = metrics_file['median_dur'][1]
-                        results[arch_file['n_arhmm_states'],arch_file['kappa'],arch_file['noise_type']] = dict(val_ll=val_ll,median_dur=median_dur)
-                        K_vec.append(arch_file['n_arhmm_states'])
-                        kappa_vec.append(arch_file['kappa'])
-
+                    try:
+                          filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
+                          arch_file = pickle.load(open(os.path.join(filename,'meta_tags.pkl'),'rb'))
+                          metrics_file = pd.read_csv(os.path.join(filename,'metrics.csv'))
+                          if arch_file['training_completed']:
+                              val_ll = metrics_file['val_ll'][0]
+                              median_dur = metrics_file['median_dur'][1]
+                              results[arch_file['n_arhmm_states'],arch_file['kappa'],arch_file['noise_type']] = dict(val_ll=val_ll,median_dur=median_dur)
+                              K_vec.append(arch_file['n_arhmm_states'])
+                              kappa_vec.append(arch_file['kappa'])
+                    except:
+                          pass
     K_vec = np.unique(np.asarray(K_vec))
     kappa_vec = np.unique(np.asarray(kappa_vec))
 
@@ -233,8 +235,9 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
     # Get all example over threshold
     over_threshold_instances = [[] for _ in range(actual_K)]
     for i_state in range(actual_K):
-        over_threshold_instances[i_state] = state_indices[i_state][(np.diff(state_indices[i_state][:,1:3],1)>min_threshold)[:,0]]
-        np.random.shuffle(over_threshold_instances[i_state]) # Shuffle instances 
+        if state_indices[i_state].shape[0]>0:
+            over_threshold_instances[i_state] = state_indices[i_state][(np.diff(state_indices[i_state][:,1:3],1)>min_threshold)[:,0]]
+            np.random.shuffle(over_threshold_instances[i_state]) # Shuffle instances 
 
     dim1 = int(np.floor(np.sqrt(actual_K)))
     dim2 = int(np.ceil(actual_K/dim1))
@@ -250,58 +253,59 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
         ax.set_title('Syllable '+str(i),fontsize=16)
     fig.tight_layout(pad=0)
 
-    ims=[[] for _ in range(plot_n_frames+400)]
+    ims=[[] for _ in range(plot_n_frames+bs+200)]
 
     # Loop through syllables
     for i_syllable in range(actual_K):
-        i_chunk=0
-        i_frame=0
+        if len(over_threshold_instances[i_syllable])>0:
+            i_chunk=0
+            i_frame=0
 
-        while i_frame < plot_n_frames:
+            while i_frame < plot_n_frames:
 
-            if i_chunk>=len(over_threshold_instances[i_syllable]):
-                im = fig.axes[i_syllable].imshow(np.zeros((movie_dim1,movie_dim2)),animated=True,vmin=0,vmax=1,cmap='gray')
-                ims[i_frame].append(im)
-                i_frame+=1
-            else:
-
-                # Get movies/latents
-                which_trial = trial_idxs[over_threshold_instances[i_syllable][i_chunk,0]]
-                movie_chunk = data_generator.datasets[0][which_trial]['images'].cpu().detach().numpy()[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
-                #movie_chunk = images[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
-                
-                if hparams['lab']=='musall':
-                    movie_chunk = np.transpose(movie_chunk,(0,1,3,2))
-                movie_chunk = np.concatenate([movie_chunk[:,j] for j in range(movie_chunk.shape[1])],axis=1)
-
-                latents_chunk = latents[over_threshold_instances[i_syllable][i_chunk,0]][over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames:over_threshold_instances[i_syllable][i_chunk,2]]
-
-                if np.sum(states[over_threshold_instances[i_syllable][i_chunk,0]][over_threshold_instances[i_syllable][i_chunk,1]:over_threshold_instances[i_syllable][i_chunk,2]-1]!=i_syllable)>0:
-                    raise ValueError('Misaligned states for syllable segmentation')
-
-                # Loop over this chunk
-                for i in range(movie_chunk.shape[0]):
-
-                    im = fig.axes[i_syllable].imshow(movie_chunk[i],animated=True,vmin=0,vmax=1,cmap='gray')
-                    ims[i_frame].append(im)
-
-                    # Add red box if start of syllable
-                    syllable_start = n_pre_frames if over_threshold_instances[i_syllable][i_chunk,1]>=n_pre_frames else over_threshold_instances[i_syllable][i_chunk,1]
-
-                    if i>syllable_start and i<(syllable_start+4):
-                        rect =  matplotlib.patches.Rectangle((5,5),10,10,linewidth=1,edgecolor='r',facecolor='r')
-                        im = fig.axes[i_syllable].add_patch(rect)
-                        ims[i_frame].append(im) 
-
-                    i_frame+=1
-
-                # Add buffer black frames   
-                for j in range(n_buffer):
+                if i_chunk>=len(over_threshold_instances[i_syllable]):
                     im = fig.axes[i_syllable].imshow(np.zeros((movie_dim1,movie_dim2)),animated=True,vmin=0,vmax=1,cmap='gray')
                     ims[i_frame].append(im)
                     i_frame+=1
+                else:
 
-                i_chunk+=1    
+                    # Get movies/latents
+                    which_trial = trial_idxs[over_threshold_instances[i_syllable][i_chunk,0]]
+                    movie_chunk = data_generator.datasets[0][which_trial]['images'].cpu().detach().numpy()[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
+                    #movie_chunk = images[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
+                    
+                    if hparams['lab']=='musall':
+                        movie_chunk = np.transpose(movie_chunk,(0,1,3,2))
+                    movie_chunk = np.concatenate([movie_chunk[:,j] for j in range(movie_chunk.shape[1])],axis=1)
+
+                    latents_chunk = latents[over_threshold_instances[i_syllable][i_chunk,0]][over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames:over_threshold_instances[i_syllable][i_chunk,2]]
+
+                    if np.sum(states[over_threshold_instances[i_syllable][i_chunk,0]][over_threshold_instances[i_syllable][i_chunk,1]:over_threshold_instances[i_syllable][i_chunk,2]-1]!=i_syllable)>0:
+                        raise ValueError('Misaligned states for syllable segmentation')
+
+                    # Loop over this chunk
+                    for i in range(movie_chunk.shape[0]):
+
+                        im = fig.axes[i_syllable].imshow(movie_chunk[i],animated=True,vmin=0,vmax=1,cmap='gray')
+                        ims[i_frame].append(im)
+
+                        # Add red box if start of syllable
+                        syllable_start = n_pre_frames if over_threshold_instances[i_syllable][i_chunk,1]>=n_pre_frames else over_threshold_instances[i_syllable][i_chunk,1]
+
+                        if i>syllable_start and i<(syllable_start+4):
+                            rect =  matplotlib.patches.Rectangle((5,5),10,10,linewidth=1,edgecolor='r',facecolor='r')
+                            im = fig.axes[i_syllable].add_patch(rect)
+                            ims[i_frame].append(im) 
+
+                        i_frame+=1
+
+                    # Add buffer black frames   
+                    for j in range(n_buffer):
+                        im = fig.axes[i_syllable].imshow(np.zeros((movie_dim1,movie_dim2)),animated=True,vmin=0,vmax=1,cmap='gray')
+                        ims[i_frame].append(im)
+                        i_frame+=1
+
+                    i_chunk+=1    
 
     ani = animation.ArtistAnimation(fig, [ims[i] for i in range(len(ims)) if ims[i]!=[]], interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
