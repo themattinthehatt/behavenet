@@ -325,14 +325,16 @@ def get_data_generator_inputs(hparams):
     if hparams['model_class'].find('neural') > -1:
         neural_transforms = None  # neural_region
         neural_kwargs = None
-        if hparams['neural_thresh'] > 0 and hparams['neural_type'] == 'spikes':
-            neural_transforms = Threshold(
-                threshold=hparams['neural_thresh'],
-                bin_size=hparams['neural_bin_size'])
+        if hparams['neural_type'] == 'spikes':
+            if hparams['neural_thresh'] > 0:
+                neural_transforms = Threshold(
+                    threshold=hparams['neural_thresh'],
+                    bin_size=hparams['neural_bin_size'])
         elif hparams['neural_type'] == 'ca':
             neural_transforms = ZScore()
         else:
-            raise ValueError('"%s" is an invalid neural type')
+            raise ValueError(
+                '"%s" is an invalid neural type' % hparams['neural_type'])
     else:
         neural_transforms = None
         neural_kwargs = None

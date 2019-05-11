@@ -18,6 +18,8 @@ def make_ae_reconstruction_movie(
         from behavenet.models import AE
     elif hparams['lib'] == 'tf':
         from behavenet.models_tf import AE
+    else:
+        raise ValueError('"%s" is an invalid library' % hparams['lib'])
 
     max_bins = 400
 
@@ -191,7 +193,7 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
         hparams['lib'] = 'pt'
     if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
         from behavenet.models import AE
-    elif hparams['lib'] == 'tf':
+    else:
         raise NotImplementedError
 
     max_bins = 400
