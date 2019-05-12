@@ -93,7 +93,7 @@ def main(hparams):
            trial_idxs[data_type] = data_generator.batch_indxs[0][data_type] 
         latents[data_type] = [data_generator.datasets[0][i_trial]['ae'][:].cpu().detach().numpy() for i_trial in trial_idxs[data_type]]
 
-    hparams['total_train_length'] = len(data_generator.batch_indxs[0]['train'])*data_generator.datasets[0][0]['images'].shape[0]
+    hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['images'].shape[0]
     export_hparams(hparams, exp)
 
     #################
