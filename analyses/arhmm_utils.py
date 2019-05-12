@@ -14,7 +14,8 @@ import pandas as pd
 
 def make_overview_arhmm_figures(hparams):
 
-    hparams = vars(hparams)
+    if type(hparams) is not dict:
+        hparams = vars(hparams)
 
     filepath = os.path.join(
             hparams['tt_save_path'], hparams['lab'], hparams['expt'],
@@ -25,24 +26,24 @@ def make_overview_arhmm_figures(hparams):
     results={}
     K_vec = []
     kappa_vec = []
-    K_dirs = os.listdir(filepath)
+    K_dirs = [filename for filename in os.listdir(filepath) if os.path.isdir(os.path.join(filepath,filename))]
     for K_dir in K_dirs:
-        kappa_dirs = os.listdir(os.path.join(filepath, K_dir))
+        kappa_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir)) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir),filename))]
         for kappa_dir in kappa_dirs:
-            noise_dirs = os.listdir(os.path.join(filepath, K_dir, kappa_dir))
+            noise_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir)) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir),filename))]
             for noise_dir in noise_dirs:
-                ver_dirs = os.listdir(os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name']))
+                ver_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir,noise_dir,'test_tube_data',hparams['experiment_name'])) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir, noise_dir, 'test_tube_data',hparams['experiment_name']),filename))]
                 for ver_dir in ver_dirs:
                     try:
-                          filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
-                          arch_file = pickle.load(open(os.path.join(filename,'meta_tags.pkl'),'rb'))
-                          metrics_file = pd.read_csv(os.path.join(filename,'metrics.csv'))
-                          if arch_file['training_completed']:
-                              val_ll = metrics_file['val_ll'][0]
-                              median_dur = metrics_file['median_dur'][1]
-                              results[arch_file['n_arhmm_states'],arch_file['kappa'],arch_file['noise_type']] = dict(val_ll=val_ll,median_dur=median_dur)
-                              K_vec.append(arch_file['n_arhmm_states'])
-                              kappa_vec.append(arch_file['kappa'])
+                      filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
+                      arch_file = pickle.load(open(os.path.join(filename,'meta_tags.pkl'),'rb'))
+                      metrics_file = pd.read_csv(os.path.join(filename,'metrics.csv'))
+                      if arch_file['training_completed']:
+                          val_ll = metrics_file['val_ll'][0]
+                          median_dur = metrics_file['median_dur'][1]
+                          results[arch_file['n_arhmm_states'],arch_file['kappa'],arch_file['noise_type']] = dict(val_ll=val_ll,median_dur=median_dur)
+                          K_vec.append(arch_file['n_arhmm_states'])
+                          kappa_vec.append(arch_file['kappa'])
                     except:
                           pass
     K_vec = np.unique(np.asarray(K_vec))
@@ -54,13 +55,14 @@ def make_overview_arhmm_figures(hparams):
 
     plt.figure(figsize=(4, 4))
     for K in K_vec:
-        plt.plot(kappa_vec, [results[(K, kappa, 'gaussian')]['median_dur'] for kappa in kappa_vec], '-o', label='K='+str(K)+', gaussian')
-        plt.plot(kappa_vec, [results[(K, kappa, 'studentst')]['median_dur'] for kappa in kappa_vec], '--o', label='K='+str(K)+', studentst')
+        plt.plot([results[(K, kappa, 'gaussian')]['median_dur'] for kappa in kappa_vec], '-o', label='K='+str(K)+', gaussian')
+        plt.plot([results[(K, kappa, 'studentst')]['median_dur'] for kappa in kappa_vec], '--o', label='K='+str(K)+', studentst')
+    plt.xticks(np.arange(len(kappa_vec)),[format(k,'.0e') for k in kappa_vec])
     plt.xlabel("Kappa ")
     plt.ylabel("Median State Duration (ms) ")
-    plt.legend()
+    lgd = plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    plt.savefig(filepath+'/validation_median_durations.png',bbox_inches='tight')
+    plt.savefig(filepath+'/'+hparams['lab_example']+'_validation_median_durations.png',bbox_inches='tight',dpi=200)
 
     ## Generate number of states vs val likelihoos for all kappas
 
@@ -72,9 +74,9 @@ def make_overview_arhmm_figures(hparams):
     plt.xlabel("Number of States (K)")
     plt.ylabel("Validation LL")
     plt.title('Val Likelihood')
-    plt.legend()
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    plt.savefig(filepath+'/validation_loglikelihood.png',bbox_inches='tight')
+    plt.savefig(filepath+'/'+hparams['lab_example']+'_validation_loglikelihood.png',bbox_inches='tight',dpi=200)
 
 
 def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator):
@@ -172,7 +174,8 @@ def get_state_durations(latents, hmm):
             
     durations = []
     for i_state in range(0,len(state_indices)):
-        durations = np.append(durations,np.diff(state_indices[i_state][:,1:3],1))
+        if len(state_indices[i_state])>0:
+             durations = np.append(durations,np.diff(state_indices[i_state][:,1:3],1))
 
     return durations
 
@@ -330,16 +333,19 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
     ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
     ae_model.eval()
 
+
     # Get sampled observations
     sampled_observations = [np.zeros((len(state_seg),n_latents)) for state_seg in states]
 
     for i_seg, state_seg in enumerate(states):
         for i_t in range(len(state_seg)):
-            sampled_observations[i_seg][i_t] = hmm.observations.sample_x(states[i_seg][i_t],sampled_observations[i_seg][:i_t])
+            if i_t>=1:
+                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(states[i_seg][i_t],sampled_observations[i_seg][:i_t])
+            else:
+                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(states[i_seg][i_t],latents[i_seg][0].reshape((1,n_latents)))
 
 
     # Make real vs simulated arrays
-
     which_trials = np.arange(0,len(states)).astype('int')
     np.random.shuffle(which_trials)
 
@@ -375,6 +381,34 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
         i_trial+=1
     
    
+    ## Make overlaid plot
+    spc=3
+    which_trial=which_trials[0]
+    trial_len = len(states[which_trial])
+    fig, axes = plt.subplots(2,1,sharex=True,sharey=True, figsize=(10,10))
+    axes[0].imshow(states[which_trial][:trial_len][None,:], 
+                   aspect="auto", 
+                   extent=(0, trial_len, -spc-1, spc*n_latents), 
+                   cmap="jet", alpha=0.5)
+    axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
+    axes[1].imshow(states[which_trial][:trial_len][None,:], 
+                   aspect="auto", 
+                   extent=(0, trial_len, -spc-1, spc*n_latents), 
+                   cmap="jet", alpha=0.5)
+    axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
+        
+    axes[0].set_title('Real Latents',fontsize=20)
+    axes[1].set_title('Simulated Latents',fontsize=20)
+    xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)
+    ylab = fig.text(-0.01, 0.5, 'AE Dimensions', va='center', rotation='vertical',fontsize=20)
+    for i in range(2):
+        axes[i].set_yticks(spc * np.arange(n_latents))
+        axes[i].set_yticklabels(np.arange(n_latents),fontsize=16)
+    fig.tight_layout()
+    save_file = os.path.join(filepath,'real_vs_generated_latents_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png')
+    fig.savefig(save_file,dpi=200)
+
+
     # Make videos
     plt.clf()
     fig_dim_div = x_dim*2/10 # aiming for dim 1 being 10
