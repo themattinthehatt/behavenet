@@ -212,14 +212,19 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', '-en', default='shuffle', type=str)
+        parser.add_argument('--decoder_experiment_name', default='grid_search', type=str)
         parser.add_argument('--n_shuffles', type=int)
 
         try:
             # load best model params
             namespace, extra = parser.parse_known_args()
-            _, _, expt_dir = get_output_dirs(vars(namespace))
-            best_version = get_best_model_version(expt_dir)
-            with open(os.path.join(expt_dir, best_version), 'rb') as f:
+            hparams_tmp = vars(namespace)
+            hparams_tmp['experiment_name'] = hparams_tmp['decoder_experiment_name']
+            _, _, expt_dir = get_output_dirs(hparams_tmp)
+            best_version = get_best_model_version(expt_dir)[0]
+            best_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
+            print('Loading best discrete decoder from %s' % best_file)
+            with open(best_file, 'rb') as f:
                 hparams_best = pickle.load(f)
             # get model params
             learning_rate = hparams_best['learning_rate']
@@ -227,10 +232,10 @@ def get_decoding_params(namespace, parser):
             l2_reg = hparams_best['l2_reg']
             n_max_lags = hparams_best['n_max_lags']
             n_final_units = hparams_best['n_final_units']
-            n_int_units = hparams_best['n_int_layers']
+            n_int_units = hparams_best['n_int_units']
             n_hid_layers = hparams_best['n_hid_layers']
-            print('Could not load best model; reverting to defaults')
         except:
+            print('Could not load best model; reverting to defaults')
             # choose reasonable defaults
             learning_rate = 1e-3
             n_lags = 4
@@ -254,9 +259,12 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
-        parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
-        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3], type=float, tunable=True)
+        parser.opt_list('--n_lags', default=0, options=[0, 1, 2], type=int, tunable=True)
+        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4], type=float, tunable=True)
+        # parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
+        # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
+        # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         parser.add_argument('--n_max_lags', default=8)  # should match largest n_lags value
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
@@ -265,7 +273,7 @@ def get_decoding_params(namespace, parser):
         if namespace.model_type == 'linear':
             parser.add_argument('--n_hid_layers', default=0, type=int)
         elif namespace.model_type == 'ff':
-            parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3, 4], type=int, tunable=True)
+            parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
             parser.opt_list('--n_final_units', default=64, options=[64], type=int, tunable=True)
             parser.add_argument('--n_int_units', default=64, type=int)
         elif namespace.model_type == 'lstm':

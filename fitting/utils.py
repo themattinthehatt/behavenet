@@ -167,7 +167,11 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     if version == 'best':
         best_version = get_best_model_version(expt_dir)[0]
     else:
-        best_version = str('version_{}'.format(version))
+        if isinstance(version, str) and version[0] == 'v':
+            # assume we got a string of the form 'version_XX'
+            best_version = version
+        else:
+            best_version = str('version_{}'.format(version))
     version_dir = os.path.join(expt_dir, best_version)
     arch_file = os.path.join(version_dir, 'meta_tags.pkl')
     model_file = os.path.join(version_dir, 'best_val_model.pt')
