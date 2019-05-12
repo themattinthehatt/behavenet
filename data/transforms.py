@@ -152,6 +152,32 @@ class ZScore(object):
         return sample
 
 
+class MakeOneHot(object):
+    """Turn a categorical vector into a one-hot vector"""
+
+    def __init__(self):
+        pass
+
+    def __call__(self, sample):
+        """
+        Assumes sample is of size (trial x batch/time)
+        Also assumes that K classes are identified by the numbers 0:K-1
+        """
+        if len(sample.shape) == 2:  # weak test for if sample is already onehot
+            n_trials, n_time = sample.shape
+            n_classes = int(np.nanmax(sample))
+            onehot = np.zeros((n_trials, n_time, n_classes + 1))
+            for t in range(n_trials):
+                if not any(np.isnan(sample[t])):
+                    onehot[t, np.arange(n_time), sample[t].astype('int')] = 1
+                else:
+                    onehot[t] = np.nan
+        else:
+            onehot = sample
+
+        return onehot
+
+
 class Subsample(object):
 
     def __init__(self):

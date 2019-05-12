@@ -75,8 +75,9 @@ class FitMethod(object):
 
     def update_metrics(self, dtype):
         for key in self.metrics[dtype].keys():
-            self.metrics[dtype][key] += self.metrics['curr'][key]
-            self.metrics['curr'][key] = 0
+            if self.metrics['curr'][key] is not None:
+                self.metrics[dtype][key] += self.metrics['curr'][key]
+                self.metrics['curr'][key] = 0
 
 
 class VAELoss(FitMethod):
@@ -167,7 +168,7 @@ class AELoss(FitMethod):
 class NLLLoss(FitMethod):
 
     def __init__(self, model):
-        metric_strs = ['batches', 'loss', 'r2']
+        metric_strs = ['batches', 'loss', 'r2', 'fc']
         super().__init__(model, metric_strs)
 
         if self.model.hparams['noise_dist'] == 'gaussian':
@@ -228,12 +229,14 @@ class NLLLoss(FitMethod):
                 targets[max_lags:-max_lags].cpu().detach().numpy(),
                 outputs_all,
                 multioutput='variance_weighted')
+            fc = None
         elif self.model.hparams['noise_dist'] == 'poisson':
             raise NotImplementedError
         elif self.model.hparams['noise_dist'] == 'categorical':
-            r2 = accuracy_score(
-                np.argmax(targets[max_lags:-max_lags].cpu().detach().numpy(), axis=0),
-                np.argmax(outputs_all, axis=0))
+            r2 = None
+            fc = accuracy_score(
+                targets[max_lags:-max_lags].cpu().detach().numpy(),
+                np.argmax(outputs_all, axis=1))
         else:
             raise ValueError(
                 '"%s" is not a valid noise_dist' %
@@ -242,6 +245,7 @@ class NLLLoss(FitMethod):
         # store current metrics
         self.metrics['curr']['loss'] = loss_val
         self.metrics['curr']['r2'] = r2
+        self.metrics['curr']['fc'] = fc
         self.metrics['curr']['batches'] = 1
 
     def create_metric_row(
@@ -255,7 +259,8 @@ class NLLLoss(FitMethod):
                 'dataset': dataset,
                 'trial': trial,
                 'tr_loss': self.metrics['train']['loss'] / norm,
-                'tr_r2': self.metrics['train']['r2'] / norm}
+                'tr_r2': self.metrics['train']['r2'] / norm,
+                'tr_fc': self.metrics['train']['fc'] / norm}
         elif dtype == 'val':
             norm_tr = self.metrics['train']['batches']
             norm_val = self.metrics['val']['batches']
@@ -266,8 +271,10 @@ class NLLLoss(FitMethod):
                 'trial': trial,
                 'tr_loss': self.metrics['train']['loss'] / norm_tr,
                 'tr_r2': self.metrics['train']['r2'] / norm_tr,
+                'tr_fc': self.metrics['train']['fc'] / norm_tr,
                 'val_loss': self.metrics['val']['loss'] / norm_val,
                 'val_r2': self.metrics['val']['r2'] / norm_val,
+                'val_fc': self.metrics['val']['fc'] / norm_val,
                 'best_val_epoch': best_epoch}
         elif dtype == 'test':
             norm = self.metrics['test']['batches']
@@ -277,7 +284,8 @@ class NLLLoss(FitMethod):
                 'dataset': dataset,
                 'trial': trial,
                 'test_loss': self.metrics['test']['loss'] / norm,
-                'test_r2': self.metrics['test']['r2'] / norm}
+                'test_r2': self.metrics['test']['r2'] / norm,
+                'test_fc': self.metrics['test']['fc'] / norm}
         else:
             raise ValueError("%s is an invalid data type" % dtype)
 

@@ -112,7 +112,7 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     return curr_bytes * 1.2  # safety blanket
 
 
-def get_best_model_version(model_path, measure='loss', n_best=1):
+def get_best_model_version(model_path, measure='val_loss', n_best=1):
     """
 
     Args:
@@ -139,8 +139,8 @@ def get_best_model_version(model_path, measure='loss', n_best=1):
                 os.path.join(model_path, version, 'metrics.csv'))
         except:
             continue
-        # get validation loss of best model # TODO: user-supplied measure
-        val_loss = metric.val_loss.min()
+        # get validation loss of best model
+        val_loss = metric[measure].min()
         metrics.append(pd.DataFrame({
             'loss': val_loss,
             'version': version}, index=[i]))
@@ -319,7 +319,7 @@ def get_data_generator_inputs(hparams):
     common models
     """
 
-    from data.transforms import Threshold, ZScore
+    from data.transforms import Threshold, ZScore, MakeOneHot
 
     # get neural signals/transforms/load_kwargs
     if hparams['model_class'].find('neural') > -1:
@@ -405,11 +405,11 @@ def get_data_generator_inputs(hparams):
             'model_version': hparams['ae_version']}
 
         if hparams['use_output_mask']:
-            signals = ['ae','images','masks']
+            signals = ['ae', 'images', 'masks']
             transforms = [ae_transforms, None, None]
             load_kwargs = [ae_kwargs, None, None]
         else:
-            signals = ['ae','images']
+            signals = ['ae', 'images']
             transforms = [ae_transforms, None]
             load_kwargs = [ae_kwargs, None]
 

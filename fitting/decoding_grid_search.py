@@ -169,8 +169,11 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_model_type', default='conv')
         # arhmm arguments
+        # TODO: add ae_experiment_name/model_type/model_class to arhmm ids?
         parser.add_argument('--arhmm_experiment_name', type=str)
         parser.add_argument('--n_arhmm_states', default=12, type=int)
+        parser.add_argument('--kappa', default=1e+06, type=float)
+        parser.add_argument('--noise_type', default='gaussian', type=str)
         parser.add_argument('--arhmm_version', default='best')
     elif namespace.model_class == 'neural-dlc':
         raise NotImplementedError
@@ -199,6 +202,52 @@ def get_decoding_params(namespace, parser):
             parser.add_argument('--n_int_units', default=64, type=int)
         elif namespace.model_type == 'lstm':
             raise NotImplementedError
+
+    if namespace.search_type == 'shuffle':
+        # shuffle discrete labels as baseline
+
+        import pickle
+        from fitting.utils import get_best_model_version
+
+        parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
+        parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
+        parser.add_argument('--experiment_name', '-en', default='shuffle', type=str)
+
+        try:
+            # load best model params
+            namespace, extra = parser.parse_known_args()
+            _, _, expt_dir = get_output_dirs(vars(namespace))
+            best_version = get_best_model_version(expt_dir)
+            with open(os.path.join(expt_dir, best_version), 'rb') as f:
+                hparams_best = pickle.load(f)
+            # get model params
+            learning_rate = hparams_best['learning_rate']
+            n_lags = hparams_best['n_lags']
+            l2_reg = hparams_best['l2_reg']
+            n_max_lags = hparams_best['n_max_lags']
+            n_final_units = hparams_best['n_final_units']
+            n_int_units = hparams_best['n_int_layers']
+            n_hid_layers = hparams_best['n_hid_layers']
+        except:
+            # choose reasonable defaults
+            learning_rate = 1e-3
+            n_lags = 4
+            l2_reg = 1e-3
+            n_max_lags = 8
+            n_final_units = 64
+            n_int_units = 64
+            if namespace.model_type == 'linear':
+                n_hid_layers = 0
+            elif namespace.model_type == 'ff':
+                n_hid_layers = 1
+
+        parser.add_argument('--learning_rate', default=learning_rate, type=float)
+        parser.add_argument('--n_lags', default=n_lags, type=int)
+        parser.add_argument('--l2_reg', default=l2_reg, type=float)
+        parser.add_argument('--n_max_lags', default=n_max_lags)  # should match largest value in --n_lags options
+        parser.add_argument('--n_hid_layers', default=n_hid_layers, type=int)
+        parser.add_argument('--n_final_units', default=n_final_units, type=int)
+        parser.add_argument('--n_int_units', default=n_int_units, type=int)
 
     elif namespace.search_type == 'grid_search':
 

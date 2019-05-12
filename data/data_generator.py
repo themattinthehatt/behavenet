@@ -151,7 +151,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')[0]
+                            load_kwarg['model_dir'], 'val_loss')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
                     # find file with "latents" in name
@@ -172,7 +172,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')[0]
+                            load_kwarg['model_dir'], 'val_loss')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
                     # find file with "latents" in name
@@ -180,12 +180,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         model_dir, '*predictions*.pkl'))[0]
             elif signal == 'arhmm':
                 # build path to latents
-                if 'latents_file' in load_kwarg:
-                    self.paths[signal] = load_kwarg['latents_file']
+                if 'states_file' in load_kwarg:
+                    self.paths[signal] = load_kwarg['states_file']
                 else:
                     if load_kwarg['model_dir'] is None:
                         raise IOError(
-                            'Must supply arhmm directory or latents file')
+                            'Must supply arhmm directory or states file')
                     if 'model_version' in load_kwarg and isinstance(
                             load_kwarg['model_version'], int):
                         model_dir = os.path.join(
@@ -193,12 +193,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'loss')[0]
+                            load_kwarg['model_dir'], 'val_ll')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
                     # find file with "latents" in name
                     self.paths[signal] = glob.glob(os.path.join(
-                        model_dir, '*latents*.pkl'))[0]
+                        model_dir, '*states*.pkl'))[0]
             else:
                 raise ValueError('"%s" is an invalid signal type')
 
@@ -214,37 +214,37 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             # index correct trial
             if signal == 'images':
-
+                dtype = 'float32'
                 with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
                     if indx is None:
                         print('Warning: loading all images!')
                         temp_data = []
                         for tr in range(self.num_trials):
                             temp_data.append(f[signal][
-                                str('trial_%04i' % tr)][()].astype('float32')[None, :])
+                                str('trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
                     else:
                         sample[signal] = f[signal][
-                            str('trial_%04i' % indx)][()].astype('float32')
+                            str('trial_%04i' % indx)][()].astype(dtype)
                 # normalize to range [0, 1]
                 sample[signal] /= 255.0
 
             elif signal == 'masks':
-
+                dtype = 'float32'
                 with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
                     if indx is None:
                         print('Warning: loading all masks!')
                         temp_data = []
                         for tr in range(self.num_trials):
                             temp_data.append(f[signal][
-                                str('trial_%04i' % tr)][()].astype('float32')[None, :])
+                                str('trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
                     else:
                         sample[signal] = f[signal][
-                            str('trial_%04i' % indx)][()].astype('float32')
+                            str('trial_%04i' % indx)][()].astype(dtype)
 
             elif signal == 'neural':
-
+                dtype = 'float32'
                 mat_contents = loadmat(self.paths[signal])
                 if indx is None:
                     sample[signal] = mat_contents['neural']
@@ -256,45 +256,48 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     #     except KeyError:
                     #         self.reg_indxs = None
                 else:
-                    sample[signal] = mat_contents['neural'][indx]
+                    sample[signal] = mat_contents['neural'][indx][None, :]
 
             elif signal == 'ae':
-
+                dtype = 'float32'
                 try:
                     with open(self.paths[signal], 'rb') as f:
                         latents_dict = pickle.load(f)
                     if indx is None:
                         sample[signal] = latents_dict['latents']
                     else:
-                        sample[signal] = latents_dict['latents'][indx]
+                        sample[signal] = latents_dict['latents'][indx][None, :]
+                    sample[signal] = sample[signal].astype(dtype)
                 except IOError:
                     raise NotImplementedError(
                         'Must create ae latents from model; currently not' +
                         ' implemented')
 
             elif signal == 'ae_predictions':
-
+                dtype = 'float32'
                 try:
                     with open(self.paths[signal], 'rb') as f:
                         latents_dict = pickle.load(f)
                     if indx is None:
                         sample[signal] = latents_dict['predictions']
                     else:
-                        sample[signal] = latents_dict['predictions'][indx]
+                        sample[signal] = latents_dict['predictions'][indx][None, :]
+                    sample[signal] = sample[signal].astype(dtype)
                 except IOError:
                     raise NotImplementedError(
                         'Must create ae predictions from model; currently not' +
                         ' implemented')
 
             elif signal == 'arhmm':
-
+                dtype = 'int32'
                 try:
                     with open(self.paths[signal], 'rb') as f:
                         latents_dict = pickle.load(f)
                     if indx is None:
-                        sample[signal] = latents_dict['latents']
+                        sample[signal] = latents_dict['states']
                     else:
-                        sample[signal] = latents_dict['latents'][indx]
+                        sample[signal] = latents_dict['states'][indx][None, :]
+                    sample[signal] = sample[signal]
                 except IOError:
                     raise NotImplementedError(
                         'Must create arhmm latents from model; currently not' +
@@ -308,8 +311,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 sample[signal] = transform(sample[signal])
                 
             # transform into tensor
-            sample[signal] = torch.from_numpy(
-                sample[signal]).float().to(self.device)
+            if dtype == 'float32':
+                sample[signal] = torch.from_numpy(sample[signal]).float()
+            else:
+                sample[signal] = torch.from_numpy(sample[signal]).long()
+
+            sample[signal] = sample[signal].to(self.device)
 
         sample['batch_indx'] = indx
 
