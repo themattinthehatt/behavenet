@@ -319,7 +319,7 @@ def get_data_generator_inputs(hparams):
     common models
     """
 
-    from data.transforms import Threshold, ZScore, MakeOneHot
+    from data.transforms import Threshold, ZScore, BlockShuffle
 
     # get neural signals/transforms/load_kwargs
     if hparams['model_class'].find('neural') > -1:
@@ -383,7 +383,10 @@ def get_data_generator_inputs(hparams):
             hparams, model_class='arhmm',
             expt_name=hparams['arhmm_experiment_name'])
 
-        arhmm_transforms = None
+        if 'shuffle_rng_seed' in hparams:
+            arhmm_transforms = BlockShuffle(hparams['shuffle_rng_seed'])
+        else:
+            arhmm_transforms = None
         arhmm_kwargs = {
             'model_dir': arhmm_dir,
             'model_version': hparams['arhmm_version']}

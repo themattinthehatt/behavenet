@@ -178,15 +178,54 @@ class MakeOneHot(object):
         return onehot
 
 
+class BlockShuffle(object):
+    """Shuffle blocks of contiguous discrete states within each trial"""
+
+    def __init__(self, rng_seed):
+        self.rng_seed = rng_seed
+
+    def __call__(self, sample):
+        """Assumes sample is a dense rep of size (trial x batch/time)"""
+
+        np.random.seed(self.rng_seed)
+
+        # # collapse from one-hot to dense representation
+        # state = np.where(self.data)[1]
+
+        n_trials, n_time = sample.shape
+
+        sample_shuff = np.zeros_like(sample)
+
+        for t in range(n_trials):
+
+            if not any(np.isnan(sample[t])):
+
+                # mark first time point of state change with a nonzero number
+                state_change = np.where(
+                    np.concatenate([[0], np.diff(sample[t])], axis=0) != 0)[0]
+
+                # collect runs
+                runs = []
+                prev_beg = 0
+                for curr_beg in state_change:
+                    runs.append(np.arange(prev_beg, curr_beg))
+                    prev_beg = curr_beg
+                runs.append(np.arange(prev_beg, n_time))
+
+                # shuffle runs
+                rand_perm = np.random.permutation(len(runs))
+                runs_shuff = [runs[idx] for idx in rand_perm]
+
+                # index back into original labels with shuffled indices
+                sample_shuff[t] = sample[t, np.concatenate(runs_shuff)]
+            else:
+                sample_shuff[t] = np.nan
+
+        return sample_shuff
+
+
 class Subsample(object):
 
     def __init__(self):
         # TODO: implement region-based subsampling
-        raise NotImplementedError
-
-
-class Shuffle(object):
-
-    def __init__(self):
-        # TODO: implement shuffling
         raise NotImplementedError

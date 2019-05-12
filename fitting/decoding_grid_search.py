@@ -212,6 +212,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', '-en', default='shuffle', type=str)
+        parser.add_argument('--n_shuffles', type=int)
 
         try:
             # load best model params
@@ -228,6 +229,7 @@ def get_decoding_params(namespace, parser):
             n_final_units = hparams_best['n_final_units']
             n_int_units = hparams_best['n_int_layers']
             n_hid_layers = hparams_best['n_hid_layers']
+            print('Could not load best model; reverting to defaults')
         except:
             # choose reasonable defaults
             learning_rate = 1e-3
@@ -238,7 +240,7 @@ def get_decoding_params(namespace, parser):
             n_int_units = 64
             if namespace.model_type == 'linear':
                 n_hid_layers = 0
-            elif namespace.model_type == 'ff':
+            else:
                 n_hid_layers = 1
 
         parser.add_argument('--learning_rate', default=learning_rate, type=float)
@@ -248,6 +250,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--n_hid_layers', default=n_hid_layers, type=int)
         parser.add_argument('--n_final_units', default=n_final_units, type=int)
         parser.add_argument('--n_int_units', default=n_int_units, type=int)
+        parser.opt_list('--shuffle_rng_seed', default=0, options=list(np.arange(namespace.n_shuffles)), type=int, tunable=True)
 
     elif namespace.search_type == 'grid_search':
 
