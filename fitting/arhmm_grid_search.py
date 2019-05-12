@@ -81,14 +81,20 @@ def main(hparams):
 
     hparams['ae_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['ae']))
     hparams['training_completed'] = False
-    export_hparams(hparams, exp)
-
+    
     ## Get all latents in list
     trial_idxs = {}
     latents={}
     for data_type in ['train','val','test']:
-        trial_idxs[data_type] = data_generator.batch_indxs[0][data_type] 
+        if data_type == 'train' and hparams['train_percent']<1:
+           n_batches = np.floor(hparams['train_percent']*len(data_generator.batch_indxs[0][data_type]))
+           trial_idxs[data_type] = data_generator.batch_indxs[0][data_type][:int(n_batches)]
+        else:
+           trial_idxs[data_type] = data_generator.batch_indxs[0][data_type] 
         latents[data_type] = [data_generator.datasets[0][i_trial]['ae'][:].cpu().detach().numpy() for i_trial in trial_idxs[data_type]]
+
+    hparams['total_train_length'] = len(data_generator.batch_indxs[0]['train'])*data_generator.datasets[0][0]['images'].shape[0]
+    export_hparams(hparams, exp)
 
     #################
     ### FIT ARHMM ###
@@ -178,14 +184,15 @@ def get_params(strategy):
 def get_arhmm_params(namespace, parser):
 
     # add data arguments
-    parser.add_argument('--experiment_name', '-en', default='grid_search', type=str)
+    parser.add_argument('--experiment_name', '-en', default='data_amount', type=str) #'grid_search'
     parser.add_argument('--ae_experiment_name', default='test_pt',type=str)
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv')
     parser.add_argument('--n_ae_latents', default=12, type=int)
-    parser.opt_list('--n_arhmm_states', default=4, options=[2, 8, 14, 20, 26], type=int, tunable=True) 
-    parser.opt_list('--kappa', default=1e4, options=[1e2, 1e4, 1e6, 1e8, 1e10],type=int, tunable=True) 
-    parser.opt_list('--noise_type', default='gaussian', options = ['gaussian','studentst'], type=str, tunable=True)
+    parser.opt_list('--n_arhmm_states', default=14, options=[2, 8, 14, 20, 26], type=int, tunable=False) 
+    parser.opt_list('--train_percent', default=1, options=[.2, .4, .6, .8, 1], tunable=True) 
+    parser.opt_list('--kappa', default=1e8, options=[1e2, 1e4, 1e6, 1e8, 1e10],type=int, tunable=False) 
+    parser.opt_list('--noise_type', default='gaussian', options = ['gaussian','studentst'], type=str, tunable=False)
     parser.add_argument('--n_lags', default=1, type=int)
     parser.add_argument('--n_iters', default=100, type=int)
 
