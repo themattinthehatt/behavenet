@@ -494,12 +494,16 @@ class Decoder(nn.Module):
 
         self.hparams = hparams
 
-        if hparams['model_type'] == 'ff' or hparams['model_type'] == 'linear':
+        if hparams['model_type'] == 'ff' \
+                or hparams['model_type'] == 'ff-mv' \
+                or hparams['model_type'] == 'linear' \
+                or hparams['model_type'] == 'linear-mv':
             self.model = NN(hparams)
         elif hparams['model_type'] == 'lstm':
             self.model = LSTM(hparams)
         else:
-            raise ValueError('"%s" is not a valid model type' % hparams['model_type'])
+            raise ValueError(
+                '"%s" is not a valid model type' % hparams['model_type'])
 
     def forward(self, x):
         return self.model(x)
@@ -510,9 +514,7 @@ class NN(nn.Module):
     def __init__(self, hparams):
 
         super().__init__()
-
         self.hparams = hparams
-
         self.build_model()
 
     def build_model(self):
@@ -538,10 +540,13 @@ class NN(nn.Module):
             padding=self.hparams['n_lags'])  # same output
         name = str('conv1d_layer_%02i' % global_layer_num)
         self.decoder.add_module(name, layer)
+        self.final_layer = name
 
         # add activation
         if self.hparams['n_hid_layers'] == 0:
             if self.hparams['noise_dist'] == 'gaussian':
+                activation = None
+            elif self.hparams['noise_dist'] == 'gaussian-full':
                 activation = None
             elif self.hparams['noise_dist'] == 'poisson':
                 activation = nn.Softplus()
@@ -570,6 +575,16 @@ class NN(nn.Module):
             name = '%s_%02i' % (self.hparams['activation'], global_layer_num)
             self.decoder.add_module(name, activation)
 
+        # add layer for data-dependent precision matrix if required
+        if self.hparams['n_hid_layers'] == 0 \
+                and self.hparams['noise_dist'] == 'gaussian-full':
+            # build sqrt of precision matrix
+            self.precision_sqrt = nn.Linear(
+                in_features=in_size,
+                out_features=out_size ** 2)
+        else:
+            self.precision_sqrt = None
+
         # update layer info
         global_layer_num += 1
         in_size = out_size
@@ -590,10 +605,13 @@ class NN(nn.Module):
                 out_features=out_size)
             name = str('dense_layer_%02i' % global_layer_num)
             self.decoder.add_module(name, layer)
+            self.final_layer = name
 
             # add activation
             if i_layer == self.hparams['n_hid_layers'] - 1:
                 if self.hparams['noise_dist'] == 'gaussian':
+                    activation = None
+                elif self.hparams['noise_dist'] == 'gaussian-full':
                     activation = None
                 elif self.hparams['noise_dist'] == 'poisson':
                     activation = nn.Softplus()
@@ -623,6 +641,16 @@ class NN(nn.Module):
                     '%s_%02i' % (self.hparams['activation'], global_layer_num),
                     activation)
 
+            # add layer for data-dependent precision matrix if required
+            if i_layer == self.hparams['n_hid_layers'] - 1 \
+                    and self.hparams['noise_dist'] == 'gaussian-full':
+                # build sqrt of precision matrix
+                self.precision_sqrt = nn.Linear(
+                    in_features=in_size,
+                    out_features=out_size ** 2)
+            else:
+                self.precision_sqrt = None
+
             # update layer info
             global_layer_num += 1
             in_size = out_size
@@ -638,20 +666,32 @@ class NN(nn.Module):
         """
         # print('Model input size is {}'.format(x.shape))
         # print()
+        y = None
         for name, layer in self.decoder.named_children():
+
+            # get data-dependent precision matrix if required
+            if name == self.final_layer \
+                    and self.hparams['noise_dist'] == 'gaussian-full':
+                y = self.precision_sqrt(x)
+                y = y.reshape(
+                    -1, self.hparams['output_size'],
+                    self.hparams['output_size'])
+                y = torch.bmm(y, y.transpose(1, 2))
+
             if name == 'conv1d_layer_00':
                 # input is batch x in_channels x time
                 # output is batch x out_channels x time
                 x = layer(x.transpose(1, 0).unsqueeze(0)).squeeze().transpose(1, 0)
             else:
                 x = layer(x)
+
             # print('Layer {}'.format(name))
             # print('\toutput size: {}'.format(x.shape))
             # for param in layer.parameters():
             #     print('\tparam shape is {}'.format(param.size()))
             # print()
 
-        return x
+        return x, y
 
     def freeze(self):
         for param in self.parameters():

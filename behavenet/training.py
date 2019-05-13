@@ -1,5 +1,6 @@
 from behavenet.core import expected_log_likelihood, log_sum_exp
 from behavenet.utils import export_latents, export_predictions
+from behavenet.losses import GaussianNegLogProb
 # from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
 import torch
@@ -173,10 +174,15 @@ class NLLLoss(FitMethod):
 
         if self.model.hparams['noise_dist'] == 'gaussian':
             self._loss = nn.MSELoss()
+        elif self.model.hparams['noise_dist'] == 'gaussian-full':
+            self._loss = GaussianNegLogProb()  # model holds precision mat
         elif self.model.hparams['noise_dist'] == 'poisson':
             self._loss = nn.PoissonNLLLoss(log_input=False)
         elif self.model.hparams['noise_dist'] == 'categorical':
             self._loss = nn.CrossEntropyLoss()
+        else:
+            raise ValueError(
+                '"%s" is not a valid noise dist' % self.model.hparams['noise_dist'])
 
     def calc_loss(self, data, device):
         """data is 1 x T x N"""
@@ -198,11 +204,17 @@ class NLLLoss(FitMethod):
                 # take chunks of size chunk_size, plus overlap due to max_lags
                 indx_beg = np.max([chunk * chunk_size - max_lags, 0])
                 indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
-                outputs = self.model(predictors[indx_beg:indx_end])
+                outputs, precision = self.model(predictors[indx_beg:indx_end])
                 # define loss on allowed window of data
-                loss = self._loss(
-                    outputs[max_lags:-max_lags],
-                    targets[indx_beg:indx_end][max_lags:-max_lags])
+                if self.model.hparams['noise_dist'] == 'gaussian-full':
+                    loss = self._loss(
+                        outputs[max_lags:-max_lags],
+                        targets[indx_beg:indx_end][max_lags:-max_lags],
+                        precision[max_lags:-max_lags])
+                else:
+                    loss = self._loss(
+                        outputs[max_lags:-max_lags],
+                        targets[indx_beg:indx_end][max_lags:-max_lags])
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
@@ -212,18 +224,25 @@ class NLLLoss(FitMethod):
             loss_val /= targets.shape[0]
             outputs_all = np.concatenate(outputs_all, axis=0)
         else:
-            outputs = self.model(predictors)
+            outputs, precision = self.model(predictors)
             # define loss on allowed window of data
-            loss = self._loss(
-                outputs[max_lags:-max_lags],
-                targets[max_lags:-max_lags])
+            if self.model.hparams['noise_dist'] == 'gaussian-full':
+                loss = self._loss(
+                    outputs[max_lags:-max_lags],
+                    targets[max_lags:-max_lags],
+                    precision[max_lags:-max_lags])
+            else:
+                loss = self._loss(
+                    outputs[max_lags:-max_lags],
+                    targets[max_lags:-max_lags])
             # compute gradients
             loss.backward()
             # get loss value
             loss_val = loss.item()
             outputs_all = outputs[max_lags:-max_lags].cpu().detach().numpy()
 
-        if self.model.hparams['noise_dist'] == 'gaussian':
+        if self.model.hparams['noise_dist'] == 'gaussian' \
+                or self.model.hparams['noise_dist'] == 'gaussian-full':
             # use variance-weighted r2s to ignore small-variance latents
             r2 = r2_score(
                 targets[max_lags:-max_lags].cpu().detach().numpy(),

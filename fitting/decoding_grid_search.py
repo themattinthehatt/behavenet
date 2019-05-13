@@ -120,7 +120,7 @@ def get_params(strategy):
     parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--data_dir', '-d', type=str)
-    parser.add_argument('--model_type', default='ff', choices=['ff', 'linear', 'lstm'], type=str)
+    parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm'], type=str)
 
     # arguments for computing resources (nb_gpu_workers inferred from visible gpus)
@@ -177,6 +177,8 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--arhmm_version', default='best')
     elif namespace.model_class == 'neural-dlc':
         raise NotImplementedError
+    else:
+        raise ValueError('"%s" is an invalid model class' % namespace.model_class)
 
     parser.add_argument('--enable_early_stop', action='store_true', default=True)
     parser.add_argument('--early_stop_history', default=10, type=float)
@@ -192,18 +194,20 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--n_max_lags', default=8)  # should match largest value in --n_lags options
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
-        parser.add_argument('--experiment_name', '-en', default='test', type=str)
+        parser.add_argument('--experiment_name', default='test', type=str)
 
-        if namespace.model_type == 'linear':
+        if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
             parser.add_argument('--n_hid_layers', default=0, type=int)
-        elif namespace.model_type == 'ff':
+        elif namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
             parser.add_argument('--n_hid_layers', default=1, type=int)
-            parser.add_argument('--n_final_units', default=16, type=int)
+            parser.add_argument('--n_final_units', default=64, type=int)
             parser.add_argument('--n_int_units', default=64, type=int)
         elif namespace.model_type == 'lstm':
             raise NotImplementedError
+        else:
+            raise ValueError('"%s" is an invalid model type' % namespace.model_type)
 
-    if namespace.search_type == 'shuffle':
+    elif namespace.search_type == 'shuffle':
         # shuffle discrete labels as baseline
 
         import pickle
@@ -259,9 +263,10 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3], type=float, tunable=True)
-        parser.opt_list('--n_lags', default=0, options=[0, 1, 2], type=int, tunable=True)
-        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4], type=float, tunable=True)
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-3], type=float, tunable=True)
+        parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
+        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+        # regular for decoding ae latents
         # parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
         # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
@@ -270,17 +275,19 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', '-en', default='grid_search', type=str)
 
-        if namespace.model_type == 'linear':
+        if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
             parser.add_argument('--n_hid_layers', default=0, type=int)
-        elif namespace.model_type == 'ff':
-            parser.opt_list('--n_hid_layers', default=1, options=[1, 2], type=int, tunable=True)
+        elif namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
+            parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3, 4], type=int, tunable=True)
             parser.opt_list('--n_final_units', default=64, options=[64], type=int, tunable=True)
             parser.add_argument('--n_int_units', default=64, type=int)
         elif namespace.model_type == 'lstm':
             raise NotImplementedError
+        else:
+            raise ValueError('"%s" is an invalid model type' % namespace.model_type)
 
     else:
-        raise Exception
+        raise ValueError('"%s" is not a valid search type' % namespace.search_type)
 
 
 if __name__ == '__main__':

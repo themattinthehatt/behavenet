@@ -186,6 +186,7 @@ def _make_ae_reconstruction_movie(
 
 
 def make_neural_reconstruction_movie(hparams, save_file, trial=None):
+    """Produces ae latents and predictions from scratch"""
 
     from behavenet.models import Decoder
 
@@ -203,8 +204,8 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
     # build ae model/data generator
     ###############################
     hparams_ae = copy.copy(hparams)
-    hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['experiment_name'] = hparams['ae_experiment_name']
+    hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['model_type'] = hparams['ae_model_type']
     model_ae, data_generator_ae = get_best_model_and_data(
         hparams_ae, AE, version=hparams['ae_version'])
@@ -228,8 +229,8 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
     # build decoder model/no data generator
     #######################################
     hparams_dec = copy.copy(hparams)
-    hparams_dec['model_class'] = hparams['decoder_model_class']
     hparams_dec['experiment_name'] = hparams['decoder_experiment_name']
+    hparams_dec['model_class'] = hparams['decoder_model_class']
     hparams_dec['model_type'] = hparams['decoder_model_type']
 
     # try to load presaved latents first
@@ -252,7 +253,7 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
     neural_activity_pt = batch['neural'][:max_bins].cpu()
 
     # push neural activity through decoder to get prediction
-    latents_dec_pt = model_dec(neural_activity_pt)
+    latents_dec_pt, _ = model_dec(neural_activity_pt)
     # push prediction through ae to get reconstruction
     ims_recon_dec = get_reconstruction(model_ae, latents_dec_pt)
 
@@ -453,3 +454,106 @@ def _make_neural_reconstruction_movie(
         print('saving video')
         ani.save(save_file, writer=writer)
         print('video saved to %s' % save_file)
+
+
+def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
+    """Loads previously saved ae latents and predictions"""
+
+    # find good trials
+    import copy
+    from fitting.utils import get_output_dirs
+    from data.data_generator import ConcatSessionsGenerator
+
+    # ae data
+    hparams_ae = copy.copy(hparams)
+    hparams_ae['experiment_name'] = hparams['ae_experiment_name']
+    hparams_ae['model_class'] = hparams['ae_model_class']
+    hparams_ae['model_type'] = hparams['ae_model_type']
+    _, _, ae_model_dir = get_output_dirs(hparams_ae)
+    ae_transforms = None
+    ae_load_kwargs = {
+        'model_dir': ae_model_dir,
+        'model_version': 'best'}
+
+    # ae predictions data
+    hparams_dec = copy.copy(hparams)
+    hparams_dec['experiment_name'] = hparams['decoder_experiment_name']
+    hparams_dec['model_class'] = hparams['decoder_model_class']
+    hparams_dec['model_type'] = hparams['decoder_model_type']
+    _, _, dec_dir = get_output_dirs(hparams_dec)
+    ae_pred_transforms = None
+    ae_pred_load_kwargs = {
+        'model_dir': dec_dir,
+        'model_version': 'best'}
+
+    # export latents if they don't exist
+    # export_predictions_best(hparams_ae_pred)
+
+    signals = ['ae', 'ae_predictions']
+    transforms = [ae_transforms, ae_pred_transforms]
+    load_kwargs = [ae_load_kwargs, ae_pred_load_kwargs]
+
+    data_generator = ConcatSessionsGenerator(
+        hparams['data_dir'], hparams,
+        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+        device='cpu', as_numpy=False, batch_load=False, rng_seed=0)
+
+    if trial is None:
+        # choose first test trial
+        trial = data_generator.batch_indxs[0]['test'][0]
+
+    batch = data_generator.datasets[0][trial]
+    traces_ae = batch['ae'].cpu().detach().numpy()
+    traces_neural = batch['ae_predictions'].cpu().detach().numpy()
+
+    _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file)
+
+
+def _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file=None):
+
+    import matplotlib.pyplot as plt
+    import matplotlib.lines as mlines
+    import seaborn as sns
+
+    sns.set_style('white')
+    sns.set_context('poster')
+
+    means = np.mean(traces_ae, axis=0)
+    std = np.std(traces_ae) * 2  # scale for better visualization
+
+    traces_ae_sc = (traces_ae - means) / std
+    traces_neural_sc = (traces_neural - means) / std
+
+    traces_ae_sc = traces_ae_sc[:, :8]
+    traces_neural_sc = traces_neural_sc[:, :8]
+
+    plt.figure(figsize=(12, 8))
+    plt.plot(
+        traces_neural_sc + np.arange(traces_neural_sc.shape[1]), linewidth=3)
+    plt.plot(
+        traces_ae_sc + np.arange(traces_ae_sc.shape[1]), color=[0.2, 0.2, 0.2],
+        linewidth=3, alpha=0.7)
+
+    # add legend
+    # original latents - gray
+    orig_line = mlines.Line2D(
+        [], [], color=[0.2, 0.2, 0.2], linewidth=3, alpha=0.7)
+    # predicted latents - cycle through some colors
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    dls = []
+    for c in range(5):
+        dls.append(mlines.Line2D(
+            [], [], linewidth=3, linestyle='--', dashes=(0, 3 * c, 20, 1),
+            color='%s' % colors[c]))
+    plt.legend(
+        [orig_line, tuple(dls)], ['Original latents', 'Predicted latents'],
+        loc='lower right', frameon=True, framealpha=0.7, edgecolor=[1, 1, 1])
+
+    plt.xlabel('Time (bins)')
+    plt.ylabel('Latent state')
+    plt.yticks([])
+
+    if save_file is not None:
+        plt.savefig(save_file + '.jpg', dpi=300, format='jpeg')
+
+    plt.show()

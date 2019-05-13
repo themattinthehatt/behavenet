@@ -4,7 +4,8 @@ from scipy.misc import logsumexp
 
 import torch
 from torch.autograd import Function, Variable
-import datta.messages as msg
+import fitting.messages as msg
+
 
 # Pytorch extension
 class HMMNormalizer(Function):

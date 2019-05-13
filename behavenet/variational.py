@@ -6,6 +6,7 @@ import math
 import pandas as pd
 from ast import literal_eval
 
+
 class objectview(object):
     def __init__(self, d):
         self.__dict__ = d

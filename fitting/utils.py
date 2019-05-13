@@ -360,7 +360,10 @@ def get_data_generator_inputs(hparams):
         hparams['input_signal'] = 'neural'
         hparams['output_signal'] = 'ae'
         hparams['output_size'] = hparams['n_ae_latents']
-        hparams['noise_dist'] = 'gaussian'
+        if hparams['model_type'][-2:] == 'mv':
+            hparams['noise_dist'] = 'gaussian-full'
+        else:
+            hparams['noise_dist'] = 'gaussian'
 
         _, _, ae_dir = get_output_dirs(
             hparams, model_class='ae',

@@ -35,6 +35,7 @@ def expected_log_likelihood(expectations, log_pi0, log_Ps, lls):
     ell += torch.sum(Ez * lls)
     return ell
 
+
 # Dynamics models
 def gaussian_ar_log_proba(model, data, inputs=None):
     batch_size = data.shape[0]
@@ -92,6 +93,7 @@ def stationary_log_transition_proba(model, batch_size):
     normalized_Ps = model.stat_log_transition_proba - log_sum_exp(model.stat_log_transition_proba, dim=-1, keepdim=True)
     return normalized_Ps.unsqueeze(0).repeat(batch_size-1,1,1)
 
+
 def input_driven_log_transition_proba(model, inputs):
     hparams = model.hparams
     transition_matrix_bias = model.transition_matrix_bias(inputs)
@@ -131,6 +133,7 @@ def gaussian_emissions_diagonal_variance(model, data, states):
     lls = torch.sum((-0.5 * math.log(2 * math.pi) - 0.5 * torch.log(variances)-0.5 * (data - means)**2 / variances),dim=1)
 
     return lls
+
 
 def uniform_initial_distn(model):
     hparams = model.hparams
