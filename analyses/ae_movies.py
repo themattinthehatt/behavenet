@@ -31,6 +31,8 @@ def make_ae_reconstruction_movie(
         import copy
         hparams_lin = copy.copy(hparams)
         hparams_lin['model_type'] = 'linear'
+        if 'lin_experiment_name' in hparams:
+            hparams_lin['experiment_name'] = hparams['lin_experiment_name']
         model_lin, _ = get_best_model_and_data(hparams_lin, AE, load_data=False)
 
     # push images through decoder
@@ -182,6 +184,9 @@ def _make_ae_reconstruction_movie(
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
         ani.save(save_file, writer=writer)
+        # if save_file[-3:] != 'gif':
+        #     save_file += '.gif'
+        # ani.save(save_file, writer='imagemagick', fps=15)
         print('video saved to %s' % save_file)
 
 

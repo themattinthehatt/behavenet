@@ -256,7 +256,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     #     except KeyError:
                     #         self.reg_indxs = None
                 else:
-                    sample[signal] = mat_contents['neural'][indx][None, :]
+                    sample[signal] = mat_contents['neural'][indx]
 
             elif signal == 'ae':
                 dtype = 'float32'
@@ -266,7 +266,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     if indx is None:
                         sample[signal] = latents_dict['latents']
                     else:
-                        sample[signal] = latents_dict['latents'][indx][None, :]
+                        sample[signal] = latents_dict['latents'][indx]
                     sample[signal] = sample[signal].astype(dtype)
                 except IOError:
                     raise NotImplementedError(
@@ -281,7 +281,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     if indx is None:
                         sample[signal] = latents_dict['predictions']
                     else:
-                        sample[signal] = latents_dict['predictions'][indx][None, :]
+                        sample[signal] = latents_dict['predictions'][indx]
                     sample[signal] = sample[signal].astype(dtype)
                 except IOError:
                     raise NotImplementedError(
@@ -296,7 +296,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     if indx is None:
                         sample[signal] = latents_dict['states']
                     else:
-                        sample[signal] = latents_dict['states'][indx][None, :]
+                        sample[signal] = latents_dict['states'][indx]
                     sample[signal] = sample[signal]
                 except IOError:
                     raise NotImplementedError(
