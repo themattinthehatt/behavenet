@@ -263,13 +263,13 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-3], type=float, tunable=True)
-        parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
-        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
-        # regular for decoding ae latents
-        # parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
+        # parser.opt_list('--learning_rate', default=1e-3, options=[1e-3], type=float, tunable=True)
         # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+        # regular for decoding ae latents
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
+        parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
+        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         parser.add_argument('--n_max_lags', default=8)  # should match largest n_lags value
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
