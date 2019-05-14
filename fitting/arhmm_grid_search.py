@@ -194,7 +194,7 @@ def get_arhmm_params(namespace, parser):
     parser.add_argument('--ae_experiment_name', default='test_pt',type=str)
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv')
-    #parser.add_argument('--n_ae_latents', default=12, type=int)
+    parser.add_argument('--n_ae_latents', default=12, type=int)
     parser.opt_list('--n_arhmm_states', default=14, options=[4,8,16,32], type=int, tunable=True) 
     parser.opt_list('--train_percent', default=1, options=[.2, .4, .6, .8, 1], tunable=False) 
     parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10],type=int, tunable=False) 
