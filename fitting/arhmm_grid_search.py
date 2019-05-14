@@ -107,12 +107,18 @@ def main(hparams):
     else:
         raise ValueError(hparams['noise_type']+' not a valid noise type')
 
-    hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
-                  observations=obv_type, observation_kwargs=dict(lags=hparams['n_lags']),
-                  transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
+    if hparams['kappa'] == 0:
+        print('No stickiness')
+        hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
+                      observations=obv_type, observation_kwargs=dict(lags=hparams['n_lags']))
+    else:
+        hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
+                      observations=obv_type, observation_kwargs=dict(lags=hparams['n_lags']),
+                      transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
 
-    train_ll = hmm.fit(latents['train'], method="em", num_em_iters=hparams['n_iters'])
-    train_ll = 0
+    hmm.initialize(latents['train'])
+    hmm.observations.initialize(latents['train'], localize=False)
+    train_ll = hmm.fit(latents['train'], method="em", num_em_iters=hparams['n_iters'],initialize=False)
 
     # Save model
     filepath = os.path.join(
@@ -184,17 +190,17 @@ def get_params(strategy):
 def get_arhmm_params(namespace, parser):
 
     # add data arguments
-    parser.add_argument('--experiment_name', '-en', default='data_amount', type=str) #'grid_search'
+    parser.add_argument('--experiment_name', '-en', default='diff_init_grid_search', type=str) #'grid_search'
     parser.add_argument('--ae_experiment_name', default='test_pt',type=str)
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv')
-    parser.add_argument('--n_ae_latents', default=12, type=int)
-    parser.opt_list('--n_arhmm_states', default=14, options=[2, 8, 14, 20, 26], type=int, tunable=False) 
-    parser.opt_list('--train_percent', default=1, options=[.2, .4, .6, .8, 1], tunable=True) 
-    parser.opt_list('--kappa', default=1e8, options=[1e2, 1e4, 1e6, 1e8, 1e10],type=int, tunable=False) 
+    #parser.add_argument('--n_ae_latents', default=12, type=int)
+    parser.opt_list('--n_arhmm_states', default=14, options=[4,8,16,32], type=int, tunable=True) 
+    parser.opt_list('--train_percent', default=1, options=[.2, .4, .6, .8, 1], tunable=False) 
+    parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10],type=int, tunable=False) 
     parser.opt_list('--noise_type', default='gaussian', options = ['gaussian','studentst'], type=str, tunable=False)
     parser.add_argument('--n_lags', default=1, type=int)
-    parser.add_argument('--n_iters', default=100, type=int)
+    parser.add_argument('--n_iters', default=150, type=int)
 
     # Plotting params
     parser.add_argument('--export_states', action='store_true', default=True)
