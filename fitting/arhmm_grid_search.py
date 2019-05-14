@@ -120,6 +120,12 @@ def main(hparams):
     hmm.observations.initialize(latents['train'], localize=False)
     train_ll = hmm.fit(latents['train'], method="em", num_em_iters=hparams['n_iters'],initialize=False)
 
+    # Reconfigure model/states by usage
+    zs = [hmm.most_likely_states(x) for x in latents['train']]
+    usage = np.bincount(np.concatenate(zs), minlength=hmm.K)
+    perm = np.argsort(usage)[::-1]
+    hmm.permute(perm)
+
     # Save model
     filepath = os.path.join(
         hparams['results_dir'], 'test_tube_data',
