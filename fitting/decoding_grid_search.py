@@ -67,7 +67,10 @@ def main(hparams):
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
     print('Data generator loaded')
-
+	
+    if hparams['model_class']=='neural-arhmm':
+         hparams['arhmm_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['arhmm']))
+  
     # ####################
     # ### CREATE MODEL ###
     # ####################
