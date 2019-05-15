@@ -189,7 +189,44 @@ def get_decoding_params(namespace, parser):
     parser.add_argument('--max_nb_epochs', default=500, type=int)
     parser.add_argument('--activation', default='relu', choices=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'])
 
-    if namespace.search_type == 'test':
+    if namespace.search_type == 'best':
+
+        import pickle
+        from fitting.utils import get_best_model_version
+
+        parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
+        parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
+        parser.add_argument('--experiment_name', '-en', default='best', type=str)
+        parser.add_argument('--decoder_experiment_name', default='grid_search', type=str)
+
+        # load best model params
+        namespace, extra = parser.parse_known_args()
+        hparams_tmp = vars(namespace)
+        hparams_tmp['experiment_name'] = hparams_tmp['decoder_experiment_name']
+        _, _, expt_dir = get_output_dirs(hparams_tmp)
+        best_version = get_best_model_version(expt_dir)[0]
+        best_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
+        print('Loading best discrete decoder from %s' % best_file)
+        with open(best_file, 'rb') as f:
+            hparams_best = pickle.load(f)
+        # get model params
+        learning_rate = hparams_best['learning_rate']
+        n_lags = hparams_best['n_lags']
+        l2_reg = hparams_best['l2_reg']
+        n_max_lags = hparams_best['n_max_lags']
+        n_final_units = hparams_best['n_final_units']
+        n_int_units = hparams_best['n_int_units']
+        n_hid_layers = hparams_best['n_hid_layers']
+
+        parser.add_argument('--learning_rate', default=learning_rate, type=float)
+        parser.add_argument('--n_lags', default=n_lags, type=int)
+        parser.add_argument('--l2_reg', default=l2_reg, type=float)
+        parser.add_argument('--n_max_lags', default=n_max_lags)  # should match largest value in --n_lags options
+        parser.add_argument('--n_hid_layers', default=n_hid_layers, type=int)
+        parser.add_argument('--n_final_units', default=n_final_units, type=int)
+        parser.add_argument('--n_int_units', default=n_int_units, type=int)
+        
+    elif namespace.search_type == 'test':
 
         parser.add_argument('--learning_rate', default=1e-3, type=float)
         parser.add_argument('--n_lags', default=4, type=int)
