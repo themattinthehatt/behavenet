@@ -111,7 +111,7 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     plt.ylabel('Occurrences')
     plt.title('Training Data State Durations \n Kappa = '+str(format(hparams['kappa'],'.0e'))+', # States = ' +str(hparams['n_arhmm_states'])+' \n Noise = '+hparams['noise_type']+', N lags = '+str(hparams['n_lags']))
     plt.savefig(os.path.join(filepath,'duration_hist_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(format(hparams['kappa'],'.0e'))+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png'),bbox_inches='tight')
-    
+
 
     # ## Make figure of frame counts
     _, _, frame_counts = relabel_states_by_use(states['train'])
@@ -122,31 +122,31 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     plt.ylabel('Percentage of frames')
     plt.title('Training Data ARHMM State Times')
     plt.savefig(os.path.join(filepath,'proportion_times_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(format(hparams['kappa'],'.0e'))+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png'),bbox_inches='tight')
-    
-    ## Make syllable movies 
+
+    ## Make syllable movies
     make_syllable_movies(filepath=filepath, hparams=hparams, latents=latents['val'], states=relabeled_states['val'], trial_idxs=trial_idxs['val'], data_generator=data_generator)
 
     ## Make real vs generated movies
     make_real_vs_generated_movies(filepath=filepath, hparams=hparams, hmm = hmm, latents=latents['val'], states=states['val'], data_generator=data_generator)
-            
+
 
 def get_discrete_chunks(states, include_edges=True):
     '''
     Find occurences of each discrete state
-    
+
     input:
         states: list of trials, each trial is numpy array containing discrete state for each frame
-        include_edges: include states at start and end of chunk 
+        include_edges: include states at start and end of chunk
 
-    output: 
+    output:
         indexing_list: list of length discrete states, each list contains all occurences of that discrete state by [chunk number, starting index, ending index]
-    
+
     '''
     max_state = max([max(x) for x in states])
     indexing_list = [[] for x in range(max_state+1)]
-    
+
     for i_chunk, chunk in enumerate(states):
-        
+
         chunk = np.pad(chunk,(1,1),mode='constant',constant_values=-1) # pad either side so we get start and end chunks
         split_indices = np.where(np.ediff1d(chunk)!=0)[0] # Don't add 1 because of start padding, this is now indice in original unpadded data
         split_indices[-1]-=1 # Last index will be 1 higher that it should be due to padding
@@ -171,7 +171,7 @@ def get_state_durations(latents, hmm):
 
     states = [hmm.most_likely_states(x) for x in latents]
     state_indices = get_discrete_chunks(states, include_edges=False)
-            
+
     durations = []
     for i_state in range(0,len(state_indices)):
         if len(state_indices[i_state])>0:
@@ -183,19 +183,19 @@ def get_state_durations(latents, hmm):
 def relabel_states_by_use(states,mapping=None):
     '''
     Takes in discrete states and relabels according to mapping or length of time in each.
-    
+
     input:
         states: list of trials, each trial is numpy array containing discrete state for each frame
         mapping: mapping you want to use if already calculated, format mapping[old_state]=new_state (for example if using training length of times mapping on validation data)
-            
-    output: 
+
+    output:
         relabeled_states: same data structure but with states relabeled by use (state 0 has most frames, etc)
         mapping: mapping of original labels to new labels, format mapping[old_state]=new_state
-        
+
     '''
     frame_counts=[]
     if mapping is None:
-    
+
         # Get number of frames for each state
         max_state = max([max(x) for x in states]) # Get maximum state
         bin_edges = np.arange(-.5,max_state+.7)
@@ -203,7 +203,7 @@ def relabel_states_by_use(states,mapping=None):
         frame_counts = np.zeros((max_state+1))
         for chunk in states:
             these_counts, _ = np.histogram(chunk,bin_edges)
-            frame_counts += these_counts  
+            frame_counts += these_counts
 
         # Define mapping
         mapping = np.asarray(scipy.stats.rankdata(-frame_counts,method='ordinal')-1)
@@ -213,8 +213,8 @@ def relabel_states_by_use(states,mapping=None):
     for i, chunk in enumerate(states):
 
         relabeled_states[i] = mapping[chunk]
-    
-    
+
+
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
@@ -240,7 +240,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
     for i_state in range(actual_K):
         if state_indices[i_state].shape[0]>0:
             over_threshold_instances[i_state] = state_indices[i_state][(np.diff(state_indices[i_state][:,1:3],1)>min_threshold)[:,0]]
-            np.random.shuffle(over_threshold_instances[i_state]) # Shuffle instances 
+            np.random.shuffle(over_threshold_instances[i_state]) # Shuffle instances
 
     dim1 = int(np.floor(np.sqrt(actual_K)))
     dim2 = int(np.ceil(actual_K/dim1))
@@ -251,7 +251,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
     fig, axes = plt.subplots(dim1,dim2,figsize=((movie_dim2*dim2)/fig_dim_div,(movie_dim1*dim1)/fig_dim_div))
 
     for i, ax in enumerate(fig.axes):
-        ax.set_yticks([])  
+        ax.set_yticks([])
         ax.set_xticks([])
         ax.set_title('Syllable '+str(i),fontsize=16)
     fig.tight_layout(pad=0)
@@ -276,7 +276,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
                     which_trial = trial_idxs[over_threshold_instances[i_syllable][i_chunk,0]]
                     movie_chunk = data_generator.datasets[0][which_trial]['images'].cpu().detach().numpy()[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
                     #movie_chunk = images[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
-                    
+
                     if hparams['lab']=='musall':
                         movie_chunk = np.transpose(movie_chunk,(0,1,3,2))
                     movie_chunk = np.concatenate([movie_chunk[:,j] for j in range(movie_chunk.shape[1])],axis=1)
@@ -298,25 +298,25 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
                         if i>syllable_start and i<(syllable_start+4):
                             rect =  matplotlib.patches.Rectangle((5,5),10,10,linewidth=1,edgecolor='r',facecolor='r')
                             im = fig.axes[i_syllable].add_patch(rect)
-                            ims[i_frame].append(im) 
+                            ims[i_frame].append(im)
 
                         i_frame+=1
 
-                    # Add buffer black frames   
+                    # Add buffer black frames
                     for j in range(n_buffer):
                         im = fig.axes[i_syllable].imshow(np.zeros((movie_dim1,movie_dim2)),animated=True,vmin=0,vmax=1,cmap='gray')
                         ims[i_frame].append(im)
                         i_frame+=1
 
-                    i_chunk+=1    
+                    i_chunk+=1
 
     ani = animation.ArtistAnimation(fig, [ims[i] for i in range(len(ims)) if ims[i]!=[]], interval=20, blit=True, repeat=False)
-    writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    save_file = os.path.join(filepath,'syllable_behavior_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
-    ani.save(save_file, writer=writer)
+    writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'), bitrate=-1)
+    # save_file = os.path.join(filepath,'syllable_behavior_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    ani.save('syllables.mp4', writer=writer)
 
 def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_generator, n_buffer=5):
-  
+
     plot_n_frames = hparams['plot_n_frames']
     if hparams['plot_frame_rate'] == 'orig':
         raise NotImplementedError
@@ -352,7 +352,7 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
     all_recon = np.zeros((0,n_channels*y_dim,x_dim))
     i_trial=0
     while all_recon.shape[0] < plot_n_frames:
-        
+
         recon = ae_model.decoding(torch.tensor(latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
         if hparams['lab']=='musall':
             recon = np.transpose(recon,(0,1,3,2))
@@ -360,15 +360,15 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
 
         # Add a few black frames
         zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
-        
+
         all_recon = np.concatenate((all_recon,recon,zero_frames),axis=0)
         i_trial+=1
-  
+
 
     all_simulated_recon = np.zeros((0,n_channels*y_dim,x_dim))
     i_trial=0
     while all_simulated_recon.shape[0] < plot_n_frames:
-        
+
         simulated_recon = ae_model.decoding(torch.tensor(sampled_observations[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
         if hparams['lab']=='musall':
             simulated_recon = np.transpose(simulated_recon,(0,1,3,2))
@@ -376,27 +376,27 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
 
         # Add a few black frames
         zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
-        
+
         all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames),axis=0)
         i_trial+=1
-    
-   
+
+
     ## Make overlaid plot
     spc=3
     which_trial=which_trials[0]
     trial_len = len(states[which_trial])
     fig, axes = plt.subplots(2,1,sharex=True,sharey=True, figsize=(10,10))
-    axes[0].imshow(states[which_trial][:trial_len][None,:], 
-                   aspect="auto", 
-                   extent=(0, trial_len, -spc-1, spc*n_latents), 
+    axes[0].imshow(states[which_trial][:trial_len][None,:],
+                   aspect="auto",
+                   extent=(0, trial_len, -spc-1, spc*n_latents),
                    cmap="jet", alpha=0.5)
     axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
-    axes[1].imshow(states[which_trial][:trial_len][None,:], 
-                   aspect="auto", 
-                   extent=(0, trial_len, -spc-1, spc*n_latents), 
+    axes[1].imshow(states[which_trial][:trial_len][None,:],
+                   aspect="auto",
+                   extent=(0, trial_len, -spc-1, spc*n_latents),
                    cmap="jet", alpha=0.5)
     axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
-        
+
     axes[0].set_title('Real Latents',fontsize=20)
     axes[1].set_title('Simulated Latents',fontsize=20)
     xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)

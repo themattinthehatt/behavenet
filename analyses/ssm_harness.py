@@ -90,6 +90,8 @@ def fit_model(num_discrete_states,
               ):
 
     model = HMM(K=num_discrete_states, D=data_dimension, M=input_dimension, **model_kwargs)
+    model.initialize(training_data, inputs=training_inputs)
+    model.observations.initialize(training_data, training_inputs, localize=False)
 
     # Run EM. Specify tolerances for overall convergence and each M-step's convergence
     lps = model.fit(training_data,
@@ -182,7 +184,7 @@ def plot_sampled_latents(training_data, x_smpls, lw=0.5):
     for d in range(D):
         h = plt.plot(x_smpls[0][:, d] - 5 * d, lw=lw)[0]
 
-        if len(x_smpls) > 10:
+        if len(x_smpls) < 10:
             i_plot = np.arange(len(x_smpls))
         else:
             i_plot = np.random.choice(len(x_smpls), size=10, replace=False)
