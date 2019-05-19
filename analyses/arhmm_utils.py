@@ -312,8 +312,8 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
 
     ani = animation.ArtistAnimation(fig, [ims[i] for i in range(len(ims)) if ims[i]!=[]], interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'), bitrate=-1)
-    # save_file = os.path.join(filepath,'syllable_behavior_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
-    ani.save('syllables.mp4', writer=writer)
+    save_file = os.path.join(filepath,'syllable_behavior_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    ani.save(save_file, writer=writer)
 
 def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_generator, n_buffer=5):
 
