@@ -112,7 +112,7 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     return curr_bytes * 1.2  # safety blanket
 
 
-def get_best_model_version(model_path, measure='val_loss', n_best=1):
+def get_best_model_version(model_path, measure='val_loss', n_best=1, best_def='min'):
     """
 
     Args:
@@ -140,7 +140,10 @@ def get_best_model_version(model_path, measure='val_loss', n_best=1):
         except:
             continue
         # get validation loss of best model
-        val_loss = metric[measure].min()
+        if best_def == 'min':
+            val_loss = metric[measure].min()
+        elif best_def == 'max':
+            val_loss = metric[measure].max()
         metrics.append(pd.DataFrame({
             'loss': val_loss,
             'version': version}, index=[i]))
@@ -149,9 +152,15 @@ def get_best_model_version(model_path, measure='val_loss', n_best=1):
     # get version with smallest loss
     
     if n_best == 1:
-        best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
+        if best_def == 'min':
+            best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
+        elif best_def == 'max':
+            best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
     else:
-        best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
+        if best_dir == 'min':
+            best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
+        elif best_def == 'max':
+            raise NotImplementedError
         if best_versions.shape[0] != n_best:
             print('More versions than specified due to same validation loss')
         
@@ -188,7 +197,8 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     hparams_new['results_dir'] = results_dir
     hparams_new['expt_dir'] = expt_dir
     hparams_new['use_output_mask'] = hparams['use_output_mask'] # TODO: get rid of eventually
-
+    hparams_new['device']='cpu'
+    
     # build data generator
     hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
         hparams_new)
@@ -214,7 +224,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     model = Model(hparams_new)
     model.version = best_version
     if hparams_new['lib'] == 'pt' or hparams_new['lib'] == 'pytorch':
-        model.load_state_dict(torch.load(model_file))
+        model.load_state_dict(torch.load(model_file,map_location=lambda storage, loc: storage))
         model.to(hparams_new['device'])
         model.eval()
     elif hparams_new['lib'] == 'tf':
@@ -501,6 +511,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = 'session-01'
         hparams['n_ae_latents'] = 12
         hparams['use_output_mask'] = False
+        hparams['frame_rate']=25
     if lab == 'steinmetz-face':
         hparams['lab'] = 'steinmetz'
         hparams['expt'] = '2-probe-face'
@@ -508,6 +519,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = 'session-01'
         hparams['n_ae_latents'] = 12
         hparams['use_output_mask'] = False
+        hparams['frame_rate']=25
     elif lab == 'musall':
         hparams['lab'] = 'musall'
         hparams['expt'] = 'vistrained'
@@ -515,6 +527,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = '10-Oct-2017'
         hparams['n_ae_latents'] = 16
         hparams['use_output_mask'] = False
+        hparams['frame_rate']=30 # is this correct?
     elif lab == 'datta':
         hparams['lab'] = 'datta'
         hparams['expt'] = 'inscopix'
@@ -522,6 +535,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = '2018-11-27'
         hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = True
+        hparams['frame_rate']=30
 
 
 def get_reconstruction(model, inputs):
