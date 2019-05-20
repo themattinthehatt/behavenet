@@ -39,9 +39,15 @@ def make_ae_reconstruction_movie(
     if trial is None:
         batch, dataset = data_generator.next_batch('test')
         ims_orig_pt = batch['images'][0, :max_bins]
+        if hparams['lab']=='datta':
+            mask = batch['masks'][0,:max_bins]
+            ims_orig_pt = ims_orig_pt*mask
     else:
         batch = data_generator.datasets[0][trial]
         ims_orig_pt = batch['images'][:max_bins]
+        if hparams['lab']=='datta':
+            mask = batch['masks'][:max_bins]
+            ims_orig_pt = ims_orig_pt*mask
 
     ims_recon_cae = get_reconstruction(model_cae, ims_orig_pt)
     if include_linear:
@@ -70,20 +76,21 @@ def make_ae_reconstruction_movie(
         ims_orig=ims_orig,
         ims_recon_cae=ims_recon_cae,
         ims_recon_lin=ims_recon_lin,
-        save_file=save_file)
+        save_file=save_file,
+        frame_rate=hparams['frame_rate'])
 
 
 def _make_ae_reconstruction_movie(
-        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None):
+        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None, frame_rate=None):
 
     n_channels, y_pix, x_pix = ims_orig.shape[1:]
-    n_cols = 3
-    n_rows = 1 if ims_recon_lin is None else 2
+    n_cols = 2
+    n_rows = 2 if ims_recon_lin is None else 3
     offset = 1 #0 if ims_recon_lin is None else 1
     scale_ = 5
     fig_width = scale_ * n_cols * n_channels / 2
     fig_height = y_pix / x_pix * scale_ * n_rows / 2
-    fig = plt.figure(figsize=(fig_width, fig_height + offset))
+    fig = plt.figure(figsize=(fig_width, fig_height + offset),dpi=100)
     # if n_ae_latents is not None:
     #     title = str(
     #         'Behavorial video compression\n%i dimensions' % n_ae_latents)
@@ -94,22 +101,22 @@ def _make_ae_reconstruction_movie(
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
     axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-    axs.append(fig.add_subplot(gs[0, 1]))  # 1: cae reconstructed frames
-    axs.append(fig.add_subplot(gs[0, 2]))  # 2: cae residuals
+    axs.append(fig.add_subplot(gs[1, 0]))  # 1: cae reconstructed frames
+    axs.append(fig.add_subplot(gs[1, 1]))  # 2: cae residuals
     if ims_recon_lin is not None:
-        axs.append(fig.add_subplot(gs[1, 1]))  # 3: linear reconstructed frames
-        axs.append(fig.add_subplot(gs[1, 2]))  # 4: linear residuals
+        axs.append(fig.add_subplot(gs[2, 0]))  # 3: linear reconstructed frames
+        axs.append(fig.add_subplot(gs[2, 1]))  # 4: linear residuals
     for ax in fig.axes:
         ax.set_xticks([])
         ax.set_yticks([])
 
     fontsize = 12
     axs[0].set_title('Original', fontsize=fontsize)
-    axs[1].set_title('Conv reconstructed', fontsize=fontsize)
-    axs[2].set_title('Conv residual', fontsize=fontsize)
+    axs[1].set_title('Conv AE reconstructed', fontsize=fontsize)
+    axs[2].set_title('Conv AE residual', fontsize=fontsize)
     if ims_recon_lin is not None:
-        axs[3].set_title('Linear reconstructed', fontsize=fontsize)
-        axs[4].set_title('Linear residual', fontsize=fontsize)
+        axs[3].set_title('Linear AE reconstructed', fontsize=fontsize)
+        axs[4].set_title('Linear AE residual', fontsize=fontsize)
 
     ims_res_cae = ims_orig - ims_recon_cae
     if ims_recon_lin is not None:
@@ -139,7 +146,9 @@ def _make_ae_reconstruction_movie(
             ims_orig_tmp = ims_orig[i, 0]
         else:
             ims_orig_tmp = concat(ims_orig[i])
+
         im = axs[0].imshow(ims_orig_tmp, **default_kwargs)
+        [s.set_visible(False) for s in axs[0].spines.values()]
         ims_curr.append(im)
         # cae reconstructed video
         if n_channels == 1:
@@ -147,6 +156,7 @@ def _make_ae_reconstruction_movie(
         else:
             ims_recon_cae_tmp = concat(ims_recon_cae[i])
         im = axs[1].imshow(ims_recon_cae_tmp, **default_kwargs)
+        [s.set_visible(False) for s in axs[1].spines.values()]
         ims_curr.append(im)
         # cae residual video
         if n_channels == 1:
@@ -154,6 +164,7 @@ def _make_ae_reconstruction_movie(
         else:
             ims_res_cae_tmp = concat(ims_res_cae[i])
         im = axs[2].imshow(0.5 + ims_res_cae_tmp, **default_kwargs)
+        [s.set_visible(False) for s in axs[2].spines.values()]
         ims_curr.append(im)
         if ims_recon_lin is not None:
             # linear reconstructed video
@@ -162,6 +173,7 @@ def _make_ae_reconstruction_movie(
             else:
                 ims_recon_lin_tmp = concat(ims_recon_lin[i])
             im = axs[3].imshow(ims_recon_lin_tmp, **default_kwargs)
+            [s.set_visible(False) for s in axs[3].spines.values()]
             ims_curr.append(im)
             # linear residual video
             if n_channels == 1:
@@ -169,6 +181,7 @@ def _make_ae_reconstruction_movie(
             else:
                 ims_res_lin_tmp = concat(ims_res_lin[i])
             im = axs[4].imshow(0.5 + ims_res_lin_tmp, **default_kwargs)
+            [s.set_visible(False) for s in axs[4].spines.values()]
             ims_curr.append(im)
 
         ims.append(ims_curr)
@@ -176,7 +189,7 @@ def _make_ae_reconstruction_movie(
     plt.tight_layout(pad=0)
 
     ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
-    writer = FFMpegWriter(fps=15, bitrate=-1)
+    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
 
     if save_file is not None:
         if not os.path.isdir(os.path.dirname(save_file)):
@@ -375,6 +388,7 @@ def _make_neural_reconstruction_movie(
             ims_orig_tmp = ims_orig[i, 0]
         else:
             ims_orig_tmp = concat(ims_orig[i])
+
         im = axs[indx].imshow(ims_orig_tmp, **im_kwargs)
         ims_curr.append(im);
         indx += 1;
