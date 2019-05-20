@@ -193,7 +193,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                             'version_%i' % load_kwarg['model_version'])
                     else:
                         model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'val_ll')[0]
+                            load_kwarg['model_dir'], 'val_ll',best_def='max')[0]
                         model_dir = os.path.join(
                             load_kwarg['model_dir'], model_version)
                     # find file with "latents" in name
