@@ -43,6 +43,7 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
             sess_dir, 'neural-arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
+            '%.0e_kappa' % hparams['kappa'],
             model_type)
     elif model_class == 'arhmm':
         results_dir = os.path.join(
