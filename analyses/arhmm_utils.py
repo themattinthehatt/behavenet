@@ -260,6 +260,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
 
     # Loop through syllables
     for i_syllable in range(actual_K):
+        print(i_syllable)
         if len(over_threshold_instances[i_syllable])>0:
             i_chunk=0
             i_frame=0
@@ -281,8 +282,17 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
                         movie_chunk = np.transpose(movie_chunk,(0,1,3,2))
                     movie_chunk = np.concatenate([movie_chunk[:,j] for j in range(movie_chunk.shape[1])],axis=1)
 
-                    latents_chunk = latents[over_threshold_instances[i_syllable][i_chunk,0]][over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames:over_threshold_instances[i_syllable][i_chunk,2]]
+                    # latents_chunk = latents[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
+                
+                    # print(states[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):min(over_threshold_instances[i_syllable][i_chunk,2]+1,999)])
+                    # print(hmm.most_likely_states(latents[over_threshold_instances[i_syllable][i_chunk,0]])[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):min(over_threshold_instances[i_syllable][i_chunk,2]+1,999)])
+                    
+                    # print(data_generator.datasets[0][which_trial]['images'][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]].shape)
+                    # pred_latents, _, _ = ae_model.encoding(data_generator.datasets[0][which_trial]['images'][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]])
+                    # pred_latents = pred_latents.cpu().detach().numpy()
 
+                    # print(np.max(np.abs(latents_chunk-pred_latents)))
+                    # print(np.max(np.abs(latents[0][0:len(pred_latents)]-pred_latents)))
                     if np.sum(states[over_threshold_instances[i_syllable][i_chunk,0]][over_threshold_instances[i_syllable][i_chunk,1]:over_threshold_instances[i_syllable][i_chunk,2]-1]!=i_syllable)>0:
                         raise ValueError('Misaligned states for syllable segmentation')
 
@@ -295,7 +305,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
                         # Add red box if start of syllable
                         syllable_start = n_pre_frames if over_threshold_instances[i_syllable][i_chunk,1]>=n_pre_frames else over_threshold_instances[i_syllable][i_chunk,1]
 
-                        if i>syllable_start and i<(syllable_start+4):
+                        if i>syllable_start and i<(syllable_start+2):
                             rect =  matplotlib.patches.Rectangle((5,5),10,10,linewidth=1,edgecolor='r',facecolor='r')
                             im = fig.axes[i_syllable].add_patch(rect)
                             ims[i_frame].append(im)
@@ -419,7 +429,7 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
         axes[j].set_yticks([])
 
     axes[0].set_title('Real Reconstructions',fontsize=16)
-    axes[1].set_title('Simulated Reconstructions',fontsize=16)
+    axes[1].set_title('Generative Reconstructions',fontsize=16)
     fig.tight_layout(pad=0)
 
     ims = []
@@ -439,5 +449,114 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
     save_file = os.path.join(filepath,'real_vs_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
     ani.save(save_file, writer=writer)
+
+def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents, generated_latents, data_generator, trial_idxs, n_buffer=5):
+
+    plot_n_frames = hparams['plot_n_frames']
+    if hparams['plot_frame_rate'] == 'orig':
+        raise NotImplementedError
+    else:
+        plot_frame_rate = hparams['plot_frame_rate']
+
+    n_latents = hparams['n_ae_latents']
+    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[0][0]['images'].shape
+
+
+    ## Load in AE decoder
+    ae_model_file = os.path.join(hparams['ae_model_path'],'best_val_model.pt')
+    ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'],'meta_tags.pkl'),'rb'))
+    ae_model = AE(ae_arch)
+    ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
+    ae_model.eval()
+
+
+    # Make original videos vs real recons vs simulated recons arrays
+    which_trials = np.arange(0,len(real_latents)).astype('int')
+    np.random.shuffle(which_trials)
+
+    all_orig = np.zeros((0,n_channels*y_dim,x_dim))
+    i_trial=0
+    while all_orig.shape[0] < plot_n_frames:
+
+        orig = data_generator.datasets[0][trial_idxs[which_trials[i_trial]]]['images'].cpu().detach().numpy()
+        #recon = ae_model.decoding(torch.tensor(latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
+        if hparams['lab']=='musall':
+            orig = np.transpose(orig,(0,1,3,2))
+        orig = np.concatenate([orig[:,i] for i in range(orig.shape[1])],axis=1)
+
+        # Add a few black frames
+        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
+
+        all_orig = np.concatenate((all_orig,orig,zero_frames),axis=0)
+        i_trial+=1
+
+
+    all_recon = np.zeros((0,n_channels*y_dim,x_dim))
+    i_trial=0
+    while all_recon.shape[0] < plot_n_frames:
+
+        recon = ae_model.decoding(torch.tensor(real_latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
+        if hparams['lab']=='musall':
+            recon = np.transpose(recon,(0,1,3,2))
+        recon = np.concatenate([recon[:,i] for i in range(recon.shape[1])],axis=1)
+
+        # Add a few black frames
+        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
+
+        all_recon = np.concatenate((all_recon,recon,zero_frames),axis=0)
+        i_trial+=1
+
+
+    all_simulated_recon = np.zeros((0,n_channels*y_dim,x_dim))
+    i_trial=0
+    while all_simulated_recon.shape[0] < plot_n_frames:
+
+        simulated_recon = ae_model.decoding(torch.tensor(generated_latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
+        if hparams['lab']=='musall':
+            simulated_recon = np.transpose(simulated_recon,(0,1,3,2))
+        simulated_recon = np.concatenate([simulated_recon[:,i] for i in range(simulated_recon.shape[1])],axis=1)
+
+        # Add a few black frames
+        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
+
+        all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames),axis=0)
+        i_trial+=1
+
+
+    # Make videos
+    plt.clf()
+    fig_dim_div = x_dim*3/10 # aiming for dim 1 being 10
+    fig, axes = plt.subplots(1,3,figsize=(x_dim*3/fig_dim_div,y_dim*n_channels/fig_dim_div))
+
+    for j in range(3):
+        axes[j].set_xticks([])
+        axes[j].set_yticks([])
+
+    axes[0].set_title('Original Frames',fontsize=16)
+    axes[1].set_title('Real Reconstructions',fontsize=16)
+    axes[2].set_title('Generative Reconstructions',fontsize=16)
+    fig.tight_layout(pad=0)
+
+    ims = []
+    for i in range(plot_n_frames):
+
+        ims_curr = []
+
+        im = axes[0].imshow(all_orig[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        ims_curr.append(im)
+
+        im = axes[1].imshow(all_recon[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        ims_curr.append(im)
+
+        im = axes[2].imshow(all_simulated_recon[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        ims_curr.append(im)
+
+        ims.append(ims_curr)
+
+    ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
+    writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
+    save_file = os.path.join(filepath,hparams['lab']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    ani.save(save_file, writer=writer)
+
 
 
