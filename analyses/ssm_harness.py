@@ -176,10 +176,11 @@ def plot_validation_likelihoods(all_results, line_styles={}, T_val=1):
 def plot_sampled_latents(training_data, x_smpls, lw=0.5):
     T, D = training_data.shape
 
-    spc = 18
     # Compute mean and std of sampels
     x_smpl_mean = np.mean(x_smpls, axis=0)
     x_smpl_std = np.std(x_smpls, axis=0)
+    spc = 1.1 * abs(training_data.max())
+
 
     fig = plt.figure(figsize=(8, 6))
     for d in range(D):
@@ -274,7 +275,7 @@ def make_hollywood_movie(K, real_image_stack, z_inf, decoded_image_stacks, z_smp
     fig = plt.figure(figsize=(decoded_image_stacks[0].shape[2]*(N_samples+1)/fig_dim_div, decoded_image_stacks[0].shape[1]/fig_dim_div))
     #fig = plt.figure(figsize=(3 * (N_samples + 1), 3))
     ax1 = plt.axes((0, 0, width, 1))
-    im1 = ax1.imshow(real_image_stack[0, :, :], vmin=vmin[0], vmax=vmax[0], cmap="Greys_r")
+    im1 = ax1.imshow(real_image_stack[0, :, :, 0], vmin=vmin[0], vmax=vmax[0], cmap="Greys_r")
     r1 = Rectangle((.9, .9), .05, .05, color=jet(z_inf[0] / (K - 1)))
     ax1.add_patch(r1)
     ax1.set_xticks([])
@@ -285,14 +286,13 @@ def make_hollywood_movie(K, real_image_stack, z_inf, decoded_image_stacks, z_smp
     axs, ims, rs = [], [], []
     for j in range(N_samples):
         ax = plt.axes(((j+1) * width, 0, width, 1))
-        im = ax.imshow(decoded_image_stacks[j][0, :, :], vmin=vmin[j+1], vmax=vmax[j+1], cmap="Greys_r")
+        im = ax.imshow(decoded_image_stacks[j][0, :, :, 0], vmin=vmin[j+1], vmax=vmax[j+1], cmap="Greys_r")
         r = Rectangle((.9, .9), .05, .05, color=jet(z_smpls[j][0] / (K - 1)))
         ax.add_patch(r)
         ax.set_xticks([])
         ax.set_yticks([])
         ti = ax.set_title(titles[j+1], pad=-15)
         ti.set_color("white")
-
 
         axs.append(ax)
         ims.append(im)
@@ -301,11 +301,11 @@ def make_hollywood_movie(K, real_image_stack, z_inf, decoded_image_stacks, z_smp
 
     def update_frame(i):
         # Update the images
-        im1.set_data(real_image_stack[i, :, :])
+        im1.set_data(real_image_stack[i, :, :, 0])
         r1.set_color(jet(z_inf[i] / (K - 1)))
 
         for j in range(N_samples):
-            ims[j].set_data(decoded_image_stacks[j][i, :, :])
+            ims[j].set_data(decoded_image_stacks[j][i, :, :, 0])
             rs[j].set_color(jet(z_smpls[j][i] / (K - 1)))
         #title.set_text("Frame {}".format(i))
 
