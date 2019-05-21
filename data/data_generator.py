@@ -199,6 +199,27 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     # find file with "latents" in name
                     self.paths[signal] = glob.glob(os.path.join(
                         model_dir, '*states*.pkl'))[0]
+            elif signal == 'arhmm_predictions':
+                # build path to latents
+                if 'predictions_file' in load_kwarg:
+                    self.paths[signal] = load_kwarg['predictions_file']
+                else:
+                    if load_kwarg['model_dir'] is None:
+                        raise IOError(
+                            'Must supply arhmm directory or predictions file')
+                    if 'model_version' in load_kwarg and isinstance(
+                            load_kwarg['model_version'], int):
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'],
+                            'version_%i' % load_kwarg['model_version'])
+                    else:
+                        model_version = get_best_model_version(
+                            load_kwarg['model_dir'], 'val_loss')[0]
+                        model_dir = os.path.join(
+                            load_kwarg['model_dir'], model_version)
+                    # find file with "latents" in name
+                    self.paths[signal] = glob.glob(os.path.join(
+                        model_dir, '*predictions*.pkl'))[0]
             else:
                 raise ValueError('"%s" is an invalid signal type')
 

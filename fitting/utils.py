@@ -52,6 +52,13 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
             hparams['noise_type'])
+    elif model_class == 'arhmm-decoding':
+        results_dir = os.path.join(
+            sess_dir, 'arhmm',
+            '%02i_latents' % hparams['n_ae_latents'],
+            '%02i_states' % hparams['n_arhmm_states'],
+            '%.0e_kappa' % hparams['kappa'],
+            hparams['noise_type'])
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
 
@@ -433,6 +440,26 @@ def get_data_generator_inputs(hparams):
             signals = ['ae', 'images']
             transforms = [ae_transforms, None]
             load_kwargs = [ae_kwargs, None]
+    elif hparams['model_class'] == 'arhmm-decoding':
+
+        _, _, ae_dir = get_output_dirs(
+            hparams, model_class='ae',
+            expt_name=hparams['ae_experiment_name'],
+            model_type=hparams['ae_model_type'])
+
+        ae_transforms = None
+        ae_kwargs = {
+            'model_dir': ae_dir,
+            'model_version': hparams['ae_version']} 
+
+        if hparams['use_output_mask']:
+            signals = ['ae', 'images', 'masks','ae_predictions','arhmm_predictions','arhmm']
+            transforms = [ae_transforms, None, None, None, None, None]
+            load_kwargs = [ae_kwargs, None, None, None, None, None]
+        else:
+            signals = ['ae', 'images', 'ae_predictions','arhmm_predictions','arhmm']
+            transforms = [ae_transforms, None, None, None, None]
+            load_kwargs = [ae_kwargs, None, None, None, None]
 
     else:
         raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
