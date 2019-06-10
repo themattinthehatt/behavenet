@@ -323,7 +323,20 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     raise NotImplementedError(
                         'Must create arhmm latents from model; currently not' +
                         ' implemented')
-
+            elif signal == 'arhmm_predictions':
+                dtype = 'float32'
+                try:
+                    with open(self.paths[signal], 'rb') as f:
+                        latents_dict = pickle.load(f)
+                    if indx is None:
+                        sample[signal] = latents_dict['predictions']
+                    else:
+                        sample[signal] = latents_dict['predictions'][indx]
+                    sample[signal] = sample[signal].astype(dtype)
+                except IOError:
+                    raise NotImplementedError(
+                        'Must create arhmm predictions from model; currently not' +
+                        ' implemented')
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
 

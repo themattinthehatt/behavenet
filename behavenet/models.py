@@ -5,6 +5,10 @@ import torch.nn.functional as F
 import numpy as np
 from ast import literal_eval
 import behavenet.core as core
+from pyslds.models import HMMSLDS
+from pyslds.states import HMMSLDSStatesEigen
+
+from pybasicbayes.distributions import Gaussian, Regression
 
 
 class ConvAEEncoder(nn.Module):
@@ -231,7 +235,191 @@ class LinearAEEncoder(nn.Module):
         for param in self.parameters():
             param.requires_grad = False
 
+class NeuralNetDecoderLaggedSLDSStates(HMMSLDSStatesEigen):
+    """
+    Override the SLDS potentials with those from a neural net.
+    
+    The "states" are really a concatenation of states over n lags.
+    
+    x'_t = [x'_t, x'_{t-1}, ..., x'_{t-nlags+1}]   in R^{D*n_lags}
+    
+    The dynamics are given by
+    
+    x'_{t+1} = A' x'_t  
+    
+    where
+    
+    A' = [A_1,  A_2,  ...,  A_{n_lags-1},  A_{n_lags}]
+         [ I ,   0 ,  ...,   0          ,   0        ]
+         [ 0 ,   I ,  ...,   0          ,   0        ]
+         ...
+         [ 0 ,   0 ,  ...,   I          ,   0        ]
+         
+    is a block dynamics matrix in R^{D*n_lags x D*n_lags}
+    
+    That means the emission potentials also need to be 
+    the same shape.  They only apply to the first D entries in x' though.
+    """
+    def __init__(self, model, x_preds=None, x_covs=None, z_logprobs=None, 
+                 x_scale=1.0, z_scale=1.0, **kwargs):
+        """
+        :param x_preds:     TxD array of decoded continuous states from neural net.
+        :param x_covs:      DxD or TxDxD array of decoded covariance of continuous states from neural net.
+        :param z_logprobs:  TxK array of log probabilities of discrete states from neural net.
+        :param x_scale:     positive scalar value indicating how much to weight the continuous predictions. 
+        :param z_scale:     positive scalar value indicating how much to weight the discrete predictions. 
+        
+        Other kwargs include data, 
+        """
+        super(NeuralNetDecoderLaggedSLDSStates, self).__init__(model, **kwargs)
+        
+        # Precompute the info form potentials from the decoder
+        assert np.isscalar(x_scale)
+        T, D = x_preds.shape
+        assert T == self.T
+        assert D == self.D_latent / self.n_lags
+        assert x_covs.shape == (T, D, D) or x_covs.shape == (D, D)
+        
+        # Convert predictions into information form potentials
+        self.J_node = np.zeros((T, self.D_latent, self.D_latent))
+        self.J_node[:, :D, :D] = x_scale * np.linalg.inv(x_covs) 
+        self.h_node = np.zeros((T, self.D_latent))
+        self.h_node[:, :D] = np.matmul(self.J_node[:, :D, :D], x_preds[:, :, None])[:, :, 0]
+        self.log_Z_node = np.zeros(self.T)
+        
+        # Precompute the discrete state potentials from the decoder
+        assert np.isscalar(z_scale)
+        T, K = z_logprobs.shape
+        assert T == self.T
+        assert K == self.num_states
+        self.decoder_aBl = z_scale * z_logprobs
+        
+    @property
+    def n_lags(self):
+        return self.model.n_lags
+        
+    # Override the emissions parameters with the J and h given by the decoder
+    # J = Sigma^{-1} and h = Sigma^{-1} mu.  These are the natural parameters
+    # of the multivariate normal distribution
+    @property
+    def info_emission_params(self):
+        return self.J_node, self.h_node, self.log_Z_node
+    
+    # Override the discrete potentials too
+    @property
+    def aBl(self):
+        if self._aBl is None:
+            self._aBl = np.zeros((self.T, self.num_states))
+            ids, dds = self.init_dynamics_distns, self.dynamics_distns
 
+            for idx, (d1, d2) in enumerate(zip(ids, dds)):
+                # Initial state distribution
+                self._aBl[0, idx] = d1.log_likelihood(self.gaussian_states[0])
+
+                # Dynamics
+                xs = np.hstack((self.gaussian_states[:-1], self.inputs[:-1]))
+                self._aBl[:-1, idx] = d2.log_likelihood((xs, self.gaussian_states[1:]))
+
+            # Add the decoder potential
+            self._aBl += self.decoder_aBl
+            
+            # Handle NaN's
+            self._aBl[np.isnan(self._aBl).any(1)] = 0.
+
+        return self._aBl
+    
+
+class NeuralNetDecoderLaggedSLDS(HMMSLDS):
+    _states_class = NeuralNetDecoderLaggedSLDSStates
+    
+    def __init__(self, arhmm):
+        """
+        Build the decoder from an SSM autoregressive hidden Marko model
+        """
+        K = arhmm.K  # number of discrete states      
+        D_latent = D = arhmm.D   # dimensionality of continuous latents
+        D_input = 1          # input dimensionality is 1 for the affine term
+        D_obs = 1            # dummy value
+        
+        # NOTE: The latent states will be D_latent * L dimensional
+        self.n_lags = L = arhmm.observations.lags       # number of lags used by the ARHMM
+
+        # Initialize the initial state distribution of the continuous states
+        init_dynamics_distns = \
+            [Gaussian(nu_0=D_latent * L +3,
+                      sigma_0=3.*np.eye(D_latent * L),
+                      mu_0=np.zeros(D_latent * L),
+                      kappa_0=0.01)
+             for _ in range(K)]
+
+        for id, mu, sigma in zip(init_dynamics_distns, 
+                                 arhmm.observations.mu_init,
+                                 arhmm.observations.Sigmas_init):
+            id.sigma *= 0
+            for l in range(L):
+                id.mu[l*D:(l+1)*D] = mu
+                id.sigma[l*D:(l+1)*D, l*D:(l+1)*D] = sigma
+        
+        # Initialize dynamics distributions
+        dynamics_distns = [Regression(
+            nu_0=D_latent * L + 1,
+            S_0=D_latent * np.eye(D_latent * L),
+            M_0=np.hstack((.99 * np.eye(D_latent * L), np.zeros((D_latent * L, D_input)))),
+            K_0=D_latent * np.eye(D_latent * L + D_input))
+            for _ in range(K)]
+        
+        # Combine (A, b) into a single matrix
+        Abs = [np.column_stack((A, b)) for A, b in zip(arhmm.observations.As, arhmm.observations.bs)]
+        for dd, Ab, sigma in zip(dynamics_distns, Abs, arhmm.observations.Sigmas):
+            assert Ab.shape == (D_latent, D_latent * L + 1)
+            
+            # Convert Ab into a "full" dynamics matrix that propagates past states
+            A_full = np.zeros((D_latent * L, D_latent * L + 1))
+            sigma_full = np.zeros((D_latent * L, D_latent * L))
+            
+            # First row are the AR dynamics matrices and bias
+            A_full[:D_latent, :] = Ab
+            sigma_full[:D_latent, :D_latent] = sigma
+
+            # Following rows propagate lagged states
+            for l in range(1, L):
+                A_full[l*D_latent:(l+1)*D_latent, (l-1)*D_latent:l*D_latent] = np.eye(D_latent)
+                sigma_full[l*D_latent:(l+1)*D_latent, l*D_latent:(l+1)*D_latent] = 1e-8 * np.eye(D_latent)
+            
+            dd.A = A_full
+            dd.sigma = sigma_full
+            
+        # Initialize the transitions
+        trans_matrix = np.exp(arhmm.transitions.log_Ps)
+        assert np.allclose(trans_matrix.sum(1), 1)
+
+        # Initialize the initial state distribution
+        pi_0 = np.exp(arhmm.init_state_distn.log_pi0)
+        
+        # Call the super constructor with these distributions
+        super(NeuralNetDecoderLaggedSLDS, self).__init__(
+            init_dynamics_distns=init_dynamics_distns,
+            dynamics_distns=dynamics_distns,
+            emission_distns=None,
+            pi_0=pi_0, init_state_concentration=1,
+            trans_matrix=trans_matrix, alpha=1)
+
+        
+    def add_data(self, x_preds, x_covs, z_logprobs, x_scale=1, z_scale=1):
+        # Make dummy data for these predictions
+        T = x_preds.shape[0]
+        dummy_data = np.zeros((T, 1))
+        dummy_inputs = np.ones((T, 1))
+        
+        # Construct a states object for these predictions
+        self.states_list.append(
+            NeuralNetDecoderLaggedSLDSStates(
+                model=self, data=dummy_data, inputs=dummy_inputs,
+                x_preds=x_preds, x_covs=x_covs, z_logprobs=z_logprobs,
+                x_scale=x_scale, z_scale=z_scale,
+                stateseq=None, fixed_stateseq=False))
+        
+        return self.states_list[-1]
 # class LinearVAEEncoder(nn.Module):
 
 #     def __init__(self, latent_dim_size_h, pixel_size):
