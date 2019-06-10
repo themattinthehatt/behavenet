@@ -197,7 +197,12 @@ def get_params(strategy):
 def get_arhmm_params(namespace, parser):
 
     # add data arguments
-    parser.add_argument('--experiment_name', '-en', default='diff_init_grid_search', type=str) #'grid_search'
+    if namespace.search_type == 'grid_search':
+        parser.add_argument('--experiment_name', '-en', default='diff_init_grid_search', type=str) #'grid_search'
+    
+
+
+
     parser.add_argument('--ae_experiment_name', default='test_pt',type=str)
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv')

@@ -63,17 +63,20 @@ def cached(output_dir, results_name):
 
 
 # Estimate firing rates and then run PCA
-def preprocess_neural_data(neural_data, num_components=20, fs=40, window=0.1):
+def preprocess_neural_data(neural_data, fs=40, window=0.1):
+    # neural data should be trials x time x neurons (if no trials, just have 0th dimension of 1)
+    [n_trials, trial_length, n_neurons] = neural_data.shape
+
     filter_size = int(window * fs)
-    rates = gaussian_filter1d(neural_data, filter_size, axis=0) * fs
-    max_rates = np.max(rates, axis=0)
+    rates = gaussian_filter1d(neural_data, filter_size, axis=1) * fs
+    max_rates = np.max(np.max(rates, axis=0),axis=0) # get max over trials and time for each neuron
     normalized_rates = rates / max_rates
 
-    pca = PCA(num_components)
-    pca.fit(normalized_rates)
-    lowd_neural_data = pca.transform(normalized_rates)
+    pca = PCA(20)
+    pca.fit(normalized_rates.reshape((n_trials*trial_length,n_neurons)))
+    lowd_neural_data = pca.transform(normalized_rates.reshape((n_trials*trial_length,n_neurons)))
 
-    return normalized_rates, lowd_neural_data, pca
+    return normalized_rates, lowd_neural_data.reshape((n_trials,trial_length,20)), pca, max_rates
 
 
 # Fit an HMM

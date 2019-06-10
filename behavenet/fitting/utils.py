@@ -54,7 +54,7 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
             hparams['noise_type'])
     elif model_class == 'arhmm-decoding':
         results_dir = os.path.join(
-            sess_dir, 'arhmm',
+            sess_dir, 'arhmm-decoding',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
@@ -210,6 +210,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     # build data generator
     hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
         hparams_new)
+
     ids = {
         'lab': hparams_new['lab'],
         'expt': hparams_new['expt'],
@@ -452,14 +453,41 @@ def get_data_generator_inputs(hparams):
             'model_dir': ae_dir,
             'model_version': hparams['ae_version']} 
 
+
+        _, _, ae_predictions_dir = get_output_dirs(
+            hparams, model_class='neural-ae',
+            expt_name=hparams['neural_ae_experiment_name'],
+            model_type=hparams['neural_ae_model_type'])
+        ae_predictions_transforms = None
+        ae_predictions_kwargs = {
+            'model_dir': ae_predictions_dir,
+            'model_version': hparams['neural_ae_version']} 
+
+        _, _, arhmm_predictions_dir = get_output_dirs(
+            hparams, model_class='neural-arhmm',
+            expt_name=hparams['neural_arhmm_experiment_name'],
+            model_type=hparams['neural_arhmm_model_type'])
+        arhmm_predictions_transforms = None
+        arhmm_predictions_kwargs = {
+            'model_dir': arhmm_predictions_dir,
+            'model_version': hparams['neural_arhmm_version']} 
+
+        _, _, arhmm_dir = get_output_dirs(
+            hparams, model_class='arhmm',
+            expt_name=hparams['arhmm_experiment_name'])
+        arhmm_transforms = None
+        arhmm_kwargs = {
+            'model_dir': arhmm_dir,
+            'model_version': hparams['arhmm_version']}
+
         if hparams['use_output_mask']:
             signals = ['ae', 'images', 'masks','ae_predictions','arhmm_predictions','arhmm']
-            transforms = [ae_transforms, None, None, None, None, None]
-            load_kwargs = [ae_kwargs, None, None, None, None, None]
+            transforms = [ae_transforms, None, None, ae_predictions_transforms, arhmm_predictions_transforms, arhmm_transforms]
+            load_kwargs = [ae_kwargs, None, None, ae_predictions_kwargs, arhmm_predictions_kwargs, arhmm_kwargs]
         else:
             signals = ['ae', 'images', 'ae_predictions','arhmm_predictions','arhmm']
-            transforms = [ae_transforms, None, None, None, None]
-            load_kwargs = [ae_kwargs, None, None, None, None]
+            transforms = [ae_transforms, None, ae_predictions_transforms, arhmm_predictions_transforms, arhmm_transforms]
+            load_kwargs = [ae_kwargs, None, ae_predictions_kwargs, arhmm_predictions_kwargs, arhmm_kwargs]
 
     else:
         raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])

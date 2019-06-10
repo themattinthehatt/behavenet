@@ -464,6 +464,7 @@ def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents
 
     ## Load in AE decoder
     ae_model_file = os.path.join(hparams['ae_model_path'],'best_val_model.pt')
+    print(ae_model_file)
     ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'],'meta_tags.pkl'),'rb'))
     ae_model = AE(ae_arch)
     ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
@@ -471,9 +472,17 @@ def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents
 
 
     # Make original videos vs real recons vs simulated recons arrays
-    which_trials = np.arange(0,len(real_latents)).astype('int')
-    np.random.shuffle(which_trials)
-
+    #which_trials = np.arange(0,len(real_latents)).astype('int')
+    #np.random.shuffle(which_trials)
+    if hparams['lab_example']=='steinmetz-face':
+        print('steinmetz-face')
+        which_trials = np.asarray([4,9])
+    elif hparams['lab_example']=='steinmetz':
+        print('steinmetz')
+        which_trials = np.asarray([4,9])
+    else:
+        which_trials = np.arange(0,len(real_latents)).astype('int')
+        np.random.shuffle(which_trials)  
     all_orig = np.zeros((0,n_channels*y_dim,x_dim))
     i_trial=0
     while all_orig.shape[0] < plot_n_frames:
@@ -511,7 +520,7 @@ def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents
     i_trial=0
     while all_simulated_recon.shape[0] < plot_n_frames:
 
-        simulated_recon = ae_model.decoding(torch.tensor(generated_latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
+        simulated_recon = ae_model.decoding(torch.tensor(generated_latents[i_trial]).float(), None, None).cpu().detach().numpy()
         if hparams['lab']=='musall':
             simulated_recon = np.transpose(simulated_recon,(0,1,3,2))
         simulated_recon = np.concatenate([simulated_recon[:,i] for i in range(simulated_recon.shape[1])],axis=1)
@@ -555,7 +564,7 @@ def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents
 
     ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    save_file = os.path.join(filepath,hparams['lab']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    save_file = os.path.join(filepath,hparams['dataset_name']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
     ani.save(save_file, writer=writer)
 
 
