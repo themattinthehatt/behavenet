@@ -35,6 +35,8 @@ def whiten_all(data_dict, center=True, mu=None, L=None):
     apply_whitening = lambda x:  np.linalg.solve(L, (x-mu).T).T + offset
 
     return [contig(apply_whitening(v)) for v in data_dict], mu, L
+
+
 def get_sample(slds, latent_predictions, state_log_predictions, x_covs, x_scale, z_scale, parallel_inputs):
     idx = parallel_inputs[0]
     iter = parallel_inputs[1]
@@ -50,6 +52,7 @@ def get_sample(slds, latent_predictions, state_log_predictions, x_covs, x_scale,
         x_smpls.append(states.gaussian_states.copy())
         ll_smpls.append(states.log_likelihood())
     return [z_smpls, x_smpls, ll_smpls, idx, iter]
+
 
 def get_last_sample(slds, latent_predictions, state_log_predictions, x_covs, x_scale, z_scale, parallel_inputs):
     idx = parallel_inputs[0]
@@ -67,7 +70,7 @@ def get_last_sample(slds, latent_predictions, state_log_predictions, x_covs, x_s
         ll_smpls.append(states.log_likelihood())
     states.E_step()
     return [z_smpls[-1], x_smpls[-1], ll_smpls, idx, iter, states.expected_states]
->>>>>>> 26f8aaacf024bc993c9a12cbc5d3c42bfa8fef4a:fitting/arhmm_decoding_grid_search.py
+
 
 def main(hparams):
 

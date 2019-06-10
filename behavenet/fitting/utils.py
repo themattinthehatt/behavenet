@@ -177,7 +177,7 @@ def get_best_model_version(model_path, measure='val_loss', n_best=1, best_def='m
 
 def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
 
-    from data.data_generator import ConcatSessionsGenerator
+    from behavenet.data.data_generator import ConcatSessionsGenerator
 
     # get best model version
     sess_dir, results_dir, expt_dir = get_output_dirs(hparams)
@@ -342,7 +342,7 @@ def get_data_generator_inputs(hparams):
     common models
     """
 
-    from data.transforms import Threshold, ZScore, BlockShuffle
+    from behavenet.data.transforms import Threshold, ZScore, BlockShuffle
 
     # get neural signals/transforms/load_kwargs
     if hparams['model_class'].find('neural') > -1:
@@ -441,6 +441,7 @@ def get_data_generator_inputs(hparams):
             signals = ['ae', 'images']
             transforms = [ae_transforms, None]
             load_kwargs = [ae_kwargs, None]
+
     elif hparams['model_class'] == 'arhmm-decoding':
 
         _, _, ae_dir = get_output_dirs(
@@ -452,7 +453,6 @@ def get_data_generator_inputs(hparams):
         ae_kwargs = {
             'model_dir': ae_dir,
             'model_version': hparams['ae_version']} 
-
 
         _, _, ae_predictions_dir = get_output_dirs(
             hparams, model_class='neural-ae',
@@ -481,11 +481,11 @@ def get_data_generator_inputs(hparams):
             'model_version': hparams['arhmm_version']}
 
         if hparams['use_output_mask']:
-            signals = ['ae', 'images', 'masks','ae_predictions','arhmm_predictions','arhmm']
+            signals = ['ae', 'images', 'masks','ae_predictions', 'arhmm_predictions', 'arhmm']
             transforms = [ae_transforms, None, None, ae_predictions_transforms, arhmm_predictions_transforms, arhmm_transforms]
             load_kwargs = [ae_kwargs, None, None, ae_predictions_kwargs, arhmm_predictions_kwargs, arhmm_kwargs]
         else:
-            signals = ['ae', 'images', 'ae_predictions','arhmm_predictions','arhmm']
+            signals = ['ae', 'images', 'ae_predictions', 'arhmm_predictions', 'arhmm']
             transforms = [ae_transforms, None, ae_predictions_transforms, arhmm_predictions_transforms, arhmm_transforms]
             load_kwargs = [ae_kwargs, None, ae_predictions_kwargs, arhmm_predictions_kwargs, arhmm_kwargs]
 
@@ -498,63 +498,63 @@ def get_data_generator_inputs(hparams):
 def add_lab_defaults_to_parser(parser, lab=None):
 
     if lab == 'musall':
-        parser.add_argument('--n_input_channels', '-i', default=2, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--n_input_channels', default=2, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=128, help='number of pixels in y dimension', type=int)
         parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', default='musall', type=str)
-        parser.add_argument('--expt', '-e', default='vistrained', type=str)
-        parser.add_argument('--animal', '-a', default='mSM30', type=str)
-        parser.add_argument('--session', '-s', default='10-Oct-2017', type=str)
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='musall', type=str)
+        parser.add_argument('--expt', default='vistrained', type=str)
+        parser.add_argument('--animal', default='mSM30', type=str)
+        parser.add_argument('--session', default='10-Oct-2017', type=str)
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
     elif lab == 'steinmetz':
-        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=192, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=112, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=192, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=112, help='number of pixels in y dimension', type=int)
         parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', default='steinmetz', type=str)
-        parser.add_argument('--expt', '-e', default='2-probe', type=str)
-        parser.add_argument('--animal', '-a', default='mouse-01', type=str)
-        parser.add_argument('--session', '-s', default='session-01', type=str)
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='steinmetz', type=str)
+        parser.add_argument('--expt', default='2-probe', type=str)
+        parser.add_argument('--animal', default='mouse-01', type=str)
+        parser.add_argument('--session', default='session-01', type=str)
         parser.add_argument('--neural_bin_size', default=39.61, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     elif lab == 'steinmetz-face':
-        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=128, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=128, help='number of pixels in y dimension', type=int)
         parser.add_argument('--use_output_mask', default=False, action='store_true')
         parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', default='steinmetz', type=str)
-        parser.add_argument('--expt', '-e', default='2-probe-face', type=str)
-        parser.add_argument('--animal', '-a', default='mouse-01', type=str)
-        parser.add_argument('--session', '-s', default='session-01', type=str)
+        parser.add_argument('--lab', default='steinmetz', type=str)
+        parser.add_argument('--expt', default='2-probe-face', type=str)
+        parser.add_argument('--animal', default='mouse-01', type=str)
+        parser.add_argument('--session', default='session-01', type=str)
         parser.add_argument('--neural_bin_size', default=39.61, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     elif lab == 'datta':
-        parser.add_argument('--n_input_channels', '-i', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', default=80, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', default=80, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=80, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=80, help='number of pixels in y dimension', type=int)
         parser.add_argument('--use_output_mask', default=True, action='store_true')
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', default='datta', type=str)
-        parser.add_argument('--expt', '-e', default='inscopix', type=str)
-        parser.add_argument('--animal', '-a', default='15566', type=str)
-        parser.add_argument('--session', '-s', default='2018-11-27', type=str)
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='datta', type=str)
+        parser.add_argument('--expt', default='inscopix', type=str)
+        parser.add_argument('--animal', default='15566', type=str)
+        parser.add_argument('--session', default='2018-11-27', type=str)
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
     else:
-        parser.add_argument('--n_input_channels', '-i', help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', '-x', help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', '-y', help='number of pixels in y dimension', type=int)
+        parser.add_argument('--n_input_channels', help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', help='number of pixels in y dimension', type=int)
         parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', '-l', type=str)
-        parser.add_argument('--expt', '-e', type=str)
-        parser.add_argument('--animal', '-a', type=str)
-        parser.add_argument('--session', '-s', type=str)
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', type=str)
+        parser.add_argument('--expt', type=str)
+        parser.add_argument('--animal', type=str)
+        parser.add_argument('--session', type=str)
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
 
@@ -567,7 +567,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = 'session-01'
         hparams['n_ae_latents'] = 12
         hparams['use_output_mask'] = False
-        hparams['frame_rate']=25
+        hparams['frame_rate'] = 25
     if lab == 'steinmetz-face':
         hparams['lab'] = 'steinmetz'
         hparams['expt'] = '2-probe-face'
@@ -575,7 +575,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = 'session-01'
         hparams['n_ae_latents'] = 12
         hparams['use_output_mask'] = False
-        hparams['frame_rate']=25
+        hparams['frame_rate'] = 25
     elif lab == 'musall':
         hparams['lab'] = 'musall'
         hparams['expt'] = 'vistrained'
@@ -583,7 +583,7 @@ def get_lab_example(hparams, lab):
         hparams['session'] = '10-Oct-2017'
         hparams['n_ae_latents'] = 16
         hparams['use_output_mask'] = False
-        hparams['frame_rate']=30 # is this correct?
+        hparams['frame_rate'] = 30  # is this correct?
     elif lab == 'datta':
         hparams['lab'] = 'datta'
         hparams['expt'] = 'inscopix'
@@ -591,7 +591,30 @@ def get_lab_example(hparams, lab):
         hparams['session'] = '2018-11-27'
         hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = True
-        hparams['frame_rate']=30
+        hparams['frame_rate'] = 30
+
+
+def get_region_list(namespace):
+    """
+    Args:
+        namesapce (namespace object):
+
+    Returns:
+        (list)
+    """
+    import h5py
+    data_file = os.path.join(
+        namespace.data_dir, namespace.lab, namespace.expt, namespace.animal,
+        namespace.session, 'data.hdf5')
+    with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
+        indx_types = list(f['regions'])
+        if 'indxs_consolidate_lr' in indx_types:
+            regions = list(f['regions']['indxs_consolidate_lr'].keys())
+        elif 'indxs_consolidate' in indx_types:
+            regions = list(f['regions']['indxs_consolidate'].keys())
+        else:
+            regions = list(f['regions']['indxs'])
+    return regions
 
 
 def get_reconstruction(model, inputs):

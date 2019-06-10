@@ -10,6 +10,7 @@ from behavenet.fitting.utils import export_predictions_best
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_data_generator_inputs
+from behavenet.fitting.utils import get_region_list
 from behavenet.fitting.utils import get_output_dirs
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.data.data_generator import ConcatSessionsGenerator
@@ -67,8 +68,8 @@ def main(hparams):
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
     print('Data generator loaded')
-	
-    if hparams['model_class']=='neural-arhmm':
+
+    if hparams['model_class'] == 'neural-arhmm':
          hparams['arhmm_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['arhmm']))
   
     # ####################
@@ -134,6 +135,7 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
+    parser.add_argument('--subsample_regions', action='store_true', default=False)
     parser.add_argument('--signals', default=None, type=str)
     parser.add_argument('--transforms', default=None)
     parser.add_argument('--load_kwargs', default=None)
@@ -148,6 +150,9 @@ def get_params(strategy):
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
     add_lab_defaults_to_parser(parser, namespace.lab_example)
+
+    # add regions to opt_list if desired
+    parser.opt_list('--region', default='all', options=get_region_list(namespace), type=str, tunable=True)
 
     get_decoding_params(namespace, parser)
 
@@ -192,7 +197,7 @@ def get_decoding_params(namespace, parser):
     if namespace.search_type == 'best':
 
         import pickle
-        from fitting.utils import get_best_model_version
+        from behavenet.fitting.utils import get_best_model_version
 
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
@@ -251,7 +256,7 @@ def get_decoding_params(namespace, parser):
         # shuffle discrete labels as baseline
 
         import pickle
-        from fitting.utils import get_best_model_version
+        from behavenet.fitting.utils import get_best_model_version
 
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')

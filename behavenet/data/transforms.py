@@ -224,8 +224,11 @@ class BlockShuffle(object):
         return sample_shuff
 
 
-class Subsample(object):
+class SelectRegion(object):
+    """"Region-based subsampling"""
 
-    def __init__(self):
-        # TODO: implement region-based subsampling
+    def __init__(self, region):
+        self.region = region
+
+    def __call__(self, sample):
         raise NotImplementedError
