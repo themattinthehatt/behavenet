@@ -4,7 +4,7 @@ from scipy.misc import logsumexp
 
 import torch
 from torch.autograd import Function, Variable
-import fitting.messages as msg
+import behavenet.fitting.messages as msg
 
 
 # Pytorch extension

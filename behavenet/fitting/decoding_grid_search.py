@@ -6,13 +6,13 @@ import torch
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import Decoder
 from behavenet.training import fit
-from fitting.utils import export_predictions_best
-from fitting.utils import experiment_exists
-from fitting.utils import export_hparams
-from fitting.utils import get_data_generator_inputs
-from fitting.utils import get_output_dirs
-from fitting.utils import add_lab_defaults_to_parser
-from data.data_generator import ConcatSessionsGenerator
+from behavenet.fitting.utils import export_predictions_best
+from behavenet.fitting.utils import experiment_exists
+from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import get_data_generator_inputs
+from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.data.data_generator import ConcatSessionsGenerator
 
 
 def main(hparams):

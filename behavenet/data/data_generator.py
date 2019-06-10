@@ -8,7 +8,7 @@ import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
 import h5py
-from fitting.utils import get_best_model_version
+from behavenet.fitting.utils import get_best_model_version
 
 
 def split_trials(

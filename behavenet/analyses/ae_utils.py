@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
-from fitting.utils import get_best_model_and_data
-from fitting.utils import get_reconstruction
+from behavenet.fitting.utils import get_best_model_and_data
+from behavenet.fitting.utils import get_reconstruction
 
 
 def make_ae_reconstruction_movie(

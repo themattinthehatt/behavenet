@@ -1,10 +1,10 @@
-import torch
-import datta.core as core
-from torch import nn, optim
-from models import VAE
 import math
 import pandas as pd
 from ast import literal_eval
+import torch
+from torch import nn, optim
+import behavenet.core as core
+from behavenet.models import VAE
 
 
 class objectview(object):
@@ -15,6 +15,7 @@ class objectview(object):
                 self.__dict__[k] = literal_eval(self.__dict__[k])
             except:
                 pass
+
 
 class VanillaRecognitionNetwork(nn.Module):
     def __init__(self, hparams):
@@ -64,4 +65,3 @@ class VanillaRecognitionNetwork(nn.Module):
         lls = -0.5 * torch.sum((states - means)**2 / variances)                  # scalar
         lls += -0.5 * torch.sum(math.log(2 * math.pi) + torch.log(variances))     # scalar
         return lls
-        

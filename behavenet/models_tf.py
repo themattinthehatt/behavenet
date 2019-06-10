@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 import tensorflow.keras.backend as K
 import numpy as np
-from fitting.ae_model_architecture_generator import calculate_output_dim
+from behavenet.fitting.ae_model_architecture_generator import calculate_output_dim
 
 
 class ConvAEEncoder(object):

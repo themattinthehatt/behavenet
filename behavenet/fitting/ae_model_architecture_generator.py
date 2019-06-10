@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import pickle
 from behavenet.models import AE
-from fitting.utils import estimate_model_footprint
+from behavenet.fitting.utils import estimate_model_footprint
 import copy
 
 

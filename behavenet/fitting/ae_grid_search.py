@@ -4,16 +4,16 @@ import numpy as np
 import random
 import pickle
 from test_tube import HyperOptArgumentParser, Experiment
-from fitting.utils import export_latents_best
-from fitting.utils import experiment_exists
-from fitting.utils import export_hparams
-from fitting.utils import get_data_generator_inputs
-from fitting.utils import get_output_dirs
-from fitting.utils import get_best_model_version
-from fitting.utils import add_lab_defaults_to_parser
-from fitting.ae_model_architecture_generator import draw_archs
-from fitting.ae_model_architecture_generator import draw_handcrafted_archs
-from data.data_generator import ConcatSessionsGenerator
+from behavenet.fitting.utils import export_latents_best
+from behavenet.fitting.utils import experiment_exists
+from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import get_data_generator_inputs
+from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import get_best_model_version
+from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.fitting.ae_model_architecture_generator import draw_archs
+from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
+from behavenet.data.data_generator import ConcatSessionsGenerator
 
 
 def main(hparams):

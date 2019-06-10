@@ -8,24 +8,25 @@ from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import Decoder
 from behavenet.training import fit
 from behavenet.utils import export_states
-from fitting.utils import export_predictions_best
-from fitting.utils import experiment_exists
-from fitting.utils import export_hparams
-from fitting.utils import get_data_generator_inputs
-from fitting.utils import get_output_dirs
-from fitting.utils import add_lab_defaults_to_parser
-from data.data_generator import ConcatSessionsGenerator
-from analyses.arhmm_utils import get_discrete_chunks
-from analyses.arhmm_utils import get_state_durations
-from analyses.arhmm_utils import relabel_states_by_use
-from analyses.arhmm_utils import make_syllable_movies
-from analyses.arhmm_utils import make_real_vs_generated_movies
-from analyses.arhmm_utils import make_ind_arhmm_figures
-from analyses.arhmm_utils import make_overview_arhmm_figures
+from behavenet.fitting.utils import export_predictions_best
+from behavenet.fitting.utils import experiment_exists
+from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import get_data_generator_inputs
+from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.data.data_generator import ConcatSessionsGenerator
+from behavenet.analyses.arhmm_utils import get_discrete_chunks
+from behavenet.analyses.arhmm_utils import get_state_durations
+from behavenet.analyses.arhmm_utils import relabel_states_by_use
+from behavenet.analyses.arhmm_utils import make_syllable_movies
+from behavenet.analyses.arhmm_utils import make_real_vs_generated_movies
+from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
+from behavenet.analyses.arhmm_utils import make_overview_arhmm_figures
 import ssm
 import pickle
 import matplotlib
 matplotlib.use('agg')
+
 
 def main(hparams):
 
