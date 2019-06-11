@@ -90,6 +90,7 @@ def main(hparams):
 
     # get session_dir, results_dir (session_dir + decoding details),
     # expt_dir (results_dir + experiment details)
+    # TODO: update paths
     hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
         get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):

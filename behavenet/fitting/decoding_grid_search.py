@@ -32,6 +32,7 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
+    # TODO: update paths
     # get session_dir, results_dir (session_dir + decoding details),
     # expt_dir (results_dir + experiment details)
     hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
@@ -122,8 +123,8 @@ def get_params(strategy):
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
     parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
-    parser.add_argument('--tt_save_path', '-t', type=str)
-    parser.add_argument('--data_dir', '-d', type=str)
+    parser.add_argument('--tt_save_path', type=str)
+    parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm'], type=str)
 
@@ -152,7 +153,10 @@ def get_params(strategy):
     add_lab_defaults_to_parser(parser, namespace.lab_example)
 
     # add regions to opt_list if desired
-    parser.opt_list('--region', default='all', options=get_region_list(namespace), type=str, tunable=True)
+    if namespace.subsample_regions:
+        parser.opt_list('--region', options=get_region_list(namespace), type=str, tunable=True)
+    else:
+        parser.add_argument('--region', default='all', type=str)
 
     get_decoding_params(namespace, parser)
 

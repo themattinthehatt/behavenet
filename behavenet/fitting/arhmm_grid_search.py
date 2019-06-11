@@ -44,6 +44,7 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
+    # TODO: update paths
     # get session_dir, results_dir (session_dir + decoding details),
     # expt_dir (results_dir + experiment details)
     hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \

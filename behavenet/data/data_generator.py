@@ -467,6 +467,8 @@ class ConcatSessionsGenerator(object):
             rng_seed (int, optional): controls train/test/xv fold splits
         """
 
+        if isinstance(ids_list, dict):
+            ids_list = [ids_list]
         self.ids = ids_list
         self.as_numpy = as_numpy
 

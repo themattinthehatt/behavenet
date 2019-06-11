@@ -2,15 +2,166 @@ import os
 import pickle
 import numpy as np
 import torch
-from torch.autograd import Variable
-from behavenet.utils import export_latents, export_predictions
+from behavenet.utils import export_latents
+from behavenet.utils import export_predictions
 
 
 def get_subdirs(path):
+    """get all first-level subdirectories in a given path (no recursion)"""
     try:
         return next(os.walk(path))[1]
     except StopIteration:
         raise Exception('%s does not contain any subdirectories' % path)
+
+
+def get_output_session_dir(hparams):
+    """
+    Get session-level directory for saving model outputs.
+
+    If 'lab' == 'all', an error is thrown since multiple-lab runs are not supp
+    If 'expt' == 'all', all sessions from all animals from all expts from the
+        specified lab are used; the session_dir will then be
+        `tt_save_path/lab/multisession-xx`
+    If 'animal' == 'all', all sessions from all animals in the specified expt
+        are used; the session_dir will then be
+        `tt_save_path/lab/expt/multisession-xx`
+    If 'session' == 'all', all sessions from the specified animal are used; the
+        session_dir will then be
+        `tt_save_path/lab/expt/animal/multisession-xx`
+    If none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
+        `tt_save_path/lab/expt/animal/session`
+
+    The `multisession-xx` directory will contain a file `session_info.csv`
+    which will contain information about the sessions that comprise the
+    multisession; this file is used to determine whether or not a new
+    multisession directory needs to be created.
+    """
+
+    import csv
+
+    # get session dir (can include multiple sessions)
+    sessions_single = []
+    sessions_multi_paths = []
+    lab = hparams['lab']
+    if lab == 'all':
+        raise ValueError('multiple labs not currently supported')
+    elif hparams['expt'] == 'all':
+        # get all experiments from one lab
+        expts = get_subdirs(os.path.join(hparams['tt_save_path'], lab))
+        for expt in expts:
+            if expt[:5] == 'multi':
+                # record top-level multi-session directory
+                sessions_multi_paths.append(os.path.join(
+                    hparams['tt_save_path'], lab, expt))
+                continue
+            else:
+                animals = get_subdirs(
+                    os.path.join(hparams['tt_save_path'], lab, expt))
+            for animal in animals:
+                if animal[:5] == 'multi':
+                    continue
+                else:
+                    sessions = get_subdirs(os.path.join(
+                        hparams['tt_save_path'], lab, expt, animal))
+                for session in sessions:
+                    if session[:5] == 'multi':
+                        continue
+                    else:
+                        # record bottom-level single-session directory
+                        sessions_single.append({
+                            'tt_save_path': hparams['tt_save_path'],
+                            'lab': lab, 'expt': expt, 'animal': animal,
+                            'session': session})
+        session_dir_base = os.path.join(hparams['tt_save_path'], lab)
+    elif hparams['animal'] == 'all':
+        # get all animals from one experiment
+        top_level = 'expt'
+        expt = hparams['expt']
+        animals = get_subdirs(os.path.join(hparams['tt_save_path'], lab, expt))
+        for animal in animals:
+            if animal[:5] == 'multi':
+                # record top-level multi-session directory
+                sessions_multi_paths.append(os.path.join(
+                    hparams['tt_save_path'], lab, expt, animal))
+                continue
+            else:
+                sessions = get_subdirs(
+                    os.path.join(hparams['tt_save_path'], lab, expt, animal))
+            for session in sessions:
+                if session[:5] == 'multi':
+                    continue
+                else:
+                    # record bottom-level single-session directory
+                    sessions_single.append({
+                        'tt_save_path': hparams['tt_save_path'],
+                        'lab': lab, 'expt': expt, 'animal': animal,
+                        'session': session})
+        session_dir_base = os.path.join(hparams['tt_save_path'], lab, expt)
+    elif hparams['session'] == 'all':
+        # get all sessions from one animal
+        top_level = 'animal'
+        expt = hparams['expt']
+        animal = hparams['animal']
+        sessions = get_subdirs(
+            os.path.join(hparams['tt_save_path'], lab, expt, animal))
+        for session in sessions:
+            if session[:5] == 'multi':
+                # record top-level multi-session directory
+                sessions_multi_paths.append(os.path.join(
+                    hparams['tt_save_path'], lab, expt, animal, session))
+                continue
+            else:
+                # record bottom-level single-session directory
+                sessions_single.append({
+                    'tt_save_path': hparams['tt_save_path'],
+                    'lab': lab, 'expt': expt, 'animal': animal,
+                    'session': session})
+        session_dir_base = os.path.join(
+            hparams['tt_save_path'], lab, expt, animal)
+    else:
+        sessions_single.append({
+            'tt_save_path': hparams['tt_save_path'],
+            'lab': hparams['lab'], 'expt': hparams['expt'],
+            'animal': hparams['animal'], 'session': hparams['session']})
+        session_dir_base = os.path.join(
+            hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+            hparams['animal'], hparams['session'])
+
+    # construct session_dir
+    if len(sessions_single) > 1:
+        # check if this combo of experiments exists in prev multi-sessions
+        found_match = False
+        for session_multi in sessions_multi_paths:
+            csv_file = os.path.join(session_multi, 'session_info.csv')
+            sessions_multi = read_session_info_from_csv(csv_file)
+            # compare to collection of single sessions above
+            set_l1 = set(tuple(sorted(d.items())) for d in sessions_single)
+            set_l2 = set(tuple(sorted(d.items())) for d in sessions_multi)
+            set_diff = set_l1.symmetric_difference(set_l2)
+            if len(set_diff) == 0:
+                # found match; record index
+                found_match = True
+                multi_indx = int(session_multi.split('-')[-1])
+                break
+
+        # create new multi-index if match was not found
+        if not found_match:
+            multi_indxs = [int(session_multi.split('-')[-1])
+                           for session_multi in sessions_multi_paths]
+            if len(multi_indxs) == 0:
+                multi_indx = 0
+            else:
+                multi_indx = max(multi_indxs) + 1
+        else:
+            pass
+
+        session_dir = os.path.join(
+            session_dir_base, 'multisession-%02i' % multi_indx)
+
+    else:
+        session_dir = session_dir_base
+
+    return session_dir, sessions_single
 
 
 def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
@@ -24,37 +175,34 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
     if expt_name is None:
         expt_name = hparams['experiment_name']
 
-    sess_dir = os.path.join(
-            hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-            hparams['animal'], hparams['session'])
-
+    # get results dir
     if model_class == 'ae':
         results_dir = os.path.join(
-            sess_dir, 'ae', model_type,
+            hparams['session_dir'], 'ae', model_type,
             '%02i_latents' % hparams['n_ae_latents'])
     elif model_class == 'neural-ae':
         # TODO: include brain region, ae version
         results_dir = os.path.join(
-            sess_dir, 'neural-ae',
+            hparams['session_dir'], 'neural-ae',
             '%02i_latents' % hparams['n_ae_latents'],
             model_type)
     elif model_class == 'neural-arhmm':
         results_dir = os.path.join(
-            sess_dir, 'neural-arhmm',
+            hparams['session_dir'], 'neural-arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
             model_type)
     elif model_class == 'arhmm':
         results_dir = os.path.join(
-            sess_dir, 'arhmm',
+            hparams['session_dir'], 'arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
             hparams['noise_type'])
     elif model_class == 'arhmm-decoding':
         results_dir = os.path.join(
-            sess_dir, 'arhmm-decoding',
+            hparams['session_dir'], 'arhmm-decoding',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
@@ -64,60 +212,37 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
 
     expt_dir = os.path.join(results_dir, 'test_tube_data', expt_name)
 
-    return sess_dir, results_dir, expt_dir
+    return results_dir, expt_dir
 
 
-def estimate_model_footprint(model, input_size, cutoff_size=20):
+def read_session_info_from_csv(session_file):
     """
-    Adapted from http://jacobkimmel.github.io/pytorch_estimating_model_size/
+    Read csv file that contains lab/expt/animal/session info
 
     Args:
-        model (pt model):
-        input_size (tuple):
-        cutoff_size (float): GB
+        session_file (str): /full/path/to/session_info.csv
 
     Returns:
-        int: bytes
+        (list of dicts)
     """
+    import csv
+    sessions_multi = []
+    # load and parse csv file that contains single session info
+    with open(session_file) as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        for row in csv_reader:
+            sessions_multi.append(dict(row))
+    return sessions_multi
 
-    allowed_modules = (
-        torch.nn.Conv2d,
-        torch.nn.ConvTranspose2d,
-        torch.nn.MaxPool2d,
-        torch.nn.MaxUnpool2d,
-        torch.nn.Linear
-    )
 
-    curr_bytes = 0
-
-    # assume everything is float32
-    bytes = 4
-
-    # estimate input size
-    curr_bytes += np.prod(input_size) * bytes
-
-    # estimate model size
-    mods = list(model.modules())
-    for mod in mods:
-        if isinstance(mod, allowed_modules):
-            p = list(mod.parameters())
-            for p_ in p:
-                curr_bytes += np.prod(np.array(p_.size())) * bytes
-
-    # estimate intermediate size
-    x = Variable(torch.FloatTensor(*input_size))
-    for layer in model.encoding.encoder:
-        if isinstance(layer, torch.nn.MaxPool2d):
-            x, idx = layer(x)
-        else:
-            x = layer(x)
-        # multiply by 2 - assume decoder is symmetric
-        # multiply by 2 - we need to store values AND gradients
-        curr_bytes += np.prod(x.size()) * bytes * 2 * 2
-        if curr_bytes / 1e9 > cutoff_size:
-            break
-
-    return curr_bytes * 1.2  # safety blanket
+def export_session_info_to_csv(session_dir, ids_list):
+    import csv
+    session_file = os.path.join(session_dir, 'session_info.csv')
+    with open(session_file, mode='w') as f:
+        session_writer = csv.DictWriter(f, fieldnames=list(ids_list[0].keys()))
+        session_writer.writeheader()
+        for ids in ids_list:
+            session_writer.writerow(ids)
 
 
 def get_best_model_version(model_path, measure='val_loss', n_best=1, best_def='min'):
@@ -165,7 +290,7 @@ def get_best_model_version(model_path, measure='val_loss', n_best=1, best_def='m
         elif best_def == 'max':
             best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
     else:
-        if best_dir == 'min':
+        if best_def == 'min':
             best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
         elif best_def == 'max':
             raise NotImplementedError
@@ -342,22 +467,43 @@ def get_data_generator_inputs(hparams):
     common models
     """
 
-    from behavenet.data.transforms import Threshold, ZScore, BlockShuffle
+    from behavenet.data.transforms import SelectRegion
+    from behavenet.data.transforms import Threshold
+    from behavenet.data.transforms import ZScore
+    from behavenet.data.transforms import BlockShuffle
+    from behavenet.data.transforms import Compose
 
     # get neural signals/transforms/load_kwargs
     if hparams['model_class'].find('neural') > -1:
-        neural_transforms = None  # neural_region
+
+        neural_transforms_ = []
         neural_kwargs = None
+
+        # filter neural data by region
+        if hparams['region'] != 'all':
+            # get region and indices
+            region_name = hparams['region']
+            _, region_indxs = get_region_list(hparams)
+            neural_transforms_.append(SelectRegion(
+                region_name, region_indxs[region_name]))
+
+        # filter neural data by activity
         if hparams['neural_type'] == 'spikes':
             if hparams['neural_thresh'] > 0:
-                neural_transforms = Threshold(
+                neural_transforms_.append(Threshold(
                     threshold=hparams['neural_thresh'],
-                    bin_size=hparams['neural_bin_size'])
+                    bin_size=hparams['neural_bin_size']))
         elif hparams['neural_type'] == 'ca':
-            neural_transforms = ZScore()
+            neural_transforms_.append(ZScore())
         else:
             raise ValueError(
                 '"%s" is an invalid neural type' % hparams['neural_type'])
+
+        if len(neural_transforms_) == 0:
+            neural_transforms = None
+        else:
+            neural_transforms = Compose(neural_transforms_)
+
     else:
         neural_transforms = None
         neural_kwargs = None
@@ -384,7 +530,7 @@ def get_data_generator_inputs(hparams):
         else:
             hparams['noise_dist'] = 'gaussian'
 
-        _, _, ae_dir = get_output_dirs(
+        _, ae_dir = get_output_dirs(
             hparams, model_class='ae',
             expt_name=hparams['ae_experiment_name'],
             model_type=hparams['ae_model_type'])
@@ -405,7 +551,7 @@ def get_data_generator_inputs(hparams):
         hparams['output_size'] = hparams['n_arhmm_states']
         hparams['noise_dist'] = 'categorical'
 
-        _, _, arhmm_dir = get_output_dirs(
+        _, arhmm_dir = get_output_dirs(
             hparams, model_class='arhmm',
             expt_name=hparams['arhmm_experiment_name'])
 
@@ -423,7 +569,7 @@ def get_data_generator_inputs(hparams):
 
     elif hparams['model_class'] == 'arhmm':
 
-        _, _, ae_dir = get_output_dirs(
+        _, ae_dir = get_output_dirs(
             hparams, model_class='ae',
             expt_name=hparams['ae_experiment_name'],
             model_type=hparams['ae_model_type'])
@@ -444,7 +590,7 @@ def get_data_generator_inputs(hparams):
 
     elif hparams['model_class'] == 'arhmm-decoding':
 
-        _, _, ae_dir = get_output_dirs(
+        _, ae_dir = get_output_dirs(
             hparams, model_class='ae',
             expt_name=hparams['ae_experiment_name'],
             model_type=hparams['ae_model_type'])
@@ -454,7 +600,7 @@ def get_data_generator_inputs(hparams):
             'model_dir': ae_dir,
             'model_version': hparams['ae_version']} 
 
-        _, _, ae_predictions_dir = get_output_dirs(
+        _, ae_predictions_dir = get_output_dirs(
             hparams, model_class='neural-ae',
             expt_name=hparams['neural_ae_experiment_name'],
             model_type=hparams['neural_ae_model_type'])
@@ -463,7 +609,7 @@ def get_data_generator_inputs(hparams):
             'model_dir': ae_predictions_dir,
             'model_version': hparams['neural_ae_version']} 
 
-        _, _, arhmm_predictions_dir = get_output_dirs(
+        _, arhmm_predictions_dir = get_output_dirs(
             hparams, model_class='neural-arhmm',
             expt_name=hparams['neural_arhmm_experiment_name'],
             model_type=hparams['neural_arhmm_model_type'])
@@ -472,7 +618,7 @@ def get_data_generator_inputs(hparams):
             'model_dir': arhmm_predictions_dir,
             'model_version': hparams['neural_arhmm_version']} 
 
-        _, _, arhmm_dir = get_output_dirs(
+        _, arhmm_dir = get_output_dirs(
             hparams, model_class='arhmm',
             expt_name=hparams['arhmm_experiment_name'])
         arhmm_transforms = None
@@ -594,27 +740,42 @@ def get_lab_example(hparams, lab):
         hparams['frame_rate'] = 30
 
 
-def get_region_list(namespace):
+def get_region_list(hparams):
     """
+    Get regions and their indexes into neural data for current session
+
     Args:
-        namesapce (namespace object):
+        hparams (dict or namespace object):
 
     Returns:
-        (list)
+        (tuple)
+            regions (list of strs)
+            indxs (dict)
     """
     import h5py
+
+    if not isinstance(hparams, dict):
+        hparams = vars(hparams)
+
     data_file = os.path.join(
-        namespace.data_dir, namespace.lab, namespace.expt, namespace.animal,
-        namespace.session, 'data.hdf5')
+        hparams['data_dir'], hparams['lab'], hparams['expt'],
+        hparams['animal'], hparams['session'], 'data.hdf5')
+
     with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
         indx_types = list(f['regions'])
         if 'indxs_consolidate_lr' in indx_types:
             regions = list(f['regions']['indxs_consolidate_lr'].keys())
+            indxs = {reg: f['regions']['indxs_consolidate_lr'][reg][()]
+                     for reg in regions}
         elif 'indxs_consolidate' in indx_types:
             regions = list(f['regions']['indxs_consolidate'].keys())
+            indxs = {reg: f['regions']['indxs_consolidate'][reg][()]
+                     for reg in regions}
         else:
             regions = list(f['regions']['indxs'])
-    return regions
+            indxs = {reg: f['regions']['indxs'][reg][()] for reg in regions}
+
+    return regions, indxs
 
 
 def get_reconstruction(model, inputs):

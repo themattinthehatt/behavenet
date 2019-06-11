@@ -7,7 +7,9 @@ from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.fitting.utils import export_latents_best
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import export_session_info_to_csv
 from behavenet.fitting.utils import get_data_generator_inputs
+from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import get_output_dirs
 from behavenet.fitting.utils import get_best_model_version
 from behavenet.fitting.utils import add_lab_defaults_to_parser
@@ -41,10 +43,17 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    # get session_dir, results_dir (session_dir + ae details), expt_dir (
-    # results_dir + experiment details)
-    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-        get_output_dirs(hparams)
+    # get session_dir
+    # TODO: collect sessions directly from session_info.csv file
+    hparams['session_dir'], ids = get_output_session_dir(hparams)
+    if not os.path.isdir(hparams['session_dir']):
+        os.makedirs(hparams['session_dir'])
+        # save session_info.txt
+        export_session_info_to_csv(hparams['session_dir'], ids)
+
+    # get results_dir(session_dir + ae details),
+    # expt_dir(results_dir + tt expt details)
+    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
 
@@ -120,8 +129,8 @@ def get_params(strategy):
     parser = HyperOptArgumentParser(strategy)
 
     # most important arguments
-    parser.add_argument('--search_type', type=str) # latent_search, test
-    parser.add_argument('--lab_example', type=str) # musall, steinmetz, markowitz
+    parser.add_argument('--search_type', type=str)  # latent_search, test
+    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
     parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
     parser.add_argument('--tt_save_path', '-t', type=str)
     parser.add_argument('--data_dir', '-d', type=str)

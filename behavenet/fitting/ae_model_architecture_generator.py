@@ -3,8 +3,63 @@ import argparse
 import numpy as np
 import pickle
 from behavenet.models import AE
-from behavenet.fitting.utils import estimate_model_footprint
 import copy
+
+
+def estimate_model_footprint(model, input_size, cutoff_size=20):
+    """
+    Adapted from http://jacobkimmel.github.io/pytorch_estimating_model_size/
+
+    Args:
+        model (pt model):
+        input_size (tuple):
+        cutoff_size (float): GB
+
+    Returns:
+        int: bytes
+    """
+
+    import torch
+    from torch.autograd import Variable
+
+    allowed_modules = (
+        torch.nn.Conv2d,
+        torch.nn.ConvTranspose2d,
+        torch.nn.MaxPool2d,
+        torch.nn.MaxUnpool2d,
+        torch.nn.Linear
+    )
+
+    curr_bytes = 0
+
+    # assume everything is float32
+    bytes = 4
+
+    # estimate input size
+    curr_bytes += np.prod(input_size) * bytes
+
+    # estimate model size
+    mods = list(model.modules())
+    for mod in mods:
+        if isinstance(mod, allowed_modules):
+            p = list(mod.parameters())
+            for p_ in p:
+                curr_bytes += np.prod(np.array(p_.size())) * bytes
+
+    # estimate intermediate size
+    x = Variable(torch.FloatTensor(*input_size))
+    for layer in model.encoding.encoder:
+        if isinstance(layer, torch.nn.MaxPool2d):
+            x, idx = layer(x)
+        else:
+            x = layer(x)
+        # multiply by 2 - assume decoder is symmetric
+        # multiply by 2 - we need to store values AND gradients
+        curr_bytes += np.prod(x.size()) * bytes * 2 * 2
+        if curr_bytes / 1e9 > cutoff_size:
+            break
+
+    return curr_bytes * 1.2  # safety blanket
 
 
 def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):

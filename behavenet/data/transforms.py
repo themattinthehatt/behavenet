@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 from skimage import transform
 
 
@@ -8,14 +7,12 @@ class Compose(object):
     Composes several transforms together. Adapted from pytorch source code:
     https://pytorch.org/docs/stable/_modules/torchvision/transforms/transforms.html#Compose
 
-    Super hacky way of keeping track of specific neural populations
-
     Args:
-        transforms (list of `Transform` objects): list of transforms to compose
+        transforms (list of transforms): list of transforms to compose
 
     Example:
         >> Compose([
-        >>     transforms.Subsample('mctx'),
+        >>     transforms.SelectRegion('mctx', mctx_indxs),
         >>     transforms.Threshold(threshold=1.0, bin_size=25),
         >> ])
     """
@@ -82,7 +79,7 @@ class Resize(object):
             self.x = self.y = size
 
     def __call__(self, sample):
-        """Assumes sample is of size (batch, channels, height, width)"""
+        """sample: (batch, channels, height, width)"""
 
         sh = sample.shape
 
@@ -96,7 +93,6 @@ class Threshold(object):
 
     def __init__(self, threshold, bin_size):
         """
-
         Args:
             threshold (float): Hz
             bin_size (float): ms
@@ -106,7 +102,7 @@ class Threshold(object):
 
     def __call__(self, sample):
         """
-        Assumes sample is of size (trial x batch/time x predictors)
+        sample: (trial x batch/time x predictors)
 
         Calculates firing rate over all trials/time points
         """
@@ -146,7 +142,7 @@ class ZScore(object):
         pass
 
     def __call__(self, sample):
-        """Assumes sample is of size (trial x batch/time x predictors)"""
+        """sample: (trial x batch/time x predictors)"""
         sample -= np.mean(sample, axis=(0, 1))
         sample /= np.std(sample, axis=(0, 1))
         return sample
@@ -160,8 +156,9 @@ class MakeOneHot(object):
 
     def __call__(self, sample):
         """
-        Assumes sample is of size (trial x batch/time)
-        Also assumes that K classes are identified by the numbers 0:K-1
+        sample: (trial x batch/time)
+
+        Assumes that K classes are identified by the numbers 0:K-1
         """
         if len(sample.shape) == 2:  # weak test for if sample is already onehot
             n_trials, n_time = sample.shape
@@ -185,7 +182,7 @@ class BlockShuffle(object):
         self.rng_seed = rng_seed
 
     def __call__(self, sample):
-        """Assumes sample is a dense rep of size (trial x batch/time)"""
+        """sample: dense rep of size (trial x batch/time)"""
 
         np.random.seed(self.rng_seed)
 
@@ -225,10 +222,17 @@ class BlockShuffle(object):
 
 
 class SelectRegion(object):
-    """"Region-based subsampling"""
+    """"Region-based subsampling of neural activity"""
 
-    def __init__(self, region):
+    def __init__(self, region, indxs):
+        """
+        Args:
+            region (str):
+            indxs (array-like):
+        """
         self.region = region
+        self.indxs = indxs
 
     def __call__(self, sample):
-        raise NotImplementedError
+        """sample: (trial x batch/time x predictors)"""
+        return sample[:, :, self.indxs]
