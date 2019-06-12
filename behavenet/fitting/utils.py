@@ -33,9 +33,16 @@ def get_output_session_dir(hparams):
     which will contain information about the sessions that comprise the
     multisession; this file is used to determine whether or not a new
     multisession directory needs to be created.
+
+    # TODO: currently searches RESULTS path instead of DATA path (need both)
     """
 
     import csv
+
+    if 'sessions_csv' in hparams and len(hparams['sessions_csv']) > 0:
+        # load from csv
+        # TODO: collect sessions directly from session_info.csv file
+        pass
 
     # get session dir (can include multiple sessions)
     sessions_single = []
@@ -73,7 +80,6 @@ def get_output_session_dir(hparams):
         session_dir_base = os.path.join(hparams['tt_save_path'], lab)
     elif hparams['animal'] == 'all':
         # get all animals from one experiment
-        top_level = 'expt'
         expt = hparams['expt']
         animals = get_subdirs(os.path.join(hparams['tt_save_path'], lab, expt))
         for animal in animals:
@@ -97,7 +103,6 @@ def get_output_session_dir(hparams):
         session_dir_base = os.path.join(hparams['tt_save_path'], lab, expt)
     elif hparams['session'] == 'all':
         # get all sessions from one animal
-        top_level = 'animal'
         expt = hparams['expt']
         animal = hparams['animal']
         sessions = get_subdirs(
@@ -302,8 +307,15 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
 
     from behavenet.data.data_generator import ConcatSessionsGenerator
 
+    # get session_dir
+    if len(hparams['sessions_csv']) > 0:
+        # TODO: collect sessions directly from session_info.csv file
+        raise NotImplementedError
+    else:
+        sess_dir, sess_ids = get_output_session_dir(hparams)
+    results_dir, expt_dir = get_output_dirs(hparams)
+
     # get best model version
-    sess_dir, results_dir, expt_dir = get_output_dirs(hparams)
     if version == 'best':
         best_version = get_best_model_version(expt_dir)[0]
     else:
@@ -328,21 +340,15 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     hparams_new['results_dir'] = results_dir
     hparams_new['expt_dir'] = expt_dir
     hparams_new['use_output_mask'] = hparams['use_output_mask'] # TODO: get rid of eventually
-    hparams_new['device']='cpu'
+    hparams_new['device'] = 'cpu'
     
     # build data generator
     hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
         hparams_new)
-
-    ids = {
-        'lab': hparams_new['lab'],
-        'expt': hparams_new['expt'],
-        'animal': hparams_new['animal'],
-        'session': hparams_new['session']}
     if load_data:
         # sometimes we want a single data_generator for multiple models
         data_generator = ConcatSessionsGenerator(
-            hparams_new['data_dir'], ids,
+            hparams_new['data_dir'], sess_ids,
             signals=signals, transforms=transforms, load_kwargs=load_kwargs,
             device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
             batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'])

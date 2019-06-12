@@ -1,61 +1,106 @@
-from tqdm import tqdm
-import torch
-from torch import nn, optim
-import numpy as np
 import math
 import copy
 import os
-import pickle
-import time
+import numpy as np
+from tqdm import tqdm
+import torch
+from torch import nn
 from sklearn.metrics import r2_score, accuracy_score
-from behavenet.core import expected_log_likelihood, log_sum_exp
 from behavenet.fitting.eval import export_latents, export_predictions
-from behavenet.losses import GaussianNegLogProb
-# from behavenet.messages import hmm_expectations, hmm_sample
 
 
 class FitMethod(object):
+    """
+    Base method for defining model losses and tracking loss metrics.
 
-    def __init__(self, model, metric_strs):
+    Loss metrics are tracked for the aggregate dataset (potentially spanning
+    multiple sessions) as well as session-specific metrics for easier
+    downstream analyses.
+    """
+
+    def __init__(self, model, metric_strs, n_datasets=1):
+        """
+        Args:
+            model (pt Model):
+            metric_strs (list of strs): names of metrics to be tracked
+            n_datasets (int): total number of datasets (sessions) served by
+                data generator
+        """
         self.model = model
         self.metrics = {}
+        self.n_datasets = n_datasets
         dtype_strs = ['train', 'val', 'test', 'curr']
+
+        # aggregate metrics over all datasets
         for dtype in dtype_strs:
             self.metrics[dtype] = {}
             for metric in metric_strs:
                 self.metrics[dtype][metric] = 0
 
+        # separate metrics by dataset
+        if self.n_datasets > 1:
+            self.metrics_by_dataset = []
+            for dataset in range(self.n_datasets):
+                self.metrics_by_dataset.append({})
+                for dtype in dtype_strs:
+                    self.metrics_by_dataset[dataset][dtype] = {}
+                    for metric in metric_strs:
+                        self.metrics_by_dataset[dataset][dtype][metric] = 0
+        else:
+            self.metrics_by_dataset = None
+
     def get_parameters(self):
         return filter(lambda p: p.requires_grad, self.model.parameters())
 
-    def calc_loss(self, data, device):
+    def calc_loss(self, data, **kwargs):
         raise NotImplementedError
 
     def get_loss(self, dtype):
+        """return loss aggregated over all datasets"""
         return self.metrics[dtype]['loss'] / self.metrics[dtype]['batches']
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None,
-            *args, **kwargs):
+            by_dataset=False, *args, **kwargs):
+        """
+        Export metrics and other data (e.g. epoch) for logging train progress.
+
+        Args:
+            dtype (str): 'train' | 'val' | 'test'
+            epoch (int): current training epoch
+            batch (int): current training batch
+            dataset (int): dataset id for current batch
+            trial (int or NoneType): trial id within the current dataset
+            best_epoch (int): best current training epoch
+            by_dataset (bool, optional): `True` to return metrics for a
+                specific dataset, `False` to return metrics aggregated over
+                multiple datasets
+
+        Returns:
+            (dict)
+        """
+
+        if by_dataset and self.n_datasets > 1:
+            loss = self.metrics_by_dataset[dataset][dtype]['loss'] \
+                      / self.metrics_by_dataset[dataset][dtype]['batches']
+        else:
+            dataset = -1
+            loss = self.metrics[dtype]['loss'] / self.metrics[dtype]['batches']
+
         if dtype == 'train':
             metric_row = {
                 'epoch': epoch,
                 'batch': batch,
                 'dataset': dataset,
                 'trial': trial,
-                'tr_loss': self.metrics['train']['loss'] /
-                           self.metrics['train']['batches']
-            }
+                'tr_loss': loss}
         elif dtype == 'val':
             metric_row = {
                 'epoch': epoch,
                 'batch': batch,
                 'dataset': dataset,
                 'trial': trial,
-                'tr_loss': self.metrics['train']['loss'] /
-                           self.metrics['train']['batches'],
-                'val_loss': self.metrics['val']['loss'] /
-                            self.metrics['val']['batches'],
+                'val_loss': loss,
                 'best_val_epoch': best_epoch}
         elif dtype == 'test':
             metric_row = {
@@ -63,62 +108,54 @@ class FitMethod(object):
                 'batch': batch,
                 'dataset': dataset,
                 'trial': trial,
-                'test_loss': self.metrics['test']['loss'] /
-                             self.metrics['test']['batches']}
+                'test_loss': loss}
         else:
             raise ValueError("%s is an invalid data type" % dtype)
 
         return metric_row
 
     def reset_metrics(self, dtype):
+        """Reset all metrics"""
+        # reset aggregate metrics
         for key in self.metrics[dtype].keys():
             self.metrics[dtype][key] = 0
+        # reset separated metrics
+        if self.n_datasets > 1:
+            for dataset in range(self.n_datasets):
+                for key in self.metrics_by_dataset[dataset][dtype].keys():
+                    self.metrics_by_dataset[dataset][dtype][key] = 0
 
-    def update_metrics(self, dtype):
+    def update_metrics(self, dtype, dataset=None):
+        """Update metrics for a specific dtype/dataset"""
         for key in self.metrics[dtype].keys():
             if self.metrics['curr'][key] is not None:
+                # update aggregate methods
                 self.metrics[dtype][key] += self.metrics['curr'][key]
+                # update separated metrics
+                if dataset is not None and self.n_datasets > 1:
+                    self.metrics_by_dataset[dataset][dtype][key] += \
+                        self.metrics['curr'][key]
+                # reset current metrics
                 self.metrics['curr'][key] = 0
 
 
-class VAELoss(FitMethod):
-
-    def __init__(self, model):
-        metric_strs = ['batches', 'nll', 'mse', 'prior', 'loss']
-        super().__init__(model, metric_strs)
-
-    def calc_loss(self, data, device):
-        raise NotImplementedError
-
-    def create_metric_row(
-            self, dtype, epoch, batch, dataset, trial, best_epoch=None):
-        raise NotImplementedError
-        # val_row = {
-        #     'epoch': i_epoch,
-        #     'batch_n': i_train,
-        #     'tng_err': train_loss / (i_train + 1),
-        #     'val_err': val_loss / data_generator.num_tot_batches['val'],
-        #     'val_NLL': val_NLL / data_generator.num_tot_batches['val'],
-        #     'val_KL': val_KL / data_generator.num_tot_batches['val'],
-        #     'val_MSE': val_MSE / data_generator.num_tot_batches['val'],
-        #     'best_val_epoch': best_val_epoch}
-        # test_row = {
-        #     'epoch': i_epoch,
-        #     'batch_n': i_train,
-        #     'test_err': test_loss / data_generator.num_tot_batches['test'],
-        #     'test_NLL': test_NLL / data_generator.num_tot_batches['test'],
-        #     'test_KL': test_KL / data_generator.num_tot_batches['test'],
-        #     'test_MSE': test_MSE / data_generator.num_tot_batches['test'],
-        #     'best_val_epoch': best_val_epoch}
-
-
 class AELoss(FitMethod):
+    """MSE loss for (non-variational) autoencoders"""
 
-    def __init__(self, model):
+    def __init__(self, model, n_datasets=1):
         metric_strs = ['batches', 'loss']
-        super().__init__(model, metric_strs)
+        super().__init__(model, metric_strs, n_datasets=n_datasets)
 
-    def calc_loss(self, data, device):
+    def calc_loss(self, data, **kwargs):
+        """
+        Calculate MSE loss for autoencoder. The batch is split into chunks if
+        larger than a hard-coded `chunk_size` to keep memory requirements low;
+        gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Args:
+            data (dict):
+        """
 
         y = data[self.model.hparams['signals']][0]
 
@@ -132,9 +169,9 @@ class AELoss(FitMethod):
 
         if batch_size > chunk_size:
             # split into chunks
-            num_chunks = int(np.ceil(batch_size / chunk_size))
+            n_chunks = int(np.ceil(batch_size / chunk_size))
             loss_val = 0
-            for chunk in range(num_chunks):
+            for chunk in range(n_chunks):
                 indx_beg = chunk * chunk_size
                 indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
                 y_mu, _ = self.model(y[indx_beg:indx_end])
@@ -167,14 +204,21 @@ class AELoss(FitMethod):
 
 
 class NLLLoss(FitMethod):
+    """Negative log-likelihood loss for supervised models (en/decoders)"""
 
-    def __init__(self, model):
+    def __init__(self, model, n_datasets=1):
+
+        if n_datasets > 1:
+            raise ValueError('NLLLoss only supports single datasets')
+
         metric_strs = ['batches', 'loss', 'r2', 'fc']
-        super().__init__(model, metric_strs)
+        super().__init__(model, metric_strs, n_datasets=n_datasets)
 
+        # choose loss based on noise distribution of the model
         if self.model.hparams['noise_dist'] == 'gaussian':
             self._loss = nn.MSELoss()
         elif self.model.hparams['noise_dist'] == 'gaussian-full':
+            from behavenet.fitting.losses import GaussianNegLogProb
             self._loss = GaussianNegLogProb()  # model holds precision mat
         elif self.model.hparams['noise_dist'] == 'poisson':
             self._loss = nn.PoissonNLLLoss(log_input=False)
@@ -184,8 +228,16 @@ class NLLLoss(FitMethod):
             raise ValueError(
                 '"%s" is not a valid noise dist' % self.model.hparams['noise_dist'])
 
-    def calc_loss(self, data, device):
-        """data is 1 x T x N"""
+    def calc_loss(self, data, **kwargs):
+        """
+        Calculate negative log-likelihood loss for supervised models, i.e.
+        encoders and decoders. The batch is split into chunks if larger than a
+        hard-coded `chunk_size` to keep memory requirements low; gradients are
+        accumulated across all chunks before a gradient step is taken.
+
+        Args:
+            data (dict): signals are 1 x T x N
+        """
 
         predictors = data[self.model.hparams['input_signal']][0]
         targets = data[self.model.hparams['output_signal']][0]
@@ -197,10 +249,10 @@ class NLLLoss(FitMethod):
 
         if batch_size > chunk_size:
             # split into chunks
-            num_chunks = int(np.ceil(batch_size / chunk_size))
+            n_chunks = int(np.ceil(batch_size / chunk_size))
             outputs_all = []
             loss_val = 0
-            for chunk in range(num_chunks):
+            for chunk in range(n_chunks):
                 # take chunks of size chunk_size, plus overlap due to max_lags
                 indx_beg = np.max([chunk * chunk_size - max_lags, 0])
                 indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
@@ -269,108 +321,30 @@ class NLLLoss(FitMethod):
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None,
-            **kwargs):
-        if dtype == 'train':
-            norm = self.metrics['train']['batches']
-            metric_row = {
-                'epoch': epoch,
-                'batch': batch,
-                'dataset': dataset,
-                'trial': trial,
-                'tr_loss': self.metrics['train']['loss'] / norm,
-                'tr_r2': self.metrics['train']['r2'] / norm,
-                'tr_fc': self.metrics['train']['fc'] / norm}
-        elif dtype == 'val':
-            norm_tr = self.metrics['train']['batches']
-            norm_val = self.metrics['val']['batches']
-            metric_row = {
-                'epoch': epoch,
-                'batch': batch,
-                'dataset': dataset,
-                'trial': trial,
-                'tr_loss': self.metrics['train']['loss'] / norm_tr,
-                'tr_r2': self.metrics['train']['r2'] / norm_tr,
-                'tr_fc': self.metrics['train']['fc'] / norm_tr,
-                'val_loss': self.metrics['val']['loss'] / norm_val,
-                'val_r2': self.metrics['val']['r2'] / norm_val,
-                'val_fc': self.metrics['val']['fc'] / norm_val,
-                'best_val_epoch': best_epoch}
-        elif dtype == 'test':
-            norm = self.metrics['test']['batches']
-            metric_row = {
-                'epoch': epoch,
-                'batch': batch,
-                'dataset': dataset,
-                'trial': trial,
-                'test_loss': self.metrics['test']['loss'] / norm,
-                'test_r2': self.metrics['test']['r2'] / norm,
-                'test_fc': self.metrics['test']['fc'] / norm}
-        else:
-            raise ValueError("%s is an invalid data type" % dtype)
+            by_dataset=False, *args, **kwargs):
 
-        return metric_row
-
-
-class EMLoss(FitMethod):
-
-    def __init__(self, model):
-        metric_strs = ['batches', 'nll', 'prior']
-        super().__init__(model, metric_strs)
-
-    def calc_loss(self, data, device):
-        ae = data['ae'][0]
-
-        if 'neural' in data.keys():
-            inputs = data['neural'][0]
-        else:
-            inputs=None
-
-        low_d = self.model.get_low_d(ae)
-        log_prior = self.model.log_prior()
-        log_pi0 = self.model.log_pi0(low_d)
-        log_Ps = self.model.log_transition_proba(inputs)
-        lls = self.model.log_dynamics_proba(low_d, inputs)
-
-        with torch.no_grad():
-            expectations = hmm_expectations(log_pi0, log_Ps, lls, device)
-        
-        prior = log_prior #/ int(n_tng_batches)
-        likelihood = expected_log_likelihood(expectations, log_pi0, log_Ps, lls)
-
-        elp = prior + likelihood
-        if np.isnan(elp.item()):
-            raise Exception("Expected log probability is not finite")
-
-        loss = -elp / low_d.shape[0] / low_d.shape[1]
-
-        loss.backward()
-        loss_val = loss.item()
-
-        self.metrics['curr']['nll'] = -likelihood.item() / low_d.shape[0] / low_d.shape[1]
-        self.metrics['curr']['prior'] = prior.item() / low_d.shape[0] / low_d.shape[1]
-        self.metrics['curr']['batches'] = 1
-
-    def create_metric_row(
-            self, dtype, epoch, batch, dataset, trial, best_epoch=None):
+        norm = self.metrics[dtype]['batches']
+        loss = self.metrics[dtype]['loss'] / norm
+        r2 = self.metrics[dtype]['r2'] / norm
+        fc = self.metrics[dtype]['fc'] / norm
         if dtype == 'train':
             metric_row = {
                 'epoch': epoch,
                 'batch': batch,
                 'dataset': dataset,
                 'trial': trial,
-                'tr_nll': self.metrics['train']['nll'] / self.metrics['train']['batches'],
-                'tr_prior': self.metrics['train']['prior'] / self.metrics['train']['batches']
-            }
+                'tr_loss': loss,
+                'tr_r2': r2,
+                'tr_fc': fc}
         elif dtype == 'val':
             metric_row = {
                 'epoch': epoch,
                 'batch': batch,
                 'dataset': dataset,
                 'trial': trial,
-                'tr_nll': self.metrics['train']['nll'] / self.metrics['train']['batches'],
-                'val_nll': self.metrics['val']['nll'] / self.metrics['val']['batches'],
-                'tr_prior': self.metrics['train']['prior'] / self.metrics['train']['batches'],
-                'val_prior': self.metrics['val']['prior'] / self.metrics['val']['batches'],
+                'val_loss': loss,
+                'val_r2': r2,
+                'val_fc': fc,
                 'best_val_epoch': best_epoch}
         elif dtype == 'test':
             metric_row = {
@@ -378,59 +352,13 @@ class EMLoss(FitMethod):
                 'batch': batch,
                 'dataset': dataset,
                 'trial': trial,
-                'test_nll': self.metrics['test']['nll'] / self.metrics['test']['batches'],
-                'test_prior': self.metrics['test']['prior'] / self.metrics['test']['batches']}
+                'test_loss': loss,
+                'test_r2': r2,
+                'test_fc': fc}
         else:
             raise ValueError("%s is an invalid data type" % dtype)
 
         return metric_row
-
-
-class SVILoss(FitMethod):
-
-    def __init__(self, model, variational_posterior):
-
-        metric_strs = ['batches', 'ell', 'prior', 'log_likelihood', 'log_q']
-        super().__init__(model, metric_strs)
-
-        assert variational_posterior is not None
-        self.variational_posterior = variational_posterior
-
-    def get_parameters(self):
-        model_parameters = list(filter(
-            lambda p: p.requires_grad, self.model.parameters()))
-        var_post_parameters = list(filter(
-            lambda p: p.requires_grad, self.variational_posterior.parameters()))
-        return model_parameters + var_post_parameters
-
-    def calc_loss(self, data, device):
-        raise NotImplementedError
-
-    def create_metric_row(
-            self, dtype, epoch, batch, dataset, trial, best_epoch=None):
-        raise NotImplementedError
-        # test_row = {'epoch': i_epoch, 'batch_n': i_train,
-        #          'tng_err': train_loss / i_train}
-        # val_row = {
-        #     'epoch': i_epoch,
-        #     'batch_n': i_train,
-        #     'tng_err': train_loss / (i_train + 1),
-        #     'val_err': val_loss / data_generator.num_tot_batches['val'],
-        #     'val_ell': val_ell / data_generator.num_tot_batches['val'],
-        #     'val_prior': val_prior / data_generator.num_tot_batches['val'],
-        #     'val_log_likelihood': val_log_likelihood /
-        #                           data_generator.num_tot_batches['val'],
-        #     'val_log_q': val_log_q / data_generator.num_tot_batches['val'],
-        #     'best_val_epoch': best_val_epoch}
-        # test_row = {
-        #     'epoch': i_epoch,
-        #     'batch_n': i_train,
-        #     'test_err': test_loss / data_generator.num_tot_batches['test'],
-        #     'test_ell': test_ell / data_generator.num_tot_batches['test'],
-        #     'test_prior': test_prior / data_generator.num_tot_batches['test'],
-        #     'test_log_likelihood': test_log_likelihood / data_generator.num_tot_batches['test'],
-        #     'test_log_q': test_log_q / data_generator.num_tot_batches['test'],
-        #     'best_val_epoch': best_val_epoch}
 
 
 class EarlyStopping(object):
@@ -467,7 +395,8 @@ class EarlyStopping(object):
             self.best_epoch = epoch
 
         # check if smoothed loss is starting to increase; exit training if so
-        if epoch > max(self.min_epochs, self.history) and curr_mean >= prev_mean:
+        if epoch > max(self.min_epochs, self.history) \
+                and curr_mean >= prev_mean:
             print('\n== early stopping criteria met; exiting train loop ==')
             print('training epochs: %d' % epoch)
             print('end cost: %04f' % curr_loss)
@@ -477,30 +406,21 @@ class EarlyStopping(object):
             self.should_stop = True
 
 
-def fit(
-        hparams, model, data_generator, exp, method='em',
-        variational_posterior=None):
+def fit(hparams, model, data_generator, exp, method='em'):
     """
     Args:
-        hparams:
-        model:
-        data_generator:
-        exp:
-        method:
-        variational_posterior:
+        hparams (dict):
+        model (pt Model):
+        data_generator (ConcatSessionsGenerator object):
+        exp (testube.Experiment object):
+        method (str): 'ae' | 'nll'
     """
 
     # Check inputs
-    if method == 'em':
-        loss = EMLoss(model)
-    elif method == 'svi':
-        loss = SVILoss(model, variational_posterior)
-    elif method == 'vae':
-        loss = VAELoss(model)
-    elif method == 'ae':
-        loss = AELoss(model)
+    if method == 'ae':
+        loss = AELoss(model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
-        loss = NLLLoss(model)
+        loss = NLLLoss(model, n_datasets=data_generator.n_datasets)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 
@@ -516,8 +436,8 @@ def fit(
     best_val_epoch = None
     best_val_model = None
     val_check_batch = np.linspace(
-        data_generator.num_tot_batches['train'] * hparams['val_check_interval'],
-        data_generator.num_tot_batches['train'] * (hparams['max_n_epochs']+1),
+        data_generator.n_tot_batches['train'] * hparams['val_check_interval'],
+        data_generator.n_tot_batches['train'] * (hparams['max_n_epochs']+1),
         int((hparams['max_n_epochs']+1) / hparams['val_check_interval'])).astype('int')
 
     # early stopping set-up
@@ -525,15 +445,18 @@ def fit(
         early_stop = EarlyStopping(
             history=hparams['early_stop_history'],
             min_epochs=hparams['min_n_epochs'])
+    else:
+        early_stop = None
 
-    model.version = exp.version  # for exporting latents
     i_epoch = 0
-    for i_epoch in range(hparams['max_n_epochs']+1): # the 0th epoch has no training so we cycle through hparams['max_n_epochs'] of training epochs
+    for i_epoch in range(hparams['max_n_epochs'] + 1):
+        # Note: the 0th epoch has no training (randomly initialized model is
+        # evaluated) so we cycle through `max_n_epochs` training epochs
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')
 
-        for i_train in tqdm(range(data_generator.num_tot_batches['train'])):
+        for i_train in tqdm(range(data_generator.n_tot_batches['train'])):
 
             model.train()
 
@@ -544,29 +467,30 @@ def fit(
             data, dataset = data_generator.next_batch('train')
 
             # Call the appropriate loss function
-            loss.calc_loss(data, hparams['device'])
-            loss.update_metrics('train')
+            loss.calc_loss(data)
+            loss.update_metrics('train', dataset=dataset)
 
             # Step (evaluate untrained network on epoch 0)
             if i_epoch > 0:
                 optimizer.step()
 
             # Check validation according to schedule
-            curr_batch = (i_train + 1) + i_epoch * data_generator.num_tot_batches['train']
+            curr_batch = \
+                (i_train + 1) + i_epoch * data_generator.n_tot_batches['train']
             if np.any(curr_batch == val_check_batch):
 
                 loss.reset_metrics('val')
                 data_generator.reset_iterators('val')
                 model.eval()
 
-                for i_val in range(data_generator.num_tot_batches['val']):
+                for i_val in range(data_generator.n_tot_batches['val']):
 
                     # Get next minibatch and put it on the device
                     data, dataset = data_generator.next_batch('val')
 
                     # Call the appropriate loss function
-                    loss.calc_loss(data, hparams['device'])
-                    loss.update_metrics('val')
+                    loss.calc_loss(data)
+                    loss.update_metrics('val', dataset=dataset)
 
                 # Save best val model
                 if loss.get_loss('val') < best_val_loss:
@@ -584,15 +508,32 @@ def fit(
                     best_val_model.hparams = hparams
                     best_val_epoch = i_epoch
 
+                # export aggregated metrics on train/val data
                 exp.log(loss.create_metric_row(
-                    'val', i_epoch, i_train, dataset, None,
-                    best_epoch=best_val_epoch))
+                    'train', i_epoch, i_train, -1, trial=None,
+                    by_dataset=False, best_epoch=best_val_epoch))
+                exp.log(loss.create_metric_row(
+                    'val', i_epoch, i_train, -1, trial=None,
+                    by_dataset=False, best_epoch=best_val_epoch))
+                # export individual session metrics on train/val data
+                for dataset in range(data_generator.n_datasets):
+                    exp.log(loss.create_metric_row(
+                        'train', i_epoch, i_train, dataset, trial=None,
+                        by_dataset=True, best_epoch=best_val_epoch))
+                    exp.log(loss.create_metric_row(
+                        'val', i_epoch, i_train, dataset, trial=None,
+                        by_dataset=True, best_epoch=best_val_epoch))
                 exp.save()
 
-            elif (i_train + 1) % data_generator.num_tot_batches['train'] == 0:
+            elif (i_train + 1) % data_generator.n_tot_batches['train'] == 0:
                 # export training metrics at end of epoch
                 exp.log(loss.create_metric_row(
-                    'train', i_epoch, i_train, dataset, None))
+                    'train', i_epoch, i_train, -1, trial=None,
+                    by_dataset=False, best_epoch=best_val_epoch))
+                for dataset in range(data_generator.n_datasets):
+                    exp.log(loss.create_metric_row(
+                        'train', i_epoch, i_train, dataset, trial=None,
+                        by_dataset=True, best_epoch=best_val_epoch))
                 exp.save()
 
         if hparams['enable_early_stop']:
@@ -607,16 +548,12 @@ def fit(
     torch.save(model.state_dict(), filepath)
 
     # Compute test loss
-    if method == 'em':
-        test_loss = EMLoss(best_val_model)
-    elif method == 'svi':
-        test_loss = SVILoss(best_val_model, variational_posterior)
-    elif method == 'vae':
-        test_loss = VAELoss(best_val_model)
-    elif method == 'ae':
-        test_loss = AELoss(best_val_model)
+    if method == 'ae':
+        test_loss = AELoss(
+            best_val_model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
-        test_loss = NLLLoss(best_val_model)
+        test_loss = NLLLoss(
+            best_val_model, n_datasets=data_generator.n_datasets)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 
@@ -624,23 +561,27 @@ def fit(
     data_generator.reset_iterators('test')
     best_val_model.eval()
 
-    for i_test in range(data_generator.num_tot_batches['test']):
+    for i_test in range(data_generator.n_tot_batches['test']):
 
         # Get next minibatch and put it on the device
         data, dataset = data_generator.next_batch('test')
 
         # Call the appropriate loss function
         test_loss.reset_metrics('test')
-        test_loss.calc_loss(data, hparams['device'])
-        test_loss.update_metrics('test')
+        test_loss.calc_loss(data)
+        test_loss.update_metrics('test', dataset=dataset)
 
-        # calculate metrics for each batch
+        # calculate metrics for each *batch* (rather than whole dataset)
         exp.log(test_loss.create_metric_row(
-            'test', i_epoch, i_test, dataset, data['batch_indx'].item()))
+            'test', i_epoch, i_test, dataset, data['batch_indx'].item(),
+            by_dataset=True))
+
     exp.save()
 
     # export latents
     if method == 'ae' and hparams['export_latents']:
+        print('exporting latents')
         export_latents(data_generator, best_val_model)
     elif method == 'nll' and hparams['export_predictions']:
+        print('exporting predictions')
         export_predictions(data_generator, best_val_model)

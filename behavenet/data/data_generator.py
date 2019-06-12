@@ -11,7 +11,7 @@ from behavenet.fitting.utils import get_best_model_version
 
 
 def split_trials(
-        num_trials, rng_seed=0, train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
+        n_trials, rng_seed=0, train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
     """
     Split trials into train/val/test blocks.
 
@@ -19,7 +19,7 @@ def split_trials(
     train tr | gap tr | val tr | gap tr | test tr | gap tr
 
     Args:
-        num_trials (int): number of trials to use in the split
+        n_trials (int): number of trials to use in the split
         rng_seed (int): numpy random seed for reproducibility
         train_tr (int): number of train trials per block
         val_tr (int): number of validation trials per block
@@ -36,13 +36,13 @@ def split_trials(
 
     tr_per_block = train_tr + gap_tr + val_tr + gap_tr + test_tr + gap_tr
 
-    num_blocks = int(np.floor(num_trials / tr_per_block))
-    leftover_trials = num_trials - tr_per_block * num_blocks
+    n_blocks = int(np.floor(n_trials / tr_per_block))
+    leftover_trials = n_trials - tr_per_block * n_blocks
     if leftover_trials > 0:
         offset = np.random.randint(0, high=leftover_trials)
     else:
         offset = 0
-    indxs_block = np.random.permutation(num_blocks)
+    indxs_block = np.random.permutation(n_blocks)
 
     batch_indxs = {'train': [], 'test': [], 'val': []}
     for block in indxs_block:
@@ -108,13 +108,13 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         signal = 'images' if 'images' in signals else 'neural'
         data_file = os.path.join(self.data_dir, 'data.hdf5')
         with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
-            self.num_trials = len(f[signal])
+            self.n_trials = len(f[signal])
             key_list = list(f[signal].keys())
             self.trial_len = f[signal][key_list[0]].shape[0]
 
         # meta data about train/test/xv splits; set by ConcatSessionsGenerator
         self.batch_indxs = None
-        self.num_batches = None
+        self.n_batches = None
 
         self.device = device
 
@@ -222,7 +222,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 raise ValueError('"%s" is an invalid signal type')
 
     def __len__(self):
-        return self.num_trials
+        return self.n_trials
 
     def __getitem__(self, indx):
         """
@@ -246,7 +246,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     if indx is None:
                         print('Warning: loading all images!')
                         temp_data = []
-                        for tr in range(self.num_trials):
+                        for tr in range(self.n_trials):
                             temp_data.append(f[signal][
                                 str('trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
@@ -262,7 +262,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     if indx is None:
                         print('Warning: loading all masks!')
                         temp_data = []
-                        for tr in range(self.num_trials):
+                        for tr in range(self.n_trials):
                             temp_data.append(f[signal][
                                 str('trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
@@ -275,7 +275,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
                     if indx is None:
                         temp_data = []
-                        for tr in range(self.num_trials):
+                        for tr in range(self.n_trials):
                             temp_data.append(f[signal][
                                 str('trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
@@ -410,7 +410,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
             self.dims[signal] = data.shape
 
     def __len__(self):
-        return self.num_trials
+        return self.n_trials
 
     def __getitem__(self, indx):
         """
@@ -491,28 +491,28 @@ class ConcatSessionsGenerator(object):
                 'session': ids['session']})
 
         # collect info about datasets
-        self.num_datasets = len(self.datasets)
+        self.n_datasets = len(self.datasets)
 
         # get train/val/test batch indices for each dataset
-        self.batch_ratios = [None] * self.num_datasets
+        self.batch_ratios = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
             dataset.batch_indxs = split_trials(len(dataset), rng_seed=rng_seed)
-            dataset.num_batches = {}
+            dataset.n_batches = {}
             for dtype in self._dtypes:
-                dataset.num_batches[dtype] = len(dataset.batch_indxs[dtype])
+                dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(dataset.batch_indxs[dtype])
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
         # find total number of batches per data type; this will be iterated
         # over in the training loop
-        self.num_tot_batches = {}
+        self.n_tot_batches = {}
         for dtype in self._dtypes:
-            self.num_tot_batches[dtype] = np.sum([
-                dataset.num_batches[dtype] for dataset in self.datasets])
+            self.n_tot_batches[dtype] = np.sum([
+                dataset.n_batches[dtype] for dataset in self.datasets])
 
         # create data loaders (will shuffle/batch/etc datasets)
-        self.dataset_loaders = [None] * self.num_datasets
+        self.dataset_loaders = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
             self.dataset_loaders[i] = {}
             for dtype in self._dtypes:
@@ -523,8 +523,8 @@ class ConcatSessionsGenerator(object):
                     num_workers=0)
         
         # create all iterators (will iterate through data loaders)
-        self.dataset_iters = [None] * self.num_datasets
-        for i in range(self.num_datasets):
+        self.dataset_iters = [None] * self.n_datasets
+        for i in range(self.n_datasets):
             self.dataset_iters[i] = {}
             for dtype in self._dtypes:
                 self.dataset_iters[i][dtype] = iter(
@@ -538,7 +538,7 @@ class ConcatSessionsGenerator(object):
             dtype (str): 'train' | 'val' | 'test' | 'all'
         """
 
-        for i in range(self.num_datasets):
+        for i in range(self.n_datasets):
             if dtype == 'all':
                 for dtype_ in self._dtypes:
                     self.dataset_iters[i][dtype_] = iter(
@@ -566,7 +566,7 @@ class ConcatSessionsGenerator(object):
         while True:
             # get next session
             dataset = np.random.choice(
-                np.arange(self.num_datasets), p=self.batch_ratios)
+                np.arange(self.n_datasets), p=self.batch_ratios)
 
             # get this session data
             try:

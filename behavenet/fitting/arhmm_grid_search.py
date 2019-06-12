@@ -12,8 +12,10 @@ from behavenet.fitting.eval import export_predictions_best
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_data_generator_inputs
-from behavenet.fitting.utils import get_output_dirs
 from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.fitting.utils import get_output_session_dir
+from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import export_session_info_to_csv
 from behavenet.data.data_generator import ConcatSessionsGenerator
 from behavenet.analyses.arhmm_utils import get_discrete_chunks
 from behavenet.analyses.arhmm_utils import get_state_durations
@@ -30,8 +32,6 @@ matplotlib.use('agg')
 
 def main(hparams):
 
-    # TODO: log files
-
     # turn matlab-style struct into dict
     hparams = vars(hparams)
     print(hparams)
@@ -44,11 +44,14 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    # TODO: update paths
-    # get session_dir, results_dir (session_dir + decoding details),
-    # expt_dir (results_dir + experiment details)
-    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-        get_output_dirs(hparams)
+    # get session_dir
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    if not os.path.isdir(hparams['session_dir']):
+        os.makedirs(hparams['session_dir'])
+        export_session_info_to_csv(hparams['session_dir'], sess_ids)
+    # get results_dir(session_dir + ae details),
+    # expt_dir(results_dir + tt expt details)
+    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
 
@@ -70,13 +73,8 @@ def main(hparams):
     print('building data generator')
 
     hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
+        hparams['data_dir'], sess_ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
@@ -201,9 +199,6 @@ def get_arhmm_params(namespace, parser):
     # add data arguments
     if namespace.search_type == 'grid_search':
         parser.add_argument('--experiment_name', '-en', default='diff_init_grid_search', type=str) #'grid_search'
-    
-
-
 
     parser.add_argument('--ae_experiment_name', default='test_pt',type=str)
     parser.add_argument('--ae_version', default='best')

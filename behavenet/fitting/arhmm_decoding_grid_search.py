@@ -12,12 +12,14 @@ from functools import partial
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import NeuralNetDecoderLaggedSLDS
 from behavenet.training import fit
-from behavenet.fitting.utils import export_predictions_best
+from behavenet.fitting.eval import export_predictions_best
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_data_generator_inputs
 from behavenet.fitting.utils import get_output_dirs
 from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.fitting.utils import get_output_session_dir
+from behavenet.fitting.utils import export_session_info_to_csv
 from behavenet.data.data_generator import ConcatSessionsGenerator
 
 
@@ -74,8 +76,6 @@ def get_last_sample(slds, latent_predictions, state_log_predictions, x_covs, x_s
 
 def main(hparams):
 
-    # TODO: log files
-
     # turn matlab-style struct into dict
     hparams = vars(hparams)
     print(hparams)
@@ -88,11 +88,14 @@ def main(hparams):
     # ### Create Experiment ###
     # #########################
 
-    # get session_dir, results_dir (session_dir + decoding details),
-    # expt_dir (results_dir + experiment details)
-    # TODO: update paths
-    hparams['session_dir'], hparams['results_dir'], hparams['expt_dir'] = \
-        get_output_dirs(hparams)
+    # get session_dir
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    if not os.path.isdir(hparams['session_dir']):
+        os.makedirs(hparams['session_dir'])
+        export_session_info_to_csv(hparams['session_dir'], sess_ids)
+    # get results_dir(session_dir + ae details),
+    # expt_dir(results_dir + tt expt details)
+    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
 
@@ -115,18 +118,12 @@ def main(hparams):
 
     hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
 
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
+        hparams['data_dir'], sess_ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     print('Data generator loaded')
-
 
     hparams['ae_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['ae']))
     hparams['ae_predictions_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['ae_predictions']))
@@ -155,12 +152,12 @@ def main(hparams):
         state_log_predictions[data_type] = [ F.log_softmax(torch.tensor(data_generator.datasets[0][i_trial]['arhmm_predictions'][:]).float(),dim=1).cpu().detach().numpy()[hparams['n_max_lags']:-hparams['n_max_lags']] for i_trial in trial_idxs[data_type]]
         states[data_type] = [data_generator.datasets[0][i_trial]['arhmm'][:].cpu().detach().numpy()[hparams['n_max_lags']:-hparams['n_max_lags']] for i_trial in trial_idxs[data_type]]
 
-
     hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['images'].shape[0]
     export_hparams(hparams, exp)
 
     print('Model loaded')
     print(trial_idxs['val'])
+
     # ####################
     # ### TRAIN MODEL ###
     # ####################

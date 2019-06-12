@@ -19,19 +19,19 @@ def export_states(hparams, exp, data_generator, model, filename=None):
     import os
 
     # initialize container for states
-    states = [[] for _ in range(data_generator.num_datasets)]
+    states = [[] for _ in range(data_generator.n_datasets)]
     for i, dataset in enumerate(data_generator.datasets):
         trial_len = dataset.trial_len
-        num_trials = dataset.num_trials
+        n_trials = dataset.n_trials
         states[i] = np.full(
-            shape=(num_trials, trial_len),
+            shape=(n_trials, trial_len),
             fill_value=np.nan)
 
     # partially fill container (gap trials will be included as nans)
     dtypes = ['train', 'val', 'test']
     for dtype in dtypes:
         data_generator.reset_iterators(dtype)
-        for i in range(data_generator.num_tot_batches[dtype]):
+        for i in range(data_generator.n_tot_batches[dtype]):
             data, dataset = data_generator.next_batch(dtype)
 
             # process batch,
@@ -74,19 +74,19 @@ def export_latents(data_generator, model, filename=None):
     model.eval()
 
     # initialize container for latents
-    latents = [[] for _ in range(data_generator.num_datasets)]
+    latents = [[] for _ in range(data_generator.n_datasets)]
     for i, dataset in enumerate(data_generator.datasets):
         trial_len = dataset.trial_len
-        num_trials = dataset.num_trials
+        n_trials = dataset.n_trials
         latents[i] = np.full(
-            shape=(num_trials, trial_len, model.hparams['n_ae_latents']),
+            shape=(n_trials, trial_len, model.hparams['n_ae_latents']),
             fill_value=np.nan)
 
     # partially fill container (gap trials will be included as nans)
     dtypes = ['train', 'val', 'test']
     for dtype in dtypes:
         data_generator.reset_iterators(dtype)
-        for i in range(data_generator.num_tot_batches[dtype]):
+        for i in range(data_generator.n_tot_batches[dtype]):
             data, dataset = data_generator.next_batch(dtype)
 
             # process batch, perhaps in chunks if full batch is too large
@@ -96,16 +96,15 @@ def export_latents(data_generator, model, filename=None):
             batch_size = y.shape[0]
             if batch_size > chunk_size:
                 # split into chunks
-                num_chunks = int(np.ceil(batch_size / chunk_size))
-                for chunk in range(num_chunks):
+                n_chunks = int(np.ceil(batch_size / chunk_size))
+                for chunk in range(n_chunks):
                     # take chunks of size chunk_size, plus overlap due to
                     # max_lags
                     indx_beg = chunk * chunk_size
                     indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
                     curr_latents, _, _ = model.encoding(
                         y[indx_beg:indx_end])
-                    latents[dataset][data['batch_indx'].item(),
-                    indx_beg:indx_end, :] = \
+                    latents[dataset][data['batch_indx'].item(), indx_beg:indx_end, :] = \
                         curr_latents.cpu().detach().numpy()
             else:
                 curr_latents, _, _ = model.encoding(y)
@@ -114,9 +113,9 @@ def export_latents(data_generator, model, filename=None):
 
     # save latents separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
-        if filename is None:
+        if filename is None or data_generator.n_datasets > 1:
             # get save name which includes lab/expt/animal/session
-            if data_generator.num_datasets > 1:
+            if data_generator.n_datasets > 1:
                 sess_id = str(
                     '%s_%s_%s_%s_latents.pkl' % (
                         dataset.lab, dataset.expt, dataset.animal,
@@ -128,10 +127,12 @@ def export_latents(data_generator, model, filename=None):
                 model.hparams['experiment_name'], 'version_%i' % model.version,
                 sess_id)
         # save out array in pickle file
-        pickle.dump({
-            'latents': latents[i],
-            'trials': data_generator.batch_indxs[i]},
-            open(filename, 'wb'))
+        print(
+            'saving latents %i of %i:\n%s' %
+            (i + 1, data_generator.n_datasets, filename))
+        latents_dict = {'latents': latents[i], 'trials': dataset.batch_indxs}
+        with open(filename, 'wb') as f:
+            pickle.dump(latents_dict, f)
 
 
 def export_predictions(data_generator, model, filename=None):
@@ -152,12 +153,12 @@ def export_predictions(data_generator, model, filename=None):
     model.eval()
 
     # initialize container for latents
-    predictions = [[] for _ in range(data_generator.num_datasets)]
+    predictions = [[] for _ in range(data_generator.n_datasets)]
     for i, dataset in enumerate(data_generator.datasets):
         trial_len = dataset.trial_len
-        num_trials = dataset.num_trials
+        n_trials = dataset.n_trials
         predictions[i] = np.full(
-            shape=(num_trials, trial_len, model.hparams['output_size']),
+            shape=(n_trials, trial_len, model.hparams['output_size']),
             fill_value=np.nan)
 
     # partially fill container (gap trials will be included as nans)
@@ -165,7 +166,7 @@ def export_predictions(data_generator, model, filename=None):
     dtypes = ['train', 'val', 'test']
     for dtype in dtypes:
         data_generator.reset_iterators(dtype)
-        for i in range(data_generator.num_tot_batches[dtype]):
+        for i in range(data_generator.n_tot_batches[dtype]):
             data, dataset = data_generator.next_batch(dtype)
 
             predictors = data[model.hparams['input_signal']][0]
@@ -177,8 +178,8 @@ def export_predictions(data_generator, model, filename=None):
             batch_size = targets.shape[0]
             if batch_size > chunk_size:
                 # split into chunks
-                num_chunks = int(np.ceil(batch_size / chunk_size))
-                for chunk in range(num_chunks):
+                n_chunks = int(np.ceil(batch_size / chunk_size))
+                for chunk in range(n_chunks):
                     # take chunks of size chunk_size, plus overlap due to
                     # max_lags
                     indx_beg = np.max([chunk * chunk_size - max_lags, 0])
@@ -195,9 +196,9 @@ def export_predictions(data_generator, model, filename=None):
 
     # save latents separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
-        if filename is None:
+        if filename is None or data_generator.n_datasets > 1:
             # get save name which includes lab/expt/animal/session
-            if data_generator.num_datasets > 1:
+            if data_generator.n_datasets > 1:
                 sess_id = str(
                     '%s_%s_%s_%s_predictions.pkl' % (
                         dataset.lab, dataset.expt, dataset.animal,
@@ -209,10 +210,13 @@ def export_predictions(data_generator, model, filename=None):
                 model.hparams['experiment_name'], 'version_%i' % model.version,
                 sess_id)
         # save out array in pickle file
-        pickle.dump({
-            'predictions': predictions[i],
-            'trials': data_generator.batch_indxs[i]},
-            open(filename, 'wb'))
+        print(
+            'saving latents %i of %i to %s' %
+            (i + 1, data_generator.n_datasets, filename))
+        predictions_dict = {
+            'predictions': predictions[i], 'trials': dataset.batch_indxs}
+        with open(filename, 'wb') as f:
+            pickle.dump(predictions_dict, f)
 
 
 def export_latents_best(hparams):
@@ -263,21 +267,11 @@ def get_reconstruction(model, inputs):
     else:
         input_type = 'images'
 
-    if isinstance(model, torch.nn.Module):
-        if input_type == 'images':
-            ims_recon, _ = model(inputs)
-        else:
-            # TODO: how to incorporate maxpool layers for decoding only?
-            ims_recon = model.decoding(inputs, None, None)
-        ims_recon = ims_recon.cpu().detach().numpy()
+    if input_type == 'images':
+        ims_recon, _ = model(inputs)
     else:
-        if input_type == 'images':
-            ims_ = np.transpose(inputs.cpu().detach().numpy(), (0, 2, 3, 1))
-            feed_dict = {model.encoder_input: ims_}
-        else:
-            feed_dict = {model.decoder_input: inputs}
-
-        ims_recon = model.sess.run(model.y, feed_dict=feed_dict)
-        ims_recon = np.transpose(ims_recon, (0, 3, 1, 2))
+        # TODO: how to incorporate maxpool layers for decoding only?
+        ims_recon = model.decoding(inputs, None, None)
+    ims_recon = ims_recon.cpu().detach().numpy()
 
     return ims_recon

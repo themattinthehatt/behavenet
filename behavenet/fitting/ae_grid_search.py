@@ -23,8 +23,6 @@ from behavenet.training import fit as fit
 
 def main(hparams):
 
-    # TODO: log files
-
     hparams = vars(hparams)
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
@@ -47,20 +45,16 @@ def main(hparams):
     # #########################
 
     # get session_dir
-    if len(hparams['sessions_csv']) > 0:
-        # TODO: collect sessions directly from session_info.csv file
-        raise NotImplementedError
-    else:
-        hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
     if not os.path.isdir(hparams['session_dir']):
         os.makedirs(hparams['session_dir'])
         export_session_info_to_csv(hparams['session_dir'], sess_ids)
-
     # get results_dir(session_dir + ae details),
     # expt_dir(results_dir + tt expt details)
     hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
+    print('')
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
@@ -77,31 +71,37 @@ def main(hparams):
     # ### LOAD DATA GENERATOR ###
     # ###########################
 
-    print('building data generator')
+    print('using data from following sessions:')
+    for ids in sess_ids:
+        print('%s' % os.path.join(
+            ids['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
+            ids['session']))
     hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
+    print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    print('data generator loaded')
+    print('done')
 
     # ####################
     # ### CREATE MODEL ###
     # ####################
 
+    print('constructing model...', end='')
     torch_rnd_seed = torch.get_rng_state()
     hparams['model_build_rnd_seed'] = torch_rnd_seed
     model = AE(hparams)
     model.to(hparams['device'])
+    model.version = exp.version
     torch_rnd_seed = torch.get_rng_state()
     hparams['training_rnd_seed'] = torch_rnd_seed
 
     # save out hparams as csv and dict
     hparams['training_completed'] = False
     export_hparams(hparams, exp)
-
-    print('model loaded')
+    print('done')
 
     # ####################
     # ### TRAIN MODEL ###
@@ -353,7 +353,7 @@ if __name__ == '__main__':
             main,
             nb_trials=hyperparams.tt_n_cpu_trials,
             nb_workers=hyperparams.tt_n_cpu_workers)
-    print('Total fit time: {}'.format(time.time() - t))
+    print('Total fit time: {} sec'.format(time.time() - t))
     if hyperparams.export_latents_best:
         print('Exporting latents from current best model in experiment')
         export_latents_best(vars(hyperparams))
