@@ -6,20 +6,13 @@ import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
 from behavenet.fitting.utils import get_best_model_and_data
-from behavenet.fitting.utils import get_reconstruction
+from behavenet.fitting.eval import get_reconstruction
 
 
 def make_ae_reconstruction_movie(
         hparams, save_file, trial=None, version='best', include_linear=False):
 
-    if 'lib' not in hparams:
-        hparams['lib'] = 'pt'
-    if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
-        from behavenet.models import AE
-    elif hparams['lib'] == 'tf':
-        from behavenet.models_tf import AE
-    else:
-        raise ValueError('"%s" is an invalid library' % hparams['lib'])
+    from behavenet.models import AE
 
     max_bins = 400
 
@@ -480,15 +473,15 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
 
     # find good trials
     import copy
-    from fitting.utils import get_output_dirs
-    from data.data_generator import ConcatSessionsGenerator
+    from behavenet.fitting.utils import get_output_dirs
+    from behavenet.data.data_generator import ConcatSessionsGenerator
 
     # ae data
     hparams_ae = copy.copy(hparams)
     hparams_ae['experiment_name'] = hparams['ae_experiment_name']
     hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['model_type'] = hparams['ae_model_type']
-    _, _, ae_model_dir = get_output_dirs(hparams_ae)
+    _, ae_model_dir = get_output_dirs(hparams_ae)
     ae_transforms = None
     ae_load_kwargs = {
         'model_dir': ae_model_dir,
@@ -499,7 +492,7 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
     hparams_dec['experiment_name'] = hparams['decoder_experiment_name']
     hparams_dec['model_class'] = hparams['decoder_model_class']
     hparams_dec['model_type'] = hparams['decoder_model_type']
-    _, _, dec_dir = get_output_dirs(hparams_dec)
+    _, dec_dir = get_output_dirs(hparams_dec)
     ae_pred_transforms = None
     ae_pred_load_kwargs = {
         'model_dir': dec_dir,

@@ -3,6 +3,7 @@ import time
 import numpy as np
 import random
 import pickle
+import torch
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.fitting.eval import export_latents_best
 from behavenet.fitting.utils import experiment_exists
@@ -16,6 +17,8 @@ from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
 from behavenet.data.data_generator import ConcatSessionsGenerator
+from behavenet.models import AE as AE
+from behavenet.training import fit as fit
 
 
 def main(hparams):
@@ -87,22 +90,12 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    if hparams['lib'] == 'pt':
-        from behavenet.models import AE as AE
-        from behavenet.training import fit as fit
-        import torch
-        torch_rnd_seed = torch.get_rng_state()
-        hparams['model_build_rnd_seed'] = torch_rnd_seed
-        model = AE(hparams)
-        model.to(hparams['device'])
-        torch_rnd_seed = torch.get_rng_state()
-        hparams['training_rnd_seed'] = torch_rnd_seed
-    elif hparams['lib'] == 'tf':
-        from behavenet.models_tf import AE
-        from behavenet.training_tf import fit
-        model = AE(hparams)
-    else:
-        raise ValueError('"%s" is an invalid lib' % hparams['lib'])
+    torch_rnd_seed = torch.get_rng_state()
+    hparams['model_build_rnd_seed'] = torch_rnd_seed
+    model = AE(hparams)
+    model.to(hparams['device'])
+    torch_rnd_seed = torch.get_rng_state()
+    hparams['training_rnd_seed'] = torch_rnd_seed
 
     # save out hparams as csv and dict
     hparams['training_completed'] = False
@@ -128,7 +121,6 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # latent_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
-    parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
     parser.add_argument('--tt_save_path', type=str)
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])

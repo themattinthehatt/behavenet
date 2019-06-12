@@ -77,9 +77,6 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    if hparams['lib'] == 'tf':
-        raise ValueError('TF decoders not currently supported')
-
     torch_rnd_seed = torch.get_rng_state()
     hparams['model_build_rnd_seed'] = torch_rnd_seed
 
@@ -122,7 +119,6 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
-    parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
     parser.add_argument('--tt_save_path', type=str)
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)

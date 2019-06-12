@@ -224,16 +224,9 @@ def export_latents_best(hparams):
         hparams (dict):
     """
 
-    if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
-        from behavenet.models import AE
-        model, data_generator = get_best_model_and_data(hparams, AE)
-        export_latents(data_generator, model)
-    elif hparams['lib'] == 'tf':
-        from behavenet.models_tf import AE
-        model, data_generator = get_best_model_and_data(hparams, AE)
-        export_latents_tf(data_generator, model)
-    else:
-        raise ValueError('"%s" is an invalid model library')
+    from behavenet.models import AE
+    model, data_generator = get_best_model_and_data(hparams, AE)
+    export_latents(data_generator, model)
 
 
 def export_predictions_best(hparams):
@@ -246,79 +239,8 @@ def export_predictions_best(hparams):
     """
 
     from behavenet.models import Decoder
-
-    if hparams['lib'] == 'tf':
-        raise NotImplementedError
-
     model, data_generator = get_best_model_and_data(hparams, Decoder)
     export_predictions(data_generator, model)
-
-
-def export_latents_tf(data_generator, model, filename=None):
-    """Port of behavenet.fitting.utils.export_latents for tf models"""
-
-    # initialize container for latents
-    latents = [[] for _ in range(data_generator.num_datasets)]
-    for i, dataset in enumerate(data_generator.datasets):
-        trial_len = dataset.trial_len
-        num_trials = dataset.num_trials
-        latents[i] = np.full(
-            shape=(num_trials, trial_len, model.hparams['n_ae_latents']),
-            fill_value=np.nan)
-
-        # partially fill container (gap trials will be included as nans)
-        dtypes = ['train', 'val', 'test']
-        for dtype in dtypes:
-            data_generator.reset_iterators(dtype)
-            for i in range(data_generator.num_tot_batches[dtype]):
-                data, dataset = data_generator.next_batch(dtype)
-
-                # process batch, perhaps in chunks if full batch is too large
-                # to fit on gpu
-                chunk_size = 200
-                y = np.transpose(
-                    data[model.hparams['signals']][0].cpu().detach().numpy(),
-                    (0, 2, 3, 1))
-                batch_size = y.shape[0]
-                if batch_size > chunk_size:
-                    # split into chunks
-                    num_chunks = int(np.ceil(batch_size / chunk_size))
-                    for chunk in range(num_chunks):
-                        # take chunks of size chunk_size, plus overlap due to
-                        # max_lags
-                        indx_beg = chunk * chunk_size
-                        indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-
-                        curr_latents = model.sess.run(
-                            model.x,
-                            feed_dict={model.encoder_input: y[indx_beg:indx_end]})
-
-                        latents[dataset][data['batch_indx'].item(),
-                        indx_beg:indx_end, :] = curr_latents
-                else:
-                    curr_latents = model.sess.run(
-                        model.x, feed_dict={model.encoder_input: y})
-                    latents[dataset][data['batch_indx'].item(), :, :] = \
-                        curr_latents
-
-    # save latents separately for each dataset
-    for i, dataset in enumerate(data_generator.datasets):
-        # get save name which includes lab/expt/animal/session
-        # sess_id = str(
-        #     '%s_%s_%s_%s_latents.pkl' % (
-        #         dataset.lab, dataset.expt, dataset.animal,
-        #         dataset.session))
-        if filename is None:
-            sess_id = 'latents.pkl'
-            filename = os.path.join(
-                model.hparams['results_dir'], 'test_tube_data',
-                model.hparams['experiment_name'], model.version,
-                sess_id)
-        # save out array in pickle file
-        pickle.dump({
-            'latents': latents[i],
-            'trials': data_generator.batch_indxs[i]},
-            open(filename, 'wb'))
 
 
 def get_reconstruction(model, inputs):
@@ -326,7 +248,7 @@ def get_reconstruction(model, inputs):
     Reconstruct an image from either image or latent inputs
 
     Args:
-        model: pt or tf Model
+        model: pt Model
         inputs (torch.Tensor object):
             images (batch x channels x y_pix x x_pix)
             latents (batch x n_ae_latents)

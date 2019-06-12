@@ -350,37 +350,12 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
         data_generator = None
 
     # build models
-    if 'lib' not in hparams_new:
-        hparams_new['lib'] = 'pt'
-
     model = Model(hparams_new)
     model.version = best_version
-    if hparams_new['lib'] == 'pt' or hparams_new['lib'] == 'pytorch':
-        model.load_state_dict(torch.load(model_file,map_location=lambda storage, loc: storage))
-        model.to(hparams_new['device'])
-        model.eval()
-    elif hparams_new['lib'] == 'tf':
-        import tensorflow as tf
-        # load trained weights into model
-        if not hasattr(model, 'encoder_input'):
-            next_batch = tf.placeholder(
-                dtype=tf.float32,
-                shape=(
-                    None,
-                    hparams_new['y_pixels'],
-                    hparams_new['x_pixels'],
-                    hparams_new['n_input_channels']))
-            model.encoder_input = next_batch
-            model.forward(next_batch)
-
-        sess_config = tf.ConfigProto(device_count={'GPU': 0})
-        saver = tf.train.Saver()
-        sess = tf.Session(config=sess_config)
-        sess.run(tf.global_variables_initializer())
-        saver.restore(sess, model_file)
-        model.sess = sess
-    else:
-        raise ValueError('"%s" is not a valid lib' % hparams_new['lib'])
+    model.load_state_dict(torch.load(
+        model_file, map_location=lambda storage, loc: storage))
+    model.to(hparams_new['device'])
+    model.eval()
 
     return model, data_generator
 

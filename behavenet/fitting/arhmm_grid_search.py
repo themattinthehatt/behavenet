@@ -159,6 +159,7 @@ def main(hparams):
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
 
+
 def get_params(strategy):
 
     parser = HyperOptArgumentParser(strategy)
