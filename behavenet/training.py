@@ -36,7 +36,7 @@ class FitMethod(object):
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None,
-            **kwargs):
+            *args, **kwargs):
         if dtype == 'train':
             metric_row = {
                 'epoch': epoch,
@@ -95,7 +95,7 @@ class VAELoss(FitMethod):
         raise NotImplementedError
         # val_row = {
         #     'epoch': i_epoch,
-        #     'batch_nb': i_train,
+        #     'batch_n': i_train,
         #     'tng_err': train_loss / (i_train + 1),
         #     'val_err': val_loss / data_generator.num_tot_batches['val'],
         #     'val_NLL': val_NLL / data_generator.num_tot_batches['val'],
@@ -104,7 +104,7 @@ class VAELoss(FitMethod):
         #     'best_val_epoch': best_val_epoch}
         # test_row = {
         #     'epoch': i_epoch,
-        #     'batch_nb': i_train,
+        #     'batch_n': i_train,
         #     'test_err': test_loss / data_generator.num_tot_batches['test'],
         #     'test_NLL': test_NLL / data_generator.num_tot_batches['test'],
         #     'test_KL': test_KL / data_generator.num_tot_batches['test'],
@@ -334,7 +334,7 @@ class EMLoss(FitMethod):
         with torch.no_grad():
             expectations = hmm_expectations(log_pi0, log_Ps, lls, device)
         
-        prior = log_prior #/ int(nb_tng_batches)
+        prior = log_prior #/ int(n_tng_batches)
         likelihood = expected_log_likelihood(expectations, log_pi0, log_Ps, lls)
 
         elp = prior + likelihood
@@ -409,11 +409,11 @@ class SVILoss(FitMethod):
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None):
         raise NotImplementedError
-        # test_row = {'epoch': i_epoch, 'batch_nb': i_train,
+        # test_row = {'epoch': i_epoch, 'batch_n': i_train,
         #          'tng_err': train_loss / i_train}
         # val_row = {
         #     'epoch': i_epoch,
-        #     'batch_nb': i_train,
+        #     'batch_n': i_train,
         #     'tng_err': train_loss / (i_train + 1),
         #     'val_err': val_loss / data_generator.num_tot_batches['val'],
         #     'val_ell': val_ell / data_generator.num_tot_batches['val'],
@@ -424,7 +424,7 @@ class SVILoss(FitMethod):
         #     'best_val_epoch': best_val_epoch}
         # test_row = {
         #     'epoch': i_epoch,
-        #     'batch_nb': i_train,
+        #     'batch_n': i_train,
         #     'test_err': test_loss / data_generator.num_tot_batches['test'],
         #     'test_ell': test_ell / data_generator.num_tot_batches['test'],
         #     'test_prior': test_prior / data_generator.num_tot_batches['test'],
@@ -517,18 +517,18 @@ def fit(
     best_val_model = None
     val_check_batch = np.linspace(
         data_generator.num_tot_batches['train'] * hparams['val_check_interval'],
-        data_generator.num_tot_batches['train'] * (hparams['max_nb_epochs']+1),
-        int((hparams['max_nb_epochs']+1) / hparams['val_check_interval'])).astype('int')
+        data_generator.num_tot_batches['train'] * (hparams['max_n_epochs']+1),
+        int((hparams['max_n_epochs']+1) / hparams['val_check_interval'])).astype('int')
 
     # early stopping set-up
     if hparams['enable_early_stop']:
         early_stop = EarlyStopping(
             history=hparams['early_stop_history'],
-            min_epochs=hparams['min_nb_epochs'])
+            min_epochs=hparams['min_n_epochs'])
 
     model.version = exp.version  # for exporting latents
     i_epoch = 0
-    for i_epoch in range(hparams['max_nb_epochs']+1): # the 0th epoch has no training so we cycle through hparams['max_nb_epochs'] of training epochs
+    for i_epoch in range(hparams['max_n_epochs']+1): # the 0th epoch has no training so we cycle through hparams['max_n_epochs'] of training epochs
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')

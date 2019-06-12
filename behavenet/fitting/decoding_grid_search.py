@@ -128,10 +128,10 @@ def get_params(strategy):
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm'], type=str)
 
-    # arguments for computing resources (nb_gpu_workers inferred from visible gpus)
-    parser.add_argument('--tt_nb_gpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_nb_cpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_nb_cpu_workers', default=5, type=int)
+    # arguments for computing resources (n_gpu_workers inferred from visible gpus)
+    parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
@@ -194,8 +194,8 @@ def get_decoding_params(namespace, parser):
 
     parser.add_argument('--enable_early_stop', action='store_true', default=True)
     parser.add_argument('--early_stop_history', default=10, type=float)
-    parser.add_argument('--min_nb_epochs', default=1, type=int)
-    parser.add_argument('--max_nb_epochs', default=500, type=int)
+    parser.add_argument('--min_n_epochs', default=1, type=int)
+    parser.add_argument('--max_n_epochs', default=500, type=int)
     parser.add_argument('--activation', default='relu', choices=['linear', 'relu', 'lrelu', 'sigmoid', 'tanh'])
 
     if namespace.search_type == 'best':
@@ -351,13 +351,13 @@ if __name__ == '__main__':
         hyperparams.optimize_parallel_gpu(
             main,
             gpu_ids=gpu_ids,
-            nb_trials=hyperparams.tt_nb_gpu_trials,
+            nb_trials=hyperparams.tt_n_gpu_trials,
             nb_workers=len(gpu_ids))
     elif hyperparams.device == 'cpu':
         hyperparams.optimize_parallel_cpu(
             main,
-            nb_trials=hyperparams.tt_nb_cpu_trials,
-            nb_workers=hyperparams.tt_nb_cpu_workers)
+            nb_trials=hyperparams.tt_n_cpu_trials,
+            nb_workers=hyperparams.tt_n_cpu_workers)
     print('Total fit time: {}'.format(time.time() - t))
     if hyperparams.export_predictions_best:
         export_predictions_best(vars(hyperparams))

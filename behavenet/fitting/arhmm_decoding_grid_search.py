@@ -292,10 +292,10 @@ def get_params(strategy):
     parser.add_argument('--model_class', default='arhmm-decoding', type=str)
     parser.add_argument('--model_type', default=None, type=str)
 
-    # arguments for computing resources (nb_gpu_workers inferred from visible gpus)
-    parser.add_argument('--tt_nb_gpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_nb_cpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_nb_cpu_workers', default=5, type=int)
+    # arguments for computing resources (n_gpu_workers inferred from visible gpus)
+    parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
     #parser.add_argument('--mem_limit_gb', default=8.0, type=float)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
@@ -380,13 +380,13 @@ if __name__ == '__main__':
     #     hyperparams.optimize_parallel_gpu(
     #         main,
     #         gpu_ids=gpu_ids,
-    #         nb_trials=hyperparams.tt_nb_gpu_trials,
+    #         nb_trials=hyperparams.tt_n_gpu_trials,
     #         nb_workers=len(gpu_ids))
     # elif hyperparams.device == 'cpu':
     #     hyperparams.optimize_parallel_cpu(
     #         main,
-    #         nb_trials=hyperparams.tt_nb_cpu_trials,
-    #         nb_workers=hyperparams.tt_nb_cpu_workers)
+    #         nb_trials=hyperparams.tt_n_cpu_trials,
+    #         nb_workers=hyperparams.tt_n_cpu_workers)
     for hyperparam_trial in hyperparams.trials(100):
         main(hyperparam_trial)
     print('Total fit time: {}'.format(time.time() - t))

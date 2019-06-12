@@ -3,7 +3,6 @@ import numpy as np
 import glob
 import pickle
 from collections import OrderedDict
-from scipy.io import loadmat
 import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
@@ -448,15 +447,16 @@ class ConcatSessionsGenerator(object):
                 data (neural, images) is assumed to be located in:
                 data_dir/lab/expt/animal/session/data.hdf5
             signals (list of strs): e.g. 'images' | 'masks' | 'neural' | ...
-                see behavenet.fitting.utils.get_data_generator_inputs for
+                see `behavenet.fitting.utils.get_data_generator_inputs` for
                 examples
             transforms (list of transforms): each element corresponds to an
                 entry in `signals`; for multiple transforms, chain together
-                using pt transforms.Compose; see behavenet.data.transforms.py
+                using pt transforms.Compose; see `behavenet.data.transforms.py`
                 for available transform options
             load_kwargs (list of dicts): each element corresponds to loading
                 parameters for an entry in `signals`; see
-                behavenet.fitting.utils.get_data_generator_inputs for examples
+                `behavenet.fitting.utils.get_data_generator_inputs` for
+                examples
             device (str, optional): location of data
                 'cpu' | 'cuda'
             as_numpy (bool, optional): `True` to return numpy array, `False` to

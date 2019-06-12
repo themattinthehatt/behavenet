@@ -44,12 +44,14 @@ def main(hparams):
     # #########################
 
     # get session_dir
-    # TODO: collect sessions directly from session_info.csv file
-    hparams['session_dir'], ids = get_output_session_dir(hparams)
+    if len(hparams['sessions_csv']) > 0:
+        # TODO: collect sessions directly from session_info.csv file
+        raise NotImplementedError
+    else:
+        hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
     if not os.path.isdir(hparams['session_dir']):
         os.makedirs(hparams['session_dir'])
-        # save session_info.txt
-        export_session_info_to_csv(hparams['session_dir'], ids)
+        export_session_info_to_csv(hparams['session_dir'], sess_ids)
 
     # get results_dir(session_dir + ae details),
     # expt_dir(results_dir + tt expt details)
@@ -74,13 +76,8 @@ def main(hparams):
 
     print('building data generator')
     hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
     data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
+        hparams['data_dir'], sess_ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
@@ -132,15 +129,16 @@ def get_params(strategy):
     parser.add_argument('--search_type', type=str)  # latent_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
     parser.add_argument('--lib', default='pt', type=str, choices=['pt', 'tf'])
-    parser.add_argument('--tt_save_path', '-t', type=str)
-    parser.add_argument('--data_dir', '-d', type=str)
+    parser.add_argument('--tt_save_path', type=str)
+    parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
-    parser.add_argument('--model_class', '-m', default='ae', type=str)  # ae vs vae
+    parser.add_argument('--model_class', default='ae', type=str)  # ae vs vae
+    parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
 
     # arguments for computing resources
-    parser.add_argument('--tt_nb_gpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_nb_cpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_nb_cpu_workers', default=5, type=int)
+    parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
     parser.add_argument('--gpus_viz', default='0', type=str)  # add multiple as '0;1;4' etc
 
@@ -179,8 +177,8 @@ def get_linear_params(namespace, parser):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
         parser.add_argument('--learning_rate', default=1e-4, type=float)
 
-        parser.add_argument('--max_nb_epochs', default=1000, type=int)
-        parser.add_argument('--min_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_n_epochs', default=1000, type=int)
+        parser.add_argument('--min_n_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -192,8 +190,8 @@ def get_linear_params(namespace, parser):
         parser.opt_list('--n_ae_latents', options=[4, 8, 12, 16, 32, 64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
         parser.opt_list('--learning_rate', options=[1e-4, 1e-3], type=float, tunable=True)
 
-        parser.add_argument('--max_nb_epochs', default=1000, type=int)
-        parser.add_argument('--min_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_n_epochs', default=1000, type=int)
+        parser.add_argument('--min_n_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -212,8 +210,8 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--which_handcrafted_archs', default='0')
-        parser.add_argument('--max_nb_epochs', default=1000, type=int)
-        parser.add_argument('--min_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_n_epochs', default=1000, type=int)
+        parser.add_argument('--min_n_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -227,8 +225,8 @@ def get_conv_params(namespace, parser):
 
         parser.add_argument('--which_handcrafted_archs', default='0;1') # empty string if you don't want any
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
-        parser.add_argument('--max_nb_epochs', default=20, type=int)
-        parser.add_argument('--min_nb_epochs', default=0, type=int)
+        parser.add_argument('--max_n_epochs', default=20, type=int)
+        parser.add_argument('--min_n_epochs', default=0, type=int)
         parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -241,8 +239,8 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
-        parser.add_argument('--max_nb_epochs', default=1000, type=int)
-        parser.add_argument('--min_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_n_epochs', default=1000, type=int)
+        parser.add_argument('--min_n_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -254,8 +252,8 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--source_n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
-        parser.add_argument('--max_nb_epochs', default=1000, type=int)
-        parser.add_argument('--min_nb_epochs', default=500, type=int)
+        parser.add_argument('--max_n_epochs', default=1000, type=int)
+        parser.add_argument('--min_n_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', '-en', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
@@ -356,13 +354,13 @@ if __name__ == '__main__':
         hyperparams.optimize_parallel_gpu(
             main,
             gpu_ids=gpu_ids,
-            nb_trials=hyperparams.tt_nb_gpu_trials,
+            nb_trials=hyperparams.tt_n_gpu_trials,
             nb_workers=len(gpu_ids))
     elif hyperparams.device == 'cpu':
         hyperparams.optimize_parallel_cpu(
             main,
-            nb_trials=hyperparams.tt_nb_cpu_trials,
-            nb_workers=hyperparams.tt_nb_cpu_workers)
+            nb_trials=hyperparams.tt_n_cpu_trials,
+            nb_workers=hyperparams.tt_n_cpu_workers)
     print('Total fit time: {}'.format(time.time() - t))
     if hyperparams.export_latents_best:
         print('Exporting latents from current best model in experiment')
