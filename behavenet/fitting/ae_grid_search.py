@@ -4,7 +4,7 @@ import numpy as np
 import random
 import pickle
 from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.fitting.utils import export_latents_best
+from behavenet.fitting.eval import export_latents_best
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import export_session_info_to_csv

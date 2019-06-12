@@ -9,7 +9,7 @@ import pickle
 import time
 from sklearn.metrics import r2_score, accuracy_score
 from behavenet.core import expected_log_likelihood, log_sum_exp
-from behavenet.utils import export_latents, export_predictions
+from behavenet.fitting.eval import export_latents, export_predictions
 from behavenet.losses import GaussianNegLogProb
 # from behavenet.messages import hmm_expectations, hmm_sample
 

@@ -12,6 +12,7 @@ import time
 from behavenet.models import AE as AE
 import pandas as pd
 
+
 def make_overview_arhmm_figures(hparams):
 
     if type(hparams) is not dict:
@@ -325,6 +326,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
     save_file = os.path.join(filepath,'syllable_behavior_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
     ani.save(save_file, writer=writer)
 
+
 def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_generator, n_buffer=5):
 
     plot_n_frames = hparams['plot_n_frames']
@@ -450,6 +452,7 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
     save_file = os.path.join(filepath,'real_vs_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
     ani.save(save_file, writer=writer)
 
+
 def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents, generated_latents, data_generator, trial_idxs, n_buffer=5):
 
     plot_n_frames = hparams['plot_n_frames']
@@ -566,6 +569,3 @@ def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
     save_file = os.path.join(filepath,hparams['dataset_name']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
     ani.save(save_file, writer=writer)
-
-
-

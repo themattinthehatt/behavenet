@@ -7,8 +7,8 @@ import sys
 from test_tube import HyperOptArgumentParser, Experiment
 from behavenet.models import Decoder
 from behavenet.training import fit
-from behavenet.utils import export_states
-from behavenet.fitting.utils import export_predictions_best
+from behavenet.fitting.eval import export_states
+from behavenet.fitting.eval import export_predictions_best
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_data_generator_inputs

@@ -1,5 +1,5 @@
 from behavenet.core import expected_log_likelihood, log_sum_exp
-from behavenet.utils import export_latents, export_predictions
+from behavenet.fitting.eval import export_latents, export_predictions
 # from behavenet.messages import hmm_expectations, hmm_sample
 from tqdm import tqdm
 import numpy as np
