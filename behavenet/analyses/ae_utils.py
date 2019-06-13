@@ -254,7 +254,8 @@ def make_ae_reconstruction_movie_multisession(
         hparams['session_dir'] = session_dir
 
         # build model(s)
-        model_cae, _ = get_best_model_and_data(hparams, AE, version=version)
+        model_cae, _ = get_best_model_and_data(
+            hparams, AE, load_data=False, version=version)
 
         # push images through decoder
         if batch is None:

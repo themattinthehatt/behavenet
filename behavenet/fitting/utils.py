@@ -167,6 +167,23 @@ def get_output_session_dir(hparams):
 
 
 def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
+    """
+    Get output directories associated with a particular model class/type/expt
+    name.
+
+    Args:
+        hparams (dict):
+        model_class (str, optional): will search `hparams` if not present
+        model_type (str, optional): will search `hparams` if not present
+        expt_name (str, optional): will search `hparams` if not present
+
+    Returns:
+        (tuple): (results_dir, expt_dir)
+            - results_dir (str): contains data info (lab/expt/animal/session)
+                as well as model info (e.g. n_ae_latents)
+            - expt_dir (str): results_dir/test_tube_data/expt_name; the
+                `test_tube_data` is automatically inserted by test tube
+    """
 
     if model_class is None:
         model_class = hparams['model_class']
@@ -327,17 +344,21 @@ def find_session_dirs(hparams):
     return session_dirs, session_strs
 
 
-def get_best_model_version(model_path, measure='val_loss', n_best=1, best_def='min'):
+def get_best_model_version(
+        model_path, measure='val_loss', best_def='min', n_best=1):
     """
+    Get best model version from test tube
 
     Args:
         model_path (str): test tube experiment directory containing version_%i
             subdirectories
-        measure (str):
+        measure (str, optional): heading in csv file that is used to determine
+            which model is best
+        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
+        n_best (int, optional): top `n_best` models are returned
 
     Returns:
-        str
-
+        (str)
     """
 
     import pandas as pd
@@ -383,6 +404,20 @@ def get_best_model_version(model_path, measure='val_loss', n_best=1, best_def='m
 
 
 def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
+    """
+    Helper function for loading the best model defined by hparams out of all
+    available test-tube versions, as well as the associated data used to fit
+    the model.
+
+    Args:
+        hparams (dict):
+        Model (behavenet.models object:
+        load_data (bool, optional):
+        version (str or int, optional):
+
+    Returns:
+        (tuple): (model, data generator)
+    """
 
     from behavenet.data.data_generator import ConcatSessionsGenerator
 
@@ -442,6 +477,16 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
 
 
 def experiment_exists(hparams):
+    """
+    Search test tube versions to find if an experiment with the same
+    hyperparameters has been (successfully) fit
+
+    Args:
+        hparams (dict):
+
+    Returns:
+        (bool)
+    """
 
     import pickle
     import copy
@@ -478,14 +523,6 @@ def experiment_exists(hparams):
                     found_match = True
                     print('model found with complete training; aborting')
                     break
-            # else:
-            #     print()
-            #     print()
-            #     for key in hparams_less.keys():
-            #         val1 = hparams_[key]
-            #         val2 = hparams_less[key]
-            #         if val1 != val2:
-            #             print('Key: {}; val1: {}; val2 {}'.format(key, val1, val2))
         except IOError:
             continue
 
