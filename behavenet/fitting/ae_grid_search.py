@@ -74,7 +74,7 @@ def main(hparams):
     print('using data from following sessions:')
     for ids in sess_ids:
         print('%s' % os.path.join(
-            ids['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
+            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
             ids['session']))
     hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
     print('constructing data generator...', end='')
@@ -83,6 +83,9 @@ def main(hparams):
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
+    # csv order will reflect dataset order in data generator
+    export_session_info_to_csv(os.path.join(
+        hparams['expt_dir'], str('version_%i' % exp.version)), sess_ids)
     print('done')
 
     # ####################

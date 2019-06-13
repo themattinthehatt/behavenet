@@ -9,8 +9,41 @@ from behavenet.fitting.utils import get_best_model_and_data
 from behavenet.fitting.eval import get_reconstruction
 
 
+def rotate(img_stack):
+    """
+    Helper function to correct rotations in musall data
+
+    Args:
+        img_stack (batch x channel x y_pix x x_pix np array)
+    """
+    if img_stack is not None:
+        tmp = np.concatenate([np.flip(np.swapaxes(
+            img_stack[:, 0, :, :], -1, -2), axis=-1)[:, None, :, :],
+                              img_stack[:, 1, None, :, :]],
+                             axis=1)
+    else:
+        tmp = None
+    return tmp
+
+
+def concat(ims_3channel):
+    """Concatenate two images along first channel"""
+    return np.concatenate(
+        [ims_3channel[0, :, :], ims_3channel[1, :, :]], axis=1)
+
+
 def make_ae_reconstruction_movie(
         hparams, save_file, trial=None, version='best', include_linear=False):
+    """
+    High-level function; calls _make_ae_reconstruction_movie
+
+    Args:
+        hparams (dict):
+        save_file (str):
+        trial (int, optional):
+        version (str or int, optional):
+        include_linear (bool, optional):
+    """
 
     from behavenet.models import AE
 
@@ -50,15 +83,6 @@ def make_ae_reconstruction_movie(
 
     # rotate first channel of musall data
     if hparams['lab'] == 'musall':
-        def rotate(img_stack):
-            if img_stack is not None:
-                tmp = np.concatenate([np.flip(np.swapaxes(
-                    img_stack[:, 0, :, :], -1, -2), axis=-1)[:, None, :, :],
-                    img_stack[:, 1, None, :, :]],
-                    axis=1)
-            else:
-                tmp = None
-            return tmp
         ims_orig = rotate(ims_orig_pt.cpu().detach().numpy())
         ims_recon_cae = rotate(ims_recon_cae)
         ims_recon_lin = rotate(ims_recon_lin)
@@ -74,7 +98,16 @@ def make_ae_reconstruction_movie(
 
 
 def _make_ae_reconstruction_movie(
-        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None, frame_rate=None):
+        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None,
+        frame_rate=None):
+    """
+    Args:
+        ims_orig (np array):
+        ims_recon_cae (np array):
+        ims_recon_lin (np array, optional):
+        save_file (str, optional):
+        frame_rate (float, optional):
+    """
 
     n_channels, y_pix, x_pix = ims_orig.shape[1:]
     n_cols = 2
@@ -114,10 +147,6 @@ def _make_ae_reconstruction_movie(
     ims_res_cae = ims_orig - ims_recon_cae
     if ims_recon_lin is not None:
         ims_res_lin = ims_orig - ims_recon_lin
-
-    def concat(ims_3channel):
-        return np.concatenate(
-            [ims_3channel[0, :, :], ims_3channel[1, :, :]], axis=1)
 
     # TODO: concat all images here to clean up frame loop
 
@@ -196,17 +225,159 @@ def _make_ae_reconstruction_movie(
         print('video saved to %s' % save_file)
 
 
+def make_ae_reconstruction_movie_multisession(
+        hparams, save_file, batch=None, trial=None, version='best'):
+    """
+    High-level function; calls _make_ae_reconstruction_movie
+
+    Args:
+        hparams (dict):
+        save_file (str):
+        batch (np array, optional): batch of images to reconstruct;
+            makes everything much easier
+        trial (int, optional):
+        version (str or int, optional):
+    """
+
+    from behavenet.models import AE
+    from behavenet.fitting.utils import find_session_dirs
+
+    ims_recon_cae = []
+
+    # find all relevant sessions
+    ids = {s: hparams[s] for s in ['lab', 'expt', 'animal', 'session']}
+    session_dirs, session_strs = find_session_dirs(hparams)
+
+    # loop over different sessions
+    for session_dir in session_dirs:
+
+        hparams['session_dir'] = session_dir
+
+        # build model(s)
+        model_cae, _ = get_best_model_and_data(hparams, AE, version=version)
+
+        # push images through decoder
+        if batch is None:
+            raise NotImplementedError
+        else:
+            ims_orig_pt = batch
+
+        ims_recon_cae.append(get_reconstruction(model_cae, ims_orig_pt))
+
+    # rotate first channel of musall data
+    if hparams['lab'] == 'musall':
+        ims_orig = rotate(ims_orig_pt.cpu().detach().numpy())
+        for i, ims_recon in enumerate(ims_recon_cae):
+            ims_recon_cae[i] = rotate(ims_recon)
+    else:
+        ims_orig = ims_orig_pt.cpu().detach().numpy()
+
+    _make_ae_reconstruction_movie_multisession(
+        ims_orig=ims_orig,
+        ims_recon_cae=ims_recon_cae,
+        panel_titles=session_strs,
+        save_file=save_file,
+        frame_rate=hparams['frame_rate'])
+
+
+def _make_ae_reconstruction_movie_multisession(
+        ims_orig, ims_recon_cae, panel_titles=None, save_file=None,
+        frame_rate=None):
+    """
+    Args:
+        ims_orig (np array):
+        ims_recon_cae (list of np arrays):
+        panel_titles (list of strs or NoneType, optional):
+        save_file (str):
+        frame_rate (int):
+    """
+
+    ims_recon_cae.insert(0, ims_orig)
+    if panel_titles is not None:
+        panel_titles.insert(0, 'Original')
+
+    n_channels, y_pix, x_pix = ims_recon_cae[0].shape[1:]
+    n_cols = 3
+    n_rows = int(np.ceil(len(ims_recon_cae) / n_cols))
+    offset = 1  # 0 if ims_recon_lin is None else 1
+    scale_ = 5
+    fig_width = scale_ * n_cols * n_channels / 2
+    fig_height = y_pix / x_pix * scale_ * n_rows / 2
+    fig = plt.figure(figsize=(fig_width, fig_height + offset), dpi=100)
+
+    fontsize = 12
+
+    gs = GridSpec(n_rows, n_cols, figure=fig)
+    axs = []
+    for i in range(len(ims_recon_cae)):
+        row = int(np.floor(i / n_cols))
+        col = int(i % n_cols)
+        axs.append(fig.add_subplot(gs[row, col]))
+        if panel_titles is not None:
+            axs[-1].set_title(panel_titles[i], fontsize=fontsize)
+    for ax in fig.axes:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    #     ims_res_cae = ims_orig - ims_recon_cae
+
+    # TODO: concat all images here to clean up frame loop
+
+    default_kwargs = {
+        'animated': True,
+        'cmap': 'gray',
+        'vmin': 0,
+        'vmax': 1}
+    # ims is a list of lists, each row is a list of artists to draw in the
+    # current frame; here we are just animating one artist, the image, in
+    # each frame
+    ims = []
+    for i in range(ims_orig.shape[0]):
+
+        ims_curr = []
+
+        for ax_indx, ax in enumerate(fig.axes):
+
+            # cae reconstructed video
+            if n_channels == 1:
+                ims_recon_cae_tmp = ims_recon_cae[ax_indx][i, 0]
+            else:
+                ims_recon_cae_tmp = concat(ims_recon_cae[ax_indx][i])
+            im = axs[ax_indx].imshow(ims_recon_cae_tmp, **default_kwargs)
+            [s.set_visible(False) for s in axs[ax_indx].spines.values()]
+            ims_curr.append(im)
+
+        ims.append(ims_curr)
+
+    plt.tight_layout(pad=0)
+
+    ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
+    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
+
+    if save_file is not None:
+        if not os.path.isdir(os.path.dirname(save_file)):
+            os.makedirs(os.path.dirname(save_file))
+        if save_file[-3:] != 'mp4':
+            save_file += '.mp4'
+        ani.save(save_file, writer=writer)
+        # if save_file[-3:] != 'gif':
+        #     save_file += '.gif'
+        # ani.save(save_file, writer='imagemagick', fps=15)
+        print('video saved to %s' % save_file)
+
+
 def make_neural_reconstruction_movie(hparams, save_file, trial=None):
-    """Produces ae latents and predictions from scratch"""
+    """
+    Produces ae latents and predictions from scratch
+
+    Args:
+        hparams (dict):
+        save_file (str):
+        trial (int, optional)
+    """
 
     from behavenet.models import Decoder
-
-    if 'lib' not in hparams:
-        hparams['lib'] = 'pt'
-    if hparams['lib'] == 'pt' or hparams['lib'] == 'pytorch':
-        from behavenet.models import AE
-    else:
-        raise NotImplementedError
+    from behavenet.models import AE
 
     max_bins = 400
     max_latents = 8
@@ -272,16 +443,6 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
     # rotate first channel of musall data
     #####################################
     if hparams['lab'] == 'musall':
-        def rotate(img_stack):
-            if img_stack is not None:
-                tmp = np.concatenate([np.flip(np.swapaxes(
-                    img_stack[:, 0, :, :], -1, -2), axis=-1)[:, None, :, :],
-                    img_stack[:, 1, None, :, :]],
-                    axis=1)
-            else:
-                tmp = None
-            return tmp
-
         ims_orig = rotate(ims_orig_pt.cpu().detach().numpy())
         ims_recon_ae = rotate(ims_recon_ae)
         ims_recon_dec = rotate(ims_recon_dec)
@@ -301,6 +462,16 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
 def _make_neural_reconstruction_movie(
         ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural,
         save_file=None):
+    """
+    Args:
+        ims_orig (np array):
+        ims_recon_ae (np array):
+        ims_recon_neural (np array):
+        latents_ae (np array):
+        latents_neural (np array):
+        save_file (str, optional):
+    """
+
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -350,10 +521,6 @@ def _make_neural_reconstruction_movie(
     time = np.arange(ims_orig.shape[0])
 
     ims_res = ims_recon_ae - ims_recon_neural
-
-    def concat(ims_3channel):
-        return np.concatenate(
-            [ims_3channel[0, :, :], ims_3channel[1, :, :]], axis=1)
 
     # TODO: concat all images here to clean up frame loop
 
@@ -469,7 +636,14 @@ def _make_neural_reconstruction_movie(
 
 
 def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
-    """Loads previously saved ae latents and predictions"""
+    """
+    Loads previously saved ae latents and predictions
+
+    Args:
+        hparams (dict):
+        save_file (str):
+        trial (int, optional):
+    """
 
     # find good trials
     import copy
@@ -522,6 +696,12 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
 
 
 def _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file=None):
+    """
+    Args:
+        traces_ae (np array):
+        traces_neural (np array):
+        save_file (str, optional):
+    """
 
     import matplotlib.pyplot as plt
     import matplotlib.lines as mlines
