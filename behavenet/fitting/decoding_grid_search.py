@@ -42,6 +42,7 @@ def main(hparams):
     hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
+    print('')
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
@@ -58,23 +59,28 @@ def main(hparams):
     # ### LOAD DATA GENERATOR ###
     # ###########################
 
-    print('building data generator')
+    print('using data from following sessions:')
+    for ids in sess_ids:
+        print('%s' % os.path.join(
+            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
+            ids['session']))
     hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
-    ids = {
-        'lab': hparams['lab'],
-        'expt': hparams['expt'],
-        'animal': hparams['animal'],
-        'session': hparams['session']}
+    print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], ids,
+        hparams['data_dir'], sess_ids,
         signals=signals, transforms=transforms, load_kwargs=load_kwargs,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
-    print('Data generator loaded')
+    # csv order will reflect dataset order in data generator
+    export_session_info_to_csv(os.path.join(
+        hparams['expt_dir'], str('version_%i' % exp.version)), sess_ids)
+    print('done')
+    print(data_generator)
 
     if hparams['model_class'] == 'neural-arhmm':
-         hparams['arhmm_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['arhmm']))
+         hparams['arhmm_model_path'] = os.path.join(
+             os.path.dirname(data_generator.datasets[0].paths['arhmm']))
   
     # ####################
     # ### CREATE MODEL ###
@@ -125,8 +131,9 @@ def get_params(strategy):
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm'], type=str)
+    parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
 
-    # arguments for computing resources (n_gpu_workers inferred from visible gpus)
+    # arguments for computing resources (infer n_gpu_workers from visible gpus)
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
@@ -134,7 +141,7 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
-    parser.add_argument('--subsample_regions', action='store_true', default=False)
+    parser.add_argument('--subsample_regions', default='none', choices=['none', 'single', 'loo'])
     parser.add_argument('--signals', default=None, type=str)
     parser.add_argument('--transforms', default=None)
     parser.add_argument('--load_kwargs', default=None)
@@ -149,9 +156,10 @@ def get_params(strategy):
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
     add_lab_defaults_to_parser(parser, namespace.lab_example)
+    namespace, extra = parser.parse_known_args()  # ugly
 
     # add regions to opt_list if desired
-    if namespace.subsample_regions:
+    if namespace.subsample_regions != 'none':
         parser.opt_list('--region', options=get_region_list(namespace), type=str, tunable=True)
     else:
         parser.add_argument('--region', default='all', type=str)
@@ -165,7 +173,6 @@ def get_decoding_params(namespace, parser):
 
     # add neural arguments (others are dataset-specific)
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)
-    parser.add_argument('--neural_region', default='all', choices=['all', 'single', 'loo'])
 
     # add data arguments
     if namespace.model_class == 'neural-ae':
@@ -357,5 +364,6 @@ if __name__ == '__main__':
             nb_trials=hyperparams.tt_n_cpu_trials,
             nb_workers=hyperparams.tt_n_cpu_workers)
     print('Total fit time: {}'.format(time.time() - t))
-    if hyperparams.export_predictions_best:
+    if hyperparams.export_predictions_best \
+            and hyperparams.subsample_regions == 'none':
         export_predictions_best(vars(hyperparams))

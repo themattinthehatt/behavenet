@@ -472,7 +472,8 @@ class ConcatSessionsGenerator(object):
         self.ids = ids_list
         self.as_numpy = as_numpy
 
-        if batch_load:
+        self.batch_load = batch_load
+        if self.batch_load:
             SingleSession = SingleSessionDatasetBatchedLoad
         else:
             SingleSession = SingleSessionDataset
@@ -480,6 +481,9 @@ class ConcatSessionsGenerator(object):
         self.datasets = []
         self.datasets_info = []
 
+        self.signals = signals
+        self.transforms = transforms
+        self.load_kwargs = load_kwargs
         for ids in ids_list:
             self.datasets.append(SingleSession(
                 data_dir, lab=ids['lab'], expt=ids['expt'],
@@ -529,6 +533,26 @@ class ConcatSessionsGenerator(object):
             for dtype in self._dtypes:
                 self.dataset_iters[i][dtype] = iter(
                     self.dataset_loaders[i][dtype])
+
+    def __repr__(self):
+        # return info about number of datasets
+        if self.batch_load:
+            single_sess_str = 'SingleSessionDatasetBatchedLoad'
+        else:
+            single_sess_str = 'SingleSessionDataset'
+        format_str = str('Generator contains %i %s objects\n' %
+                         (self.n_datasets, single_sess_str))
+        for i in range(len(self.signals)):
+            format_str += str('\tsignal:\n\t\t{}\n'.format(self.signals[i]))
+            format_str += str('\ttransform:\n\t\t{}\n'.format(self.transforms[i]))
+            format_str += str('\tload_kwargs:\n')
+            if self.load_kwargs[i] is not None:
+                for key, value in self.load_kwargs[i].items():
+                    format_str += str('\t\t{}: {}\n'.format(key, value))
+            else:
+                format_str += str('\t\t{}'.format(None))
+            format_str += '\n\n'
+        return format_str
 
     def reset_iterators(self, dtype):
         """

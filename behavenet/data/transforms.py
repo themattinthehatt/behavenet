@@ -28,9 +28,8 @@ class Compose(object):
     def __repr__(self):
         format_string = self.__class__.__name__ + '('
         for t in self.transforms:
-            format_string += '\n'
-            format_string += '    {0}'.format(t)
-        format_string += '\n)'
+            format_string += '{0}, '.format(t)
+        format_string += '\b\b)'
         return format_string
 
 
@@ -49,6 +48,9 @@ class GetMask(object):
         signal = ((signal1.astype('int')+signal2.astype('int'))<2).astype('int') #((signal1+signal2)<2).astype('int')
         return signal
 
+    def __repr__(self):
+        return 'GetMask()'
+
 
 class ClipNormalize(object):
 
@@ -59,6 +61,9 @@ class ClipNormalize(object):
         signal = np.minimum(signal, self.clip_val)
         signal = signal / self.clip_val
         return signal
+
+    def __repr__(self):
+        return str('ClipNormalize(clip_val=%f)' % self.clip_val)
 
 
 class Resize(object):
@@ -88,6 +93,9 @@ class Resize(object):
 
         return sample
 
+    def __repr__(self):
+        return str('Resize(size=(%i, %i))' % (self.x, self.y))
+
 
 class Threshold(object):
 
@@ -102,9 +110,10 @@ class Threshold(object):
 
     def __call__(self, sample):
         """
-        sample: (trial x batch/time x predictors)
-
         Calculates firing rate over all trials/time points
+
+        Args:
+            sample: (trial x batch/time x predictors)
         """
 
         # get firing rates
@@ -114,26 +123,12 @@ class Threshold(object):
         # get rid of neurons below fr threshold
         sample = sample[:, :, fr_mask]
 
-        # # !! PROBLEM HERE !!
-        # # get rid of indices if they are below threshold
-        # reg_indxs = copy.copy(region_indxs)
-        # keep_indxs = np.where(fr_mask)[0]
-        # for region in reg_indxs.keys():
-        #     # get overlap between region indices and keep indices
-        #     reg_keep_indxs = np.intersect1d(keep_indxs, reg_indxs[region])
-        #     reg_indxs[region] = reg_keep_indxs
-        #
-        # # get rid of regions if they have no neurons
-        # keys = reg_indxs.keys()
-        # keys_to_remove = []
-        # for k in keys:
-        #     if len(reg_indxs[k]) == 0:
-        #         keys_to_remove.append(k)
-        #
-        # for k in keys_to_remove:
-        #     reg_indxs.pop(k)
+        return sample.astype(np.float)
 
-        return sample.astype(np.float)  #, reg_indxs
+    def __repr__(self):
+        return str(
+            'Threshold(threshold=%f, bin_size=%f)' %
+            (self.threshold, self.bin_size))
 
 
 class ZScore(object):
@@ -146,6 +141,9 @@ class ZScore(object):
         sample -= np.mean(sample, axis=(0, 1))
         sample /= np.std(sample, axis=(0, 1))
         return sample
+
+    def __repr__(self):
+        return 'ZScore()'
 
 
 class MakeOneHot(object):
@@ -173,6 +171,9 @@ class MakeOneHot(object):
             onehot = sample
 
         return onehot
+
+    def __repr__(self):
+        return 'MakeOneHot()'
 
 
 class BlockShuffle(object):
@@ -220,19 +221,25 @@ class BlockShuffle(object):
 
         return sample_shuff
 
+    def __repr__(self):
+        return 'BlockShuffle()'
 
-class SelectRegion(object):
-    """"Region-based subsampling of neural activity"""
 
-    def __init__(self, region, indxs):
+class SelectIndxs(object):
+    """"Index-based subsampling of neural activity"""
+
+    def __init__(self, indxs, sample_name=''):
         """
         Args:
-            region (str):
             indxs (array-like):
+            sample_name (str, optional):
         """
-        self.region = region
+        self.sample_name = sample_name
         self.indxs = indxs
 
     def __call__(self, sample):
         """sample: (trial x batch/time x predictors)"""
         return sample[:, :, self.indxs]
+
+    def __repr__(self):
+        return str('SelectIndxs(sample_name=%s)' % self.sample_name)

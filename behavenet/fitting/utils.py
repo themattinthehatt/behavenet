@@ -200,18 +200,19 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
             hparams['session_dir'], 'ae', model_type,
             '%02i_latents' % hparams['n_ae_latents'])
     elif model_class == 'neural-ae':
-        # TODO: include brain region, ae version
+        brain_region = get_region_dir(hparams)
         results_dir = os.path.join(
             hparams['session_dir'], 'neural-ae',
             '%02i_latents' % hparams['n_ae_latents'],
-            model_type)
+            model_type, brain_region)
     elif model_class == 'neural-arhmm':
+        brain_region = get_region_dir(hparams)
         results_dir = os.path.join(
             hparams['session_dir'], 'neural-arhmm',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
-            model_type)
+            model_type, brain_region)
     elif model_class == 'arhmm':
         results_dir = os.path.join(
             hparams['session_dir'], 'arhmm',
@@ -220,12 +221,13 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
             '%.0e_kappa' % hparams['kappa'],
             hparams['noise_type'])
     elif model_class == 'arhmm-decoding':
+        brain_region = get_region_dir(hparams)
         results_dir = os.path.join(
             hparams['session_dir'], 'arhmm-decoding',
             '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'],
-            hparams['noise_type'])
+            hparams['noise_type'], brain_region)
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
 
@@ -422,7 +424,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     from behavenet.data.data_generator import ConcatSessionsGenerator
 
     # get session_dir
-    sess_dir, sess_ids = get_output_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
     results_dir, expt_dir = get_output_dirs(hparams)
 
     # get best model version
@@ -446,7 +448,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
 
     # update paths if performing analysis on a different machine
     hparams_new['data_dir'] = hparams['data_dir']
-    hparams_new['session_dir'] = sess_dir
+    hparams_new['session_dir'] = hparams['session_dir']
     hparams_new['results_dir'] = results_dir
     hparams_new['expt_dir'] = expt_dir
     hparams_new['use_output_mask'] = hparams['use_output_mask'] # TODO: get rid of eventually
@@ -556,9 +558,14 @@ def get_data_generator_inputs(hparams):
     """
     Helper function for generating signals, transforms and load_kwargs for
     common models
+
+    Args:
+        hparams (dict):
+            - model_class
+
     """
 
-    from behavenet.data.transforms import SelectRegion
+    from behavenet.data.transforms import SelectIndxs
     from behavenet.data.transforms import Threshold
     from behavenet.data.transforms import ZScore
     from behavenet.data.transforms import BlockShuffle
@@ -571,12 +578,25 @@ def get_data_generator_inputs(hparams):
         neural_kwargs = None
 
         # filter neural data by region
-        if hparams['region'] != 'all':
+        if hparams['subsample_regions'] != 'none':
             # get region and indices
+            sampling = hparams['subsample_regions']
             region_name = hparams['region']
-            _, region_indxs = get_region_list(hparams)
-            neural_transforms_.append(SelectRegion(
-                region_name, region_indxs[region_name]))
+            regions = get_region_list(hparams)
+            if sampling == 'single':
+                indxs = regions[region_name]
+            elif sampling == 'loo':
+                indxs = []
+                for reg_name, reg_indxs in regions.items():
+                    if reg_name != region_name:
+                        indxs.append(reg_indxs)
+
+                indxs = np.concatenate(indxs)
+            else:
+                raise ValueError(
+                    '"%s" is an invalid region sampling option' % sampling)
+            neural_transforms_.append(SelectIndxs(
+                indxs, str('%s-%s' % (region_name, sampling))))
 
         # filter neural data by activity
         if hparams['neural_type'] == 'spikes':
@@ -839,9 +859,7 @@ def get_region_list(hparams):
         hparams (dict or namespace object):
 
     Returns:
-        (tuple)
-            regions (list of strs)
-            indxs (dict)
+        (dict)
     """
     import h5py
 
@@ -852,18 +870,34 @@ def get_region_list(hparams):
         hparams['data_dir'], hparams['lab'], hparams['expt'],
         hparams['animal'], hparams['session'], 'data.hdf5')
 
+    # TODO: get rid of -1!!! preprocess matlab data correctly
     with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
         indx_types = list(f['regions'])
-        if 'indxs_consolidate_lr' in indx_types:
-            regions = list(f['regions']['indxs_consolidate_lr'].keys())
-            indxs = {reg: f['regions']['indxs_consolidate_lr'][reg][()]
-                     for reg in regions}
-        elif 'indxs_consolidate' in indx_types:
+        if 'indxs_consolidate' in indx_types:
             regions = list(f['regions']['indxs_consolidate'].keys())
-            indxs = {reg: f['regions']['indxs_consolidate'][reg][()]
+            indxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()]-1)
+                     for reg in regions}
+        elif 'indxs_consolidate_lr' in indx_types:
+            regions = list(f['regions']['indxs_consolidate_lr'].keys())
+            indxs = {reg: np.ravel(f['regions']['indxs_consolidate_lr'][reg][()]-1)
                      for reg in regions}
         else:
             regions = list(f['regions']['indxs'])
-            indxs = {reg: f['regions']['indxs'][reg][()] for reg in regions}
+            indxs = {reg: np.ravel(f['regions']['indxs'][reg][()]-1)
+                     for reg in regions}
 
-    return regions, indxs
+    return indxs
+
+
+def get_region_dir(hparams):
+    if hparams['subsample_regions'] == 'none':
+        region_dir = 'all'
+    elif hparams['subsample_regions'] == 'single':
+        region_dir = str('%s-single' % hparams['region'])
+    elif hparams['subsample_regions'] == 'loo':
+        region_dir = str('%s-loo' % hparams['region'])
+    else:
+        raise ValueError(
+            '"%s" is an invalid regioin sampling type' %
+            hparams['subsample_regions'])
+    return region_dir

@@ -87,6 +87,7 @@ def main(hparams):
     export_session_info_to_csv(os.path.join(
         hparams['expt_dir'], str('version_%i' % exp.version)), sess_ids)
     print('done')
+    print(data_generator)
 
     # ####################
     # ### CREATE MODEL ###
@@ -130,7 +131,7 @@ def get_params(strategy):
     parser.add_argument('--model_class', default='ae', type=str)  # ae vs vae
     parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
 
-    # arguments for computing resources
+    # arguments for computing resources (infer n_gpu_workers from visible gpus)
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
@@ -207,7 +208,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--which_handcrafted_archs', default='0')
         parser.add_argument('--max_n_epochs', default=1000, type=int)
         parser.add_argument('--min_n_epochs', default=500, type=int)
-        parser.add_argument('--experiment_name', '-en', default='test', type=str)
+        parser.add_argument('--experiment_name', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
@@ -222,7 +223,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_n_epochs', default=20, type=int)
         parser.add_argument('--min_n_epochs', default=0, type=int)
-        parser.add_argument('--experiment_name', '-en', default='initial_grid_search', type=str) # test
+        parser.add_argument('--experiment_name', default='initial_grid_search', type=str) # test
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=False)
@@ -236,7 +237,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
         parser.add_argument('--max_n_epochs', default=1000, type=int)
         parser.add_argument('--min_n_epochs', default=500, type=int)
-        parser.add_argument('--experiment_name', '-en', default='top_n_grid_search', type=str)
+        parser.add_argument('--experiment_name', default='top_n_grid_search', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
@@ -249,7 +250,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--saved_top_n_archs', default='top_n_grid_search', type=str) # experiment name to look for top n architectures in
         parser.add_argument('--max_n_epochs', default=1000, type=int)
         parser.add_argument('--min_n_epochs', default=500, type=int)
-        parser.add_argument('--experiment_name', '-en', default='best', type=str)
+        parser.add_argument('--experiment_name', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
@@ -322,8 +323,8 @@ def get_conv_params(namespace, parser):
     elif namespace.search_type == 'latent_search':
 
         # Get top 1 architectures in directory
-        results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt,namespace.animal, namespace.session,namespace.model_class, 'conv')
-        best_version = get_best_model_version(results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_top_n_archs,n_best=1)[0]
+        results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt, namespace.animal, namespace.session, namespace.model_class, 'conv')
+        best_version = get_best_model_version(results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_top_n_archs, n_best=1)[0]
 
         filename = results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_top_n_archs+'/'+best_version+'/meta_tags.pkl'
         arch = pickle.load(open(filename, 'rb'))
@@ -333,8 +334,8 @@ def get_conv_params(namespace, parser):
         arch['architecture_params']['learning_rate'] = arch['learning_rate']
 
         # parser.add_argument('--learning_rate', default=arch['learning_rate'])
-        parser.opt_list('--architecture_params', options=[arch['architecture_params']],type=float,tunable=True) # have to pass in as a list since add_argument doesn't take dict
-        parser.opt_list('--n_ae_latents', options=[4,8,12,16,24,32,64], help='number of latents', type=int, tunable=True) # warning: over 64, may need to change max_latents in architecture generator
+        parser.opt_list('--architecture_params', options=[arch['architecture_params']],type=float, tunable=True)  # have to pass in as a list since add_argument doesn't take dict
+        parser.opt_list('--n_ae_latents', options=[4, 8, 12, 16, 24, 32, 64], help='number of latents', type=int, tunable=True)  # warning: over 64, may need to change max_latents in architecture generator
 
 
 if __name__ == '__main__':
