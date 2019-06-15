@@ -648,7 +648,7 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
 
     # find good trials
     import copy
-    from behavenet.fitting.utils import get_output_dirs
+    from behavenet.data.utils import get_transforms_paths
     from behavenet.data.data_generator import ConcatSessionsGenerator
 
     # ae data
@@ -656,38 +656,32 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
     hparams_ae['experiment_name'] = hparams['ae_experiment_name']
     hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['model_type'] = hparams['ae_model_type']
-    _, ae_model_dir = get_output_dirs(hparams_ae)
-    ae_transforms = None
-    ae_load_kwargs = {
-        'model_dir': ae_model_dir,
-        'model_version': 'best'}
+
+    ae_transform, ae_path = get_transforms_paths('ae_latents', hparams_ae)
 
     # ae predictions data
     hparams_dec = copy.copy(hparams)
     hparams_dec['experiment_name'] = hparams['decoder_experiment_name']
     hparams_dec['model_class'] = hparams['decoder_model_class']
     hparams_dec['model_type'] = hparams['decoder_model_type']
-    _, dec_dir = get_output_dirs(hparams_dec)
-    ae_pred_transforms = None
-    ae_pred_load_kwargs = {
-        'model_dir': dec_dir,
-        'model_version': 'best'}
+    ae_pred_transform, ae_pred_path = get_transforms_paths(
+        'neural_ae_predictions', hparams_dec)
 
     # export latents if they don't exist
     # export_predictions_best(hparams_ae_pred)
 
     signals = ['ae', 'ae_predictions']
-    transforms = [ae_transforms, ae_pred_transforms]
-    load_kwargs = [ae_load_kwargs, ae_pred_load_kwargs]
+    transforms = [ae_transform, ae_pred_transform]
+    paths = [ae_path, ae_pred_path]
 
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], hparams,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+        signals_list=signals, transforms_list=transforms, paths_list=paths,
         device='cpu', as_numpy=False, batch_load=False, rng_seed=0)
 
     if trial is None:
         # choose first test trial
-        trial = data_generator.batch_indxs[0]['test'][0]
+        trial = data_generator.datasets[0].batch_indxs['test'][0]
 
     batch = data_generator.datasets[0][trial]
     traces_ae = batch['ae'].cpu().detach().numpy()

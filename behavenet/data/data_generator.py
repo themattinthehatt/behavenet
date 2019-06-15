@@ -70,7 +70,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
-            signals=None, transforms=None, load_kwargs=None, device='cpu'):
+            signals=None, transforms=None, paths=None, device='cpu'):
         """
         Args:
             data_dir (str): root directory of data
@@ -85,7 +85,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 entry in `signals`; for multiple transforms, chain together
                 using pt transforms.Compose; see behavenet.data.transforms.py
                 for available transform options
-            load_kwargs (list of dicts): each element corresponds to loading
+            paths (list of dicts): each element corresponds to loading
                 parameters for an entry in `signals`; see
                 behavenet.fitting.utils.get_data_generator_inputs for examples
             device (str, optional): location of data
@@ -102,7 +102,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
         self.signals = signals
         self.transforms = transforms
-        self.load_kwargs = load_kwargs
+        self.paths = paths
 
         # get total number of trials by loading images/neural data
         signal = 'images' if 'images' in signals else 'neural'
@@ -127,7 +127,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         # get data paths
         self.paths = OrderedDict()
         for signal, transform, load_kwarg in zip(
-                self.signals, self.transforms, self.load_kwargs):
+                self.signals, self.transforms, self.paths):
             if signal == 'images':
                 self.paths[signal] = os.path.join(self.data_dir, 'data.hdf5')
             elif signal == 'masks':
@@ -236,8 +236,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         """
 
         sample = OrderedDict()
-        for signal, transform, load_kwargs in zip(
-                self.signals, self.transforms, self.load_kwargs):
+        for signal, transform, paths in zip(
+                self.signals, self.transforms, self.paths):
 
             # index correct trial
             if signal == 'images':
@@ -374,7 +374,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='',
-            signals=None, transforms=None, load_kwargs=None, device='cuda'):
+            signals=None, transforms=None, paths=None, device='cuda'):
         """
         Args:
             data_dir (str): root directory of data
@@ -389,7 +389,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
                 entry in `signals`; for multiple transforms, chain together
                 using pt transforms.Compose; see behavenet.data.transforms.py
                 for available transform options
-            load_kwargs (list of dicts): each element corresponds to loading
+            paths (list of dicts): each element corresponds to loading
                 parameters for an entry in `signals`; see
                 behavenet.fitting.utils.get_data_generator_inputs for examples
             device (str, optional): location of data
@@ -398,7 +398,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
         super().__init__(
             data_dir, lab, expt, animal, session, signals, transforms,
-            load_kwargs, device)
+            paths, device)
 
         # grab all data as a single batch
         self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
@@ -435,8 +435,8 @@ class ConcatSessionsGenerator(object):
     _dtypes = {'train', 'val', 'test'}
 
     def __init__(
-            self, data_dir, ids_list, signals=None, transforms=None,
-            load_kwargs=None, device='cuda', as_numpy=False, batch_load=True,
+            self, data_dir, ids_list, signals_list=None, transforms_list=None,
+            paths_list=None, device='cuda', as_numpy=False, batch_load=True,
             rng_seed=0):
         """
 
@@ -453,7 +453,7 @@ class ConcatSessionsGenerator(object):
                 entry in `signals`; for multiple transforms, chain together
                 using pt transforms.Compose; see `behavenet.data.transforms.py`
                 for available transform options
-            load_kwargs (list of dicts): each element corresponds to loading
+            paths (list of dicts): each element corresponds to loading
                 parameters for an entry in `signals`; see
                 `behavenet.fitting.utils.get_data_generator_inputs` for
                 examples
@@ -481,15 +481,15 @@ class ConcatSessionsGenerator(object):
         self.datasets = []
         self.datasets_info = []
 
-        self.signals = signals
-        self.transforms = transforms
-        self.load_kwargs = load_kwargs
+        self.signals = signals_list
+        self.transforms = transforms_list
+        self.paths = paths_list
         for ids in ids_list:
             self.datasets.append(SingleSession(
                 data_dir, lab=ids['lab'], expt=ids['expt'],
                 animal=ids['animal'], session=ids['session'],
-                signals=signals, transforms=transforms,
-                load_kwargs=load_kwargs, device=device))
+                signals=signals_list, transforms=transforms_list,
+                paths=paths_list, device=device))
             self.datasets_info.append({
                 'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})
@@ -545,9 +545,9 @@ class ConcatSessionsGenerator(object):
         for i in range(len(self.signals)):
             format_str += str('\tsignal:\n\t\t{}\n'.format(self.signals[i]))
             format_str += str('\ttransform:\n\t\t{}\n'.format(self.transforms[i]))
-            format_str += str('\tload_kwargs:\n')
-            if self.load_kwargs[i] is not None:
-                for key, value in self.load_kwargs[i].items():
+            format_str += str('\tpaths:\n')
+            if self.paths[i] is not None:
+                for key, value in self.paths[i].items():
                     format_str += str('\t\t{}: {}\n'.format(key, value))
             else:
                 format_str += str('\t\t{}'.format(None))

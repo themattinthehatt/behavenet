@@ -76,11 +76,12 @@ def main(hparams):
         print('%s' % os.path.join(
             hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
             ids['session']))
-    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
+    hparams, signals, transforms, paths = get_data_generator_inputs(
+        hparams, sess_ids)
     print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+        signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     # csv order will reflect dataset order in data generator
@@ -139,9 +140,6 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0', type=str)  # add multiple as '0;1;4' etc
 
     # add data generator arguments
-    parser.add_argument('--signals', default='images', type=str)
-    parser.add_argument('--transforms', default=None)
-    parser.add_argument('--load_kwargs', default=None)
     parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--as_numpy', action='store_true', default=False)
     parser.add_argument('--batch_load', action='store_true', default=True)

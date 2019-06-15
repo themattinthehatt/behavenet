@@ -64,11 +64,12 @@ def main(hparams):
         print('%s' % os.path.join(
             hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
             ids['session']))
-    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
+    hparams, signals, transforms, paths = get_data_generator_inputs(
+        hparams, sess_ids)
     print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+        signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
@@ -142,9 +143,6 @@ def get_params(strategy):
 
     # add data generator arguments
     parser.add_argument('--subsample_regions', default='none', choices=['none', 'single', 'loo'])
-    parser.add_argument('--signals', default=None, type=str)
-    parser.add_argument('--transforms', default=None)
-    parser.add_argument('--load_kwargs', default=None)
     parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--as_numpy', action='store_true', default=False)
     parser.add_argument('--batch_load', action='store_true', default=False)

@@ -116,11 +116,12 @@ def main(hparams):
 
     print('building data generator')
 
-    hparams, signals, transforms, load_kwargs = get_data_generator_inputs(hparams)
+    hparams, signals, transforms, paths = get_data_generator_inputs(
+        hparams, sess_ids)
 
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
-        signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+        signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     print('Data generator loaded')

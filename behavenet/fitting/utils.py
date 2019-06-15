@@ -455,13 +455,13 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
     hparams_new['device'] = 'cpu'
     
     # build data generator
-    hparams_new, signals, transforms, load_kwargs = get_data_generator_inputs(
-        hparams_new)
+    hparams_new, signals, transforms, paths = get_data_generator_inputs(
+        hparams_new, sess_ids)
     if load_data:
         # sometimes we want a single data_generator for multiple models
         data_generator = ConcatSessionsGenerator(
             hparams_new['data_dir'], sess_ids,
-            signals=signals, transforms=transforms, load_kwargs=load_kwargs,
+            signals_list=signals, transforms_list=transforms, paths_list=paths,
             device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
             batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'])
     else:
@@ -554,7 +554,7 @@ def export_hparams(hparams, exp):
     exp.save()
 
 
-def get_data_generator_inputs(hparams):
+def get_data_generator_inputs(hparams, sess_ids=None):
     """
     Helper function for generating signals, transforms and load_kwargs for
     common models
