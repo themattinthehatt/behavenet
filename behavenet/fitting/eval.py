@@ -1,6 +1,5 @@
 import numpy as np
-import torch
-from behavenet.fitting.utils import get_best_model_and_data
+from behavenet.data.utils import get_best_model_and_data
 
 
 def export_states(hparams, exp, data_generator, model, filename=None):
@@ -92,7 +91,7 @@ def export_latents(data_generator, model, filename=None):
             # process batch, perhaps in chunks if full batch is too large
             # to fit on gpu
             chunk_size = 200
-            y = data[model.hparams['signals']][0]
+            y = data['images'][0]
             batch_size = y.shape[0]
             if batch_size > chunk_size:
                 # split into chunks

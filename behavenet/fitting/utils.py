@@ -1,7 +1,5 @@
 import os
-import pickle
 import numpy as np
-import torch
 
 
 def get_subdirs(path):
@@ -127,7 +125,10 @@ def get_output_session_dir(hparams):
             hparams['animal'], hparams['session'])
 
     # construct session_dir
-    if len(sessions_single) > 1:
+    if hparams.get('multisession', None) is not None:
+        session_dir = os.path.join(
+            session_dir_base, 'multisession-%02i' % hparams['multisession'])
+    elif len(sessions_single) > 1:
         # check if this combo of experiments exists in prev multi-sessions
         found_match = False
         for session_multi in sessions_multi_paths:
@@ -159,7 +160,6 @@ def get_output_session_dir(hparams):
 
         session_dir = os.path.join(
             session_dir_base, 'multisession-%02i' % multi_indx)
-
     else:
         session_dir = session_dir_base
 
@@ -306,14 +306,16 @@ def find_session_dirs(hparams):
     lab = hparams['lab']
     expts = get_subdirs(os.path.join(hparams['tt_save_path'], lab))
     # need to grab all multi-sessions as well as the single session
-    session_dirs = []
-    session_strs = []
+    session_dirs = []  # full paths
+    session_ids  = []  # dict of lab/expt/animal/session
     for expt in expts:
         if expt[:5] == 'multi':
             session_dir = os.path.join(hparams['tt_save_path'], lab, expt)
             if contains_session(session_dir, ids):
                 session_dirs.append(session_dir)
-                session_strs.append(os.path.join(expt))
+                session_ids.append(
+                    {'lab': lab, 'expt': 'all', 'animal': '', 'session': '',
+                     'multisession': int(expt[-2:])})
             continue
         else:
             animals = get_subdirs(os.path.join(
@@ -324,7 +326,9 @@ def find_session_dirs(hparams):
                     hparams['tt_save_path'], lab, expt, animal)
                 if contains_session(session_dir, ids):
                     session_dirs.append(session_dir)
-                    session_strs.append(os.path.join(expt, animal))
+                    session_ids.append(
+                        {'lab': lab, 'expt': expt, 'animal': 'all',
+                         'session': '', 'multisession': int(animal[-2:])})
                 continue
             else:
                 sessions = get_subdirs(os.path.join(
@@ -335,15 +339,20 @@ def find_session_dirs(hparams):
                 if session[:5] == 'multi':
                     if contains_session(session_dir, ids):
                         session_dirs.append(session_dir)
-                        session_strs.append(os.path.join(expt, animal, session))
+                        session_ids.append(
+                            {'lab': lab, 'expt': expt, 'animal': animal,
+                             'session': 'all',
+                             'multisession': int(session[-2:])})
                 else:
                     tmp_ids = {
                         'lab': lab, 'expt': expt, 'animal': animal,
                         'session': session}
                     if tmp_ids == ids:
                         session_dirs.append(session_dir)
-                        session_strs.append(os.path.join(expt, animal, session))
-    return session_dirs, session_strs
+                        session_ids.append(
+                            {'lab': lab, 'expt': expt, 'animal': animal,
+                             'session': session, 'multisession': None})
+    return session_dirs, session_ids
 
 
 def get_best_model_version(
@@ -403,79 +412,6 @@ def get_best_model_version(
             print('More versions than specified due to same validation loss')
         
     return best_versions
-
-
-def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
-    """
-    Helper function for loading the best model defined by hparams out of all
-    available test-tube versions, as well as the associated data used to fit
-    the model.
-
-    Args:
-        hparams (dict):
-        Model (behavenet.models object:
-        load_data (bool, optional):
-        version (str or int, optional):
-
-    Returns:
-        (tuple): (model, data generator)
-    """
-
-    from behavenet.data.data_generator import ConcatSessionsGenerator
-
-    # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
-    results_dir, expt_dir = get_output_dirs(hparams)
-
-    # get best model version
-    if version == 'best':
-        best_version = get_best_model_version(expt_dir)[0]
-    else:
-        if isinstance(version, str) and version[0] == 'v':
-            # assume we got a string of the form 'version_XX'
-            best_version = version
-        else:
-            best_version = str('version_{}'.format(version))
-    version_dir = os.path.join(expt_dir, best_version)
-    arch_file = os.path.join(version_dir, 'meta_tags.pkl')
-    model_file = os.path.join(version_dir, 'best_val_model.pt')
-    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
-        model_file = os.path.join(version_dir, 'best_val_model.ckpt')
-    print('Loading model defined in %s' % arch_file)
-
-    with open(arch_file, 'rb') as f:
-        hparams_new = pickle.load(f)
-
-    # update paths if performing analysis on a different machine
-    hparams_new['data_dir'] = hparams['data_dir']
-    hparams_new['session_dir'] = hparams['session_dir']
-    hparams_new['results_dir'] = results_dir
-    hparams_new['expt_dir'] = expt_dir
-    hparams_new['use_output_mask'] = hparams['use_output_mask'] # TODO: get rid of eventually
-    hparams_new['device'] = 'cpu'
-    
-    # build data generator
-    hparams_new, signals, transforms, paths = get_data_generator_inputs(
-        hparams_new, sess_ids)
-    if load_data:
-        # sometimes we want a single data_generator for multiple models
-        data_generator = ConcatSessionsGenerator(
-            hparams_new['data_dir'], sess_ids,
-            signals_list=signals, transforms_list=transforms, paths_list=paths,
-            device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
-            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'])
-    else:
-        data_generator = None
-
-    # build models
-    model = Model(hparams_new)
-    model.version = best_version
-    model.load_state_dict(torch.load(
-        model_file, map_location=lambda storage, loc: storage))
-    model.to(hparams_new['device'])
-    model.eval()
-
-    return model, data_generator
 
 
 def experiment_exists(hparams):
@@ -552,204 +488,6 @@ def export_hparams(hparams, exp):
     # save out as csv
     exp.tag(hparams)
     exp.save()
-
-
-def get_data_generator_inputs(hparams, sess_ids=None):
-    """
-    Helper function for generating signals, transforms and load_kwargs for
-    common models
-
-    Args:
-        hparams (dict):
-            - model_class
-
-    """
-
-    from behavenet.data.transforms import SelectIndxs
-    from behavenet.data.transforms import Threshold
-    from behavenet.data.transforms import ZScore
-    from behavenet.data.transforms import BlockShuffle
-    from behavenet.data.transforms import Compose
-
-    # get neural signals/transforms/load_kwargs
-    if hparams['model_class'].find('neural') > -1:
-
-        neural_transforms_ = []
-        neural_kwargs = None
-
-        # filter neural data by region
-        if hparams['subsample_regions'] != 'none':
-            # get region and indices
-            sampling = hparams['subsample_regions']
-            region_name = hparams['region']
-            regions = get_region_list(hparams)
-            if sampling == 'single':
-                indxs = regions[region_name]
-            elif sampling == 'loo':
-                indxs = []
-                for reg_name, reg_indxs in regions.items():
-                    if reg_name != region_name:
-                        indxs.append(reg_indxs)
-
-                indxs = np.concatenate(indxs)
-            else:
-                raise ValueError(
-                    '"%s" is an invalid region sampling option' % sampling)
-            neural_transforms_.append(SelectIndxs(
-                indxs, str('%s-%s' % (region_name, sampling))))
-
-        # filter neural data by activity
-        if hparams['neural_type'] == 'spikes':
-            if hparams['neural_thresh'] > 0:
-                neural_transforms_.append(Threshold(
-                    threshold=hparams['neural_thresh'],
-                    bin_size=hparams['neural_bin_size']))
-        elif hparams['neural_type'] == 'ca':
-            neural_transforms_.append(ZScore())
-        else:
-            raise ValueError(
-                '"%s" is an invalid neural type' % hparams['neural_type'])
-
-        if len(neural_transforms_) == 0:
-            neural_transforms = None
-        else:
-            neural_transforms = Compose(neural_transforms_)
-
-    else:
-        neural_transforms = None
-        neural_kwargs = None
-
-    # get model-specific signals/transforms/load_kwargs
-    if hparams['model_class'] == 'ae':
-
-        if hparams['use_output_mask']:
-            signals = [hparams['signals'], 'masks']
-            transforms = [hparams['transforms'], None]
-            load_kwargs = [None, None]
-        else:
-            signals = [hparams['signals']]
-            transforms = [hparams['transforms']]
-            load_kwargs = [None]
-
-    elif hparams['model_class'] == 'neural-ae':
-
-        hparams['input_signal'] = 'neural'
-        hparams['output_signal'] = 'ae'
-        hparams['output_size'] = hparams['n_ae_latents']
-        if hparams['model_type'][-2:] == 'mv':
-            hparams['noise_dist'] = 'gaussian-full'
-        else:
-            hparams['noise_dist'] = 'gaussian'
-
-        _, ae_dir = get_output_dirs(
-            hparams, model_class='ae',
-            expt_name=hparams['ae_experiment_name'],
-            model_type=hparams['ae_model_type'])
-
-        ae_transforms = None
-        ae_kwargs = {
-            'model_dir': ae_dir,
-            'model_version': hparams['ae_version']}
-
-        signals = ['neural', 'ae']
-        transforms = [neural_transforms, ae_transforms]
-        load_kwargs = [neural_kwargs, ae_kwargs]
-
-    elif hparams['model_class'] == 'neural-arhmm':
-
-        hparams['input_signal'] = 'neural'
-        hparams['output_signal'] = 'arhmm'
-        hparams['output_size'] = hparams['n_arhmm_states']
-        hparams['noise_dist'] = 'categorical'
-
-        _, arhmm_dir = get_output_dirs(
-            hparams, model_class='arhmm',
-            expt_name=hparams['arhmm_experiment_name'])
-
-        if 'shuffle_rng_seed' in hparams:
-            arhmm_transforms = BlockShuffle(hparams['shuffle_rng_seed'])
-        else:
-            arhmm_transforms = None
-        arhmm_kwargs = {
-            'model_dir': arhmm_dir,
-            'model_version': hparams['arhmm_version']}
-
-        signals = ['neural', 'arhmm']
-        transforms = [neural_transforms, arhmm_transforms]
-        load_kwargs = [neural_kwargs, arhmm_kwargs]
-
-    elif hparams['model_class'] == 'arhmm':
-
-        _, ae_dir = get_output_dirs(
-            hparams, model_class='ae',
-            expt_name=hparams['ae_experiment_name'],
-            model_type=hparams['ae_model_type'])
-
-        ae_transforms = None
-        ae_kwargs = {
-            'model_dir': ae_dir,
-            'model_version': hparams['ae_version']}
-
-        if hparams['use_output_mask']:
-            signals = ['ae', 'images', 'masks']
-            transforms = [ae_transforms, None, None]
-            load_kwargs = [ae_kwargs, None, None]
-        else:
-            signals = ['ae', 'images']
-            transforms = [ae_transforms, None]
-            load_kwargs = [ae_kwargs, None]
-
-    elif hparams['model_class'] == 'arhmm-decoding':
-
-        _, ae_dir = get_output_dirs(
-            hparams, model_class='ae',
-            expt_name=hparams['ae_experiment_name'],
-            model_type=hparams['ae_model_type'])
-
-        ae_transforms = None
-        ae_kwargs = {
-            'model_dir': ae_dir,
-            'model_version': hparams['ae_version']} 
-
-        _, ae_predictions_dir = get_output_dirs(
-            hparams, model_class='neural-ae',
-            expt_name=hparams['neural_ae_experiment_name'],
-            model_type=hparams['neural_ae_model_type'])
-        ae_predictions_transforms = None
-        ae_predictions_kwargs = {
-            'model_dir': ae_predictions_dir,
-            'model_version': hparams['neural_ae_version']} 
-
-        _, arhmm_predictions_dir = get_output_dirs(
-            hparams, model_class='neural-arhmm',
-            expt_name=hparams['neural_arhmm_experiment_name'],
-            model_type=hparams['neural_arhmm_model_type'])
-        arhmm_predictions_transforms = None
-        arhmm_predictions_kwargs = {
-            'model_dir': arhmm_predictions_dir,
-            'model_version': hparams['neural_arhmm_version']} 
-
-        _, arhmm_dir = get_output_dirs(
-            hparams, model_class='arhmm',
-            expt_name=hparams['arhmm_experiment_name'])
-        arhmm_transforms = None
-        arhmm_kwargs = {
-            'model_dir': arhmm_dir,
-            'model_version': hparams['arhmm_version']}
-
-        if hparams['use_output_mask']:
-            signals = ['ae', 'images', 'masks','ae_predictions', 'arhmm_predictions', 'arhmm']
-            transforms = [ae_transforms, None, None, ae_predictions_transforms, arhmm_predictions_transforms, arhmm_transforms]
-            load_kwargs = [ae_kwargs, None, None, ae_predictions_kwargs, arhmm_predictions_kwargs, arhmm_kwargs]
-        else:
-            signals = ['ae', 'images', 'ae_predictions', 'arhmm_predictions', 'arhmm']
-            transforms = [ae_transforms, None, ae_predictions_transforms, arhmm_predictions_transforms, arhmm_transforms]
-            load_kwargs = [ae_kwargs, None, ae_predictions_kwargs, arhmm_predictions_kwargs, arhmm_kwargs]
-
-    else:
-        raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
-
-    return hparams, signals, transforms, load_kwargs
 
 
 def add_lab_defaults_to_parser(parser, lab=None):
@@ -849,44 +587,6 @@ def get_lab_example(hparams, lab):
         hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = True
         hparams['frame_rate'] = 30
-
-
-def get_region_list(hparams):
-    """
-    Get regions and their indexes into neural data for current session
-
-    Args:
-        hparams (dict or namespace object):
-
-    Returns:
-        (dict)
-    """
-    import h5py
-
-    if not isinstance(hparams, dict):
-        hparams = vars(hparams)
-
-    data_file = os.path.join(
-        hparams['data_dir'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'], 'data.hdf5')
-
-    # TODO: get rid of -1!!! preprocess matlab data correctly
-    with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
-        indx_types = list(f['regions'])
-        if 'indxs_consolidate' in indx_types:
-            regions = list(f['regions']['indxs_consolidate'].keys())
-            indxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()]-1)
-                     for reg in regions}
-        elif 'indxs_consolidate_lr' in indx_types:
-            regions = list(f['regions']['indxs_consolidate_lr'].keys())
-            indxs = {reg: np.ravel(f['regions']['indxs_consolidate_lr'][reg][()]-1)
-                     for reg in regions}
-        else:
-            regions = list(f['regions']['indxs'])
-            indxs = {reg: np.ravel(f['regions']['indxs'][reg][()]-1)
-                     for reg in regions}
-
-    return indxs
 
 
 def get_region_dir(hparams):

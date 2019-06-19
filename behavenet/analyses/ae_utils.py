@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
-from behavenet.fitting.utils import get_best_model_and_data
+from behavenet.data.utils import get_best_model_and_data
 from behavenet.fitting.eval import get_reconstruction
 
 
@@ -242,16 +242,32 @@ def make_ae_reconstruction_movie_multisession(
     from behavenet.models import AE
     from behavenet.fitting.utils import find_session_dirs
 
-    ims_recon_cae = []
-
     # find all relevant sessions
-    ids = {s: hparams[s] for s in ['lab', 'expt', 'animal', 'session']}
-    session_dirs, session_strs = find_session_dirs(hparams)
+    sess_dirs, sess_ids = find_session_dirs(hparams)
 
     # loop over different sessions
-    for session_dir in session_dirs:
+    ims_recon_cae = []
+    sess_strs = []
+    for sess_id in sess_ids:
 
-        hparams['session_dir'] = session_dir
+        hparams['lab'] = sess_id['lab']
+        hparams['expt'] = sess_id['expt']
+        hparams['animal'] = sess_id['animal']
+        hparams['session'] = sess_id['session']
+        hparams['multisession'] = sess_id['multisession']
+
+        if sess_id.get('multisession', None) is not None:
+            multisession = str('multisession-%02i' % sess_id['multisession'])
+        if sess_id['expt'] == 'all':
+            sess_strs.append(os.path.join(multisession))
+        elif sess_id['animal'] == 'all':
+            sess_strs.append(os.path.join(sess_id['expt'], multisession))
+        elif sess_id['session'] == 'all':
+            sess_strs.append(os.path.join(
+                sess_id['expt'], sess_id['animal'], multisession))
+        else:
+            sess_strs.append(os.path.join(
+                sess_id['expt'], sess_id['animal'], sess_id['session']))
 
         # build model(s)
         model_cae, _ = get_best_model_and_data(
@@ -276,14 +292,14 @@ def make_ae_reconstruction_movie_multisession(
     _make_ae_reconstruction_movie_multisession(
         ims_orig=ims_orig,
         ims_recon_cae=ims_recon_cae,
-        panel_titles=session_strs,
+        panel_titles=sess_strs,
         save_file=save_file,
         frame_rate=hparams['frame_rate'])
 
 
 def _make_ae_reconstruction_movie_multisession(
         ims_orig, ims_recon_cae, panel_titles=None, save_file=None,
-        frame_rate=None):
+        frame_rate=20):
     """
     Args:
         ims_orig (np array):

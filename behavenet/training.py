@@ -157,7 +157,7 @@ class AELoss(FitMethod):
             data (dict):
         """
 
-        y = data[self.model.hparams['signals']][0]
+        y = data['images'][0]
 
         if 'masks' in data:
             masks = data['masks'][0]

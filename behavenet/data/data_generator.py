@@ -1,13 +1,11 @@
 import os
 import numpy as np
-import glob
 import pickle
 from collections import OrderedDict
 import torch
 from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
 import h5py
-from behavenet.fitting.utils import get_best_model_version
 
 
 def split_trials(
@@ -85,8 +83,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 entry in `signals`; for multiple transforms, chain together
                 using pt transforms.Compose; see behavenet.data.transforms.py
                 for available transform options
-            paths (list of dicts): each element corresponds to loading
-                parameters for an entry in `signals`; see
+            paths (list of strs): each element corresponds to file
+                location for an entry in `signals`; see
                 behavenet.fitting.utils.get_data_generator_inputs for examples
             device (str, optional): location of data
                 'cpu' | 'cuda'
@@ -99,18 +97,22 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.session = session
         self.data_dir = os.path.join(
             data_dir, self.lab, self.expt, self.animal, self.session)
+        self.name = os.path.join(self.lab, self.expt, self.animal, self.session)
 
         self.signals = signals
         self.transforms = transforms
-        self.paths = paths
+        self.load_kwargs = paths
 
         # get total number of trials by loading images/neural data
-        signal = 'images' if 'images' in signals else 'neural'
-        data_file = os.path.join(self.data_dir, 'data.hdf5')
-        with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
-            self.n_trials = len(f[signal])
-            key_list = list(f[signal].keys())
-            self.trial_len = f[signal][key_list[0]].shape[0]
+        self.n_trials = None
+        for i, signal in enumerate(signals):
+            if signal == 'images' or signal == 'neural':
+                data_file = paths[i]
+                with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
+                    self.n_trials = len(f[signal])
+                    key_list = list(f[signal].keys())
+                    self.trial_len = f[signal][key_list[0]].shape[0]
+                break
 
         # meta data about train/test/xv splits; set by ConcatSessionsGenerator
         self.batch_indxs = None
@@ -125,101 +127,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         #     self.dims[signal] = f[signal][key_list[0]].shape
 
         # get data paths
+        self.signals = signals
+        self.transforms = OrderedDict()
         self.paths = OrderedDict()
-        for signal, transform, load_kwarg in zip(
-                self.signals, self.transforms, self.paths):
-            if signal == 'images':
-                self.paths[signal] = os.path.join(self.data_dir, 'data.hdf5')
-            elif signal == 'masks':
-                self.paths[signal] = os.path.join(self.data_dir, 'data.hdf5')
-            elif signal == 'neural':
-                self.paths[signal] = os.path.join(self.data_dir, 'data.hdf5')
-            elif signal == 'ae':
-                # build path to latents
-                if 'latents_file' in load_kwarg:
-                    self.paths[signal] = load_kwarg['latents_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply ae directory or latents file')
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'val_loss')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-                    # find file with "latents" in name
-                    self.paths[signal] = glob.glob(os.path.join(
-                        model_dir, '*latents*.pkl'))[0]
-            elif signal == 'ae_predictions':
-                # build path to latents
-                if 'predictions_file' in load_kwarg:
-                    self.paths[signal] = load_kwarg['predictions_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply ae directory or predictions file')
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'val_loss')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-                    # find file with "latents" in name
-                    self.paths[signal] = glob.glob(os.path.join(
-                        model_dir, '*predictions*.pkl'))[0]
-            elif signal == 'arhmm':
-                # build path to latents
-                if 'states_file' in load_kwarg:
-                    self.paths[signal] = load_kwarg['states_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply arhmm directory or states file')
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'val_ll', best_def='max')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-                    # find file with "latents" in name
-                    self.paths[signal] = glob.glob(os.path.join(
-                        model_dir, '*states*.pkl'))[0]
-            elif signal == 'arhmm_predictions':
-                # build path to latents
-                if 'predictions_file' in load_kwarg:
-                    self.paths[signal] = load_kwarg['predictions_file']
-                else:
-                    if load_kwarg['model_dir'] is None:
-                        raise IOError(
-                            'Must supply arhmm directory or predictions file')
-                    if 'model_version' in load_kwarg and isinstance(
-                            load_kwarg['model_version'], int):
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'],
-                            'version_%i' % load_kwarg['model_version'])
-                    else:
-                        model_version = get_best_model_version(
-                            load_kwarg['model_dir'], 'val_loss')[0]
-                        model_dir = os.path.join(
-                            load_kwarg['model_dir'], model_version)
-                    # find file with "latents" in name
-                    self.paths[signal] = glob.glob(os.path.join(
-                        model_dir, '*predictions*.pkl'))[0]
-            else:
-                raise ValueError('"%s" is an invalid signal type')
+        for signal, transform, path in zip(signals, transforms, paths):
+            self.transforms[signal] = transform
+            self.paths[signal] = path
 
     def __len__(self):
         return self.n_trials
@@ -229,15 +142,14 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         Return batch of data; if indx is None, return all data
 
         Args:
-            indx (int): trial index
+            indx (int or NoneType): trial index
 
         Returns:
             (dict): data sample
         """
 
         sample = OrderedDict()
-        for signal, transform, paths in zip(
-                self.signals, self.transforms, self.paths):
+        for signal in self.signals:
 
             # index correct trial
             if signal == 'images':
@@ -247,12 +159,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         print('Warning: loading all images!')
                         temp_data = []
                         for tr in range(self.n_trials):
-                            temp_data.append(f[signal][
-                                str('trial_%04i' % tr)][()].astype(dtype)[None, :])
+                            temp_data.append(f[signal][str(
+                                'trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
                     else:
-                        sample[signal] = f[signal][
-                            str('trial_%04i' % indx)][()].astype(dtype)
+                        sample[signal] = f[signal][str(
+                            'trial_%04i' % indx)][()].astype(dtype)
                 # normalize to range [0, 1]
                 sample[signal] /= 255.0
 
@@ -263,12 +175,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         print('Warning: loading all masks!')
                         temp_data = []
                         for tr in range(self.n_trials):
-                            temp_data.append(f[signal][
-                                str('trial_%04i' % tr)][()].astype(dtype)[None, :])
+                            temp_data.append(f[signal][str(
+                                'trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
                     else:
-                        sample[signal] = f[signal][
-                            str('trial_%04i' % indx)][()].astype(dtype)
+                        sample[signal] = f[signal][str(
+                            'trial_%04i' % indx)][()].astype(dtype)
 
             elif signal == 'neural':
                 dtype = 'float32'
@@ -276,12 +188,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     if indx is None:
                         temp_data = []
                         for tr in range(self.n_trials):
-                            temp_data.append(f[signal][
-                                str('trial_%04i' % tr)][()].astype(dtype)[None, :])
+                            temp_data.append(f[signal][str(
+                                'trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
                     else:
-                        sample[signal] = f[signal][
-                            str('trial_%04i' % indx)][()].astype(dtype)
+                        sample[signal] = f[signal][str(
+                            'trial_%04i' % indx)][()].astype(dtype)
 
             elif signal == 'ae':
                 dtype = 'float32'
@@ -347,9 +259,9 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 raise ValueError('"%s" is an invalid signal type' % signal)
 
             # apply transforms
-            if transform:
-                sample[signal] = transform(sample[signal])
-                
+            if self.transforms[signal]:
+                sample[signal] = self.transforms[signal](sample[signal])
+
             # transform into tensor
             if dtype == 'float32':
                 sample[signal] = torch.from_numpy(sample[signal]).float()
@@ -389,8 +301,8 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
                 entry in `signals`; for multiple transforms, chain together
                 using pt transforms.Compose; see behavenet.data.transforms.py
                 for available transform options
-            paths (list of dicts): each element corresponds to loading
-                parameters for an entry in `signals`; see
+            paths (list of strs): each element corresponds to file
+                location for an entry in `signals`; see
                 behavenet.fitting.utils.get_data_generator_inputs for examples
             device (str, optional): location of data
                 'cpu' | 'cuda'
@@ -409,6 +321,9 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
         for signal, data in self.data.items():
             self.dims[signal] = data.shape
 
+        if self.n_trials is None:
+            self.n_trials = self.dims[signal][0]
+
     def __len__(self):
         return self.n_trials
 
@@ -417,7 +332,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
         Return batch of data; if indx is None, return all data
 
         Args:
-            indx (int): trial index
+            indx (int or NoneType): trial index
 
         Returns:
             (dict): data sample
@@ -446,17 +361,9 @@ class ConcatSessionsGenerator(object):
                 'lab', 'expt', 'animal', 'session';
                 data (neural, images) is assumed to be located in:
                 data_dir/lab/expt/animal/session/data.hdf5
-            signals (list of strs): e.g. 'images' | 'masks' | 'neural' | ...
-                see `behavenet.fitting.utils.get_data_generator_inputs` for
-                examples
-            transforms (list of transforms): each element corresponds to an
-                entry in `signals`; for multiple transforms, chain together
-                using pt transforms.Compose; see `behavenet.data.transforms.py`
-                for available transform options
-            paths (list of dicts): each element corresponds to loading
-                parameters for an entry in `signals`; see
-                `behavenet.fitting.utils.get_data_generator_inputs` for
-                examples
+            signals_list (list of lists): list of signals for each session
+            transforms_list (list of lists): list of transforms for each session
+            paths_list (list of lists): list of paths for each session
             device (str, optional): location of data
                 'cpu' | 'cuda'
             as_numpy (bool, optional): `True` to return numpy array, `False` to
@@ -484,14 +391,16 @@ class ConcatSessionsGenerator(object):
         self.signals = signals_list
         self.transforms = transforms_list
         self.paths = paths_list
-        for ids in ids_list:
+        for ids, signals, transforms, paths in zip(
+                ids_list, signals_list, transforms_list, paths_list):
             self.datasets.append(SingleSession(
                 data_dir, lab=ids['lab'], expt=ids['expt'],
                 animal=ids['animal'], session=ids['session'],
-                signals=signals_list, transforms=transforms_list,
-                paths=paths_list, device=device))
+                signals=signals, transforms=transforms,
+                paths=paths, device=device))
             self.datasets_info.append({
-                'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
+                'lab': ids['lab'], 'expt': ids['expt'],
+                'animal': ids['animal'],
                 'session': ids['session']})
 
         # collect info about datasets
@@ -506,7 +415,8 @@ class ConcatSessionsGenerator(object):
                 dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(dataset.batch_indxs[dtype])
-        self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
+        self.batch_ratios = np.array(self.batch_ratios) / np.sum(
+            self.batch_ratios)
 
         # find total number of batches per data type; this will be iterated
         # over in the training loop
@@ -525,7 +435,7 @@ class ConcatSessionsGenerator(object):
                     batch_size=1,
                     sampler=SubsetRandomSampler(dataset.batch_indxs[dtype]),
                     num_workers=0)
-        
+
         # create all iterators (will iterate through data loaders)
         self.dataset_iters = [None] * self.n_datasets
         for i in range(self.n_datasets):
@@ -543,16 +453,14 @@ class ConcatSessionsGenerator(object):
         format_str = str('Generator contains %i %s objects\n' %
                          (self.n_datasets, single_sess_str))
         for i in range(len(self.signals)):
-            format_str += str('\tsignal:\n\t\t{}\n'.format(self.signals[i]))
-            format_str += str('\ttransform:\n\t\t{}\n'.format(self.transforms[i]))
-            format_str += str('\tpaths:\n')
-            if self.paths[i] is not None:
-                for key, value in self.paths[i].items():
-                    format_str += str('\t\t{}: {}\n'.format(key, value))
-            else:
-                format_str += str('\t\t{}'.format(None))
-            format_str += '\n\n'
+            format_str += str('\tsignals:\n\t\t{}\n'.format(self.signals[i]))
+            format_str += str('\ttransforms:\n\t\t{}\n'.format(self.transforms[i]))
+            format_str += str('\tpaths:\n\t\t{}\n'.format(self.paths[i]))
+            format_str += '\n'
         return format_str
+
+    def __len__(self):
+        return self.n_datasets
 
     def reset_iterators(self, dtype):
         """
