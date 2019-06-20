@@ -453,9 +453,9 @@ class ConcatSessionsGenerator(object):
         format_str = str('Generator contains %i %s objects\n' %
                          (self.n_datasets, single_sess_str))
         for i in range(len(self.signals)):
-            format_str += str('\tsignals:\n\t\t{}\n'.format(self.signals[i]))
-            format_str += str('\ttransforms:\n\t\t{}\n'.format(self.transforms[i]))
-            format_str += str('\tpaths:\n\t\t{}\n'.format(self.paths[i]))
+            format_str += str('\tsignals: {}\n'.format(self.signals[i]))
+            format_str += str('\ttransforms: {}\n'.format(self.transforms[i]))
+            format_str += str('\tpaths: {}\n'.format(self.paths[i]))
             format_str += '\n'
         return format_str
 
