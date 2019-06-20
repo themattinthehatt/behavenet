@@ -18,46 +18,99 @@ class ConvAEEncoder(nn.Module):
         super(ConvAEEncoder, self).__init__()
       
         self.hparams = hparams
+        self.encoder = None
         self.build_model()
 
     def build_model(self):
         
         self.encoder = nn.ModuleList()
 
-        # Loop over layers (each conv/batch norm/max pool/relu chunk counts as one layer for global_layer_num)
+        # Loop over layers (each conv/batch norm/max pool/relu chunk counts as
+        # one layer for global_layer_num)
         global_layer_num=0
-        for i_layer in range(0,len(self.hparams['ae_encoding_n_channels'])):
+        for i_layer in range(0, len(self.hparams['ae_encoding_n_channels'])):
 
-            if self.hparams['ae_encoding_layer_type'][i_layer]=='conv': # only add if conv layer (checks within this for next max pool layer)
+            # only add if conv layer (checks within this for max pool layer)
+            if self.hparams['ae_encoding_layer_type'][i_layer] == 'conv':
 
-                ## Convolution layer 
-                in_channels = self.hparams['ae_input_dim'][0] if i_layer==0 else self.hparams['ae_encoding_n_channels'][i_layer-1]
-                if self.hparams['ae_encoding_x_padding'][i_layer][0] == self.hparams['ae_encoding_x_padding'][i_layer][1] and self.hparams['ae_encoding_y_padding'][i_layer][0] == self.hparams['ae_encoding_y_padding'][i_layer][1]: # if symmetric padding
-                    self.encoder.add_module('conv'+str(global_layer_num),nn.Conv2d(in_channels=in_channels,out_channels=self.hparams['ae_encoding_n_channels'][i_layer],kernel_size=self.hparams['ae_encoding_kernel_size'][i_layer],stride=self.hparams['ae_encoding_stride_size'][i_layer],padding=(self.hparams['ae_encoding_y_padding'][i_layer][0],self.hparams['ae_encoding_x_padding'][i_layer][0])))
+                # Convolution layer
+                in_channels = self.hparams['ae_input_dim'][0] if i_layer == 0 \
+                    else self.hparams['ae_encoding_n_channels'][i_layer-1]
+                if (self.hparams['ae_encoding_x_padding'][i_layer][0]
+                        == self.hparams['ae_encoding_x_padding'][i_layer][1]) \
+                        and \
+                        (self.hparams['ae_encoding_y_padding'][i_layer][0]
+                        == self.hparams['ae_encoding_y_padding'][i_layer][1]):
+                    # if symmetric padding
+                    padding=(self.hparams['ae_encoding_y_padding'][i_layer][0],
+                             self.hparams['ae_encoding_x_padding'][i_layer][0])
                 else:
-                    self.encoder.add_module('zero_pad'+str(global_layer_num),nn.ZeroPad2d((self.hparams['ae_encoding_x_padding'][i_layer][0] ,self.hparams['ae_encoding_x_padding'][i_layer][1] ,self.hparams['ae_encoding_y_padding'][i_layer][0] ,self.hparams['ae_encoding_y_padding'][i_layer][1] )))
-                    self.encoder.add_module('conv'+str(global_layer_num),nn.Conv2d(in_channels=in_channels,out_channels=self.hparams['ae_encoding_n_channels'][i_layer],kernel_size=self.hparams['ae_encoding_kernel_size'][i_layer],stride=self.hparams['ae_encoding_stride_size'][i_layer],padding=0))
+                    module = nn.ZeroPad2d(
+                        (self.hparams['ae_encoding_x_padding'][i_layer][0],
+                         self.hparams['ae_encoding_x_padding'][i_layer][1],
+                         self.hparams['ae_encoding_y_padding'][i_layer][0],
+                         self.hparams['ae_encoding_y_padding'][i_layer][1]))
+                    self.encoder.add_module(
+                        str('zero_pad%i' % global_layer_num), module)
+                    padding=0
 
-                ## Batch norm layer
+                module = nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=self.hparams['ae_encoding_n_channels'][i_layer],
+                        kernel_size=self.hparams['ae_encoding_kernel_size'][i_layer],
+                        stride=self.hparams['ae_encoding_stride_size'][i_layer],
+                        padding=padding)
+                self.encoder.add_module(
+                    str('conv%i' % global_layer_num), module)
+
+                # Batch norm layer
                 if self.hparams['ae_batch_norm']:
-                    self.encoder.add_module('batch norm'+str(global_layer_num),nn.BatchNorm2d(self.hparams['ae_encoding_n_channels'][i_layer],momentum=self.hparams['ae_batch_norm_momentum']))
+                    module = nn.BatchNorm2d(
+                        self.hparams['ae_encoding_n_channels'][i_layer],
+                        momentum=self.hparams['ae_batch_norm_momentum'])
+                    self.encoder.add_module(
+                        str('batchnorm%i' % global_layer_num), module)
 
-                ## Max pool layer
-                if i_layer<(len(self.hparams['ae_encoding_n_channels'])-1) and self.hparams['ae_encoding_layer_type'][i_layer+1]=='maxpool':
-                    if self.hparams['ae_padding_type']=='valid':
-                        self.encoder.add_module('maxpool'+str(global_layer_num),nn.MaxPool2d(kernel_size=int(self.hparams['ae_encoding_kernel_size'][i_layer+1]),stride=int(self.hparams['ae_encoding_stride_size'][i_layer+1]),padding=(self.hparams['ae_encoding_y_padding'][i_layer+1][0],self.hparams['ae_encoding_x_padding'][i_layer+1][0]),return_indices=True,ceil_mode=False)) # no ceil mode in valid mode
+                # Max pool layer
+                if i_layer<(len(self.hparams['ae_encoding_n_channels'])-1) \
+                        and \
+                        (self.hparams['ae_encoding_layer_type'][i_layer+1]
+                         =='maxpool'):
+                    if self.hparams['ae_padding_type'] == 'valid':
+                        # no ceil mode in valid mode
+                        module = nn.MaxPool2d(
+                            kernel_size=int(self.hparams['ae_encoding_kernel_size'][i_layer+1]),
+                            stride=int(self.hparams['ae_encoding_stride_size'][i_layer+1]),
+                            padding=(
+                                self.hparams['ae_encoding_y_padding'][i_layer+1][0],
+                                self.hparams['ae_encoding_x_padding'][i_layer+1][0]),
+                            return_indices=True,
+                            ceil_mode=False)
                     else:
-                        self.encoder.add_module('maxpool'+str(global_layer_num),nn.MaxPool2d(kernel_size=int(self.hparams['ae_encoding_kernel_size'][i_layer+1]),stride=int(self.hparams['ae_encoding_stride_size'][i_layer+1]),padding=(self.hparams['ae_encoding_y_padding'][i_layer+1][0],self.hparams['ae_encoding_x_padding'][i_layer+1][0]),return_indices=True,ceil_mode=True)) # using ceil mode instead of zero padding
+                        # using ceil mode instead of zero padding
+                        module = nn.MaxPool2d(
+                            kernel_size=int(self.hparams['ae_encoding_kernel_size'][i_layer+1]),
+                            stride=int(self.hparams['ae_encoding_stride_size'][i_layer+1]),
+                            padding=(
+                                self.hparams['ae_encoding_y_padding'][i_layer+1][0],
+                                self.hparams['ae_encoding_x_padding'][i_layer+1][0]),
+                            return_indices=True,
+                            ceil_mode=True)
+                    self.encoder.add_module(
+                        str('maxpool%i' % global_layer_num), module)
 
-                ## Leaky ReLU
-                self.encoder.add_module('relu'+str(global_layer_num),nn.LeakyReLU(0.05))
-                global_layer_num+=1
+                # Leaky ReLU
+                self.encoder.add_module(
+                    str('relu%i' % global_layer_num), nn.LeakyReLU(0.05))
+                global_layer_num += 1
 
         # Final FF layer to latents
-        last_conv_size = self.hparams['ae_encoding_n_channels'][-1]*self.hparams['ae_encoding_y_dim'][-1]*self.hparams['ae_encoding_x_dim'][-1]
+        last_conv_size = self.hparams['ae_encoding_n_channels'][-1] \
+                         * self.hparams['ae_encoding_y_dim'][-1] \
+                         * self.hparams['ae_encoding_x_dim'][-1]
         self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
     
-        ## If VAE model, have additional FF layer to latent variances
+        # If VAE model, have additional FF layer to latent variances
         if self.hparams['model_class'] == 'vae':
             self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
             self.softplus = nn.Softplus()
@@ -69,9 +122,10 @@ class ConvAEEncoder(nn.Module):
     def forward(self, x):
         # x should be batch size x n channels x xdim x ydim
 
-        # Loop over layers, have to collect pool_idx and output sizes if using max pooling to use in unpooling
-        pool_idx=[]
-        target_output_size=[]
+        # Loop over layers, have to collect pool_idx and output sizes if using
+        # max pooling to use in unpooling
+        pool_idx = []
+        target_output_size = []
         for layer in self.encoder:
             if isinstance(layer, nn.MaxPool2d):
                 target_output_size.append(x.size())
@@ -88,7 +142,8 @@ class ConvAEEncoder(nn.Module):
         elif self.hparams['model_class'] == 'vae':
             return NotImplementedError
         else:
-            raise ValueError(self.hparams['model_class'] + ' not valid model type')
+            raise ValueError(
+                '"%s" is not a valid model class' % self.hparams['model_class'])
             
     def freeze(self):
         # easily freeze the AE encoder parameters
@@ -102,66 +157,158 @@ class ConvAEDecoder(nn.Module):
 
         super(ConvAEDecoder, self).__init__()
       
-        self.hparams=hparams
+        self.hparams = hparams
+        self.decoder = None
         self.build_model()
 
     def build_model(self):
 
         # First FF layer (from latents to size of last encoding layer)
-        first_conv_size = self.hparams['ae_decoding_starting_dim'][0]*self.hparams['ae_decoding_starting_dim'][1]*self.hparams['ae_decoding_starting_dim'][2]
+        first_conv_size = self.hparams['ae_decoding_starting_dim'][0] \
+                          * self.hparams['ae_decoding_starting_dim'][1] \
+                          *self.hparams['ae_decoding_starting_dim'][2]
         self.FF = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
         
         self.decoder = nn.ModuleList()
 
-        # Loop over layers (each unpool/convtranspose/batch norm/relu chunk counts as one layer for global_layer_num)
-        global_layer_num=0
+        # Loop over layers (each unpool/convtranspose/batch norm/relu chunk
+        # counts as one layer for global_layer_num)
+        global_layer_num = 0
         self.conv_t_pads = {}
 
-        for i_layer in range(0,len(self.hparams['ae_decoding_n_channels'])):
+        for i_layer in range(0, len(self.hparams['ae_decoding_n_channels'])):
 
-            if self.hparams['ae_decoding_layer_type'][i_layer]=='convtranspose': # only add if conv transpose layer 
+            # only add if conv transpose layer
+            if self.hparams['ae_decoding_layer_type'][i_layer] == 'convtranspose':
                 
-                ## Unpooling layer
-                if i_layer>0 and self.hparams['ae_decoding_layer_type'][i_layer-1]=='unpool':
-                    self.decoder.add_module('maxunpool'+str(global_layer_num),nn.MaxUnpool2d(kernel_size=(int(self.hparams['ae_decoding_kernel_size'][i_layer-1]),int(self.hparams['ae_decoding_kernel_size'][i_layer-1])),stride = (int(self.hparams['ae_decoding_stride_size'][i_layer-1]),int(self.hparams['ae_decoding_stride_size'][i_layer-1])),padding=(self.hparams['ae_decoding_y_padding'][i_layer-1][0],self.hparams['ae_decoding_x_padding'][i_layer-1][0])))
+                # Unpooling layer
+                if i_layer > 0 \
+                        and \
+                        (self.hparams['ae_decoding_layer_type'][i_layer-1]
+                         == 'unpool'):
+                    module = nn.MaxUnpool2d(
+                        kernel_size=(
+                            int(self.hparams['ae_decoding_kernel_size'][i_layer-1]),
+                            int(self.hparams['ae_decoding_kernel_size'][i_layer-1])),
+                        stride=(
+                            int(self.hparams['ae_decoding_stride_size'][i_layer-1]),
+                            int(self.hparams['ae_decoding_stride_size'][i_layer-1])),
+                        padding=(
+                            self.hparams['ae_decoding_y_padding'][i_layer-1][0],
+                            self.hparams['ae_decoding_x_padding'][i_layer-1][0]))
+                    self.decoder.add_module(
+                        str('maxunpool%i' % global_layer_num), module)
 
-                ## ConvTranspose layer
-                in_channels = self.hparams['ae_decoding_starting_dim'][0] if i_layer==0 else self.hparams['ae_decoding_n_channels'][i_layer-1]
-                if self.hparams['ae_padding_type']=='valid':
+                # ConvTranspose layer
+                if i_layer == 0:
+                    in_channels = self.hparams['ae_decoding_starting_dim'][0]
+                else:
+                    in_channels = self.hparams['ae_decoding_n_channels'][i_layer-1]
 
-                    # Calculate necessary output padding to get back original input shape
-                    input_y = self.hparams['ae_decoding_y_dim'][i_layer-1] if i_layer > 0 else self.hparams['ae_decoding_starting_dim'][1]
-                    y_output_padding = self.hparams['ae_decoding_y_dim'][i_layer]-((input_y-1)*self.hparams['ae_decoding_stride_size'][i_layer]+self.hparams['ae_decoding_kernel_size'][i_layer])
-                    
-                    input_x = self.hparams['ae_decoding_x_dim'][i_layer-1] if i_layer > 0 else self.hparams['ae_decoding_starting_dim'][2]
-                    x_output_padding = self.hparams['ae_decoding_x_dim'][i_layer]-((input_x-1)*self.hparams['ae_decoding_stride_size'][i_layer]+self.hparams['ae_decoding_kernel_size'][i_layer])
+                if self.hparams['ae_padding_type'] == 'valid':
+                    # Calculate necessary output padding to get back original
+                    # input shape
 
-                    self.decoder.add_module('convtranspose'+str(global_layer_num),nn.ConvTranspose2d(in_channels=in_channels,out_channels=self.hparams['ae_decoding_n_channels'][i_layer],kernel_size=(self.hparams['ae_decoding_kernel_size'][i_layer],self.hparams['ae_decoding_kernel_size'][i_layer]),stride=(self.hparams['ae_decoding_stride_size'][i_layer],self.hparams['ae_decoding_stride_size'][i_layer]),padding=(self.hparams['ae_decoding_y_padding'][i_layer][0],self.hparams['ae_decoding_x_padding'][i_layer][0]),output_padding=(y_output_padding,x_output_padding)))
-                    self.conv_t_pads['convtranspose'+str(global_layer_num)] = None
-                
-                elif self.hparams['ae_padding_type']=='same':
-                    if self.hparams['ae_decoding_x_padding'][i_layer][0] == self.hparams['ae_decoding_x_padding'][i_layer][1] and self.hparams['ae_decoding_y_padding'][i_layer][0] == self.hparams['ae_decoding_y_padding'][i_layer][1]:
-                        self.decoder.add_module('convtranspose'+str(global_layer_num),nn.ConvTranspose2d(in_channels=in_channels,out_channels=self.hparams['ae_decoding_n_channels'][i_layer],kernel_size=(self.hparams['ae_decoding_kernel_size'][i_layer],self.hparams['ae_decoding_kernel_size'][i_layer]),stride=(self.hparams['ae_decoding_stride_size'][i_layer],self.hparams['ae_decoding_stride_size'][i_layer]),padding=(self.hparams['ae_decoding_y_padding'][i_layer][0],self.hparams['ae_decoding_x_padding'][i_layer][0])))
-                        self.conv_t_pads['convtranspose'+str(global_layer_num)] = None
+                    if i_layer > 0:
+                        input_y = self.hparams['ae_decoding_y_dim'][i_layer-1]
                     else:
-                        # If uneven padding originally, don't pad here and do it in forward()
-                        self.decoder.add_module('convtranspose'+str(global_layer_num),nn.ConvTranspose2d(in_channels=in_channels,out_channels=self.hparams['ae_decoding_n_channels'][i_layer],kernel_size=(self.hparams['ae_decoding_kernel_size'][i_layer],self.hparams['ae_decoding_kernel_size'][i_layer]),stride=(self.hparams['ae_decoding_stride_size'][i_layer],self.hparams['ae_decoding_stride_size'][i_layer])))
-                        self.conv_t_pads['convtranspose'+str(global_layer_num)] = [self.hparams['ae_decoding_x_padding'][i_layer][0] ,self.hparams['ae_decoding_x_padding'][i_layer][1] ,self.hparams['ae_decoding_y_padding'][i_layer][0] ,self.hparams['ae_decoding_y_padding'][i_layer][1]]
+                        input_y = self.hparams['ae_decoding_starting_dim'][1]
+                    y_output_padding = \
+                        self.hparams['ae_decoding_y_dim'][i_layer] \
+                        -((input_y-1)*self.hparams['ae_decoding_stride_size'][i_layer]
+                          +self.hparams['ae_decoding_kernel_size'][i_layer])
 
+                    if i_layer > 0:
+                        input_x = self.hparams['ae_decoding_x_dim'][i_layer-1]
+                    else:
+                        input_x = self.hparams['ae_decoding_starting_dim'][2]
+                    x_output_padding = \
+                        self.hparams['ae_decoding_x_dim'][i_layer] \
+                        -((input_x-1)*self.hparams['ae_decoding_stride_size'][i_layer]
+                          +self.hparams['ae_decoding_kernel_size'][i_layer])
 
-                ## BatchNorm + Relu or Sigmoid if last layer
-                if i_layer == (len(self.hparams['ae_decoding_n_channels'])-1) and not self.hparams['ae_decoding_last_FF_layer']: # last layer: no batch norm/sigmoi nonlin
-                    self.decoder.add_module('sigmoid'+str(global_layer_num),nn.Sigmoid())
+                    input_padding = (
+                        self.hparams['ae_decoding_y_padding'][i_layer][0],
+                        self.hparams['ae_decoding_x_padding'][i_layer][0])
+                    output_padding = (y_output_padding, x_output_padding)
+
+                    self.conv_t_pads[str('convtranspose%i' % global_layer_num)] = None
+                
+                elif self.hparams['ae_padding_type'] == 'same':
+                    if (self.hparams['ae_decoding_x_padding'][i_layer][0]
+                            == self.hparams['ae_decoding_x_padding'][i_layer][1]) \
+                            and \
+                            (self.hparams['ae_decoding_y_padding'][i_layer][0]
+                            == self.hparams['ae_decoding_y_padding'][i_layer][1]):
+
+                        input_padding = (
+                            self.hparams['ae_decoding_y_padding'][i_layer][0],
+                            self.hparams['ae_decoding_x_padding'][i_layer][0])
+                        output_padding = 0
+
+                        self.conv_t_pads[str('convtranspose%i' % global_layer_num)] = None
+
+                    else:
+                        # If uneven padding originally, don't pad here and do
+                        # it in forward()
+                        input_padding = 0
+                        output_padding = 0
+                        self.conv_t_pads[str('convtranspose%i' % global_layer_num)] = [
+                            self.hparams['ae_decoding_x_padding'][i_layer][0],
+                            self.hparams['ae_decoding_x_padding'][i_layer][1],
+                            self.hparams['ae_decoding_y_padding'][i_layer][0],
+                            self.hparams['ae_decoding_y_padding'][i_layer][1]]
+                else:
+                    raise ValueError(
+                        '"%s" is not a valid padding type' %
+                        self.hparams['ae_padding_type'])
+
+                module = nn.ConvTranspose2d(
+                    in_channels=in_channels,
+                    out_channels=self.hparams['ae_decoding_n_channels'][i_layer],
+                    kernel_size=(
+                        self.hparams['ae_decoding_kernel_size'][i_layer],
+                        self.hparams['ae_decoding_kernel_size'][i_layer]),
+                    stride=(
+                        self.hparams['ae_decoding_stride_size'][i_layer],
+                        self.hparams['ae_decoding_stride_size'][i_layer]),
+                    padding=input_padding,
+                    output_padding=output_padding)
+                self.decoder.add_module(
+                    str('convtranspose%i' % global_layer_num), module)
+
+                # BatchNorm + Relu or Sigmoid if last layer
+                if i_layer == (len(self.hparams['ae_decoding_n_channels'])-1) \
+                        and not self.hparams['ae_decoding_last_FF_layer']:
+                    # last layer: no batch norm/sigmoid nonlin
+                    self.decoder.add_module(
+                        str('sigmoid%i' % global_layer_num), nn.Sigmoid())
                 else:
                     if self.hparams['ae_batch_norm']:
-                        self.decoder.add_module('batch norm'+str(global_layer_num),nn.BatchNorm2d(self.hparams['ae_decoding_n_channels'][i_layer],momentum=self.hparams['ae_batch_norm_momentum']))
-                    self.decoder.add_module('relu'+str(global_layer_num),nn.LeakyReLU(0.05))
+                        module = nn.BatchNorm2d(
+                            self.hparams['ae_decoding_n_channels'][i_layer],
+                            momentum=self.hparams['ae_batch_norm_momentum'])
+                        self.decoder.add_module(
+                            str('batchnorm%i' % global_layer_num), module)
+
+                    self.decoder.add_module(
+                        str('relu%i' % global_layer_num), nn.LeakyReLU(0.05))
                 global_layer_num += 1
          
-        ## Optional final FF layer (rarely used)
-        if self.hparams['ae_decoding_last_FF_layer']: # have last layer be feedforward if this is 1
-            self.decoder.add_module('last_FF'+str(global_layer_num)+'',nn.Linear(self.hparams['ae_decoding_x_dim'][-1]*self.hparams['ae_decoding_y_dim'][-1]*self.hparams['ae_decoding_n_channels'][-1],self.hparams['ae_input_dim'][0]*self.hparams['ae_input_dim'][1]*self.hparams['ae_input_dim'][2]))
-            self.decoder.add_module('sigmoid'+str(global_layer_num),nn.Sigmoid())
+        # Optional final FF layer (rarely used)
+        if self.hparams['ae_decoding_last_FF_layer']:
+            # have last layer be feedforward if this is 1
+            module = nn.Linear(
+                self.hparams['ae_decoding_x_dim'][-1]
+                * self.hparams['ae_decoding_y_dim'][-1]
+                * self.hparams['ae_decoding_n_channels'][-1],
+                self.hparams['ae_input_dim'][0]
+                * self.hparams['ae_input_dim'][1]
+                * self.hparams['ae_input_dim'][2])
+            self.decoder.add_module(
+                str('last_FF%i' % global_layer_num), module)
+            self.decoder.add_module(
+                str('sigmoid%i' % global_layer_num), nn.Sigmoid())
 
         if self.hparams['model_class'] == 'vae':
             raise NotImplementedError
@@ -169,26 +316,36 @@ class ConvAEDecoder(nn.Module):
             pass
         else:
             raise ValueError('Not valid model type')
-             
+
     def forward(self, x, pool_idx, target_output_size):
 
         # First FF layer/resize to be convolutional input
         x = self.FF(x)
-        x = x.view(x.size(0),self.hparams['ae_decoding_starting_dim'][0], self.hparams['ae_decoding_starting_dim'][1], self.hparams['ae_decoding_starting_dim'][2])
+        x = x.view(
+            x.size(0),
+            self.hparams['ae_decoding_starting_dim'][0],
+            self.hparams['ae_decoding_starting_dim'][1],
+            self.hparams['ae_decoding_starting_dim'][2])
 
         for name, layer in self.decoder.named_children():
             if isinstance(layer, nn.MaxUnpool2d):
                 idx = pool_idx.pop(-1)
                 outsize = target_output_size.pop(-1)
-                x = layer(x,idx,outsize) 
+                x = layer(x, idx, outsize)
             elif isinstance(layer, nn.ConvTranspose2d):
                 x = layer(x)
                 if self.conv_t_pads[name]is not None:
-                    x = F.pad(x,[-i for i in self.conv_t_pads[name]]) # asymmetric padding for convtranspose layer if necessary (-i does cropping!)
+                    # asymmetric padding for convtranspose layer if necessary
+                    # (-i does cropping!)
+                    x = F.pad(x, [-i for i in self.conv_t_pads[name]])
             elif isinstance(layer, nn.Linear):
                 x = x.view(x.shape[0],-1)
                 x = layer(x)
-                x = x.view(-1,self.hparams['ae_input_dim'][0],self.hparams['ae_input_dim'][1],self.hparams['ae_input_dim'][2])
+                x = x.view(
+                    -1,
+                    self.hparams['ae_input_dim'][0],
+                    self.hparams['ae_input_dim'][1],
+                    self.hparams['ae_input_dim'][2])
             else:
                 x = layer(x)
 

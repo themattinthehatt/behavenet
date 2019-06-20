@@ -542,10 +542,12 @@ def fit(hparams, model, data_generator, exp, method='em'):
                 break
 
     # save out last model
-    filepath = os.path.join(
-        hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
-        'version_%i' % exp.version, 'last_model.pt')
-    torch.save(model.state_dict(), filepath)
+    if hparams.get('save_last_model', False):
+        filepath = os.path.join(
+            hparams['results_dir'], 'test_tube_data',
+            hparams['experiment_name'],
+            'version_%i' % exp.version, 'last_model.pt')
+        torch.save(model.state_dict(), filepath)
 
     # Compute test loss
     if method == 'ae':
