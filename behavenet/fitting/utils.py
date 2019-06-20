@@ -590,7 +590,7 @@ def get_lab_example(hparams, lab):
 
 
 def get_region_dir(hparams):
-    if hparams['subsample_regions'] == 'none':
+    if hparams.get('subsample_regions', 'none') == 'none':
         region_dir = 'all'
     elif hparams['subsample_regions'] == 'single':
         region_dir = str('%s-single' % hparams['region'])

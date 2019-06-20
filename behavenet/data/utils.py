@@ -173,8 +173,8 @@ def get_transforms_paths(data_type, hparams, sess_id=None):
     if data_type == 'neural':
 
         path = os.path.join(
-            sess_id['lab'], sess_id['expt'], sess_id['animal'],
-            sess_id['session'], 'data.hdf5')
+            hparams['data_dir'], sess_id['lab'], sess_id['expt'],
+            sess_id['animal'], sess_id['session'], 'data.hdf5')
 
         transforms_ = []
 

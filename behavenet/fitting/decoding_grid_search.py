@@ -4,18 +4,18 @@ import numpy as np
 import random
 import torch
 from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.models import Decoder
-from behavenet.training import fit
+from behavenet.data.data_generator import ConcatSessionsGenerator
+from behavenet.data.utils import get_data_generator_inputs
+from behavenet.data.utils import get_region_list
 from behavenet.fitting.eval import export_predictions_best
+from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import get_data_generator_inputs
-from behavenet.fitting.utils import get_region_list
-from behavenet.fitting.utils import get_output_dirs
-from behavenet.fitting.utils import add_lab_defaults_to_parser
-from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import export_session_info_to_csv
-from behavenet.data.data_generator import ConcatSessionsGenerator
+from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import get_output_session_dir
+from behavenet.models import Decoder
+from behavenet.training import fit
 
 
 def main(hparams):
@@ -66,6 +66,9 @@ def main(hparams):
             ids['session']))
     hparams, signals, transforms, paths = get_data_generator_inputs(
         hparams, sess_ids)
+    print(hparams)
+    print()
+    print(paths)
     print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
@@ -176,7 +179,7 @@ def get_decoding_params(namespace, parser):
     if namespace.model_class == 'neural-ae':
         # ae arguments
         parser.add_argument('--ae_experiment_name', type=str)
-        parser.add_argument('--n_ae_latents', default=12, type=int)
+        parser.add_argument('--n_ae_latents', type=int)
         parser.add_argument('--ae_version', default='best')
         parser.add_argument('--ae_model_type', default='conv')
     elif namespace.model_class == 'neural-arhmm':

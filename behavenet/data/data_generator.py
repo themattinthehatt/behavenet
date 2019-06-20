@@ -99,10 +99,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             data_dir, self.lab, self.expt, self.animal, self.session)
         self.name = os.path.join(self.lab, self.expt, self.animal, self.session)
 
-        self.signals = signals
-        self.transforms = transforms
-        self.load_kwargs = paths
-
         # get total number of trials by loading images/neural data
         self.n_trials = None
         for i, signal in enumerate(signals):
