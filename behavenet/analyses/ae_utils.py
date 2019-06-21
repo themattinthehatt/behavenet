@@ -770,3 +770,142 @@ def _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file=None)
         plt.savefig(save_file + '.jpg', dpi=300, format='jpeg')
 
     plt.show()
+
+
+def plot_latent_psths(
+        latents_list, latent_strs=None, latent_indx=None, align_indx=0,
+        window_len=10, style_type='light'):
+    """
+    For a given latent, plot it's PSTH across multiple sessions (one panel per
+    session)
+
+    Args:
+        latents_list (list of np arrays): trial x time x latents, one for each
+            session
+        latent_strs (list of strs, optional): one for each session
+        latent_indx (int or NoneType): index of latent to plot; if given, plots
+            average latent with all trials, one session per panel; if None,
+            plots average latent across all sessions, one latent per panel
+        align_indx (int): time index to center psth on
+        window_len (int): size of window in each direction around `align_indx`
+        style_type (str): 'dark' | 'light'
+    """
+
+    def _set_ticks(
+            ax, ylim_min, ylim_max, yticks, xticks, xtick_space, r, c,
+                fontsize, title_str=None):
+        ax.set_xticks(xticks, [])
+        ax.set_xticklabels([])
+        ax.set_ylim(ylim_min, ylim_max)
+        ax.set_yticks(yticks, [])
+        ax.set_yticklabels([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        #  axes[r, c].spines['left'].set_visible(False)
+        if r == n_rows - 1:
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(
+                np.arange(-window_len, window_len + 1, xtick_space))
+            ax.set_xlabel('Time (bins)')
+        if c == 0:
+            ax.set_yticks(yticks)
+            ax.set_yticklabels([0])
+        if title_str is not None:
+            ax.set_title(title_str, fontsize=fontsize)
+
+    # define fig params
+    xtick_space = int(2 * window_len / 5)
+    xticks = np.arange(0, 2 * window_len + 1, xtick_space)
+    yticks = [0]
+    fontsize = 15
+
+    # standardize trace magnitudes (no centering)
+    latents_std = np.std(np.concatenate(latents_list, axis=0))
+    ylim_min = -2.5 * latents_std
+    ylim_max = 2.5 * latents_std
+
+    if style_type == 'dark':
+        plt.style.use('dark_background')
+        col_avg = 'white'
+        col_ind = 'gray'
+    else:
+        col_avg = 'black'
+        col_ind = 'gray'
+
+    n_datasets = len(latents_list)
+    n_latents = latents_list[0].shape[2]
+    if latent_indx is None:
+        n_cols = 4
+        n_rows = int(np.ceil(n_latents / n_cols))
+    else:
+        n_cols = 2
+        n_rows = int(np.ceil(n_datasets / n_cols))
+    fig_width = 4 * n_cols
+    fig_height = 3 * n_rows
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
+    if len(axes.shape) == 1:
+        axes = axes[None, :]
+    for ax1 in axes:
+        for ax2 in ax1:
+            ax2.set_axis_off()
+
+    # build fig
+    slc = (align_indx - window_len, align_indx + window_len + 1)
+
+    if latent_indx is None:
+        for i in range(n_latents):
+            r = int(np.floor(i / n_cols))
+            c = i % n_cols
+
+            # plot data
+            tmp_data = [
+                np.mean(latents_list[j][:, slice(*slc), i], axis=0)[:, None]
+                for j in range(n_datasets)]
+            axes[r, c].set_axis_on()
+            for data, label in zip(tmp_data, latent_strs):
+                axes[r, c].plot(data, alpha=0.8, linewidth=3, label=label)
+
+            # plot crosshairs
+            axes[r, c].plot(  # horizontal
+                [0, 2 * window_len + 1], [0, 0], color=col_avg, linewidth=1)
+
+            # deal w/ axes
+            title_str = str('Latent %i' % i)
+            _set_ticks(
+                axes[r, c], ylim_min, ylim_max, yticks, xticks, xtick_space,
+                r, c, fontsize, title_str)
+
+        handles, labels = axes[r, c].get_legend_handles_labels()
+        fig.legend(
+            handles, labels, loc='center left', bbox_to_anchor=(1, 0.5),
+            fontsize=fontsize)
+        # put legend on side
+        plt.tight_layout()
+
+    else:
+        for i, latents in enumerate(latents_list):
+            r = int(np.floor(i / n_cols))
+            c = i % n_cols
+
+            # plot data
+            axes[r, c].set_axis_on()
+            tmp_data = latents[:, slice(*slc), latent_indx]
+            axes[r, c].plot(tmp_data.T, color=col_ind, alpha=0.2)
+            tmp_data = np.mean(latents[:, slice(*slc), latent_indx], axis=0)
+            axes[r, c].plot(tmp_data, color=col_avg, linewidth=5)
+
+            # plot crosshairs
+            axes[r, c].plot(
+                [window_len, window_len], [ylim_min, ylim_max], color=col_avg,
+                linewidth=1)
+            axes[r, c].plot(
+                [0, 2 * window_len + 1], [0, 0], color=col_avg, linewidth=1)
+
+            # deal w/ axes
+            if latent_strs is not None:
+                title_str = latent_strs[i]
+            _set_ticks(
+                axes[r, c], ylim_min, ylim_max, yticks, xticks, xtick_space,
+                r, c, fontsize, title_str)
+
+    plt.show()
