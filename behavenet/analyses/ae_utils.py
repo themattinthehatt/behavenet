@@ -50,7 +50,7 @@ def make_ae_reconstruction_movie(
     max_bins = 400
 
     # build model(s)
-    model_cae, data_generator = get_best_model_and_data(
+    model_ae, data_generator = get_best_model_and_data(
         hparams, AE, version=version)
 
     if include_linear:
@@ -75,7 +75,7 @@ def make_ae_reconstruction_movie(
             mask = batch['masks'][:max_bins]
             ims_orig_pt = ims_orig_pt*mask
 
-    ims_recon_cae = get_reconstruction(model_cae, ims_orig_pt)
+    ims_recon_ae = get_reconstruction(model_ae, ims_orig_pt)
     if include_linear:
         ims_recon_lin = get_reconstruction(model_lin, ims_orig_pt)
     else:
@@ -84,26 +84,26 @@ def make_ae_reconstruction_movie(
     # rotate first channel of musall data
     if hparams['lab'] == 'musall':
         ims_orig = rotate(ims_orig_pt.cpu().detach().numpy())
-        ims_recon_cae = rotate(ims_recon_cae)
+        ims_recon_ae = rotate(ims_recon_ae)
         ims_recon_lin = rotate(ims_recon_lin)
     else:
         ims_orig = ims_orig_pt.cpu().detach().numpy()
 
     _make_ae_reconstruction_movie(
         ims_orig=ims_orig,
-        ims_recon_cae=ims_recon_cae,
+        ims_recon_ae=ims_recon_ae,
         ims_recon_lin=ims_recon_lin,
         save_file=save_file,
         frame_rate=hparams['frame_rate'])
 
 
 def _make_ae_reconstruction_movie(
-        ims_orig, ims_recon_cae, ims_recon_lin=None, save_file=None,
+        ims_orig, ims_recon_ae, ims_recon_lin=None, save_file=None,
         frame_rate=None):
     """
     Args:
         ims_orig (np array):
-        ims_recon_cae (np array):
+        ims_recon_ae (np array):
         ims_recon_lin (np array, optional):
         save_file (str, optional):
         frame_rate (float, optional):
@@ -127,8 +127,8 @@ def _make_ae_reconstruction_movie(
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
     axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-    axs.append(fig.add_subplot(gs[1, 0]))  # 1: cae reconstructed frames
-    axs.append(fig.add_subplot(gs[1, 1]))  # 2: cae residuals
+    axs.append(fig.add_subplot(gs[1, 0]))  # 1: ae reconstructed frames
+    axs.append(fig.add_subplot(gs[1, 1]))  # 2: ae residuals
     if ims_recon_lin is not None:
         axs.append(fig.add_subplot(gs[2, 0]))  # 3: linear reconstructed frames
         axs.append(fig.add_subplot(gs[2, 1]))  # 4: linear residuals
@@ -144,7 +144,7 @@ def _make_ae_reconstruction_movie(
         axs[3].set_title('Linear AE reconstructed', fontsize=fontsize)
         axs[4].set_title('Linear AE residual', fontsize=fontsize)
 
-    ims_res_cae = ims_orig - ims_recon_cae
+    ims_res_ae = ims_orig - ims_recon_ae
     if ims_recon_lin is not None:
         ims_res_lin = ims_orig - ims_recon_lin
 
@@ -172,20 +172,20 @@ def _make_ae_reconstruction_movie(
         im = axs[0].imshow(ims_orig_tmp, **default_kwargs)
         [s.set_visible(False) for s in axs[0].spines.values()]
         ims_curr.append(im)
-        # cae reconstructed video
+        # ae reconstructed video
         if n_channels == 1:
-            ims_recon_cae_tmp = ims_recon_cae[i, 0]
+            ims_recon_ae_tmp = ims_recon_ae[i, 0]
         else:
-            ims_recon_cae_tmp = concat(ims_recon_cae[i])
-        im = axs[1].imshow(ims_recon_cae_tmp, **default_kwargs)
+            ims_recon_ae_tmp = concat(ims_recon_ae[i])
+        im = axs[1].imshow(ims_recon_ae_tmp, **default_kwargs)
         [s.set_visible(False) for s in axs[1].spines.values()]
         ims_curr.append(im)
-        # cae residual video
+        # ae residual video
         if n_channels == 1:
-            ims_res_cae_tmp = ims_res_cae[i, 0]
+            ims_res_ae_tmp = ims_res_ae[i, 0]
         else:
-            ims_res_cae_tmp = concat(ims_res_cae[i])
-        im = axs[2].imshow(0.5 + ims_res_cae_tmp, **default_kwargs)
+            ims_res_ae_tmp = concat(ims_res_ae[i])
+        im = axs[2].imshow(0.5 + ims_res_ae_tmp, **default_kwargs)
         [s.set_visible(False) for s in axs[2].spines.values()]
         ims_curr.append(im)
         if ims_recon_lin is not None:
@@ -246,7 +246,7 @@ def make_ae_reconstruction_movie_multisession(
     sess_dirs, sess_ids = find_session_dirs(hparams)
 
     # loop over different sessions
-    ims_recon_cae = []
+    ims_recon_ae = []
     sess_strs = []
     for sess_id in sess_ids:
 
@@ -259,63 +259,73 @@ def make_ae_reconstruction_movie_multisession(
         if sess_id.get('multisession', None) is not None:
             multisession = str('multisession-%02i' % sess_id['multisession'])
         if sess_id['expt'] == 'all':
-            sess_strs.append(os.path.join(multisession))
+            sess_str = os.path.join(multisession)
         elif sess_id['animal'] == 'all':
-            sess_strs.append(os.path.join(sess_id['expt'], multisession))
+            sess_str = os.path.join(sess_id['expt'], multisession)
         elif sess_id['session'] == 'all':
-            sess_strs.append(os.path.join(
-                sess_id['expt'], sess_id['animal'], multisession))
+            sess_str = os.path.join(
+                sess_id['expt'], sess_id['animal'], multisession)
         else:
-            sess_strs.append(os.path.join(
-                sess_id['expt'], sess_id['animal'], sess_id['session']))
+            sess_str = os.path.join(
+                sess_id['expt'], sess_id['animal'], sess_id['session'])
 
-        # build model(s)
-        model_cae, _ = get_best_model_and_data(
-            hparams, AE, load_data=False, version=version)
+        # build model(s) if they exist in the specified tt experiment
+        try:
 
-        # push images through decoder
-        if batch is None:
-            raise NotImplementedError
-        else:
-            ims_orig_pt = batch
+            model_ae, _ = get_best_model_and_data(
+                hparams, AE, load_data=False, version=version)
 
-        ims_recon_cae.append(get_reconstruction(model_cae, ims_orig_pt))
+            # push images through decoder
+            if batch is None:
+                raise NotImplementedError
+            else:
+                ims_orig_pt = batch
 
+            ims_recon_ae.append(get_reconstruction(model_ae, ims_orig_pt))
+            sess_strs.append(sess_str)
+
+        except StopIteration:
+            print('Model does not exist for %s; skipping' % sess_str)
+            continue
+            
+    if len(ims_recon_ae) == 0:
+        raise Exception('No models found')
+    
     # rotate first channel of musall data
     if hparams['lab'] == 'musall':
         ims_orig = rotate(ims_orig_pt.cpu().detach().numpy())
-        for i, ims_recon in enumerate(ims_recon_cae):
-            ims_recon_cae[i] = rotate(ims_recon)
+        for i, ims_recon in enumerate(ims_recon_ae):
+            ims_recon_ae[i] = rotate(ims_recon)
     else:
         ims_orig = ims_orig_pt.cpu().detach().numpy()
 
     _make_ae_reconstruction_movie_multisession(
         ims_orig=ims_orig,
-        ims_recon_cae=ims_recon_cae,
+        ims_recon_ae=ims_recon_ae,
         panel_titles=sess_strs,
         save_file=save_file,
         frame_rate=hparams['frame_rate'])
 
 
 def _make_ae_reconstruction_movie_multisession(
-        ims_orig, ims_recon_cae, panel_titles=None, save_file=None,
+        ims_orig, ims_recon_ae, panel_titles=None, save_file=None,
         frame_rate=20):
     """
     Args:
         ims_orig (np array):
-        ims_recon_cae (list of np arrays):
+        ims_recon_ae (list of np arrays):
         panel_titles (list of strs or NoneType, optional):
         save_file (str):
         frame_rate (int):
     """
 
-    ims_recon_cae.insert(0, ims_orig)
+    ims_recon_ae.insert(0, ims_orig)
     if panel_titles is not None:
         panel_titles.insert(0, 'Original')
 
-    n_channels, y_pix, x_pix = ims_recon_cae[0].shape[1:]
+    n_channels, y_pix, x_pix = ims_recon_ae[0].shape[1:]
     n_cols = 3
-    n_rows = int(np.ceil(len(ims_recon_cae) / n_cols))
+    n_rows = int(np.ceil(len(ims_recon_ae) / n_cols))
     offset = 1  # 0 if ims_recon_lin is None else 1
     scale_ = 5
     fig_width = scale_ * n_cols * n_channels / 2
@@ -326,7 +336,7 @@ def _make_ae_reconstruction_movie_multisession(
 
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
-    for i in range(len(ims_recon_cae)):
+    for i in range(len(ims_recon_ae)):
         row = int(np.floor(i / n_cols))
         col = int(i % n_cols)
         axs.append(fig.add_subplot(gs[row, col]))
@@ -336,7 +346,7 @@ def _make_ae_reconstruction_movie_multisession(
         ax.set_xticks([])
         ax.set_yticks([])
 
-    #     ims_res_cae = ims_orig - ims_recon_cae
+    #     ims_res_ae = ims_orig - ims_recon_ae
 
     # TODO: concat all images here to clean up frame loop
 
@@ -355,12 +365,12 @@ def _make_ae_reconstruction_movie_multisession(
 
         for ax_indx, ax in enumerate(fig.axes):
 
-            # cae reconstructed video
+            # ae reconstructed video
             if n_channels == 1:
-                ims_recon_cae_tmp = ims_recon_cae[ax_indx][i, 0]
+                ims_recon_ae_tmp = ims_recon_ae[ax_indx][i, 0]
             else:
-                ims_recon_cae_tmp = concat(ims_recon_cae[ax_indx][i])
-            im = axs[ax_indx].imshow(ims_recon_cae_tmp, **default_kwargs)
+                ims_recon_ae_tmp = concat(ims_recon_ae[ax_indx][i])
+            im = axs[ax_indx].imshow(ims_recon_ae_tmp, **default_kwargs)
             [s.set_visible(False) for s in axs[ax_indx].spines.values()]
             ims_curr.append(im)
 

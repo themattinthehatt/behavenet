@@ -7,7 +7,7 @@ def get_subdirs(path):
     try:
         return next(os.walk(path))[1]
     except StopIteration:
-        raise Exception('%s does not contain any subdirectories' % path)
+        raise StopIteration('%s does not contain any subdirectories' % path)
 
 
 def get_output_session_dir(hparams):
