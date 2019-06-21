@@ -284,7 +284,7 @@ def make_ae_reconstruction_movie_multisession(
             ims_recon_ae.append(get_reconstruction(model_ae, ims_orig_pt))
             sess_strs.append(sess_str)
 
-        except StopIteration:
+        except Exception:  # why doesn't StopIteration work here?
             print('Model does not exist for %s; skipping' % sess_str)
             continue
             
@@ -878,7 +878,7 @@ def plot_latent_psths(
         handles, labels = axes[r, c].get_legend_handles_labels()
         fig.legend(
             handles, labels, loc='center left', bbox_to_anchor=(1, 0.5),
-            fontsize=fontsize)
+            fontsize=fontsize, frameon=False)
         # put legend on side
         plt.tight_layout()
 

@@ -274,3 +274,47 @@ def get_reconstruction(model, inputs):
     ims_recon = ims_recon.cpu().detach().numpy()
 
     return ims_recon
+
+
+def get_test_r2(hparams, model_version):
+    """
+    Calculate a single $R^2$ value across all test batches for a decoder
+
+    Args:
+        hparams (dict):
+        model_version (int):
+
+    Returns:
+        (tuple): (dict, int)
+    """
+
+    from sklearn.metrics import r2_score
+    from behavenet.data.utils import get_best_model_and_data
+    from behavenet.models import Decoder
+
+    model, data_generator = get_best_model_and_data(
+        hparams, Decoder, load_data=True, version=model_version)
+
+    n_test_batches = len(data_generator.datasets[0].batch_indxs['test'])
+    max_lags = hparams['n_max_lags']
+    latents_ae = []
+    latents_pred = []
+    data_generator.reset_iterators('test')
+    for i in range(n_test_batches):
+        batch, _ = data_generator.next_batch('test')
+
+        # get true latents
+        curr_latents_ae = batch['ae'][0].cpu().detach().numpy()
+
+        # get predicted latents
+        curr_latents_pred = model(batch['neural'][0])[0].cpu().detach().numpy()
+
+        latents_ae.append(curr_latents_ae[max_lags:-max_lags])
+        latents_pred.append(curr_latents_pred[max_lags:-max_lags])
+
+    r2 = r2_score(
+        np.concatenate(latents_ae, axis=0),
+        np.concatenate(latents_pred, axis=0),
+        multioutput='variance_weighted')
+
+    return model.hparams, r2
