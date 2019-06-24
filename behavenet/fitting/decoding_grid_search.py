@@ -139,12 +139,13 @@ def get_params(strategy):
 
     # arguments for computing resources (infer n_gpu_workers from visible gpus)
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
-    parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
+    parser.add_argument('--tt_n_cpu_trials', default=100000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
+    parser.add_argument('--reg_list', default='none', type=str, choices=['none', 'arg', 'all'])
     parser.add_argument('--subsample_regions', default='none', choices=['none', 'single', 'loo'])
     parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--as_numpy', action='store_true', default=False)
@@ -160,10 +161,16 @@ def get_params(strategy):
     namespace, extra = parser.parse_known_args()  # ugly
 
     # add regions to opt_list if desired
-    if namespace.subsample_regions != 'none':
+
+    if namespace.reg_list == 'all':
         parser.opt_list('--region', options=get_region_list(namespace), type=str, tunable=True)
-    else:
+    elif namespace.reg_list == 'arg':
         parser.add_argument('--region', default='all', type=str)
+    elif namespace.reg_list == 'none':
+        parser.add_argument('--region', value='all', type=str)
+    else:
+        raise ValueError(
+            '"%s" is not a valid region_list' % namespace.region_list)
 
     get_decoding_params(namespace, parser)
 

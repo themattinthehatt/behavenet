@@ -441,12 +441,14 @@ def experiment_exists(hparams):
     hparams_less.pop('architecture_params', None)
     hparams_less.pop('list_index', None)
     hparams_less.pop('lab_example', None)
-    hparams_less.pop('tt_nb_gpu_trials', None)
-    hparams_less.pop('tt_nb_cpu_trials', None)
-    hparams_less.pop('tt_nb_cpu_workers', None)
+    hparams_less.pop('tt_n_gpu_trials', None)
+    hparams_less.pop('tt_n_cpu_trials', None)
+    hparams_less.pop('tt_n_cpu_workers', None)
     hparams_less.pop('lib', None)
     hparams_less.pop('use_output_mask', None)
     hparams_less.pop('ae_model_type', None)
+    hparams_less.pop('subsample_regions', None)
+    hparams_less.pop('reg_list', None)
 
     found_match = False
     for version in tt_versions:
@@ -459,7 +461,6 @@ def experiment_exists(hparams):
                 # found match - did it finish training?
                 if hparams_['training_completed']:
                     found_match = True
-                    print('model found with complete training; aborting')
                     break
         except IOError:
             continue
