@@ -416,7 +416,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
         method (str): 'ae' | 'nll'
     """
 
-    # Check inputs
+    # check inputs
     if method == 'ae':
         loss = AELoss(model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
@@ -424,7 +424,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 
-    # Optimizer set-up
+    # optimizer set-up
     optimizer = torch.optim.Adam(
         loss.get_parameters(),
         lr=hparams['learning_rate'],
@@ -460,21 +460,21 @@ def fit(hparams, model, data_generator, exp, method='em'):
 
             model.train()
 
-            # Zero out gradients. Don't want gradients from previous iterations
+            # zero out gradients. Don't want gradients from previous iterations
             optimizer.zero_grad()
 
-            # Get next minibatch and put it on the device
+            # get next minibatch and put it on the device
             data, dataset = data_generator.next_batch('train')
 
-            # Call the appropriate loss function
+            # call the appropriate loss function
             loss.calc_loss(data)
             loss.update_metrics('train', dataset=dataset)
 
-            # Step (evaluate untrained network on epoch 0)
+            # step (evaluate untrained network on epoch 0)
             if i_epoch > 0:
                 optimizer.step()
 
-            # Check validation according to schedule
+            # check validation according to schedule
             curr_batch = \
                 (i_train + 1) + i_epoch * data_generator.n_tot_batches['train']
             if np.any(curr_batch == val_check_batch):
@@ -485,14 +485,14 @@ def fit(hparams, model, data_generator, exp, method='em'):
 
                 for i_val in range(data_generator.n_tot_batches['val']):
 
-                    # Get next minibatch and put it on the device
+                    # get next minibatch and put it on the device
                     data, dataset = data_generator.next_batch('val')
 
-                    # Call the appropriate loss function
+                    # call the appropriate loss function
                     loss.calc_loss(data)
                     loss.update_metrics('val', dataset=dataset)
 
-                # Save best val model
+                # save best val model
                 if loss.get_loss('val') < best_val_loss:
                     best_val_loss = loss.get_loss('val')
                     filepath = os.path.join(
@@ -516,24 +516,29 @@ def fit(hparams, model, data_generator, exp, method='em'):
                     'val', i_epoch, i_train, -1, trial=None,
                     by_dataset=False, best_epoch=best_val_epoch))
                 # export individual session metrics on train/val data
-                for dataset in range(data_generator.n_datasets):
-                    exp.log(loss.create_metric_row(
-                        'train', i_epoch, i_train, dataset, trial=None,
-                        by_dataset=True, best_epoch=best_val_epoch))
-                    exp.log(loss.create_metric_row(
-                        'val', i_epoch, i_train, dataset, trial=None,
-                        by_dataset=True, best_epoch=best_val_epoch))
+                if data_generator.n_datasets > 1:
+                    for dataset in range(data_generator.n_datasets):
+                        exp.log(loss.create_metric_row(
+                            'train', i_epoch, i_train, dataset, trial=None,
+                            by_dataset=True, best_epoch=best_val_epoch))
+                        exp.log(loss.create_metric_row(
+                            'val', i_epoch, i_train, dataset, trial=None,
+                            by_dataset=True, best_epoch=best_val_epoch))
                 exp.save()
 
             elif (i_train + 1) % data_generator.n_tot_batches['train'] == 0:
                 # export training metrics at end of epoch
+
+                # export aggregated metrics on train/val data
                 exp.log(loss.create_metric_row(
                     'train', i_epoch, i_train, -1, trial=None,
                     by_dataset=False, best_epoch=best_val_epoch))
-                for dataset in range(data_generator.n_datasets):
-                    exp.log(loss.create_metric_row(
-                        'train', i_epoch, i_train, dataset, trial=None,
-                        by_dataset=True, best_epoch=best_val_epoch))
+                # export individual session metrics on train/val data
+                if data_generator.n_datasets > 1:
+                    for dataset in range(data_generator.n_datasets):
+                        exp.log(loss.create_metric_row(
+                            'train', i_epoch, i_train, dataset, trial=None,
+                            by_dataset=True, best_epoch=best_val_epoch))
                 exp.save()
 
         if hparams['enable_early_stop']:
@@ -549,7 +554,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
             'version_%i' % exp.version, 'last_model.pt')
         torch.save(model.state_dict(), filepath)
 
-    # Compute test loss
+    # compute test loss
     if method == 'ae':
         test_loss = AELoss(
             best_val_model, n_datasets=data_generator.n_datasets)
@@ -565,10 +570,10 @@ def fit(hparams, model, data_generator, exp, method='em'):
 
     for i_test in range(data_generator.n_tot_batches['test']):
 
-        # Get next minibatch and put it on the device
+        # get next minibatch and put it on the device
         data, dataset = data_generator.next_batch('test')
 
-        # Call the appropriate loss function
+        # call the appropriate loss function
         test_loss.reset_metrics('test')
         test_loss.calc_loss(data)
         test_loss.update_metrics('test', dataset=dataset)

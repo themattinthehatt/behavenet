@@ -10,7 +10,7 @@ def get_subdirs(path):
         raise StopIteration('%s does not contain any subdirectories' % path)
 
 
-def get_output_session_dir(hparams):
+def get_output_session_dir(hparams, path_type='save'):
     """
     Get session-level directory for saving model outputs.
 
@@ -32,15 +32,27 @@ def get_output_session_dir(hparams):
     multisession; this file is used to determine whether or not a new
     multisession directory needs to be created.
 
-    # TODO: currently searches RESULTS path instead of DATA path (need both)
-    """
+    Args:
+        hparams (dict):
+        path_type (str, optional): 'save' to use hparams['tt_save_path'],
+            'data' to use hparams['data_dir']; note that using path_type='data'
+            will not return multisession directories
 
-    import csv
+    Returns:
+        (tuple): (session_dir, sessions_single)
+    """
 
     if 'sessions_csv' in hparams and len(hparams['sessions_csv']) > 0:
         # load from csv
         # TODO: collect sessions directly from session_info.csv file
         pass
+
+    if path_type == 'save':
+        base_dir = hparams['tt_save_path']
+    elif path_type == 'data':
+        base_dir = hparams['data_dir']
+    else:
+        raise ValueError('"%s" is an invalid path_type' % path_type)
 
     # get session dir (can include multiple sessions)
     sessions_single = []
@@ -50,22 +62,20 @@ def get_output_session_dir(hparams):
         raise ValueError('multiple labs not currently supported')
     elif hparams['expt'] == 'all':
         # get all experiments from one lab
-        expts = get_subdirs(os.path.join(hparams['tt_save_path'], lab))
+        expts = get_subdirs(os.path.join(base_dir, lab))
         for expt in expts:
             if expt[:5] == 'multi':
                 # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(
-                    hparams['tt_save_path'], lab, expt))
+                sessions_multi_paths.append(os.path.join(base_dir, lab, expt))
                 continue
             else:
-                animals = get_subdirs(os.path.join(
-                    hparams['tt_save_path'], lab, expt))
+                animals = get_subdirs(os.path.join(base_dir, lab, expt))
             for animal in animals:
                 if animal[:5] == 'multi':
                     continue
                 else:
                     sessions = get_subdirs(os.path.join(
-                        hparams['tt_save_path'], lab, expt, animal))
+                        base_dir, lab, expt, animal))
                 for session in sessions:
                     if session[:5] == 'multi':
                         continue
@@ -74,20 +84,20 @@ def get_output_session_dir(hparams):
                         sessions_single.append({
                             'lab': lab, 'expt': expt, 'animal': animal,
                             'session': session})
-        session_dir_base = os.path.join(hparams['tt_save_path'], lab)
+        session_dir_base = os.path.join(base_dir, lab)
     elif hparams['animal'] == 'all':
         # get all animals from one experiment
         expt = hparams['expt']
-        animals = get_subdirs(os.path.join(hparams['tt_save_path'], lab, expt))
+        animals = get_subdirs(os.path.join(base_dir, lab, expt))
         for animal in animals:
             if animal[:5] == 'multi':
                 # record top-level multi-session directory
                 sessions_multi_paths.append(os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal))
+                    base_dir, lab, expt, animal))
                 continue
             else:
                 sessions = get_subdirs(os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal))
+                    base_dir, lab, expt, animal))
             for session in sessions:
                 if session[:5] == 'multi':
                     continue
@@ -96,18 +106,18 @@ def get_output_session_dir(hparams):
                     sessions_single.append({
                         'lab': lab, 'expt': expt, 'animal': animal,
                         'session': session})
-        session_dir_base = os.path.join(hparams['tt_save_path'], lab, expt)
+        session_dir_base = os.path.join(base_dir, lab, expt)
     elif hparams['session'] == 'all':
         # get all sessions from one animal
         expt = hparams['expt']
         animal = hparams['animal']
         sessions = get_subdirs(os.path.join(
-            hparams['tt_save_path'], lab, expt, animal))
+            base_dir, lab, expt, animal))
         for session in sessions:
             if session[:5] == 'multi':
                 # record top-level multi-session directory
                 sessions_multi_paths.append(os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal, session))
+                    base_dir, lab, expt, animal, session))
                 continue
             else:
                 # record bottom-level single-session directory
@@ -115,13 +125,13 @@ def get_output_session_dir(hparams):
                     'lab': lab, 'expt': expt, 'animal': animal,
                     'session': session})
         session_dir_base = os.path.join(
-            hparams['tt_save_path'], lab, expt, animal)
+            base_dir, lab, expt, animal)
     else:
         sessions_single.append({
             'lab': hparams['lab'], 'expt': hparams['expt'],
             'animal': hparams['animal'], 'session': hparams['session']})
         session_dir_base = os.path.join(
-            hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+            base_dir, hparams['lab'], hparams['expt'],
             hparams['animal'], hparams['session'])
 
     # construct session_dir

@@ -18,7 +18,7 @@ from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
 from behavenet.models import AE as AE
-from behavenet.training import fit as fit
+from behavenet.training import fit
 
 
 def main(hparams):

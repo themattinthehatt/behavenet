@@ -85,7 +85,7 @@ def main(hparams):
     if hparams['model_class'] == 'neural-arhmm':
          hparams['arhmm_model_path'] = os.path.join(
              os.path.dirname(data_generator.datasets[0].paths['arhmm']))
-  
+
     # ####################
     # ### CREATE MODEL ###
     # ####################
@@ -166,8 +166,8 @@ def get_params(strategy):
         parser.opt_list('--region', options=get_region_list(namespace), type=str, tunable=True)
     elif namespace.reg_list == 'arg':
         parser.add_argument('--region', default='all', type=str)
-    elif namespace.reg_list == 'none':
-        parser.add_argument('--region', value='all', type=str)
+    elif namespace.reg_list == 'none':  # TODO: fix this ambiguity
+        parser.add_argument('--region', default='all', type=str)
     else:
         raise ValueError(
             '"%s" is not a valid region_list' % namespace.region_list)
@@ -325,17 +325,18 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        # parser.opt_list('--learning_rate', default=1e-3, options=[1e-3], type=float, tunable=True)
+        # first-pass params
+        # parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
         # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         # regular for decoding ae latents
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-3], type=float, tunable=True)
         parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
-        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
+        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2], type=float, tunable=True)
         parser.add_argument('--n_max_lags', default=8)  # should match largest n_lags value
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
-        parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
-        parser.add_argument('--experiment_name', '-en', default='grid_search', type=str)
+        parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
+        parser.add_argument('--experiment_name', default='grid_search', type=str)
 
         if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
             parser.add_argument('--n_hid_layers', default=0, type=int)

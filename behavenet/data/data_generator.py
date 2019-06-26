@@ -203,8 +203,9 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     sample[signal] = sample[signal].astype(dtype)
                 except IOError:
                     raise NotImplementedError(
-                        'Must create ae latents from model; currently not' +
-                        ' implemented')
+                        ('Could not open %s\n' +
+                         'Must create ae latents from model; currently not' +
+                         ' implemented') % self.paths[signal])
 
             elif signal == 'ae_predictions':
                 dtype = 'float32'
