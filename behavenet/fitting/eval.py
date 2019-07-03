@@ -282,7 +282,7 @@ def get_test_r2(hparams, model_version):
 
     Args:
         hparams (dict):
-        model_version (int):
+        model_version (int or str): if string, should be in format 'version_%i'
 
     Returns:
         (tuple): (dict, int)
