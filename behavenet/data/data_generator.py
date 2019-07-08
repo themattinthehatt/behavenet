@@ -349,7 +349,7 @@ class ConcatSessionsGenerator(object):
     def __init__(
             self, data_dir, ids_list, signals_list=None, transforms_list=None,
             paths_list=None, device='cuda', as_numpy=False, batch_load=True,
-            rng_seed=0):
+            rng_seed=0, trial_splits=None):
         """
 
         Args:
@@ -369,6 +369,9 @@ class ConcatSessionsGenerator(object):
                 model is training, otherwise all data is loaded at once and
                 stored on `device`
             rng_seed (int, optional): controls train/test/xv fold splits
+            trial_splits (dict, optional): defines number of train/text/xv
+                folds using the keys 'train_tr', 'val_tr', 'test_tr', and
+                'gap_tr'; see `split_trials` for how these are used.
         """
 
         if isinstance(ids_list, dict):
@@ -404,9 +407,13 @@ class ConcatSessionsGenerator(object):
         self.n_datasets = len(self.datasets)
 
         # get train/val/test batch indices for each dataset
+        if trial_splits is None:
+            trial_splits = {
+                'train_tr': 5, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 1}
         self.batch_ratios = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
-            dataset.batch_indxs = split_trials(len(dataset), rng_seed=rng_seed)
+            dataset.batch_indxs = split_trials(
+                len(dataset), rng_seed=rng_seed, **trial_splits)
             dataset.n_batches = {}
             for dtype in self._dtypes:
                 dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])

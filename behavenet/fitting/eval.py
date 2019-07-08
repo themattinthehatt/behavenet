@@ -218,32 +218,50 @@ def export_predictions(data_generator, model, filename=None):
             pickle.dump(predictions_dict, f)
 
 
-def export_latents_best(hparams):
+def export_latents_best(hparams, filename=None, export_all=False):
     """
     Export predictions for the best decoding model in a test tube experiment.
     Predictions are saved in the corresponding model directory.
 
     Args:
         hparams (dict):
+        filename (str, optional): file to save to
+        export_all (bool, optional): True to export latents for train/val/test
+            and gap trials
     """
 
     from behavenet.models import AE
-    model, data_generator = get_best_model_and_data(hparams, AE)
-    export_latents(data_generator, model)
+    if export_all:
+        data_kwargs = dict(
+            trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
+    else:
+        data_kwargs = {}
+    model, data_generator = get_best_model_and_data(
+        hparams, AE, data_kwargs=data_kwargs)
+    export_latents(data_generator, model, filename=filename)
 
 
-def export_predictions_best(hparams):
+def export_predictions_best(hparams, filename=None, export_all=False):
     """
     Export predictions for the best decoding model in a test tube experiment.
     Predictions are saved in the corresponding model directory.
 
     Args:
         hparams (dict):
+        filename (str, optional): file to save to
+        export_all (bool, optional): True to export latents for train/val/test
+            and gap trials
     """
 
     from behavenet.models import Decoder
-    model, data_generator = get_best_model_and_data(hparams, Decoder)
-    export_predictions(data_generator, model)
+    if export_all:
+        data_kwargs = dict(
+            trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
+    else:
+        data_kwargs = {}
+    model, data_generator = get_best_model_and_data(
+        hparams, Decoder, data_kwargs=data_kwargs)
+    export_predictions(data_generator, model, filename=filename)
 
 
 def get_reconstruction(model, inputs):

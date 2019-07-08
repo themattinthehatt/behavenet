@@ -65,13 +65,13 @@ def make_ae_reconstruction_movie(
     if trial is None:
         batch, dataset = data_generator.next_batch('test')
         ims_orig_pt = batch['images'][0, :max_bins]
-        if hparams['lab']=='datta':
-            mask = batch['masks'][0,:max_bins]
+        if hparams['lab'] == 'datta':
+            mask = batch['masks'][0, :max_bins]
             ims_orig_pt = ims_orig_pt*mask
     else:
         batch = data_generator.datasets[0][trial]
         ims_orig_pt = batch['images'][:max_bins]
-        if hparams['lab']=='datta':
+        if hparams['lab'] == 'datta':
             mask = batch['masks'][:max_bins]
             ims_orig_pt = ims_orig_pt*mask
 
@@ -909,3 +909,5 @@ def plot_latent_psths(
                 r, c, fontsize, title_str)
 
     plt.show()
+
+    return fig

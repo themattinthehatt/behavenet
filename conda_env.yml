@@ -127,4 +127,3 @@ dependencies:
   - pip:
     - test-tube==0.631
 prefix: /home/mattw/anaconda3/envs/behavenet
-

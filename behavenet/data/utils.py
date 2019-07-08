@@ -342,7 +342,8 @@ def get_region_list(hparams):
     return indxs
 
 
-def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
+def get_best_model_and_data(
+        hparams, Model, load_data=True, version='best', data_kwargs=None):
     """
     Helper function for loading the best model defined by hparams out of all
     available test-tube versions, as well as the associated data used to fit
@@ -353,6 +354,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
         Model (behavenet.models object:
         load_data (bool, optional):
         version (str or int, optional):
+        data_kwargs (dict, optional): kwargs for data generator
 
     Returns:
         (tuple): (model, data generator)
@@ -399,12 +401,14 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best'):
         hparams_new, sess_ids)
     if load_data:
         # sometimes we want a single data_generator for multiple models
+        if data_kwargs is None:
+            data_kwargs = {}
         data_generator = ConcatSessionsGenerator(
             hparams_new['data_dir'], sess_ids,
             signals_list=signals, transforms_list=transforms, paths_list=paths,
             device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
             batch_load=hparams_new['batch_load'],
-            rng_seed=hparams_new['rng_seed'])
+            rng_seed=hparams_new['rng_seed'], **data_kwargs)
     else:
         data_generator = None
 
