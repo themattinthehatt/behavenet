@@ -94,7 +94,7 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0', type=str)  # add multiple as '0;1;4' etc
 
     # add data generator arguments
-    parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument('--device', default='cuda', choices=['cpu', 'cuda'], type=str)
     parser.add_argument('--as_numpy', action='store_true', default=False)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)

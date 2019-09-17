@@ -1,5 +1,5 @@
 import numpy as np
-from skimage import transform
+# from skimage import transform
 
 
 class Compose(object):

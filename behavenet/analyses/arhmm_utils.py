@@ -19,8 +19,9 @@ def make_overview_arhmm_figures(hparams):
         hparams = vars(hparams)
 
     filepath = os.path.join(
-            hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-            hparams['animal'], hparams['session'], 'arhmm', str(hparams['n_ae_latents']).zfill(2)+'_latents')
+        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+        hparams['animal'], hparams['session'], 'arhmm',
+        str('%02i_latents' % hparams['n_ae_latents']))
 
     # Search over K/kappa/noise distribution
     # TO DO: make this less hacky (use best feature?)
@@ -33,10 +34,12 @@ def make_overview_arhmm_figures(hparams):
         for kappa_dir in kappa_dirs:
             noise_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir)) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir),filename))]
             for noise_dir in noise_dirs:
-                ver_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir,noise_dir,'test_tube_data',hparams['experiment_name'])) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir, noise_dir, 'test_tube_data',hparams['experiment_name']),filename))]
+                # ver_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir,noise_dir,'test_tube_data',hparams['experiment_name'])) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir, noise_dir, 'test_tube_data',hparams['experiment_name']),filename))]
+                ver_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir,noise_dir,hparams['experiment_name'])) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir, noise_dir, hparams['experiment_name']),filename))]
                 for ver_dir in ver_dirs:
                     try:
-                      filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
+                      # filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
+                      filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir, hparams['experiment_name'], ver_dir)
                       arch_file = pickle.load(open(os.path.join(filename,'meta_tags.pkl'),'rb'))
                       metrics_file = pd.read_csv(os.path.join(filename,'metrics.csv'))
                       if arch_file['training_completed']:
@@ -50,9 +53,9 @@ def make_overview_arhmm_figures(hparams):
     K_vec = np.unique(np.asarray(K_vec))
     kappa_vec = np.unique(np.asarray(kappa_vec))
 
-    filepath = os.path.join(
-            hparams['tt_save_path'], hparams['lab'], hparams['expt'],
-            hparams['animal'], hparams['session'], 'arhmm')
+    # filepath = os.path.join(
+    #         hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+    #         hparams['animal'], hparams['session'], 'arhmm')
 
     plt.figure(figsize=(4, 4))
     for K in K_vec:
@@ -63,10 +66,11 @@ def make_overview_arhmm_figures(hparams):
     plt.ylabel("Median State Duration (ms) ")
     lgd = plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    plt.savefig(filepath+'/'+hparams['lab_example']+'_validation_median_durations.png',bbox_inches='tight',dpi=200)
+    plt.savefig(os.path.join(
+        filepath, hparams['lab_example']+'_validation_median_durations.png'),
+        bbox_inches='tight', dpi=200)
 
-    ## Generate number of states vs val likelihoos for all kappas
-
+    # Generate number of states vs val likelihoos for all kappas
     plt.figure(figsize=(4, 4))
     for kappa in kappa_vec:
         plt.plot(K_vec, [results[K, kappa, 'gaussian']['val_ll'] for K in K_vec], '-o', label='kappa ='+str('{:.2e}'.format(kappa))+', gaussian')
@@ -96,8 +100,11 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     # relabeled_states['val'], _, _ = relabel_states_by_use(states['val'], mapping)
     # relabeled_states['test'], _, _ = relabel_states_by_use(states['test'], mapping)
 
-    filepath = os.path.join(hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
-        'version_%i' % exp.version)
+    # filepath = os.path.join(
+    #     hparams['results_dir'], 'test_tube_data', hparams['experiment_name'],
+    #     'version_%i' % exp.version)
+    filepath = os.path.join(
+        hparams['results_dir'], hparams['experiment_name'], 'version_%i' % exp.version)
 
     # Compute state distributions on training data
     train_durations_frames = get_state_durations(latents['train'], hmm)
@@ -112,7 +119,6 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     plt.ylabel('Occurrences')
     plt.title('Training Data State Durations \n Kappa = '+str(format(hparams['kappa'],'.0e'))+', # States = ' +str(hparams['n_arhmm_states'])+' \n Noise = '+hparams['noise_type']+', N lags = '+str(hparams['n_lags']))
     plt.savefig(os.path.join(filepath,'duration_hist_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(format(hparams['kappa'],'.0e'))+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png'),bbox_inches='tight')
-
 
     # ## Make figure of frame counts
     _, _, frame_counts = relabel_states_by_use(states['train'])

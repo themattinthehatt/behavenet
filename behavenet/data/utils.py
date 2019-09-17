@@ -90,11 +90,11 @@ def get_data_generator_inputs(hparams, sess_ids):
         elif hparams['model_class'] == 'arhmm':
 
             ae_transform, ae_path = get_transforms_paths(
-                'ae_latents', hparams)
+                'ae_latents', hparams, sess_id=sess_id)
 
             signals = ['ae', 'images']
             transforms = [ae_transform, None]
-            paths = [ae_path, None]
+            paths = [ae_path, os.path.join(data_dir, 'data.hdf5')]
             if hparams.get('use_output_mask', False):
                 signals.append('masks')
                 transforms.append(None)
@@ -218,7 +218,6 @@ def get_transforms_paths(data_type, hparams, sess_id=None):
             transform = Compose(transforms_)
 
     elif data_type == 'ae_latents':
-
         _, ae_dir = get_output_dirs(
             hparams, model_class='ae',
             expt_name=hparams['ae_experiment_name'],

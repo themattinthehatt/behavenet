@@ -4,6 +4,8 @@ import numpy as np
 
 def get_subdirs(path):
     """get all first-level subdirectories in a given path (no recursion)"""
+    if not os.path.exists(path):
+        raise ValueError('%s is not a path' % path)
     try:
         return next(os.walk(path))[1]
     except StopIteration:
@@ -241,7 +243,8 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
 
-    expt_dir = os.path.join(results_dir, 'test_tube_data', expt_name)
+    # expt_dir = os.path.join(results_dir, 'test_tube_data', expt_name)
+    expt_dir = os.path.join(results_dir, expt_name)
 
     return results_dir, expt_dir
 
@@ -269,6 +272,8 @@ def read_session_info_from_csv(session_file):
 def export_session_info_to_csv(session_dir, ids_list):
     import csv
     session_file = os.path.join(session_dir, 'session_info.csv')
+    if not os.path.isdir(session_dir):
+        os.makedirs(session_dir)
     with open(session_file, mode='w') as f:
         session_writer = csv.DictWriter(f, fieldnames=list(ids_list[0].keys()))
         session_writer.writeheader()
@@ -459,6 +464,7 @@ def experiment_exists(hparams):
     hparams_less.pop('ae_model_type', None)
     hparams_less.pop('subsample_regions', None)
     hparams_less.pop('reg_list', None)
+    hparams_less.pop('version', None)
 
     found_match = False
     for version in tt_versions:
@@ -649,6 +655,7 @@ def create_tt_experiment(hparams):
         debug=False,
         save_dir=hparams['results_dir'])
     exp.save()
+    hparams['version'] = exp.version
 
     return hparams, sess_ids, exp
 
@@ -661,7 +668,7 @@ def build_data_generator(hparams, sess_ids):
         sess_ids:
 
     Returns:
-        ConcatSessionisGenerator
+        ConcatSessionsGenerator
     """
     from behavenet.data.data_generator import ConcatSessionsGenerator
     from behavenet.data.utils import get_data_generator_inputs
@@ -680,7 +687,7 @@ def build_data_generator(hparams, sess_ids):
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     # csv order will reflect dataset order in data generator
     export_session_info_to_csv(os.path.join(
-        hparams['expt_dir'], str('version_%i' % exp.version)), sess_ids)
+        hparams['expt_dir'], str('version_%i' % hparams['version'])), sess_ids)
     print('done')
     print(data_generator)
     return data_generator

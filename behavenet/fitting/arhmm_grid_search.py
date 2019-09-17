@@ -41,14 +41,16 @@ def main(hparams):
         os.path.dirname(data_generator.datasets[0].paths['ae']))
 
     # Get all latents in list
+    # TODO: currently only works for a single session
     trial_idxs = {}
     latents = {}
     for data_type in ['train', 'val', 'test']:
         if data_type == 'train' and hparams['train_percent'] < 1:
-           n_batches = np.floor(hparams['train_percent']*len(data_generator.batch_indxs[0][data_type]))
-           trial_idxs[data_type] = data_generator.batch_indxs[0][data_type][:int(n_batches)]
+           n_batches = np.floor(
+               hparams['train_percent']*len(data_generator.datasets[0].batch_indxs[data_type]))
+           trial_idxs[data_type] = data_generator.datasets[0].batch_indxs[data_type][:int(n_batches)]
         else:
-           trial_idxs[data_type] = data_generator.batch_indxs[0][data_type] 
+           trial_idxs[data_type] = data_generator.datasets[0].batch_indxs[data_type]
         latents[data_type] = [data_generator.datasets[0][i_trial]['ae'][:].cpu().detach().numpy() for i_trial in trial_idxs[data_type]]
 
     hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['images'].shape[0]
@@ -63,12 +65,16 @@ def main(hparams):
     print('constructing model...', end='')
     if hparams['kappa'] == 0:
         print('No stickiness')
-        hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
-                      observations=obv_type, observation_kwargs=dict(lags=hparams['n_lags']))
+        hmm = ssm.HMM(
+            hparams['n_arhmm_states'], hparams['n_ae_latents'],
+            observations=obv_type,
+            observation_kwargs=dict(lags=hparams['n_lags']))
     else:
-        hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
-                      observations=obv_type, observation_kwargs=dict(lags=hparams['n_lags']),
-                      transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
+        hmm = ssm.HMM(
+            hparams['n_arhmm_states'], hparams['n_ae_latents'],
+            observations=obv_type,
+            observation_kwargs=dict(lags=hparams['n_lags']),
+            transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
     hmm.initialize(latents['train'])
     hmm.observations.initialize(latents['train'], localize=False)
 
@@ -93,7 +99,7 @@ def main(hparams):
 
     # Save model
     filepath = os.path.join(
-        hparams['results_dir'], 'test_tube_data',
+        hparams['results_dir'], #'test_tube_data',
         hparams['experiment_name'],
         'version_%i' % exp.version,
         'best_val_model.pt')
@@ -129,13 +135,15 @@ def get_params(strategy):
     parser = HyperOptArgumentParser(strategy)
 
     # most important arguments
-    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
-    parser.add_argument('--tt_save_path', '-t', type=str)
-    parser.add_argument('--data_dir', '-d', type=str)
+    parser.add_argument('--search_type', type=str)  # grid_search
+    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
+    parser.add_argument('--tt_save_path', type=str)
+    parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', default=None, type=str)
     parser.add_argument('--model_class', default='arhmm', choices=['arhmm'], type=str)
+    parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
 
-    # arguments for computing resources (n_gpu_workers inferred from visible gpus)
+    # arguments for computing resources (infer n_gpu_workers from visible gpus)
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
@@ -143,10 +151,7 @@ def get_params(strategy):
     #parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
-    #parser.add_argument('--signals', default=None, type=str)
-    #parser.add_argument('--transforms', default=None)
-    #parser.add_argument('--load_kwargs', default=None)
-    parser.add_argument('--device', default='cpu', type=str)
+    parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], type=str)
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
@@ -155,6 +160,7 @@ def get_params(strategy):
     namespace, extra = parser.parse_known_args()
     add_lab_defaults_to_parser(parser, namespace.lab_example)
 
+    # get model-type specific arguments
     get_arhmm_params(namespace, parser)
 
     return parser.parse_args()
@@ -164,20 +170,23 @@ def get_arhmm_params(namespace, parser):
 
     # add data arguments
     if namespace.search_type == 'grid_search':
-        parser.add_argument('--experiment_name', '-en', default='diff_init_grid_search', type=str) #'grid_search'
+        default_name = 'diff_init_grid_search'
+    else:
+        default_name = 'test'
+    parser.add_argument('--experiment_name', default=default_name, type=str)
 
-    parser.add_argument('--ae_experiment_name', default='test_pt',type=str)
+    parser.add_argument('--ae_experiment_name', default='test_pt', type=str)
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv')
     parser.add_argument('--n_ae_latents', default=12, type=int)
-    parser.opt_list('--n_arhmm_states', default=14, options=[4,8,16,32], type=int, tunable=True) 
-    parser.opt_list('--train_percent', default=1, options=[.2, .4, .6, .8, 1], tunable=False) 
-    parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10],type=int, tunable=False) 
-    parser.opt_list('--noise_type', default='gaussian', options = ['gaussian','studentst'], type=str, tunable=False)
+    parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16], type=int, tunable=False)
+    parser.opt_list('--train_percent', default=1, options=[0.2, 0.4, 0.6, 0.8, 1.0], type=float, tunable=False)
+    parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
+    parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
     parser.add_argument('--n_lags', default=1, type=int)
     parser.add_argument('--n_iters', default=150, type=int)
 
-    # Plotting params
+    # plotting params
     parser.add_argument('--export_states', action='store_true', default=True)
     parser.add_argument('--make_plots', action='store_true', default=True)
     parser.add_argument('--plot_n_frames', default=400, type=int) # Number of frames in videos
