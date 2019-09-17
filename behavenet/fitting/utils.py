@@ -612,3 +612,75 @@ def get_region_dir(hparams):
             '"%s" is an invalid regioin sampling type' %
             hparams['subsample_regions'])
     return region_dir
+
+
+def create_tt_experiment(hparams):
+    """
+    Create test-tube experiment
+
+    Args:
+        hparams:
+
+    Returns:
+        tuple: (hparams, sess_ids, exp)
+    """
+    from test_tube import Experiment
+
+    # get session_dir
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    if not os.path.isdir(hparams['session_dir']):
+        os.makedirs(hparams['session_dir'])
+        export_session_info_to_csv(hparams['session_dir'], sess_ids)
+    # get results_dir(session_dir + ae details),
+    # expt_dir(results_dir + tt expt details)
+    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
+    if not os.path.isdir(hparams['expt_dir']):
+        os.makedirs(hparams['expt_dir'])
+    print('')
+
+    # check to see if experiment already exists
+    if experiment_exists(hparams):
+        print('Experiment exists! Aborting fit')
+        return
+
+    # TODO: this was commented out in arhmm_decoding_grid_search - why?
+    exp = Experiment(
+        name=hparams['experiment_name'],
+        debug=False,
+        save_dir=hparams['results_dir'])
+    exp.save()
+
+    return hparams, sess_ids, exp
+
+
+def build_data_generator(hparams, sess_ids):
+    """
+
+    Args:
+        hparams:
+        sess_ids:
+
+    Returns:
+        ConcatSessionisGenerator
+    """
+    from behavenet.data.data_generator import ConcatSessionsGenerator
+    from behavenet.data.utils import get_data_generator_inputs
+    print('using data from following sessions:')
+    for ids in sess_ids:
+        print('%s' % os.path.join(
+            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
+            ids['session']))
+    hparams, signals, transforms, paths = get_data_generator_inputs(
+        hparams, sess_ids)
+    print('constructing data generator...', end='')
+    data_generator = ConcatSessionsGenerator(
+        hparams['data_dir'], sess_ids,
+        signals_list=signals, transforms_list=transforms, paths_list=paths,
+        device=hparams['device'], as_numpy=hparams['as_numpy'],
+        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
+    # csv order will reflect dataset order in data generator
+    export_session_info_to_csv(os.path.join(
+        hparams['expt_dir'], str('version_%i' % exp.version)), sess_ids)
+    print('done')
+    print(data_generator)
+    return data_generator

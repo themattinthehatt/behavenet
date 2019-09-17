@@ -9,18 +9,14 @@ from tqdm.auto import trange
 from joblib import Parallel, delayed
 import multiprocessing
 from functools import partial
-from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.models import NeuralNetDecoderLaggedSLDS
-from behavenet.training import fit
-from behavenet.fitting.eval import export_predictions_best
-from behavenet.fitting.utils import experiment_exists
+from test_tube import HyperOptArgumentParser
+
+from behavenet.fitting.utils import build_data_generator
+from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import get_data_generator_inputs
 from behavenet.fitting.utils import get_output_dirs
 from behavenet.fitting.utils import add_lab_defaults_to_parser
-from behavenet.fitting.utils import get_output_session_dir
-from behavenet.fitting.utils import export_session_info_to_csv
-from behavenet.data.data_generator import ConcatSessionsGenerator
+from behavenet.models import NeuralNetDecoderLaggedSLDS
 
 
 def whiten_all(data_dict, center=True, mu=None, L=None):
@@ -84,47 +80,11 @@ def main(hparams):
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(0, 5))
 
-    # #########################
-    # ### Create Experiment ###
-    # #########################
+    # create test-tube experiment
+    hparams, sess_ids, exp = create_tt_experiment(hparams)
 
-    # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
-    if not os.path.isdir(hparams['session_dir']):
-        os.makedirs(hparams['session_dir'])
-        export_session_info_to_csv(hparams['session_dir'], sess_ids)
-    # get results_dir(session_dir + ae details),
-    # expt_dir(results_dir + tt expt details)
-    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
-    if not os.path.isdir(hparams['expt_dir']):
-        os.makedirs(hparams['expt_dir'])
-
-    # check to see if experiment already exists
-    # if experiment_exists(hparams):
-    #     print('Experiment exists! Aborting fit')
-    #     return
-
-    exp = Experiment(
-        name=hparams['experiment_name'],
-        debug=False,
-        save_dir=hparams['results_dir'])
-    exp.save()
-
-    # ###########################
-    # ### LOAD DATA GENERATOR ###
-    # ###########################
-
-    print('building data generator')
-
-    hparams, signals, transforms, paths = get_data_generator_inputs(
-        hparams, sess_ids)
-
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], sess_ids,
-        signals_list=signals, transforms_list=transforms, paths_list=paths,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    print('Data generator loaded')
+    # build data generator
+    data_generator = build_data_generator(hparams, sess_ids)
 
     hparams['ae_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['ae']))
     hparams['ae_predictions_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['ae_predictions']))
@@ -138,7 +98,7 @@ def main(hparams):
 
     hparams['training_completed'] = False
     
-    ## Get all latents/predictions in list
+    # Get all latents/predictions in list
     trial_idxs = {}
     latents={}
     latent_predictions={}
@@ -173,7 +133,7 @@ def main(hparams):
     slds = NeuralNetDecoderLaggedSLDS(arhmm)
 
     if hparams['search_type']=='grid_search':
-        ## Get val samples
+        # Get val samples
         st = time.time()
         func = partial(get_sample, slds, latent_predictions['val'],state_log_predictions['val'], x_covs, hparams['x_scale'], hparams['z_scale'])
         num_cores = multiprocessing.cpu_count()
@@ -194,7 +154,7 @@ def main(hparams):
         for val_idx in range(n_inputs):
             x_smpls = parallel_outputs[np.where(which_trials==val_idx)[0][0]][1][-500:]
             x_smpls = [x[:, :hparams['n_ae_latents']] for x in x_smpls]
-            #mean_sample = np.mean(np.stack([parallel_outputs[i][1][:,:hparams['n_ae_latents']] for i in np.where(which_trials==val_idx)[0]]),axis=0)
+            # mean_sample = np.mean(np.stack([parallel_outputs[i][1][:,:hparams['n_ae_latents']] for i in np.where(which_trials==val_idx)[0]]),axis=0)
             val_mse +=  np.mean((latents['val'][val_idx] - np.mean(x_smpls[-500:],axis=0))**2)
         val_mse /=n_inputs
 

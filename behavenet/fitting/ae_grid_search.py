@@ -4,15 +4,12 @@ import numpy as np
 import random
 import pickle
 import torch
-from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.data.data_generator import ConcatSessionsGenerator
-from behavenet.data.utils import get_data_generator_inputs
+from test_tube import HyperOptArgumentParser
+
 from behavenet.fitting.eval import export_latents_best
-from behavenet.fitting.utils import experiment_exists
+from behavenet.fitting.utils import build_data_generator
+from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import export_session_info_to_csv
-from behavenet.fitting.utils import get_output_session_dir
-from behavenet.fitting.utils import get_output_dirs
 from behavenet.fitting.utils import get_best_model_version
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
@@ -41,55 +38,11 @@ def main(hparams):
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
 
-    # #########################
-    # ### Create Experiment ###
-    # #########################
+    # create test-tube experiment
+    hparams, sess_ids, exp = create_tt_experiment(hparams)
 
-    # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
-    if not os.path.isdir(hparams['session_dir']):
-        os.makedirs(hparams['session_dir'])
-        export_session_info_to_csv(hparams['session_dir'], sess_ids)
-    # get results_dir(session_dir + ae details),
-    # expt_dir(results_dir + tt expt details)
-    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
-    if not os.path.isdir(hparams['expt_dir']):
-        os.makedirs(hparams['expt_dir'])
-    print('')
-
-    # check to see if experiment already exists
-    if experiment_exists(hparams):
-        print('Experiment exists! Aborting fit')
-        return
-
-    exp = Experiment(
-        name=hparams['experiment_name'],
-        debug=False,
-        save_dir=hparams['results_dir'])
-    exp.save()
-
-    # ###########################
-    # ### LOAD DATA GENERATOR ###
-    # ###########################
-
-    print('using data from following sessions:')
-    for ids in sess_ids:
-        print('%s' % os.path.join(
-            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
-            ids['session']))
-    hparams, signals, transforms, paths = get_data_generator_inputs(
-        hparams, sess_ids)
-    print('constructing data generator...', end='')
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], sess_ids,
-        signals_list=signals, transforms_list=transforms, paths_list=paths,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-    # csv order will reflect dataset order in data generator
-    export_session_info_to_csv(os.path.join(
-        hparams['expt_dir'], str('version_%i' % exp.version)), sess_ids)
-    print('done')
-    print(data_generator)
+    # build data generator
+    data_generator = build_data_generator(hparams, sess_ids)
 
     # ####################
     # ### CREATE MODEL ###

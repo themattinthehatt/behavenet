@@ -99,7 +99,7 @@ def make_ae_reconstruction_movie(
 
 def _make_ae_reconstruction_movie(
         ims_orig, ims_recon_ae, ims_recon_lin=None, save_file=None,
-        frame_rate=None):
+        frame_rate=20):
     """
     Args:
         ims_orig (np array):
@@ -776,7 +776,7 @@ def plot_latent_psths(
         latents_list, latent_strs=None, latent_indx=None, align_indx=0,
         window_len=10, style_type='light'):
     """
-    For a given latent, plot it's PSTH across multiple sessions (one panel per
+    For a given latent, plot its PSTH across multiple sessions (one panel per
     session)
 
     Args:

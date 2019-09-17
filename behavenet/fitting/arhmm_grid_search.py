@@ -2,31 +2,18 @@ import os
 import time
 import numpy as np
 import random
-import torch
-import sys
-from test_tube import HyperOptArgumentParser, Experiment
-from behavenet.models import Decoder
-from behavenet.training import fit
-from behavenet.fitting.eval import export_states
-from behavenet.fitting.eval import export_predictions_best
-from behavenet.fitting.utils import experiment_exists
-from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import get_data_generator_inputs
-from behavenet.fitting.utils import add_lab_defaults_to_parser
-from behavenet.fitting.utils import get_output_session_dir
-from behavenet.fitting.utils import get_output_dirs
-from behavenet.fitting.utils import export_session_info_to_csv
-from behavenet.data.data_generator import ConcatSessionsGenerator
-from behavenet.analyses.arhmm_utils import get_discrete_chunks
-from behavenet.analyses.arhmm_utils import get_state_durations
-from behavenet.analyses.arhmm_utils import relabel_states_by_use
-from behavenet.analyses.arhmm_utils import make_syllable_movies
-from behavenet.analyses.arhmm_utils import make_real_vs_generated_movies
-from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
-from behavenet.analyses.arhmm_utils import make_overview_arhmm_figures
 import ssm
 import pickle
 import matplotlib
+from test_tube import HyperOptArgumentParser
+
+from behavenet.fitting.eval import export_states
+from behavenet.fitting.utils import build_data_generator
+from behavenet.fitting.utils import create_tt_experiment
+from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
+from behavenet.analyses.arhmm_utils import make_overview_arhmm_figures
 matplotlib.use('agg')
 
 
@@ -40,54 +27,24 @@ def main(hparams):
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(0, 10))
 
-    # #########################
-    # ### Create Experiment ###
-    # #########################
+    # create test-tube experiment
+    hparams, sess_ids, exp = create_tt_experiment(hparams)
 
-    # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
-    if not os.path.isdir(hparams['session_dir']):
-        os.makedirs(hparams['session_dir'])
-        export_session_info_to_csv(hparams['session_dir'], sess_ids)
-    # get results_dir(session_dir + ae details),
-    # expt_dir(results_dir + tt expt details)
-    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
-    if not os.path.isdir(hparams['expt_dir']):
-        os.makedirs(hparams['expt_dir'])
+    # build data generator
+    data_generator = build_data_generator(hparams, sess_ids)
 
-    # check to see if experiment already exists
-    if experiment_exists(hparams):
-        print('Experiment exists! Aborting fit')
-        return
+    # ####################
+    # ### CREATE MODEL ###
+    # ####################
 
-    exp = Experiment(
-        name=hparams['experiment_name'],
-        debug=False,
-        save_dir=hparams['results_dir'])
-    exp.save()
+    hparams['ae_model_path'] = os.path.join(
+        os.path.dirname(data_generator.datasets[0].paths['ae']))
 
-    ###########################
-    ### LOAD DATA GENERATOR ###
-    ###########################
-
-    print('building data generator')
-
-    hparams, signals, transforms, paths = get_data_generator_inputs(
-        hparams, sess_ids)
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], sess_ids,
-        signals_list=signals, transforms_list=transforms, paths_list=paths,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
-
-    hparams['ae_model_path'] = os.path.join(os.path.dirname(data_generator.datasets[0].paths['ae']))
-    hparams['training_completed'] = False
-    
-    ## Get all latents in list
+    # Get all latents in list
     trial_idxs = {}
-    latents={}
-    for data_type in ['train','val','test']:
-        if data_type == 'train' and hparams['train_percent']<1:
+    latents = {}
+    for data_type in ['train', 'val', 'test']:
+        if data_type == 'train' and hparams['train_percent'] < 1:
            n_batches = np.floor(hparams['train_percent']*len(data_generator.batch_indxs[0][data_type]))
            trial_idxs[data_type] = data_generator.batch_indxs[0][data_type][:int(n_batches)]
         else:
@@ -95,19 +52,15 @@ def main(hparams):
         latents[data_type] = [data_generator.datasets[0][i_trial]['ae'][:].cpu().detach().numpy() for i_trial in trial_idxs[data_type]]
 
     hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['images'].shape[0]
-    export_hparams(hparams, exp)
 
-    #################
-    ### FIT ARHMM ###
-    #################
-
-    if hparams['noise_type'] =='gaussian':
+    if hparams['noise_type'] == 'gaussian':
         obv_type = 'ar'
     elif hparams['noise_type'] == 'studentst':
         obv_type = 'robust_ar'
     else:
         raise ValueError(hparams['noise_type']+' not a valid noise type')
 
+    print('constructing model...', end='')
     if hparams['kappa'] == 0:
         print('No stickiness')
         hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
@@ -116,10 +69,21 @@ def main(hparams):
         hmm = ssm.HMM(hparams['n_arhmm_states'], hparams['n_ae_latents'], 
                       observations=obv_type, observation_kwargs=dict(lags=hparams['n_lags']),
                       transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
-
     hmm.initialize(latents['train'])
     hmm.observations.initialize(latents['train'], localize=False)
-    train_ll = hmm.fit(latents['train'], method="em", num_em_iters=hparams['n_iters'],initialize=False)
+
+    # save out hparams as csv and dict
+    hparams['training_completed'] = False
+    export_hparams(hparams, exp)
+    print('done')
+
+    # ####################
+    # ### TRAIN MODEL ###
+    # ####################
+
+    train_ll = hmm.fit(
+        latents['train'], method='em', num_em_iters=hparams['n_iters'],
+        initialize=False)
 
     # Reconfigure model/states by usage
     zs = [hmm.most_likely_states(x) for x in latents['train']]
@@ -137,9 +101,9 @@ def main(hparams):
     with open(filepath, "wb") as f:
         pickle.dump(hmm, f)   
 
-    ######################
-    ### EVALUATE ARHMM ###
-    ######################
+    # ######################
+    # ### EVALUATE ARHMM ###
+    # ######################
 
     # Evaluate log likelihood of validation data
     validation_ll = hmm.log_likelihood(latents['val'])
@@ -147,14 +111,15 @@ def main(hparams):
     exp.log({'train_ll': train_ll, 'val_ll': validation_ll})
     exp.save()
 
-    ## Export states
+    # Export states
     if hparams['export_states']:
         export_states(hparams, exp, data_generator, hmm)
 
-    ## ARHMM figures/videos
+    # ARHMM figures/videos
     if hparams['make_plots']:
         make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator)
 
+    # update hparams upon successful training
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
 
