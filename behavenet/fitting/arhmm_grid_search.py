@@ -64,7 +64,7 @@ def main(hparams):
 
     print('constructing model...', end='')
     if hparams['kappa'] == 0:
-        print('No stickiness')
+        print('no stickiness')
         hmm = ssm.HMM(
             hparams['n_arhmm_states'], hparams['n_ae_latents'],
             observations=obv_type,
@@ -114,16 +114,18 @@ def main(hparams):
     # Evaluate log likelihood of validation data
     validation_ll = hmm.log_likelihood(latents['val'])
 
-    exp.log({'train_ll': train_ll, 'val_ll': validation_ll})
+    exp.log({'train_ll': np.mean(train_ll), 'val_ll': np.mean(validation_ll)})
     exp.save()
 
     # Export states
     if hparams['export_states']:
-        export_states(hparams, exp, data_generator, hmm)
+        export_states(hparams, data_generator, hmm)
 
     # ARHMM figures/videos
-    if hparams['make_plots']:
+    if hparams['make_ind_plots']:
+        print('creating individual arhmm figures...', end='')
         make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator)
+        print('done')
 
     # update hparams upon successful training
     hparams['training_completed'] = True
@@ -188,7 +190,8 @@ def get_arhmm_params(namespace, parser):
 
     # plotting params
     parser.add_argument('--export_states', action='store_true', default=True)
-    parser.add_argument('--make_plots', action='store_true', default=True)
+    parser.add_argument('--make_ind_plots', action='store_true', default=True)
+    parser.add_argument('--make_overview_plots', action='store_true', default=False)
     parser.add_argument('--plot_n_frames', default=400, type=int) # Number of frames in videos
     parser.add_argument('--plot_frame_rate', default=7) # Frame rate for plotting videos, if 'orig': use data frame rates
 
@@ -213,7 +216,7 @@ if __name__ == '__main__':
             nb_trials=hyperparams.tt_n_cpu_trials,
             nb_workers=hyperparams.tt_n_cpu_workers)
 
-    if hyperparams.make_plots:
+    if hyperparams.make_overview_plots:
         make_overview_arhmm_figures(hyperparams)
         
     print('Total fit time: {}'.format(time.time() - t))

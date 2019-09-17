@@ -89,10 +89,10 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     if hparams['neural_bin_size']:
         frame_rate = 1000/hparams['neural_bin_size']
     elif not hparams['neural_bin_size']:
-        frame_rate=30 # TO DO: fix frame rates
+        frame_rate = 30  # TO DO: fix frame rates
 
-    states={}
-    for data_type in ['train','val','test']:
+    states = {}
+    for data_type in ['train', 'val', 'test']:
         states[data_type] = [hmm.most_likely_states(x) for x in latents[data_type]]
 
     # relabeled_states={}
@@ -133,8 +133,8 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     ## Make syllable movies
     make_syllable_movies(filepath=filepath, hparams=hparams, latents=latents['val'], states=states['val'], trial_idxs=trial_idxs['val'], data_generator=data_generator)
 
-    ## Make real vs generated movies
-    make_real_vs_generated_movies(filepath=filepath, hparams=hparams, hmm = hmm, latents=latents['val'], states=states['val'], data_generator=data_generator)
+    ## Make real vs generated movies - TODO: throwing an error that Matt doesn't want to track down yet
+    #make_real_vs_generated_movies(filepath=filepath, hparams=hparams, hmm = hmm, latents=latents['val'], states=states['val'], data_generator=data_generator)
 
 
 def get_discrete_chunks(states, include_edges=True):
@@ -267,7 +267,6 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
 
     # Loop through syllables
     for i_syllable in range(actual_K):
-        print(i_syllable)
         if len(over_threshold_instances[i_syllable])>0:
             i_chunk=0
             i_frame=0
@@ -343,25 +342,24 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
     n_latents = hparams['n_ae_latents']
     [bs, n_channels, y_dim, x_dim] = data_generator.datasets[0][0]['images'].shape
 
-
-    ## Load in AE decoder
+    # Load in AE decoder
     ae_model_file = os.path.join(hparams['ae_model_path'],'best_val_model.pt')
     ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'],'meta_tags.pkl'),'rb'))
     ae_model = AE(ae_arch)
     ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
     ae_model.eval()
 
-
     # Get sampled observations
-    sampled_observations = [np.zeros((len(state_seg),n_latents)) for state_seg in states]
+    sampled_observations = [np.zeros((len(state_seg), n_latents)) for state_seg in states]
 
     for i_seg, state_seg in enumerate(states):
         for i_t in range(len(state_seg)):
-            if i_t>=1:
-                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(states[i_seg][i_t],sampled_observations[i_seg][:i_t])
+            if i_t >= 1:
+                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(
+                    states[i_seg][i_t], sampled_observations[i_seg][:i_t])
             else:
-                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(states[i_seg][i_t],latents[i_seg][0].reshape((1,n_latents)))
-
+                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(
+                    states[i_seg][i_t], latents[i_seg][0].reshape((1, n_latents)))
 
     # Make real vs simulated arrays
     which_trials = np.arange(0,len(states)).astype('int')

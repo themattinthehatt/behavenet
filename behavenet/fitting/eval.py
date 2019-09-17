@@ -2,15 +2,16 @@ import numpy as np
 from behavenet.data.utils import get_best_model_and_data
 
 
-def export_states(hparams, exp, data_generator, model, filename=None):
+def export_states(hparams, data_generator, model, filename=None):
     """
     Export predicted latents using an already initialized data_generator and
     model; latents are saved based on the model's hparams dict unless another
     file is provided.
 
     Args:
+        hparams (dict):
         data_generator (ConcatSessionGenerator):
-        model (AE):
+        model (HMM):
         filename (str): absolute path
     """
 
@@ -40,19 +41,28 @@ def export_states(hparams, exp, data_generator, model, filename=None):
             curr_states = model.most_likely_states(y)
             states[dataset][data['batch_indx'].item(), :] = curr_states
 
-    # save states separately for each dataset
+    # save latents separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
-        if filename is None:
-            sess_id = 'states.pkl'
+        if filename is None or data_generator.n_datasets > 1:
+            # get save name which includes lab/expt/animal/session
+            if data_generator.n_datasets > 1:
+                sess_id = str(
+                    '%s_%s_%s_%s_states.pkl' % (
+                        dataset.lab, dataset.expt, dataset.animal,
+                        dataset.session))
+            else:
+                sess_id = 'states.pkl'
             filename = os.path.join(
-                hparams['results_dir'], 'test_tube_data',
-                hparams['experiment_name'], 'version_%i' % exp.version,
+                hparams['results_dir'],
+                hparams['experiment_name'], 'version_%i' % hparams['version'],
                 sess_id)
         # save out array in pickle file
-        pickle.dump({
-            'states': states[i],
-            'trials': data_generator.batch_indxs[i]},
-            open(filename, 'wb'))
+        print(
+            'saving latents %i of %i:\n%s' %
+            (i + 1, data_generator.n_datasets, filename))
+        states_dict = {'states': states[i], 'trials': dataset.batch_indxs}
+        with open(filename, 'wb') as f:
+            pickle.dump(states_dict, f)
 
 
 def export_latents(data_generator, model, filename=None):
@@ -122,7 +132,7 @@ def export_latents(data_generator, model, filename=None):
             else:
                 sess_id = 'latents.pkl'
             filename = os.path.join(
-                model.hparams['results_dir'], 'test_tube_data',
+                model.hparams['results_dir'],
                 model.hparams['experiment_name'], 'version_%i' % model.version,
                 sess_id)
         # save out array in pickle file
@@ -205,7 +215,7 @@ def export_predictions(data_generator, model, filename=None):
             else:
                 sess_id = 'predictions.pkl'
             filename = os.path.join(
-                model.hparams['results_dir'], 'test_tube_data',
+                model.hparams['results_dir'],
                 model.hparams['experiment_name'], 'version_%i' % model.version,
                 sess_id)
         # save out array in pickle file

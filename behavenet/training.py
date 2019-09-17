@@ -456,6 +456,10 @@ def fit(hparams, model, data_generator, exp, method='em'):
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')
 
+        if hparams['max_n_epochs'] < 10:
+            print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
+        elif hparams['max_n_epochs'] < 100:
+            print('epoch %02i/%02i' % (i_epoch, hparams['max_n_epochs']))
         for i_train in tqdm(range(data_generator.n_tot_batches['train'])):
 
             model.train()
