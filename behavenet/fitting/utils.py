@@ -178,7 +178,7 @@ def get_output_session_dir(hparams, path_type='save'):
     return session_dir, sessions_single
 
 
-def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
+def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     """
     Get output directories associated with a particular model class/type/expt
     name.
@@ -190,11 +190,8 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
         expt_name (str, optional): will search `hparams` if not present
 
     Returns:
-        (tuple): (results_dir, expt_dir)
-            - results_dir (str): contains data info (lab/expt/animal/session)
-                as well as model info (e.g. n_ae_latents)
-            - expt_dir (str): results_dir/test_tube_data/expt_name; the
-                `test_tube_data` is automatically inserted by test tube
+        (str): contains data info (lab/expt/animal/session) as well as model
+        info (e.g. n_ae_latents) and expt_name
     """
 
     if model_class is None:
@@ -208,45 +205,35 @@ def get_output_dirs(hparams, model_class=None, model_type=None, expt_name=None):
 
     # get results dir
     if model_class == 'ae':
-        results_dir = os.path.join(
-            hparams['session_dir'], 'ae', model_type,
-            '%02i_latents' % hparams['n_ae_latents'])
+        model_path = os.path.join(
+            'ae', model_type, '%02i_latents' % hparams['n_ae_latents'])
     elif model_class == 'neural-ae':
         brain_region = get_region_dir(hparams)
-        results_dir = os.path.join(
-            hparams['session_dir'], 'neural-ae',
-            '%02i_latents' % hparams['n_ae_latents'],
+        model_path = os.path.join(
+            'neural-ae', '%02i_latents' % hparams['n_ae_latents'],
             model_type, brain_region)
     elif model_class == 'neural-arhmm':
         brain_region = get_region_dir(hparams)
-        results_dir = os.path.join(
-            hparams['session_dir'], 'neural-arhmm',
-            '%02i_latents' % hparams['n_ae_latents'],
+        model_path = os.path.join(
+            'neural-arhmm', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'],
-            model_type, brain_region)
+            '%.0e_kappa' % hparams['kappa'], model_type, brain_region)
     elif model_class == 'arhmm':
-        results_dir = os.path.join(
-            hparams['session_dir'], 'arhmm',
-            '%02i_latents' % hparams['n_ae_latents'],
+        model_path = os.path.join(
+            'arhmm', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'],
-            hparams['noise_type'])
+            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
     elif model_class == 'arhmm-decoding':
         brain_region = get_region_dir(hparams)
-        results_dir = os.path.join(
-            hparams['session_dir'], 'arhmm-decoding',
-            '%02i_latents' % hparams['n_ae_latents'],
+        model_path = os.path.join(
+            'arhmm-decoding', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'],
-            hparams['noise_type'], brain_region)
+            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
+    expt_dir = os.path.join(hparams['session_dir'], model_path, expt_name)
 
-    # expt_dir = os.path.join(results_dir, 'test_tube_data', expt_name)
-    expt_dir = os.path.join(results_dir, expt_name)
-
-    return results_dir, expt_dir
+    return expt_dir
 
 
 def read_session_info_from_csv(session_file):
@@ -637,9 +624,7 @@ def create_tt_experiment(hparams):
     if not os.path.isdir(hparams['session_dir']):
         os.makedirs(hparams['session_dir'])
         export_session_info_to_csv(hparams['session_dir'], sess_ids)
-    # get results_dir(session_dir + ae details),
-    # expt_dir(results_dir + tt expt details)
-    hparams['results_dir'], hparams['expt_dir'] = get_output_dirs(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
     print('')
@@ -653,7 +638,7 @@ def create_tt_experiment(hparams):
     exp = Experiment(
         name=hparams['experiment_name'],
         debug=False,
-        save_dir=hparams['results_dir'])
+        save_dir=os.path.dirname(hparams['expt_dir']))
     exp.save()
     hparams['version'] = exp.version
 

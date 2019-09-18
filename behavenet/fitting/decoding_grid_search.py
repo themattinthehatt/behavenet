@@ -11,7 +11,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import get_expt_dir
 from behavenet.models import Decoder
 from behavenet.training import fit
 
@@ -176,7 +176,7 @@ def get_decoding_params(namespace, parser):
         namespace, extra = parser.parse_known_args()
         hparams_tmp = vars(namespace)
         hparams_tmp['experiment_name'] = hparams_tmp['decoder_experiment_name']
-        _, _, expt_dir = get_output_dirs(hparams_tmp)
+        expt_dir = get_expt_dir(hparams_tmp)
         best_version = get_best_model_version(expt_dir)[0]
         best_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
         print('Loading best discrete decoder from %s' % best_file)
@@ -237,7 +237,7 @@ def get_decoding_params(namespace, parser):
             namespace, extra = parser.parse_known_args()
             hparams_tmp = vars(namespace)
             hparams_tmp['experiment_name'] = hparams_tmp['decoder_experiment_name']
-            _, _, expt_dir = get_output_dirs(hparams_tmp)
+            expt_dir = get_expt_dir(hparams_tmp)
             best_version = get_best_model_version(expt_dir)[0]
             best_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
             print('Loading best discrete decoder from %s' % best_file)

@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import pickle
 from behavenet.data.utils import get_region_list
-from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import get_subdirs
 
@@ -35,7 +35,7 @@ def get_r2s_by_trial(hparams, model_types):
         for model_type in model_types:
 
             hparams['session_dir'], _ = get_output_session_dir(hparams)
-            _, expt_dir = get_output_dirs(
+            _, expt_dir = get_expt_dir(
                 hparams,
                 model_type=model_type,
                 model_class=hparams['model_class'],

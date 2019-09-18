@@ -14,7 +14,7 @@ from test_tube import HyperOptArgumentParser
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.models import NeuralNetDecoderLaggedSLDS
 
@@ -308,11 +308,11 @@ def get_arhmm_decoding_params(namespace, parser):
         parser.add_argument('--n_samples',  default=1, type=int)
     elif namespace.search_type=='best':
 
-        from fitting.utils import get_best_model_version
+        from behavenet.fitting.utils import get_best_model_version
         namespace, extra = parser.parse_known_args()
         hparams_tmp = vars(namespace)
         hparams_tmp['experiment_name'] = 'grid_search'
-        _, _, expt_dir = get_output_dirs(hparams_tmp)
+        expt_dir = get_expt_dir(hparams_tmp)
         best_version = get_best_model_version(expt_dir)[0]
         best_file = os.path.join(expt_dir, best_version, 'meta_tags.pkl')
         print('Loading best discrete decoder from %s' % best_file)

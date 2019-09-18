@@ -99,10 +99,7 @@ def main(hparams):
 
     # Save model
     filepath = os.path.join(
-        hparams['results_dir'], #'test_tube_data',
-        hparams['experiment_name'],
-        'version_%i' % exp.version,
-        'best_val_model.pt')
+        hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
 
     with open(filepath, "wb") as f:
         pickle.dump(hmm, f)   

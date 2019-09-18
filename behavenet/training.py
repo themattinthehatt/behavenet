@@ -6,7 +6,8 @@ from tqdm import tqdm
 import torch
 from torch import nn
 from sklearn.metrics import r2_score, accuracy_score
-from behavenet.fitting.eval import export_latents, export_predictions
+from behavenet.fitting.eval import export_latents
+from behavenet.fitting.eval import export_predictions
 
 
 class FitMethod(object):
@@ -500,9 +501,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
                 if loss.get_loss('val') < best_val_loss:
                     best_val_loss = loss.get_loss('val')
                     filepath = os.path.join(
-                        hparams['results_dir'], 'test_tube_data',
-                        hparams['experiment_name'],
-                        'version_%i' % exp.version,
+                        hparams['expt_dir'], 'version_%i' % exp.version,
                         'best_val_model.pt')
                     torch.save(model.state_dict(), filepath)
 
@@ -553,9 +552,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
     # save out last model
     if hparams.get('save_last_model', False):
         filepath = os.path.join(
-            hparams['results_dir'], 'test_tube_data',
-            hparams['experiment_name'],
-            'version_%i' % exp.version, 'last_model.pt')
+            hparams['expt_dir'], 'version_%i' % exp.version, 'last_model.pt')
         torch.save(model.state_dict(), filepath)
 
     # compute test loss

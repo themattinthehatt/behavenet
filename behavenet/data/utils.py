@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pickle
 import torch
-from behavenet.fitting.utils import get_output_dirs
+from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import get_best_model_version
 
@@ -218,7 +218,7 @@ def get_transforms_paths(data_type, hparams, sess_id=None):
             transform = Compose(transforms_)
 
     elif data_type == 'ae_latents':
-        _, ae_dir = get_output_dirs(
+        ae_dir = get_expt_dir(
             hparams, model_class='ae',
             expt_name=hparams['ae_experiment_name'],
             model_type=hparams['ae_model_type'])
@@ -238,7 +238,7 @@ def get_transforms_paths(data_type, hparams, sess_id=None):
 
     elif data_type == 'arhmm_states':
 
-        _, arhmm_dir = get_output_dirs(
+        arhmm_dir = get_expt_dir(
             hparams, model_class='arhmm',
             expt_name=hparams['arhmm_experiment_name'])
 
@@ -260,7 +260,7 @@ def get_transforms_paths(data_type, hparams, sess_id=None):
 
     elif data_type == 'neural_ae_predictions':
 
-        _, neural_ae_dir = get_output_dirs(
+        neural_ae_dir = get_expt_dir(
             hparams, model_class='neural-ae',
             expt_name=hparams['neural_ae_experiment_name'],
             model_type=hparams['neural_ae_model_type'])
@@ -280,7 +280,7 @@ def get_transforms_paths(data_type, hparams, sess_id=None):
 
     elif data_type == 'neural_arhmm_predictions':
 
-        _, neural_arhmm_dir = get_output_dirs(
+        neural_arhmm_dir = get_expt_dir(
             hparams, model_class='neural-arhmm',
             expt_name=hparams['neural_arhmm_experiment_name'],
             model_type=hparams['neural_arhmm_model_type'])
@@ -363,7 +363,7 @@ def get_best_model_and_data(
 
     # get session_dir
     hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
-    results_dir, expt_dir = get_output_dirs(hparams)
+    expt_dir = get_expt_dir(hparams)
 
     # get best model version
     if version == 'best':
@@ -390,7 +390,6 @@ def get_best_model_and_data(
     # update paths if performing analysis on a different machine
     hparams_new['data_dir'] = hparams['data_dir']
     hparams_new['session_dir'] = hparams['session_dir']
-    hparams_new['results_dir'] = results_dir
     hparams_new['expt_dir'] = expt_dir
     hparams_new['use_output_mask'] = hparams.get('use_output_mask', False)
     hparams_new['device'] = 'cpu'

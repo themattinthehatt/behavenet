@@ -443,7 +443,7 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
     hparams_dec['model_type'] = hparams['decoder_model_type']
 
     # try to load presaved latents first
-    #     sess_dir, results_dir, expt_dir = get_output_dirs(hparams_dec)
+    #     sess_dir, results_dir, expt_dir = get_expt_dir(hparams_dec)
     #     if hparams['decoder_version'] == 'best':
     #         best_version = get_best_model_version(expt_dir)[0]
     #     else:

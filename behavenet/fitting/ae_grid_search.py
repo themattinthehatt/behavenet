@@ -258,14 +258,14 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--learning_rate', default=1e-4, type=float)
 
     elif namespace.search_type == 'top_n':
-
+        # TODO: get path names from functions
         # Get top n architectures in directory
-        results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt,namespace.animal, namespace.session,namespace.model_class, 'conv')
-        best_versions = get_best_model_version(results_dir+'/'+str(namespace.n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_initial_archs,n_best=namespace.n_top_archs)
+        results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt, namespace.animal, namespace.session, namespace.model_class, 'conv')
+        best_versions = get_best_model_version(results_dir+'/'+str(namespace.n_ae_latents)+'_latents/'+namespace.saved_initial_archs,n_best=namespace.n_top_archs)
         print(best_versions)
         list_of_archs=[]
         for version in best_versions:
-             filename = results_dir+'/'+str(namespace.n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_initial_archs+'/'+version+'/meta_tags.pkl'
+             filename = results_dir+'/'+str(namespace.n_ae_latents)+'_latents/'+namespace.saved_initial_archs+'/'+version+'/meta_tags.pkl'
              temp = pickle.load(open(filename, 'rb'))
              temp['architecture_params']['source_architecture'] = filename
              list_of_archs.append(temp['architecture_params'])
@@ -273,12 +273,12 @@ def get_conv_params(namespace, parser):
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
 
     elif namespace.search_type == 'latent_search':
-
+        # TODO: get path names from functions
         # Get top 1 architectures in directory
         results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt, namespace.animal, namespace.session, namespace.model_class, 'conv')
-        best_version = get_best_model_version(results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_top_n_archs, n_best=1)[0]
+        best_version = get_best_model_version(results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/'+namespace.saved_top_n_archs, n_best=1)[0]
 
-        filename = results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/test_tube_data/'+namespace.saved_top_n_archs+'/'+best_version+'/meta_tags.pkl'
+        filename = results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/'+namespace.saved_top_n_archs+'/'+best_version+'/meta_tags.pkl'
         arch = pickle.load(open(filename, 'rb'))
         arch['architecture_params']['source_architecture'] = filename
         arch['architecture_params'].pop('n_ae_latents', None)

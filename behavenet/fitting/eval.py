@@ -53,9 +53,7 @@ def export_states(hparams, data_generator, model, filename=None):
             else:
                 sess_id = 'states.pkl'
             filename = os.path.join(
-                hparams['results_dir'],
-                hparams['experiment_name'], 'version_%i' % hparams['version'],
-                sess_id)
+                hparams['expt_dir'], 'version_%i' % hparams['version'], sess_id)
         # save out array in pickle file
         print(
             'saving states %i of %i:\n%s' %
@@ -132,9 +130,7 @@ def export_latents(data_generator, model, filename=None):
             else:
                 sess_id = 'latents.pkl'
             filename = os.path.join(
-                model.hparams['results_dir'],
-                model.hparams['experiment_name'], 'version_%i' % model.version,
-                sess_id)
+                model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
         print(
             'saving latents %i of %i:\n%s' %
@@ -215,9 +211,7 @@ def export_predictions(data_generator, model, filename=None):
             else:
                 sess_id = 'predictions.pkl'
             filename = os.path.join(
-                model.hparams['results_dir'],
-                model.hparams['experiment_name'], 'version_%i' % model.version,
-                sess_id)
+                model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
         print(
             'saving latents %i of %i to %s' %
