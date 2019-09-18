@@ -181,7 +181,7 @@ def get_arhmm_params(namespace, parser):
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv')
     parser.add_argument('--n_ae_latents', default=12, type=int)
-    parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16], type=int, tunable=False)
+    parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16], type=int, tunable=True)
     parser.opt_list('--train_percent', default=1, options=[0.2, 0.4, 0.6, 0.8, 1.0], type=float, tunable=False)
     parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
     parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
@@ -220,4 +220,3 @@ if __name__ == '__main__':
         make_overview_arhmm_figures(hyperparams)
         
     print('Total fit time: {}'.format(time.time() - t))
-

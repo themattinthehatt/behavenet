@@ -58,7 +58,7 @@ def export_states(hparams, data_generator, model, filename=None):
                 sess_id)
         # save out array in pickle file
         print(
-            'saving latents %i of %i:\n%s' %
+            'saving states %i of %i:\n%s' %
             (i + 1, data_generator.n_datasets, filename))
         states_dict = {'states': states[i], 'trials': dataset.batch_indxs}
         with open(filename, 'wb') as f:
