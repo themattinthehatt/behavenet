@@ -11,6 +11,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_best_model_version
+from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
@@ -83,7 +84,7 @@ def get_params(strategy):
     parser.add_argument('--tt_save_path', type=str)
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
-    parser.add_argument('--model_class', default='ae', type=str)  # ae vs vae
+    parser.add_argument('--model_class', default='ae', choices=['ae', 'vae'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
 
     # arguments for computing resources (infer n_gpu_workers from visible gpus)
@@ -258,35 +259,39 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--learning_rate', default=1e-4, type=float)
 
     elif namespace.search_type == 'top_n':
-        # TODO: get path names from functions
         # Get top n architectures in directory
-        results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt, namespace.animal, namespace.session, namespace.model_class, 'conv')
-        best_versions = get_best_model_version(results_dir+'/'+str(namespace.n_ae_latents)+'_latents/'+namespace.saved_initial_archs,n_best=namespace.n_top_archs)
+        session_dir, _ = get_output_session_dir(vars(namespace))
+        initial_archs_dir = os.path.join(
+            session_dir, namespace.model_class, 'conv',
+            str('%02i_latents' % namespace.n_ae_latents),
+            namespace.saved_initial_archs)
+        best_versions = get_best_model_version(
+            initial_archs_dir, n_best=namespace.n_top_archs)
         print(best_versions)
         list_of_archs=[]
         for version in best_versions:
-             filename = results_dir+'/'+str(namespace.n_ae_latents)+'_latents/'+namespace.saved_initial_archs+'/'+version+'/meta_tags.pkl'
+             filename = os.path.join(initial_archs_dir, version, 'meta_tags.pkl')
              temp = pickle.load(open(filename, 'rb'))
              temp['architecture_params']['source_architecture'] = filename
              list_of_archs.append(temp['architecture_params'])
-        parser.opt_list('--learning_rate', default=1e-4, options=[1e-4, 1e-3],type=float,tunable=True)
+        parser.opt_list('--learning_rate', default=1e-4, options=[1e-4, 1e-3], type=float, tunable=True)
         parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
 
     elif namespace.search_type == 'latent_search':
-        # TODO: get path names from functions
         # Get top 1 architectures in directory
-        results_dir = os.path.join(namespace.tt_save_path, namespace.lab, namespace.expt, namespace.animal, namespace.session, namespace.model_class, 'conv')
-        best_version = get_best_model_version(results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/'+namespace.saved_top_n_archs, n_best=1)[0]
-
-        filename = results_dir+'/'+str(namespace.source_n_ae_latents)+'_latents/'+namespace.saved_top_n_archs+'/'+best_version+'/meta_tags.pkl'
+        session_dir, _ = get_output_session_dir(vars(namespace))
+        initial_archs_dir = os.path.join(
+            session_dir, namespace.model_class, 'conv',
+            str('%02i_latents' % namespace.n_ae_latents),
+            namespace.saved_initial_archs)
+        best_version = get_best_model_version(initial_archs_dir, n_best=1)[0]
+        filename = os.path.join(initial_archs_dir, best_version, 'meta_tags.pkl')
         arch = pickle.load(open(filename, 'rb'))
         arch['architecture_params']['source_architecture'] = filename
         arch['architecture_params'].pop('n_ae_latents', None)
-
         arch['architecture_params']['learning_rate'] = arch['learning_rate']
-
         # parser.add_argument('--learning_rate', default=arch['learning_rate'])
-        parser.opt_list('--architecture_params', options=[arch['architecture_params']],type=float, tunable=True)  # have to pass in as a list since add_argument doesn't take dict
+        parser.opt_list('--architecture_params', options=[arch['architecture_params']], type=float, tunable=True)  # have to pass in as a list since add_argument doesn't take dict
         parser.opt_list('--n_ae_latents', options=[4, 8, 12, 16, 24, 32, 64], help='number of latents', type=int, tunable=True)  # warning: over 64, may need to change max_latents in architecture generator
 
 
