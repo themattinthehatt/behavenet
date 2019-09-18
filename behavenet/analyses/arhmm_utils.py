@@ -34,11 +34,9 @@ def make_overview_arhmm_figures(hparams):
         for kappa_dir in kappa_dirs:
             noise_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir)) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir),filename))]
             for noise_dir in noise_dirs:
-                # ver_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir,noise_dir,'test_tube_data',hparams['experiment_name'])) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir, noise_dir, 'test_tube_data',hparams['experiment_name']),filename))]
                 ver_dirs = [filename for filename in os.listdir(os.path.join(filepath, K_dir,kappa_dir,noise_dir,hparams['experiment_name'])) if os.path.isdir(os.path.join(os.path.join(filepath, K_dir,kappa_dir, noise_dir, hparams['experiment_name']),filename))]
                 for ver_dir in ver_dirs:
                     try:
-                      # filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir,'test_tube_data',hparams['experiment_name'], ver_dir)
                       filename = os.path.join(filepath, K_dir, kappa_dir, noise_dir, hparams['experiment_name'], ver_dir)
                       arch_file = pickle.load(open(os.path.join(filename,'meta_tags.pkl'),'rb'))
                       metrics_file = pd.read_csv(os.path.join(filename,'metrics.csv'))
@@ -100,8 +98,7 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     # relabeled_states['val'], _, _ = relabel_states_by_use(states['val'], mapping)
     # relabeled_states['test'], _, _ = relabel_states_by_use(states['test'], mapping)
 
-    filepath = os.path.join(
-        hparams['results_dir'], hparams['experiment_name'], 'version_%i' % exp.version)
+    filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version)
 
     # Compute state distributions on training data
     train_durations_frames = get_state_durations(latents['train'], hmm)
