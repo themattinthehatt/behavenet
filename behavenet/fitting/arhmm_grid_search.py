@@ -185,9 +185,8 @@ def get_arhmm_params(namespace, parser):
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--n_arhmm_states', default=2, type=int)
         parser.add_argument('--train_percent', default=1.0, type=int)
-        parser.opt_list('--train_percent', default=1, options=[0.2, 0.4, 0.6, 0.8], type=float, tunable=False)
-        parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
-        parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
+        parser.add_argument('--kappa', default=0, type=int)
+        parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
