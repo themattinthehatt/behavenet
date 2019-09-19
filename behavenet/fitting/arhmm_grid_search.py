@@ -76,7 +76,7 @@ def main(hparams):
             observation_kwargs=dict(lags=hparams['n_lags']),
             transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
     hmm.initialize(latents['train'])
-    hmm.observations.initialize(latents['train'], localize=False)
+    hmm.observations.initialize(latents['train'], localize=True)
 
     # save out hparams as csv and dict
     hparams['training_completed'] = False
@@ -167,30 +167,63 @@ def get_params(strategy):
 
 def get_arhmm_params(namespace, parser):
 
-    # add data arguments
-    if namespace.search_type == 'grid_search':
-        default_name = 'diff_init_grid_search'
-    else:
-        default_name = 'test'
-    parser.add_argument('--experiment_name', default=default_name, type=str)
-
     parser.add_argument('--ae_experiment_name', default='test_pt', type=str)
     parser.add_argument('--ae_version', default='best')
-    parser.add_argument('--ae_model_type', default='conv')
-    parser.add_argument('--n_ae_latents', default=12, type=int)
-    parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16], type=int, tunable=True)
-    parser.opt_list('--train_percent', default=1, options=[0.2, 0.4, 0.6, 0.8, 1.0], type=float, tunable=False)
-    parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
-    parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
+    parser.add_argument('--ae_model_type', default='conv', type=str)
+
     parser.add_argument('--n_lags', default=1, type=int)
     parser.add_argument('--n_iters', default=150, type=int)
 
-    # plotting params
-    parser.add_argument('--export_states', action='store_true', default=True)
-    parser.add_argument('--make_ind_plots', action='store_true', default=True)
-    parser.add_argument('--make_overview_plots', action='store_true', default=False)
-    parser.add_argument('--plot_n_frames', default=400, type=int) # Number of frames in videos
-    parser.add_argument('--plot_frame_rate', default=7) # Frame rate for plotting videos, if 'orig': use data frame rates
+    parser.add_argument('--plot_n_frames', default=400, type=int, help='number of frames in videos')
+    parser.add_argument('--plot_frame_rate', default=7, help='frame rate for plotting videos, if "orig": use data frame rates')
+
+    # add experiment=specific arguments
+    if namespace.search_type == 'test':
+
+        parser.add_argument('--experiment_name', default='test', type=str)
+
+        parser.add_argument('--n_ae_latents', default=12, type=int)
+        parser.add_argument('--n_arhmm_states', default=2, type=int)
+        parser.add_argument('--train_percent', default=1.0, type=int)
+        parser.opt_list('--train_percent', default=1, options=[0.2, 0.4, 0.6, 0.8], type=float, tunable=False)
+        parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
+        parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
+
+        # plotting params
+        parser.add_argument('--export_states', action='store_true', default=False)
+        parser.add_argument('--make_ind_plots', action='store_true', default=False)
+        parser.add_argument('--make_overview_plots', action='store_true', default=False)
+
+    elif namespace.search_type == 'grid_search':
+
+        parser.add_argument('--experiment_name', default='diff_init_grid_search', type=str)
+
+        parser.add_argument('--train_percent', default=1.0, type=int)
+        # parser.add_argument('--n_ae_latents', default=12, type=int)
+        parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=False)
+        parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
+        parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
+        parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
+
+        # plotting params
+        parser.add_argument('--export_states', action='store_true', default=True)
+        parser.add_argument('--make_ind_plots', action='store_true', default=True)
+        parser.add_argument('--make_overview_plots', action='store_true', default=True)
+
+    elif namespace.search_type == 'data_amounts':
+
+        parser.add_argument('--experiment_name', default='data_amount', type=str)
+
+        parser.add_argument('--kappa', default=0, type=int)
+        parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
+        parser.opt_list('--train_percent', default=1.0, options=[0.2, 0.4, 0.6, 0.8, 1.0], type=float, tunable=True)
+        parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=True)
+        parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
+
+        # plotting params
+        parser.add_argument('--export_states', action='store_true', default=False)
+        parser.add_argument('--make_ind_plots', action='store_true', default=False)
+        parser.add_argument('--make_overview_plots', action='store_true', default=False)
 
 
 if __name__ == '__main__':

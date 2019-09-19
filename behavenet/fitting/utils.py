@@ -645,12 +645,13 @@ def create_tt_experiment(hparams):
     return hparams, sess_ids, exp
 
 
-def build_data_generator(hparams, sess_ids):
+def build_data_generator(hparams, sess_ids, export_csv=True):
     """
 
     Args:
-        hparams:
-        sess_ids:
+        hparams (dict):
+        sess_ids (list):
+        export_csv (bool):
 
     Returns:
         ConcatSessionsGenerator
@@ -671,8 +672,9 @@ def build_data_generator(hparams, sess_ids):
         device=hparams['device'], as_numpy=hparams['as_numpy'],
         batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
     # csv order will reflect dataset order in data generator
-    export_session_info_to_csv(os.path.join(
-        hparams['expt_dir'], str('version_%i' % hparams['version'])), sess_ids)
+    if export_csv:
+        export_session_info_to_csv(os.path.join(
+            hparams['expt_dir'], str('version_%i' % hparams['version'])), sess_ids)
     print('done')
     print(data_generator)
     return data_generator

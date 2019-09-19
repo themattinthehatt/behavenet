@@ -125,10 +125,10 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
     plt.savefig(os.path.join(filepath,'proportion_times_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(format(hparams['kappa'],'.0e'))+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png'),bbox_inches='tight')
 
     ## Make syllable movies
-    make_syllable_movies(
-        filepath=filepath, hparams=hparams, latents=latents['val'],
-        states=states['val'], trial_idxs=trial_idxs['val'],
-        data_generator=data_generator)
+    # make_syllable_movies(  # TODO: frozen frames? need to fix
+    #     filepath=filepath, hparams=hparams, latents=latents['val'],
+    #     states=states['val'], trial_idxs=trial_idxs['val'],
+    #     data_generator=data_generator)
 
     ## Make real vs generated movies - TODO: throwing an error that Matt doesn't want to track down yet
     #make_real_vs_generated_movies(filepath=filepath, hparams=hparams, hmm = hmm, latents=latents['val'], states=states['val'], data_generator=data_generator)

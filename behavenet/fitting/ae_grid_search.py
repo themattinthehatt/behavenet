@@ -128,7 +128,7 @@ def get_linear_params(namespace, parser):
 
         parser.add_argument('--max_n_epochs', default=1000, type=int)
         parser.add_argument('--min_n_epochs', default=500, type=int)
-        parser.add_argument('--experiment_name', '-en', default='test', type=str)
+        parser.add_argument('--experiment_name', default='test', type=str)
         parser.add_argument('--export_latents', action='store_true', default=False)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
@@ -141,7 +141,7 @@ def get_linear_params(namespace, parser):
 
         parser.add_argument('--max_n_epochs', default=1000, type=int)
         parser.add_argument('--min_n_epochs', default=500, type=int)
-        parser.add_argument('--experiment_name', '-en', default='best', type=str)
+        parser.add_argument('--experiment_name', default='best', type=str)
         parser.add_argument('--export_latents', action='store_true', default=True)
         parser.add_argument('--export_latents_best', action='store_true', default=False)
         parser.add_argument('--enable_early_stop', action='store_true', default=True)
@@ -173,7 +173,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
         parser.add_argument('--which_handcrafted_archs', default='0;1') # empty string if you don't want any
-        parser.add_argument('--n_archs', '-n', default=50, help='number of architectures to randomly sample', type=int)
+        parser.add_argument('--n_archs', default=50, help='number of architectures to randomly sample', type=int)
         parser.add_argument('--max_n_epochs', default=20, type=int)
         parser.add_argument('--min_n_epochs', default=0, type=int)
         parser.add_argument('--experiment_name', default='initial_grid_search', type=str) # test
@@ -187,7 +187,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--saved_initial_archs', default='initial_grid_search', type=str) # experiment name to look for initial architectures in
         parser.add_argument('--n_ae_latents', help='number of latents', type=int)
 
-        parser.add_argument('--n_top_archs', '-n', default=5, help='number of top architectures to run', type=int)
+        parser.add_argument('--n_top_archs', default=5, help='number of top architectures to run', type=int)
         parser.add_argument('--max_n_epochs', default=1000, type=int)
         parser.add_argument('--min_n_epochs', default=500, type=int)
         parser.add_argument('--experiment_name', default='top_n_grid_search', type=str)
