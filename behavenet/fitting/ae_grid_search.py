@@ -68,11 +68,11 @@ def main(hparams):
     # ### TRAIN MODEL ###
     # ####################
 
-    fit(hparams, model, data_generator, exp, method='ae')
-
-    # update hparams upon successful training
-    hparams['training_completed'] = True
-    export_hparams(hparams, exp)
+    # fit(hparams, model, data_generator, exp, method='ae')
+    #
+    # # update hparams upon successful training
+    # hparams['training_completed'] = True
+    # export_hparams(hparams, exp)
 
 
 def get_params(strategy):
