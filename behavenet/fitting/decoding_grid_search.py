@@ -323,7 +323,7 @@ if __name__ == '__main__':
             main,
             nb_trials=hyperparams.tt_n_cpu_trials,
             nb_workers=hyperparams.tt_n_cpu_workers)
-    print('Total fit time: {}'.format(time.time() - t))
+    print('Total fit time: {} sec'.format(time.time() - t))
     if hyperparams.export_predictions_best \
             and hyperparams.subsample_regions == 'none':
         export_predictions_best(vars(hyperparams))

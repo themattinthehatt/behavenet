@@ -147,7 +147,7 @@ class AELoss(FitMethod):
         metric_strs = ['batches', 'loss']
         super().__init__(model, metric_strs, n_datasets=n_datasets)
 
-    def calc_loss(self, data, **kwargs):
+    def calc_loss(self, data, dataset=0, **kwargs):
         """
         Calculate MSE loss for autoencoder. The batch is split into chunks if
         larger than a hard-coded `chunk_size` to keep memory requirements low;
@@ -156,6 +156,7 @@ class AELoss(FitMethod):
 
         Args:
             data (dict):
+            dataset (int, optional)
         """
 
         y = data['images'][0]
@@ -175,7 +176,7 @@ class AELoss(FitMethod):
             for chunk in range(n_chunks):
                 indx_beg = chunk * chunk_size
                 indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                y_mu, _ = self.model(y[indx_beg:indx_end])
+                y_mu, _ = self.model(y[indx_beg:indx_end], dataset=dataset)
                 if masks is not None:
                     loss = torch.mean((
                         (y[indx_beg:indx_end] - y_mu) ** 2) *
@@ -472,7 +473,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
             data, dataset = data_generator.next_batch('train')
 
             # call the appropriate loss function
-            loss.calc_loss(data)
+            loss.calc_loss(data, dataset=dataset)
             loss.update_metrics('train', dataset=dataset)
 
             # step (evaluate untrained network on epoch 0)
@@ -494,7 +495,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
                     data, dataset = data_generator.next_batch('val')
 
                     # call the appropriate loss function
-                    loss.calc_loss(data)
+                    loss.calc_loss(data, dataset=dataset)
                     loss.update_metrics('val', dataset=dataset)
 
                 # save best val model
@@ -576,7 +577,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
 
         # call the appropriate loss function
         test_loss.reset_metrics('test')
-        test_loss.calc_loss(data)
+        test_loss.calc_loss(data, dataset=dataset)
         test_loss.update_metrics('test', dataset=dataset)
 
         # calculate metrics for each *batch* (rather than whole dataset)

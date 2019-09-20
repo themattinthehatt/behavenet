@@ -248,4 +248,4 @@ if __name__ == '__main__':
     if hyperparams.make_overview_plots:
         make_overview_arhmm_figures(hyperparams)
         
-    print('Total fit time: {}'.format(time.time() - t))
+    print('Total fit time: {} sec'.format(time.time() - t))
