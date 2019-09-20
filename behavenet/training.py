@@ -189,7 +189,7 @@ class AELoss(FitMethod):
                 loss_val += loss.item() * (indx_end - indx_beg)
             loss_val /= y.shape[0]
         else:
-            y_mu, _ = self.model(y)
+            y_mu, _ = self.model(y, dataset=dataset)
             # define loss
             if masks is not None:
                 loss = torch.mean(((y - y_mu)**2) * masks)
@@ -464,6 +464,12 @@ def fit(hparams, model, data_generator, exp, method='em'):
             print('epoch %02i/%02i' % (i_epoch, hparams['max_n_epochs']))
         elif hparams['max_n_epochs'] < 1000:
             print('epoch %03i/%03i' % (i_epoch, hparams['max_n_epochs']))
+        elif hparams['max_n_epochs'] < 10000:
+            print('epoch %04i/%04i' % (i_epoch, hparams['max_n_epochs']))
+        elif hparams['max_n_epochs'] < 100000:
+            print('epoch %05i/%05i' % (i_epoch, hparams['max_n_epochs']))
+        else:
+            print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
         for i_train in tqdm(range(data_generator.n_tot_batches['train'])):
 
             model.train()

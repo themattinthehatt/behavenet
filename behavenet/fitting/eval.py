@@ -110,11 +110,11 @@ def export_latents(data_generator, model, filename=None):
                     indx_beg = chunk * chunk_size
                     indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
                     curr_latents, _, _ = model.encoding(
-                        y[indx_beg:indx_end])
+                        y[indx_beg:indx_end], dataset=dataset)
                     latents[dataset][data['batch_indx'].item(), indx_beg:indx_end, :] = \
                         curr_latents.cpu().detach().numpy()
             else:
-                curr_latents, _, _ = model.encoding(y)
+                curr_latents, _, _ = model.encoding(y, dataset=dataset)
                 latents[dataset][data['batch_indx'].item(), :, :] = \
                     curr_latents.cpu().detach().numpy()
 
@@ -145,6 +145,9 @@ def export_predictions(data_generator, model, filename=None):
     Export predictions using an already initialized data_generator and model;
     predictions are saved based on the model's hparams dict unless another file
     is provided.
+
+    Currently only supported for decoding models (not AEs); to get AE
+    reconstructions see the `get_reconstruction` function in this module
 
     Args:
         data_generator (ConcatSessionGenerator):
@@ -268,7 +271,7 @@ def export_predictions_best(hparams, filename=None, export_all=False):
     export_predictions(data_generator, model, filename=filename)
 
 
-def get_reconstruction(model, inputs):
+def get_reconstruction(model, inputs, dataset=None):
     """
     Reconstruct an image from either image or latent inputs
 
@@ -277,6 +280,7 @@ def get_reconstruction(model, inputs):
         inputs (torch.Tensor object):
             images (batch x channels x y_pix x x_pix)
             latents (batch x n_ae_latents)
+        dataset (int or NoneType): for use with session-specific io layers
 
     Returns:
         np array (batch x channels x y_pix x x_pix)
@@ -289,10 +293,10 @@ def get_reconstruction(model, inputs):
         input_type = 'images'
 
     if input_type == 'images':
-        ims_recon, _ = model(inputs)
+        ims_recon, _ = model(inputs, dataset=dataset)
     else:
         # TODO: how to incorporate maxpool layers for decoding only?
-        ims_recon = model.decoding(inputs, None, None)
+        ims_recon = model.decoding(inputs, None, None, dataset=None)
     ims_recon = ims_recon.cpu().detach().numpy()
 
     return ims_recon

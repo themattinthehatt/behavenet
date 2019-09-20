@@ -23,12 +23,6 @@ def main(hparams):
 
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
-    # hparams.pop('trials', False)
-    # hparams.pop('generate_trials', False)
-    # hparams.pop('optimize_parallel', False)
-    # hparams.pop('optimize_parallel_cpu', False)
-    # hparams.pop('optimize_parallel_gpu', False)
-    # hparams.pop('optimize_trials_parallel_gpu', False)
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
         hparams = {**hparams, **hparams['architecture_params']}
@@ -76,10 +70,10 @@ def main(hparams):
     # ####################
 
     fit(hparams, model, data_generator, exp, method='ae')
-    #
-    # # update hparams upon successful training
-    # hparams['training_completed'] = True
-    # export_hparams(hparams, exp)
+
+    # update hparams upon successful training
+    hparams['training_completed'] = True
+    export_hparams(hparams, exp)
 
 
 def get_params(strategy):
