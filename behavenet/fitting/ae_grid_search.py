@@ -21,7 +21,14 @@ from behavenet.training import fit
 
 def main(hparams):
 
-    hparams = vars(hparams)
+    if not isinstance(hparams, dict):
+        hparams = vars(hparams)
+    # hparams.pop('trials', False)
+    # hparams.pop('generate_trials', False)
+    # hparams.pop('optimize_parallel', False)
+    # hparams.pop('optimize_parallel_cpu', False)
+    # hparams.pop('optimize_parallel_gpu', False)
+    # hparams.pop('optimize_trials_parallel_gpu', False)
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
         hparams = {**hparams, **hparams['architecture_params']}
@@ -68,7 +75,7 @@ def main(hparams):
     # ### TRAIN MODEL ###
     # ####################
 
-    # fit(hparams, model, data_generator, exp, method='ae')
+    fit(hparams, model, data_generator, exp, method='ae')
     #
     # # update hparams upon successful training
     # hparams['training_completed'] = True
@@ -77,7 +84,9 @@ def main(hparams):
 
 def get_params(strategy):
 
-    parser = HyperOptArgumentParser(strategy)
+    # parser = HyperOptArgumentParser(strategy)
+    from argparse import ArgumentParser
+    parser = ArgumentParser(strategy)
 
     # most important arguments
     parser.add_argument('--search_type', type=str)  # latent_search, test
@@ -230,7 +239,9 @@ def get_conv_params(namespace, parser):
             check_memory=True,
             batch_size=namespace.approx_batch_size,
             mem_limit_gb=namespace.mem_limit_gb)
-        parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
+        # TODO: fix test tube #2
+        #parser.opt_list('--architecture_params', options=list_of_archs, tunable=True)
+        parser.add_argument('--architecture_params', default=list_of_archs[0])
         parser.add_argument('--learning_rate', default=1e-4, type=float)
 
     elif namespace.search_type == 'initial':
@@ -305,20 +316,22 @@ if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 
     t = time.time()
-    if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
-        if hyperparams.device == 'gpu':
-            hyperparams.device = 'cuda'
-        gpu_ids = hyperparams.gpus_viz.split(';')
-        hyperparams.optimize_parallel_gpu(
-            main,
-            gpu_ids=gpu_ids,
-            nb_trials=hyperparams.tt_n_gpu_trials,
-            nb_workers=len(gpu_ids))
-    elif hyperparams.device == 'cpu':
-        hyperparams.optimize_parallel_cpu(
-            main,
-            nb_trials=hyperparams.tt_n_cpu_trials,
-            nb_workers=hyperparams.tt_n_cpu_workers)
+    # TODO: fix test tube #1
+    # if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
+    #     if hyperparams.device == 'gpu':
+    #         hyperparams.device = 'cuda'
+    #     gpu_ids = hyperparams.gpus_viz.split(';')
+    #     hyperparams.optimize_parallel_gpu(
+    #         main,
+    #         gpu_ids=gpu_ids,
+    #         max_nb_trials=hyperparams.tt_n_gpu_trials,
+    #         nb_workers=len(gpu_ids))
+    # elif hyperparams.device == 'cpu':
+    #     hyperparams.optimize_parallel_cpu(
+    #         main,
+    #         nb_trials=hyperparams.tt_n_cpu_trials,
+    #         nb_workers=hyperparams.tt_n_cpu_workers)
+    main(hyperparams)
     print('Total fit time: {} sec'.format(time.time() - t))
     if hyperparams.export_latents_best:
         print('Exporting latents from current best model in experiment')
