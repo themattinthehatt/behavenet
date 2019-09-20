@@ -215,7 +215,7 @@ def get_conv_params(namespace, parser):
         parser.add_argument('--early_stop_history', default=10, type=int)
 
     else:
-        raise Exception
+        raise ValueError('"%s" is not a valid search type' % namespace.search_type)
 
     namespace, extra = parser.parse_known_args()
 
