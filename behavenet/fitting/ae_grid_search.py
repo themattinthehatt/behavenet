@@ -83,8 +83,8 @@ def get_params(strategy):
     parser = ArgumentParser(strategy)
 
     # most important arguments
-    parser.add_argument('--search_type', type=str)  # latent_search, test
-    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
+    parser.add_argument('--search_type', choices=['latent_search', 'test'], type=str)
+    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
     parser.add_argument('--tt_save_path', type=str)
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
@@ -96,7 +96,7 @@ def get_params(strategy):
     parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
     parser.add_argument('--mem_limit_gb', default=8.0, type=float)
-    parser.add_argument('--gpus_viz', default='0', type=str)  # add multiple as '0;1;4' etc
+    parser.add_argument('--gpus_viz', default='0', type=str, help="add multiple as '0;1;4' etc")
 
     # add data generator arguments
     parser.add_argument('--device', default='cuda', choices=['cpu', 'cuda'], type=str)

@@ -207,15 +207,15 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     if model_class == 'ae':
         model_path = os.path.join(
             'ae', model_type, '%02i_latents' % hparams['n_ae_latents'])
-    elif model_class == 'neural-ae':
+    elif model_class == 'neural-ae' or model_class == 'ae-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
-            'neural-ae', '%02i_latents' % hparams['n_ae_latents'],
+            model_class, '%02i_latents' % hparams['n_ae_latents'],
             model_type, brain_region)
-    elif model_class == 'neural-arhmm':
+    elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
-            'neural-arhmm', '%02i_latents' % hparams['n_ae_latents'],
+            model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], model_type, brain_region)
     elif model_class == 'arhmm':
@@ -674,7 +674,8 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(
-            hparams['expt_dir'], str('version_%i' % hparams['version'])), sess_ids)
+            hparams['expt_dir'],
+            str('version_%i' % hparams['version'])), sess_ids)
     print('done')
     print(data_generator)
     return data_generator

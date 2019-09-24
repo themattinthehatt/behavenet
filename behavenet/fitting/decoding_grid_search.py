@@ -81,12 +81,12 @@ def get_params(strategy):
 
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
-    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
+    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
     parser.add_argument('--tt_save_path', type=str)
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
-    parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm'], type=str)
-    parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
+    parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm', 'ae-neural', 'arhmm-neural'], type=str)
+    parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
 
     # arguments for computing resources (infer n_gpu_workers from visible gpus)
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
@@ -112,7 +112,6 @@ def get_params(strategy):
     namespace, extra = parser.parse_known_args()  # ugly
 
     # add regions to opt_list if desired
-
     if namespace.reg_list == 'all':
         parser.opt_list('--region', options=get_region_list(namespace), type=str, tunable=True)
     elif namespace.reg_list == 'arg':
@@ -134,13 +133,15 @@ def get_decoding_params(namespace, parser):
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)
 
     # add data arguments
-    if namespace.model_class == 'neural-ae':
+    if namespace.model_class == 'neural-ae' \
+            or namespace.model_class == 'ae-neural':
         # ae arguments
         parser.add_argument('--ae_experiment_name', type=str)
         parser.add_argument('--n_ae_latents', type=int)
         parser.add_argument('--ae_version', default='best')
         parser.add_argument('--ae_model_type', default='conv')
-    elif namespace.model_class == 'neural-arhmm':
+    elif namespace.model_class == 'neural-arhmm' \
+            or namespace.model_class == 'arhmm-neural':
         # ae arguments
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_model_type', default='conv')
@@ -169,7 +170,7 @@ def get_decoding_params(namespace, parser):
 
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
-        parser.add_argument('--experiment_name', '-en', default='best', type=str)
+        parser.add_argument('--experiment_name', default='best', type=str)
         parser.add_argument('--decoder_experiment_name', default='grid_search', type=str)
 
         # load best model params
@@ -194,7 +195,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--learning_rate', default=learning_rate, type=float)
         parser.add_argument('--n_lags', default=n_lags, type=int)
         parser.add_argument('--l2_reg', default=l2_reg, type=float)
-        parser.add_argument('--n_max_lags', default=n_max_lags)  # should match largest value in --n_lags options
+        parser.add_argument('--n_max_lags', default=n_max_lags, help='should match largest value in --n_lags options')
         parser.add_argument('--n_hid_layers', default=n_hid_layers, type=int)
         parser.add_argument('--n_final_units', default=n_final_units, type=int)
         parser.add_argument('--n_int_units', default=n_int_units, type=int)
@@ -204,7 +205,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--learning_rate', default=1e-3, type=float)
         parser.add_argument('--n_lags', default=4, type=int)
         parser.add_argument('--l2_reg', default=1e-3, type=float)
-        parser.add_argument('--n_max_lags', default=8)  # should match largest value in --n_lags options
+        parser.add_argument('--n_max_lags', default=8, help='should match largest value in --n_lags options')
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', default='test', type=str)
