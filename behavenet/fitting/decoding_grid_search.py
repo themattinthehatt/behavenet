@@ -20,6 +20,12 @@ def main(hparams):
 
     # turn matlab-style struct into dict
     hparams = vars(hparams)
+    hparams.pop('trials', False)
+    hparams.pop('generate_trials', False)
+    hparams.pop('optimize_parallel', False)
+    hparams.pop('optimize_parallel_cpu', False)
+    hparams.pop('optimize_parallel_gpu', False)
+    hparams.pop('optimize_trials_parallel_gpu', False)
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)
@@ -33,7 +39,9 @@ def main(hparams):
     data_generator = build_data_generator(hparams, sess_ids)
 
     hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
-    if hparams['model_class'] == 'neural-arhmm':
+    hparams['output_size'] = data_generator.datasets[0].dims[hparams['output_signal']][2]
+    if hparams['model_class'] == 'neural-arhmm' \
+            or hparams['model_class'] == 'arhmm-neural':
          hparams['arhmm_model_path'] = os.path.join(
              os.path.dirname(data_generator.datasets[0].paths['arhmm']))
 
@@ -310,20 +318,21 @@ if __name__ == '__main__':
     hyperparams = get_params('grid_search')
 
     t = time.time()
-    if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
-        if hyperparams.device == 'gpu':
-            hyperparams.device = 'cuda'
-        gpu_ids = hyperparams.gpus_viz.split(';')
-        hyperparams.optimize_parallel_gpu(
-            main,
-            gpu_ids=gpu_ids,
-            nb_trials=hyperparams.tt_n_gpu_trials,
-            nb_workers=len(gpu_ids))
-    elif hyperparams.device == 'cpu':
-        hyperparams.optimize_parallel_cpu(
-            main,
-            nb_trials=hyperparams.tt_n_cpu_trials,
-            nb_workers=hyperparams.tt_n_cpu_workers)
+    # if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
+    #     if hyperparams.device == 'gpu':
+    #         hyperparams.device = 'cuda'
+    #     gpu_ids = hyperparams.gpus_viz.split(';')
+    #     hyperparams.optimize_parallel_gpu(
+    #         main,
+    #         gpu_ids=gpu_ids,
+    #         nb_trials=hyperparams.tt_n_gpu_trials,
+    #         nb_workers=len(gpu_ids))
+    # elif hyperparams.device == 'cpu':
+    #     hyperparams.optimize_parallel_cpu(
+    #         main,
+    #         nb_trials=hyperparams.tt_n_cpu_trials,
+    #         nb_workers=hyperparams.tt_n_cpu_workers)
+    main(hyperparams)
     print('Total fit time: {} sec'.format(time.time() - t))
     if hyperparams.export_predictions_best \
             and hyperparams.subsample_regions == 'none':

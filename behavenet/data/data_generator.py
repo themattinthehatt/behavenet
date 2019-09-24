@@ -116,11 +116,14 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
         self.device = device
 
-        # TODO: not all signals are stored in hdf5 file
+        # # TODO: not all signals are stored in hdf5 file
         # self.dims = OrderedDict()
         # for signal in self.signals:
-        #     key_list = list(f[signal].keys())
-        #     self.dims[signal] = f[signal][key_list[0]].shape
+        #     if signal in f:
+        #         key_list = list(f[signal].keys())
+        #         self.dims[signal] = f[signal][key_list[0]].shape
+        #     else:
+        #         self.dims[signal] = []
 
         # get data paths
         self.signals = signals
