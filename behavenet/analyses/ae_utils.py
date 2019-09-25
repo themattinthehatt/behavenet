@@ -228,7 +228,7 @@ def _make_ae_reconstruction_movie(
 def make_ae_reconstruction_movie_multisession(
         hparams, save_file, batch=None, trial=None, version='best'):
     """
-    High-level function; calls _make_ae_reconstruction_movie
+    High-level function; calls make_ae_make_ae_reconstruction_movie
 
     Args:
         hparams (dict):
@@ -683,7 +683,8 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
     hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['model_type'] = hparams['ae_model_type']
 
-    ae_transform, ae_path = get_transforms_paths('ae_latents', hparams_ae)
+    ae_transform, ae_path = get_transforms_paths('ae_latents', hparams_ae,
+                                                 None)
 
     # ae predictions data
     hparams_dec = copy.copy(hparams)
@@ -691,7 +692,7 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
     hparams_dec['model_class'] = hparams['decoder_model_class']
     hparams_dec['model_type'] = hparams['decoder_model_type']
     ae_pred_transform, ae_pred_path = get_transforms_paths(
-        'neural_ae_predictions', hparams_dec)
+        'neural_ae_predictions', hparams_dec, None)
 
     # export latents if they don't exist
     # export_predictions_best(hparams_ae_pred)

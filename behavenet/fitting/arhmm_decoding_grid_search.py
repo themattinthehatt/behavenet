@@ -257,13 +257,11 @@ def get_params(strategy):
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
-    parser.add_argument('--signals', default=None, type=str)
-    parser.add_argument('--transforms', default=None)
-    parser.add_argument('--load_kwargs', default=None)
     parser.add_argument('--device', default='cpu', type=str)
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--trial_splits', default=None, type=str, help='i;j;k;l correspond to train;val;test;gap')
 
     # add fitting arguments
     parser.add_argument('--val_check_interval', default=1)

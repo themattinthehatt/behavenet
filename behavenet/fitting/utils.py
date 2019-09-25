@@ -566,7 +566,12 @@ def get_lab_example(hparams, lab):
         hparams['session'] = 'session-01'
         hparams['n_ae_latents'] = 12
         hparams['use_output_mask'] = False
-        hparams['frame_rate'] = 25
+        hparams['frame_rate'] = 39.61
+        hparams['x_pixels'] = 192
+        hparams['y_pixels'] = 112
+        hparams['n_input_channels'] = 1
+        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
+        hparams['neural_type'] = 'spikes'
     if lab == 'steinmetz-face':
         hparams['lab'] = 'steinmetz'
         hparams['expt'] = '2-probe-face'
@@ -574,7 +579,12 @@ def get_lab_example(hparams, lab):
         hparams['session'] = 'session-01'
         hparams['n_ae_latents'] = 12
         hparams['use_output_mask'] = False
-        hparams['frame_rate'] = 25
+        hparams['frame_rate'] = 39.61
+        hparams['x_pixels'] = 128
+        hparams['y_pixels'] = 128
+        hparams['n_input_channels'] = 1
+        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
+        hparams['neural_type'] = 'spikes'
     elif lab == 'musall':
         hparams['lab'] = 'musall'
         hparams['expt'] = 'vistrained'
@@ -583,6 +593,11 @@ def get_lab_example(hparams, lab):
         hparams['n_ae_latents'] = 16
         hparams['use_output_mask'] = False
         hparams['frame_rate'] = 30  # is this correct?
+        hparams['x_pixels'] = 128
+        hparams['y_pixels'] = 128
+        hparams['n_input_channels'] = 2
+        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
+        hparams['neural_type'] = 'ca'
     elif lab == 'datta':
         hparams['lab'] = 'datta'
         hparams['expt'] = 'inscopix'
@@ -591,6 +606,11 @@ def get_lab_example(hparams, lab):
         hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = True
         hparams['frame_rate'] = 30
+        hparams['x_pixels'] = 80
+        hparams['y_pixels'] = 80
+        hparams['n_input_channels'] = 1
+        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
+        hparams['neural_type'] = 'ca'
 
 
 def get_region_dir(hparams):
@@ -665,12 +685,21 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
             ids['session']))
     hparams, signals, transforms, paths = get_data_generator_inputs(
         hparams, sess_ids)
+    if hparams.get('trial_splits', None) is not None:
+        # assumes string of form 'train;val;test;gap'
+        trs = [int(tr) for tr in hparams['trial_splits'].split(';')]
+        trial_splits = {
+            'train_tr': trs[0], 'val_tr': trs[1], 'test_tr': trs[2],
+            'gap_tr': trs[3]}
+    else:
+        trial_splits = None
     print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
         signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'])
+        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'],
+        trial_splits=trial_splits)
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(
