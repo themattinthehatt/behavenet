@@ -30,9 +30,8 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         # get neural signals/transforms/path
         if hparams['model_class'].find('neural') > -1:
-            neural_transform, neural_path = get_transforms_paths('neural',
-                                                                 hparams,
-                                                                 sess_id=sess_id)
+            neural_transform, neural_path = get_transforms_paths(
+                'neural', hparams, sess_id=sess_id)
         else:
             neural_transform = None
             neural_path = None

@@ -12,6 +12,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import add_lab_defaults_to_parser
+from behavenet.analyses.arhmm_utils import get_latent_arrays_by_dtype
 from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
 from behavenet.analyses.arhmm_utils import make_overview_arhmm_figures
 matplotlib.use('agg')
@@ -41,19 +42,9 @@ def main(hparams):
         os.path.dirname(data_generator.datasets[0].paths['ae']))
 
     # Get all latents in list
-    # TODO: currently only works for a single session
-    trial_idxs = {}
-    latents = {}
-    for data_type in ['train', 'val', 'test']:
-        if data_type == 'train' and hparams['train_percent'] < 1:
-           n_batches = np.floor(
-               hparams['train_percent']*len(data_generator.datasets[0].batch_indxs[data_type]))
-           trial_idxs[data_type] = data_generator.datasets[0].batch_indxs[data_type][:int(n_batches)]
-        else:
-           trial_idxs[data_type] = data_generator.datasets[0].batch_indxs[data_type]
-        latents[data_type] = [data_generator.datasets[0][i_trial]['ae'][:].cpu().detach().numpy() for i_trial in trial_idxs[data_type]]
-
-    hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['images'].shape[0]
+    latents, trial_idxs = get_latent_arrays_by_dtype(
+        hparams, data_generator, sess_idxs=list(range(len(data_generator))))
+    hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
 
     if hparams['noise_type'] == 'gaussian':
         obv_type = 'ar'
@@ -108,7 +99,7 @@ def main(hparams):
     # ### EVALUATE ARHMM ###
     # ######################
 
-    # Evaluate log likelihood of validation data
+    # Evaluate log likelihood of validation data # TODO: per session
     validation_ll = hmm.log_likelihood(latents['val'])
 
     exp.log({'train_ll': np.mean(train_ll), 'val_ll': np.mean(validation_ll)})
@@ -121,7 +112,16 @@ def main(hparams):
     # ARHMM figures/videos
     if hparams['make_ind_plots']:
         print('creating individual arhmm figures...', end='')
-        make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator)
+        if len(data_generator) > 1:
+            for sess_idx in range(len(data_generator)):
+                latents, trial_idxs = get_latent_arrays_by_dtype(
+                    hparams, data_generator, sess_idxs=sess_idx)
+                make_ind_arhmm_figures(
+                    hparams, exp, hmm, latents, trial_idxs, data_generator,
+                    sess_idx=sess_idx)
+        else:
+            make_ind_arhmm_figures(
+                hparams, exp, hmm, latents, trial_idxs, data_generator)
         print('done')
 
     # update hparams upon successful training
@@ -185,7 +185,7 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--n_arhmm_states', default=2, type=int)
-        parser.add_argument('--train_percent', default=1.0, type=int)
+        parser.add_argument('--train_percent', default=1.0, type=float)
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
 
@@ -216,7 +216,7 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
-        parser.opt_list('--train_percent', default=1.0, options=[0.2, 0.4, 0.6, 0.8, 1.0], type=float, tunable=True)
+        parser.opt_list('--train_percent', default=1.0, options=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
 

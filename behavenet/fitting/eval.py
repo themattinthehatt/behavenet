@@ -41,7 +41,7 @@ def export_states(hparams, data_generator, model, filename=None):
             curr_states = model.most_likely_states(y)
             states[dataset][data['batch_indx'].item(), :] = curr_states
 
-    # save latents separately for each dataset
+    # save states separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
         if filename is None or data_generator.n_datasets > 1:
             # get save name which includes lab/expt/animal/session

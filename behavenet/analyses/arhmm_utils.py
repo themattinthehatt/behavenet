@@ -82,12 +82,13 @@ def make_overview_arhmm_figures(hparams):
     plt.savefig(filepath+'/'+hparams['lab_example']+'_validation_loglikelihood.png',bbox_inches='tight',dpi=200)
 
 
-def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator):
+def make_ind_arhmm_figures(
+        hparams, exp, hmm, latents, trial_idxs, data_generator, sess_idx=0):
 
     if hparams['neural_bin_size']:
-        frame_rate = 1000/hparams['neural_bin_size']
-    elif not hparams['neural_bin_size']:
-        frame_rate = 30  # TO DO: fix frame rates
+        frame_rate = 1000 / hparams['neural_bin_size']
+    else:
+        frame_rate = 30  # TODO: fix frame rates
 
     states = {}
     for data_type in ['train', 'val', 'test']:
@@ -102,36 +103,63 @@ def make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generato
 
     # Compute state distributions on training data
     train_durations_frames = get_state_durations(latents['train'], hmm)
-    train_durations_ms = train_durations_frames/frame_rate*1000
+    train_durations_ms = train_durations_frames / frame_rate * 1000
 
     exp.log({'median_dur': np.median(train_durations_ms)})
     exp.save()
 
+    model_str = str(
+        'K_%i_kappa_%.0e_noise_%s_nlags_%i' % (
+            hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'],
+            hparams['n_lags']))
+
+    if len(data_generator) > 1:
+        filename = os.path.join(filepath, str('%s_duration_hist_%s.png' % (
+            data_generator.datasets[sess_idx].sess_str, model_str)))
+    else:
+        filename = os.path.join(filepath, str('duration_hist_%s.png' % model_str))
     plt.clf()
-    plt.hist(train_durations_ms,100,color='k');
+    plt.hist(train_durations_ms, 100, color='k')
     plt.xlabel('Time (ms)')
     plt.ylabel('Occurrences')
-    plt.title('Training Data State Durations \n Kappa = '+str(format(hparams['kappa'],'.0e'))+', # States = ' +str(hparams['n_arhmm_states'])+' \n Noise = '+hparams['noise_type']+', N lags = '+str(hparams['n_lags']))
-    plt.savefig(os.path.join(filepath,'duration_hist_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(format(hparams['kappa'],'.0e'))+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png'),bbox_inches='tight')
+    plt.title(str(
+        'Training Data State Durations\nKappa = %.0e, # States = %02i\nNoise = %s, lags = %i' %
+        (hparams['kappa'], hparams['n_arhmm_states'], hparams['noise_type'],
+         hparams['n_lags'])))
+    plt.savefig(filename, bbox_inches='tight')
 
-    # ## Make figure of frame counts
+    # Make figure of frame counts
+    if len(data_generator) > 1:
+        filename = os.path.join(filepath, str('%s_proportion_times_%s.png' % (
+            data_generator.datasets[sess_idx].sess_str, model_str)))
+    else:
+        filename = os.path.join(filepath, str('proportion_times_%s.png' % model_str))
     _, _, frame_counts = relabel_states_by_use(states['train'])
     plt.clf()
     plt.figure(figsize=(6, 3))
-    plt.bar(np.arange(0,len(frame_counts)),100*frame_counts/np.sum(frame_counts),color='k')
+    plt.bar(
+        np.arange(0, len(frame_counts)),
+        100 * frame_counts / np.sum(frame_counts), color='k')
     xlab = plt.xlabel('Discrete State')
     plt.ylabel('Percentage of frames')
     plt.title('Training Data ARHMM State Times')
-    plt.savefig(os.path.join(filepath,'proportion_times_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(format(hparams['kappa'],'.0e'))+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png'),bbox_inches='tight')
+    plt.savefig(filename, bbox_inches='tight')
 
-    ## Make syllable movies
-    # make_syllable_movies(  # TODO: frozen frames? need to fix
+    # Make syllable movies
+    # TODO: frozen frames? need to fix
+    # TODO: add session index to arguments to get correct data from generator
+    # make_syllable_movies(
     #     filepath=filepath, hparams=hparams, latents=latents['val'],
     #     states=states['val'], trial_idxs=trial_idxs['val'],
     #     data_generator=data_generator)
 
-    ## Make real vs generated movies - TODO: throwing an error that Matt doesn't want to track down yet
-    #make_real_vs_generated_movies(filepath=filepath, hparams=hparams, hmm = hmm, latents=latents['val'], states=states['val'], data_generator=data_generator)
+    # Make real vs generated movies
+    # TODO: throwing an error that Matt doesn't want to track down yet
+    # TODO: add session index to arguments to get correct data from generator
+    #make_real_vs_generated_movies(
+        # filepath=filepath, hparams=hparams, hmm=hmm,
+        # latents=latents['val'], states=states['val'],
+        # data_generator=data_generator)
 
 
 def get_discrete_chunks(states, include_edges=True):
@@ -570,3 +598,36 @@ def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
     save_file = os.path.join(filepath,hparams['dataset_name']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
     ani.save(save_file, writer=writer)
+
+
+def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
+    """
+    Collect data from data generator and put into dictionary with keys `train`,
+    `test`, and `val`
+
+    Args:
+        hparams (dict):
+        data_generator (ConcatSessionsGenerator):
+        sess_idxs (int or list): concatenate train/test/val data across
+            multiple sessions
+
+    Returns:
+        (tuple): latents dict, trial indices dict
+    """
+    if isinstance(sess_idxs, int):
+        sess_idxs = [sess_idxs]
+    dtypes = ['train', 'val', 'test']
+    latents = {key: [] for key in dtypes}
+    trial_idxs = {key: [] for key in dtypes}
+    for sess_idx in sess_idxs:
+        dataset = data_generator.datasets[sess_idx]
+        for data_type in dtypes:
+            if data_type == 'train' and hparams['train_percent'] < 1:
+                n_tot_batches = len(dataset.batch_indxs[data_type])
+                n_batches = int(np.floor(hparams['train_percent'] * n_tot_batches))
+                trial_idxs[data_type] = dataset.batch_indxs[data_type][:n_batches]
+            else:
+                trial_idxs[data_type] = dataset.batch_indxs[data_type]
+            latents[data_type] += [dataset[i_trial]['ae'][:].cpu().detach().numpy()
+                                  for i_trial in trial_idxs[data_type]]
+    return latents, trial_idxs

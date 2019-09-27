@@ -98,6 +98,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.data_dir = os.path.join(
             data_dir, self.lab, self.expt, self.animal, self.session)
         self.name = os.path.join(self.lab, self.expt, self.animal, self.session)
+        self.sess_str = str('%s_%s_%s_%s' % (
+            self.lab, self.expt, self.animal, self.session))
 
         # get total number of trials by loading images/neural data
         self.n_trials = None
@@ -132,6 +134,22 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         for signal, transform, path in zip(signals, transforms, paths):
             self.transforms[signal] = transform
             self.paths[signal] = path
+
+    def __repr__(self):
+        # # return info about number of datasets
+        # if self.batch_load:
+        #     single_sess_str = 'SingleSessionDatasetBatchedLoad'
+        # else:
+        #     single_sess_str = 'SingleSessionDataset'
+        # format_str = str('Generator contains %i %s objects\n' %
+        #                  (self.n_datasets, single_sess_str))
+        # for i in range(len(self.signals)):
+        #     format_str += str('\tsignals: {}\n'.format(self.signals[i]))
+        #     format_str += str('\ttransforms: {}\n'.format(self.transforms[i]))
+        #     format_str += str('\tpaths: {}\n'.format(self.paths[i]))
+        #     format_str += '\n'
+        # return format_str
+        return self.sess_str
 
     def __len__(self):
         return self.n_trials
@@ -457,7 +475,7 @@ class ConcatSessionsGenerator(object):
             single_sess_str = 'SingleSessionDatasetBatchedLoad'
         else:
             single_sess_str = 'SingleSessionDataset'
-        format_str = str('Generator contains %i %s objects\n' %
+        format_str = str('Generator contains %i %s objects:\n' %
                          (self.n_datasets, single_sess_str))
         for i in range(len(self.signals)):
             format_str += str('\tsignals: {}\n'.format(self.signals[i]))
