@@ -249,7 +249,9 @@ def get_transforms_paths(data_type, hparams, sess_id):
                     threshold=hparams['neural_thresh'],
                     bin_size=hparams['neural_bin_size']))
         elif hparams['neural_type'] == 'ca':
-            transforms_.append(ZScore())
+            if hparams['model_type'][-6:] != 'neural':
+                # don't zscore if predicting calcium activity
+                transforms_.append(ZScore())
         else:
             raise ValueError(
                 '"%s" is an invalid neural type' % hparams['neural_type'])
