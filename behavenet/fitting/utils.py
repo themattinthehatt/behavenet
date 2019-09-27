@@ -508,6 +508,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', default='10-Oct-2017', type=str)
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='8;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
     elif lab == 'steinmetz':
         parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', default=192, help='number of pixels in x dimension', type=int)
@@ -520,6 +521,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', default='session-01', type=str)
         parser.add_argument('--neural_bin_size', default=39.61, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='5;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
     elif lab == 'steinmetz-face':
         parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
@@ -532,6 +534,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', default='session-01', type=str)
         parser.add_argument('--neural_bin_size', default=39.61, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='5;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
     elif lab == 'datta':
         parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', default=80, help='number of pixels in x dimension', type=int)
@@ -556,6 +559,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', type=str)
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='5;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
 
 
 def get_lab_example(hparams, lab):

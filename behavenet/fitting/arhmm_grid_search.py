@@ -154,7 +154,6 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
-    parser.add_argument('--trial_splits', default=None, type=str, help='i;j;k;l correspond to train;val;test;gap')
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
