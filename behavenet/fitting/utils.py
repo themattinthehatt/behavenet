@@ -443,6 +443,8 @@ def experiment_exists(hparams, which_version=False):
     hparams_less.pop('subsample_regions', None)
     hparams_less.pop('reg_list', None)
     hparams_less.pop('version', None)
+    hparams_less.pop('plot_n_frames', None)
+    hparams_less.pop('plot_frame_rate', None)
 
     found_match = False
     version = None
