@@ -76,16 +76,14 @@ def get_output_session_dir(hparams, path_type='save'):
                 if animal[:5] == 'multi':
                     continue
                 else:
-                    sessions = get_subdirs(os.path.join(
-                        base_dir, lab, expt, animal))
+                    sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
                 for session in sessions:
                     if session[:5] == 'multi':
                         continue
                     else:
                         # record bottom-level single-session directory
                         sessions_single.append({
-                            'lab': lab, 'expt': expt, 'animal': animal,
-                            'session': session})
+                            'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
         session_dir_base = os.path.join(base_dir, lab)
     elif hparams['animal'] == 'all':
         # get all animals from one experiment
@@ -94,52 +92,43 @@ def get_output_session_dir(hparams, path_type='save'):
         for animal in animals:
             if animal[:5] == 'multi':
                 # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(
-                    base_dir, lab, expt, animal))
+                sessions_multi_paths.append(os.path.join(base_dir, lab, expt, animal))
                 continue
             else:
-                sessions = get_subdirs(os.path.join(
-                    base_dir, lab, expt, animal))
+                sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
             for session in sessions:
                 if session[:5] == 'multi':
                     continue
                 else:
                     # record bottom-level single-session directory
                     sessions_single.append({
-                        'lab': lab, 'expt': expt, 'animal': animal,
-                        'session': session})
+                        'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
         session_dir_base = os.path.join(base_dir, lab, expt)
     elif hparams['session'] == 'all':
         # get all sessions from one animal
         expt = hparams['expt']
         animal = hparams['animal']
-        sessions = get_subdirs(os.path.join(
-            base_dir, lab, expt, animal))
+        sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
         for session in sessions:
             if session[:5] == 'multi':
                 # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(
-                    base_dir, lab, expt, animal, session))
+                sessions_multi_paths.append(os.path.join(base_dir, lab, expt, animal, session))
                 continue
             else:
                 # record bottom-level single-session directory
                 sessions_single.append({
-                    'lab': lab, 'expt': expt, 'animal': animal,
-                    'session': session})
-        session_dir_base = os.path.join(
-            base_dir, lab, expt, animal)
+                    'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
+        session_dir_base = os.path.join(base_dir, lab, expt, animal)
     else:
         sessions_single.append({
-            'lab': hparams['lab'], 'expt': hparams['expt'],
-            'animal': hparams['animal'], 'session': hparams['session']})
+            'lab': hparams['lab'], 'expt': hparams['expt'], 'animal': hparams['animal'],
+            'session': hparams['session']})
         session_dir_base = os.path.join(
-            base_dir, hparams['lab'], hparams['expt'],
-            hparams['animal'], hparams['session'])
+            base_dir, hparams['lab'], hparams['expt'], hparams['animal'], hparams['session'])
 
     # construct session_dir
     if hparams.get('multisession', None) is not None:
-        session_dir = os.path.join(
-            session_dir_base, 'multisession-%02i' % hparams['multisession'])
+        session_dir = os.path.join(session_dir_base, 'multisession-%02i' % hparams['multisession'])
     elif len(sessions_single) > 1:
         # check if this combo of experiments exists in prev multi-sessions
         found_match = False
@@ -161,8 +150,8 @@ def get_output_session_dir(hparams, path_type='save'):
 
         # create new multi-index if match was not found
         if not found_match:
-            multi_indxs = [int(session_multi.split('-')[-1])
-                           for session_multi in sessions_multi_paths]
+            multi_indxs = [
+                int(session_multi.split('-')[-1]) for session_multi in sessions_multi_paths]
             if len(multi_indxs) == 0:
                 multi_indx = 0
             else:
@@ -210,8 +199,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
-            model_class, '%02i_latents' % hparams['n_ae_latents'],
-            model_type, brain_region)
+            model_class, '%02i_latents' % hparams['n_ae_latents'], model_type, brain_region)
     elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
@@ -315,22 +303,21 @@ def find_session_dirs(hparams):
             session_dir = os.path.join(hparams['tt_save_path'], lab, expt)
             if contains_session(session_dir, ids):
                 session_dirs.append(session_dir)
-                session_ids.append(
-                    {'lab': lab, 'expt': 'all', 'animal': '', 'session': '',
-                     'multisession': int(expt[-2:])})
+                session_ids.append({
+                    'lab': lab, 'expt': 'all', 'animal': '', 'session': '',
+                    'multisession': int(expt[-2:])})
             continue
         else:
             animals = get_subdirs(os.path.join(
                 hparams['tt_save_path'], lab, expt))
         for animal in animals:
             if animal[:5] == 'multi':
-                session_dir = os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal)
+                session_dir = os.path.join(hparams['tt_save_path'], lab, expt, animal)
                 if contains_session(session_dir, ids):
                     session_dirs.append(session_dir)
-                    session_ids.append(
-                        {'lab': lab, 'expt': expt, 'animal': 'all',
-                         'session': '', 'multisession': int(animal[-2:])})
+                    session_ids.append({
+                        'lab': lab, 'expt': expt, 'animal': 'all', 'session': '',
+                        'multisession': int(animal[-2:])})
                 continue
             else:
                 sessions = get_subdirs(os.path.join(
@@ -341,24 +328,20 @@ def find_session_dirs(hparams):
                 if session[:5] == 'multi':
                     if contains_session(session_dir, ids):
                         session_dirs.append(session_dir)
-                        session_ids.append(
-                            {'lab': lab, 'expt': expt, 'animal': animal,
-                             'session': 'all',
-                             'multisession': int(session[-2:])})
+                        session_ids.append({
+                            'lab': lab, 'expt': expt, 'animal': animal, 'session': 'all',
+                            'multisession': int(session[-2:])})
                 else:
-                    tmp_ids = {
-                        'lab': lab, 'expt': expt, 'animal': animal,
-                        'session': session}
+                    tmp_ids = {'lab': lab, 'expt': expt, 'animal': animal, 'session': session}
                     if tmp_ids == ids:
                         session_dirs.append(session_dir)
-                        session_ids.append(
-                            {'lab': lab, 'expt': expt, 'animal': animal,
-                             'session': session, 'multisession': None})
+                        session_ids.append({
+                            'lab': lab, 'expt': expt, 'animal': animal, 'session': session,
+                            'multisession': None})
     return session_dirs, session_ids
 
 
-def get_best_model_version(
-        model_path, measure='val_loss', best_def='min', n_best=1):
+def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
     """
     Get best model version from test tube
 
@@ -393,9 +376,7 @@ def get_best_model_version(
             val_loss = metric[measure].min()
         elif best_def == 'max':
             val_loss = metric[measure].max()
-        metrics.append(pd.DataFrame({
-            'loss': val_loss,
-            'version': version}, index=[i]))
+        metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
     # put everything in pandas dataframe
     metrics_df = pd.concat(metrics, sort=False)
     # get version with smallest loss
@@ -407,7 +388,8 @@ def get_best_model_version(
             best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
     else:
         if best_def == 'min':
-            best_versions = np.asarray(metrics_df['version'][metrics_df['loss'].nsmallest(n_best,'all').index])
+            best_versions = np.asarray(
+                metrics_df['version'][metrics_df['loss'].nsmallest(n_best, 'all').index])
         elif best_def == 'max':
             raise NotImplementedError
         if best_versions.shape[0] != n_best:
@@ -640,9 +622,7 @@ def get_region_dir(hparams):
     elif hparams['subsample_regions'] == 'loo':
         region_dir = str('%s-loo' % hparams['region'])
     else:
-        raise ValueError(
-            '"%s" is an invalid regioin sampling type' %
-            hparams['subsample_regions'])
+        raise ValueError('"%s" is an invalid regioin sampling type' % hparams['subsample_regions'])
     return region_dir
 
 
@@ -700,30 +680,25 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     print('using data from following sessions:')
     for ids in sess_ids:
         print('%s' % os.path.join(
-            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'],
-            ids['session']))
+            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
     hparams, signals, transforms, paths = get_data_generator_inputs(
         hparams, sess_ids)
     if hparams.get('trial_splits', None) is not None:
         # assumes string of form 'train;val;test;gap'
         trs = [int(tr) for tr in hparams['trial_splits'].split(';')]
-        trial_splits = {
-            'train_tr': trs[0], 'val_tr': trs[1], 'test_tr': trs[2],
-            'gap_tr': trs[3]}
+        trial_splits = {'train_tr': trs[0], 'val_tr': trs[1], 'test_tr': trs[2], 'gap_tr': trs[3]}
     else:
         trial_splits = None
     print('constructing data generator...', end='')
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], sess_ids,
         signals_list=signals, transforms_list=transforms, paths_list=paths,
-        device=hparams['device'], as_numpy=hparams['as_numpy'],
-        batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed'],
-        trial_splits=trial_splits)
+        device=hparams['device'], as_numpy=hparams['as_numpy'], batch_load=hparams['batch_load'],
+        rng_seed=hparams['rng_seed'], trial_splits=trial_splits)
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(
-            hparams['expt_dir'],
-            str('version_%i' % hparams['version'])), sess_ids)
+            hparams['expt_dir'], str('version_%i' % hparams['version'])), sess_ids)
     print('done')
     print(data_generator)
     return data_generator

@@ -49,8 +49,7 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         elif hparams['model_class'] == 'ae_latents':
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams,
-                                                         sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
             signals = ['ae']
             transforms = [ae_transform]
@@ -66,8 +65,7 @@ def get_data_generator_inputs(hparams, sess_ids):
             else:
                 hparams['noise_dist'] = 'gaussian'
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams,
-                                                         sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
             signals = ['neural', 'ae']
             transforms = [neural_transform, ae_transform]
@@ -86,8 +84,7 @@ def get_data_generator_inputs(hparams, sess_ids):
             elif hparams['neural_type'] == 'spikes':
                 hparams['noise_dist'] = 'poisson'
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams,
-                                                         sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
             signals = ['neural', 'ae']
             transforms = [neural_transform, ae_transform]
@@ -100,9 +97,8 @@ def get_data_generator_inputs(hparams, sess_ids):
             hparams['output_size'] = hparams['n_arhmm_states']
             hparams['noise_dist'] = 'categorical'
 
-            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states',
-                                                               hparams,
-                                                               sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths(
+                'arhmm_states', hparams, sess_id=sess_id)
 
             signals = ['neural', 'arhmm']
             transforms = [neural_transform, arhmm_transform]
@@ -121,9 +117,8 @@ def get_data_generator_inputs(hparams, sess_ids):
             elif hparams['neural_type'] == 'spikes':
                 hparams['noise_dist'] = 'poisson'
 
-            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states',
-                                                               hparams,
-                                                               sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths(
+                'arhmm_states', hparams, sess_id=sess_id)
 
             signals = ['neural', 'arhmm']
             transforms = [neural_transform, arhmm_transform]
@@ -131,8 +126,7 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         elif hparams['model_class'] == 'arhmm':
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams,
-                                                         sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
             signals = ['ae', 'images']
             transforms = [ae_transform, None]
@@ -145,13 +139,12 @@ def get_data_generator_inputs(hparams, sess_ids):
         elif hparams['model_class'] == 'arhmm-decoding':
 
             # get autoencoder latents info
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams,
-                                                         sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents', hparams, sess_id=sess_id)
 
             # get arhmm states info
-            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states',
-                                                               hparams,
-                                                               sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths(
+                'arhmm_states', hparams, sess_id=sess_id)
 
             # get neural-ae info
             neural_ae_transform, neural_ae_path = get_transforms_paths(
@@ -216,8 +209,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
     if data_type == 'neural':
 
         path = os.path.join(
-            hparams['data_dir'], sess_id['lab'], sess_id['expt'],
-            sess_id['animal'], sess_id['session'], 'data.hdf5')
+            hparams['data_dir'], sess_id['lab'], sess_id['expt'], sess_id['animal'],
+            sess_id['session'], 'data.hdf5')
 
         transforms_ = []
 
@@ -284,8 +277,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
     elif data_type == 'arhmm_states':
 
         arhmm_dir = get_expt_dir(
-            hparams, model_class='arhmm',
-            expt_name=hparams['arhmm_experiment_name'])
+            hparams, model_class='arhmm', expt_name=hparams['arhmm_experiment_name'])
 
         if 'shuffle_rng_seed' in hparams:
             transform = BlockShuffle(hparams['shuffle_rng_seed'])
@@ -295,8 +287,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
         if 'arhmm_state_file' in hparams:
             path = hparams['arhmm_state_file']
         else:
-            if 'arhmm_version' in hparams and isinstance(
-                    hparams['arhmm_version'], int):
+            if 'arhmm_version' in hparams and isinstance(hparams['arhmm_version'], int):
                 arhmm_version = str('version_%i' % hparams['arhmm_version'])
             else:
                 arhmm_version = get_best_model_version(arhmm_dir, 'val_loss')[0]
@@ -314,13 +305,10 @@ def get_transforms_paths(data_type, hparams, sess_id):
         if 'ae_predictions_file' in hparams:
             path = hparams['ae_predictions_file']
         else:
-            if 'neural_ae_version' in hparams and isinstance(
-                    hparams['neural_ae_version'], int):
-                neural_ae_version = str(
-                    'version_%i' % hparams['neural_ae_version'])
+            if 'neural_ae_version' in hparams and isinstance(hparams['neural_ae_version'], int):
+                neural_ae_version = str('version_%i' % hparams['neural_ae_version'])
             else:
-                neural_ae_version = get_best_model_version(
-                    neural_ae_dir, 'val_loss')[0]
+                neural_ae_version = get_best_model_version(neural_ae_dir, 'val_loss')[0]
             path = os.path.join(neural_ae_dir, neural_ae_version)
 
     elif data_type == 'neural_arhmm_predictions':
@@ -334,13 +322,11 @@ def get_transforms_paths(data_type, hparams, sess_id):
         if 'arhmm_predictions_file' in hparams:
             path = hparams['arhmm_predictions_file']
         else:
-            if 'neural_arhmm_version' in hparams and isinstance(
-                    hparams['neural_arhmm_version'], int):
-                neural_arhmm_version = str(
-                    'version_%i' % hparams['neural_arhmm_version'])
+            if 'neural_arhmm_version' in hparams and \
+                    isinstance(hparams['neural_arhmm_version'], int):
+                neural_arhmm_version = str('version_%i' % hparams['neural_arhmm_version'])
             else:
-                neural_arhmm_version = \
-                    get_best_model_version(neural_arhmm_dir, 'val_loss')[0]
+                neural_arhmm_version = get_best_model_version(neural_arhmm_dir, 'val_loss')[0]
             path = os.path.join(neural_arhmm_dir, neural_arhmm_version)
 
     else:
@@ -372,8 +358,8 @@ def get_region_list(hparams):
         indx_types = list(f['regions'])
         if 'indxs_consolidate' in indx_types:
             regions = list(f['regions']['indxs_consolidate'].keys())
-            indxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()])
-                     for reg in regions}
+            indxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()]) for
+                     reg in regions}
         elif 'indxs_consolidate_lr' in indx_types:
             regions = list(f['regions']['indxs_consolidate_lr'].keys())
             indxs = {reg: np.ravel(f['regions']['indxs_consolidate_lr'][reg][()])
@@ -386,12 +372,10 @@ def get_region_list(hparams):
     return indxs
 
 
-def get_best_model_and_data(
-        hparams, Model, load_data=True, version='best', data_kwargs=None):
+def get_best_model_and_data(hparams, Model, load_data=True, version='best', data_kwargs=None):
     """
-    Helper function for loading the best model defined by hparams out of all
-    available test-tube versions, as well as the associated data used to fit
-    the model.
+    Helper function for loading the best model defined by hparams out of all available test-tube
+    versions, as well as the associated data used to fit the model.
 
     Args:
         hparams (dict):
@@ -424,8 +408,7 @@ def get_best_model_and_data(
     version_dir = os.path.join(expt_dir, best_version)
     arch_file = os.path.join(version_dir, 'meta_tags.pkl')
     model_file = os.path.join(version_dir, 'best_val_model.pt')
-    if not os.path.exists(model_file) and not os.path.exists(
-            model_file + '.meta'):
+    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
         model_file = os.path.join(version_dir, 'best_val_model.ckpt')
     print('Loading model defined in %s' % arch_file)
 
@@ -440,8 +423,7 @@ def get_best_model_and_data(
     hparams_new['device'] = 'cpu'
 
     # build data generator
-    hparams_new, signals, transforms, paths = get_data_generator_inputs(
-        hparams_new, sess_ids)
+    hparams_new, signals, transforms, paths = get_data_generator_inputs(hparams_new, sess_ids)
     if load_data:
         # sometimes we want a single data_generator for multiple models
         if data_kwargs is None:
@@ -450,16 +432,14 @@ def get_best_model_and_data(
             hparams_new['data_dir'], sess_ids,
             signals_list=signals, transforms_list=transforms, paths_list=paths,
             device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
-            batch_load=hparams_new['batch_load'],
-            rng_seed=hparams_new['rng_seed'], **data_kwargs)
+            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'], **data_kwargs)
     else:
         data_generator = None
 
     # build models
     model = Model(hparams_new)
     model.version = best_version_int
-    model.load_state_dict(torch.load(
-        model_file, map_location=lambda storage, loc: storage))
+    model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
     model.to(hparams_new['device'])
     model.eval()
 
