@@ -45,7 +45,7 @@ class GetMask(object):
         signal1 = signal1 < self.ll_thresh  # ll < ll thresh
         signal2 = signal2 > self.depth_thresh  # depth > depth thresh
         # mask = ll < ll thresh || depth > depth thresh
-        signal = ((signal1.astype('int')+signal2.astype('int'))<2).astype('int') #((signal1+signal2)<2).astype('int')
+        signal = ((signal1.astype('int') + signal2.astype('int')) < 2).astype('int')
         return signal
 
     def __repr__(self):
@@ -88,8 +88,7 @@ class Resize(object):
 
         sh = sample.shape
 
-        sample = transform.resize(
-            sample, (sh[0], sh[1], self.x, self.y), order=self.order)
+        sample = transform.resize(sample, (sh[0], sh[1], self.x, self.y), order=self.order)
 
         return sample
 
@@ -126,9 +125,7 @@ class Threshold(object):
         return sample.astype(np.float)
 
     def __repr__(self):
-        return str(
-            'Threshold(threshold=%f, bin_size=%f)' %
-            (self.threshold, self.bin_size))
+        return str('Threshold(threshold=%f, bin_size=%f)' % (self.threshold, self.bin_size))
 
 
 class ZScore(object):
@@ -199,8 +196,7 @@ class BlockShuffle(object):
             if not any(np.isnan(sample[t])):
 
                 # mark first time point of state change with a nonzero number
-                state_change = np.where(
-                    np.concatenate([[0], np.diff(sample[t])], axis=0) != 0)[0]
+                state_change = np.where(np.concatenate([[0], np.diff(sample[t])], axis=0) != 0)[0]
 
                 # collect runs
                 runs = []

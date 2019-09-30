@@ -98,8 +98,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.data_dir = os.path.join(
             data_dir, self.lab, self.expt, self.animal, self.session)
         self.name = os.path.join(self.lab, self.expt, self.animal, self.session)
-        self.sess_str = str('%s_%s_%s_%s' % (
-            self.lab, self.expt, self.animal, self.session))
+        self.sess_str = str('%s_%s_%s_%s' % (self.lab, self.expt, self.animal, self.session))
 
         # get total number of trials by loading images/neural data
         self.n_trials = None
@@ -313,22 +312,17 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
             animal (str)
             session (str)
             signals (list of strs): e.g. 'images' | 'masks' | 'neural' | ...
-                see behavenet.fitting.utils.get_data_generator_inputs for
-                examples
-            transforms (list of transforms): each element corresponds to an
-                entry in `signals`; for multiple transforms, chain together
-                using pt transforms.Compose; see behavenet.data.transforms.py
-                for available transform options
-            paths (list of strs): each element corresponds to file
-                location for an entry in `signals`; see
-                behavenet.fitting.utils.get_data_generator_inputs for examples
+                see behavenet.fitting.utils.get_data_generator_inputs for examples
+            transforms (list of transforms): each element corresponds to an entry in `signals`;
+                for multiple transforms, chain together using pt transforms.Compose;
+                see behavenet.data.transforms.py for available transform options
+            paths (list of strs): each element corresponds to file location for an entry in
+                `signals`; see behavenet.fitting.utils.get_data_generator_inputs for examples
             device (str, optional): location of data
                 'cpu' | 'cuda'
         """
 
-        super().__init__(
-            data_dir, lab, expt, animal, session, signals, transforms,
-            paths, device)
+        super().__init__(data_dir, lab, expt, animal, session, signals, transforms, paths, device)
 
         # grab all data as a single batch
         self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
@@ -368,9 +362,8 @@ class ConcatSessionsGenerator(object):
     _dtypes = {'train', 'val', 'test'}
 
     def __init__(
-            self, data_dir, ids_list, signals_list=None, transforms_list=None,
-            paths_list=None, device='cuda', as_numpy=False, batch_load=True,
-            rng_seed=0, trial_splits=None):
+            self, data_dir, ids_list, signals_list=None, transforms_list=None, paths_list=None,
+            device='cuda', as_numpy=False, batch_load=True, rng_seed=0, trial_splits=None):
         """
 
         Args:
@@ -384,15 +377,14 @@ class ConcatSessionsGenerator(object):
             paths_list (list of lists): list of paths for each session
             device (str, optional): location of data
                 'cpu' | 'cuda'
-            as_numpy (bool, optional): `True` to return numpy array, `False` to
-                return pytorch tensor
-            batch_load (bool, optional): `True` to load data in batches as
-                model is training, otherwise all data is loaded at once and
-                stored on `device`
+            as_numpy (bool, optional): `True` to return numpy array, `False` to return pytorch
+                tensor
+            batch_load (bool, optional): `True` to load data in batches as model is training,
+                otherwise all data is loaded at once and stored on `device`
             rng_seed (int, optional): controls train/test/xv fold splits
-            trial_splits (dict, optional): defines number of train/text/xv
-                folds using the keys 'train_tr', 'val_tr', 'test_tr', and
-                'gap_tr'; see `split_trials` for how these are used.
+            trial_splits (dict, optional): defines number of train/text/xv folds using the keys
+                'train_tr', 'val_tr', 'test_tr', and 'gap_tr'; see `split_trials` for how these are
+                used.
         """
 
         if isinstance(ids_list, dict):
@@ -415,13 +407,11 @@ class ConcatSessionsGenerator(object):
         for ids, signals, transforms, paths in zip(
                 ids_list, signals_list, transforms_list, paths_list):
             self.datasets.append(SingleSession(
-                data_dir, lab=ids['lab'], expt=ids['expt'],
-                animal=ids['animal'], session=ids['session'],
-                signals=signals, transforms=transforms,
-                paths=paths, device=device))
+                data_dir, lab=ids['lab'], expt=ids['expt'], animal=ids['animal'],
+                session=ids['session'], signals=signals, transforms=transforms, paths=paths,
+                device=device))
             self.datasets_info.append({
-                'lab': ids['lab'], 'expt': ids['expt'],
-                'animal': ids['animal'],
+                'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})
 
         # collect info about datasets
@@ -433,22 +423,20 @@ class ConcatSessionsGenerator(object):
                 'train_tr': 5, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 1}
         self.batch_ratios = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
-            dataset.batch_indxs = split_trials(
-                len(dataset), rng_seed=rng_seed, **trial_splits)
+            dataset.batch_indxs = split_trials(len(dataset), rng_seed=rng_seed, **trial_splits)
             dataset.n_batches = {}
             for dtype in self._dtypes:
                 dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
                 if dtype == 'train':
                     self.batch_ratios[i] = len(dataset.batch_indxs[dtype])
-        self.batch_ratios = np.array(self.batch_ratios) / np.sum(
-            self.batch_ratios)
+        self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
         # find total number of batches per data type; this will be iterated
         # over in the training loop
         self.n_tot_batches = {}
         for dtype in self._dtypes:
-            self.n_tot_batches[dtype] = np.sum([
-                dataset.n_batches[dtype] for dataset in self.datasets])
+            self.n_tot_batches[dtype] = np.sum(
+                [dataset.n_batches[dtype] for dataset in self.datasets])
 
         # create data loaders (will shuffle/batch/etc datasets)
         self.dataset_loaders = [None] * self.n_datasets
@@ -466,8 +454,7 @@ class ConcatSessionsGenerator(object):
         for i in range(self.n_datasets):
             self.dataset_iters[i] = {}
             for dtype in self._dtypes:
-                self.dataset_iters[i][dtype] = iter(
-                    self.dataset_loaders[i][dtype])
+                self.dataset_iters[i][dtype] = iter(self.dataset_loaders[i][dtype])
 
     def __repr__(self):
         # return info about number of datasets
@@ -475,8 +462,8 @@ class ConcatSessionsGenerator(object):
             single_sess_str = 'SingleSessionDatasetBatchedLoad'
         else:
             single_sess_str = 'SingleSessionDataset'
-        format_str = str('Generator contains %i %s objects:\n' %
-                         (self.n_datasets, single_sess_str))
+        format_str = str(
+            'Generator contains %i %s objects:\n' % (self.n_datasets, single_sess_str))
         for i in range(len(self.signals)):
             format_str += str('\tsignals: {}\n'.format(self.signals[i]))
             format_str += str('\ttransforms: {}\n'.format(self.transforms[i]))
@@ -498,11 +485,9 @@ class ConcatSessionsGenerator(object):
         for i in range(self.n_datasets):
             if dtype == 'all':
                 for dtype_ in self._dtypes:
-                    self.dataset_iters[i][dtype_] = iter(
-                        self.dataset_loaders[i][dtype_])
+                    self.dataset_iters[i][dtype_] = iter(self.dataset_loaders[i][dtype_])
             else:
-                self.dataset_iters[i][dtype] = iter(
-                    self.dataset_loaders[i][dtype])
+                self.dataset_iters[i][dtype] = iter(self.dataset_loaders[i][dtype])
 
     def next_batch(self, dtype):
         """
@@ -522,8 +507,7 @@ class ConcatSessionsGenerator(object):
 
         while True:
             # get next session
-            dataset = np.random.choice(
-                np.arange(self.n_datasets), p=self.batch_ratios)
+            dataset = np.random.choice(np.arange(self.n_datasets), p=self.batch_ratios)
 
             # get this session data
             try:
