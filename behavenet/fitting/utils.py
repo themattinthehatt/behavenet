@@ -416,16 +416,18 @@ def get_best_model_version(
     return best_versions
 
 
-def experiment_exists(hparams):
+def experiment_exists(hparams, which_version=False):
     """
     Search test tube versions to find if an experiment with the same
     hyperparameters has been (successfully) fit
 
     Args:
         hparams (dict):
+        which_version (bool): `True` to return version number
 
     Returns:
-        (bool)
+        (bool) if `which_version` is False
+        (tuple) (bool, int) if `which_version` is True
     """
 
     import pickle
@@ -435,18 +437,25 @@ def experiment_exists(hparams):
         tt_versions = get_subdirs(hparams['expt_dir'])
     except StopIteration:
         # no versions yet
-        return False
+        if which_version:
+            return False, None
+        else:
+            return False
 
-    # get rid of extra dict
+    # get rid of parameters that are not model-specific
     # TODO: this is ugly and not easy to maintain
     hparams_less = copy.copy(hparams)
+    hparams_less.pop('data_dir', None)
+    hparams_less.pop('tt_save_path', None)
+    hparams_less.pop('device', None)
+    hparams_less.pop('as_numpy', None)
+    hparams_less.pop('batch_load', None)
     hparams_less.pop('architecture_params', None)
     hparams_less.pop('list_index', None)
     hparams_less.pop('lab_example', None)
     hparams_less.pop('tt_n_gpu_trials', None)
     hparams_less.pop('tt_n_cpu_trials', None)
     hparams_less.pop('tt_n_cpu_workers', None)
-    hparams_less.pop('lib', None)
     hparams_less.pop('use_output_mask', None)
     hparams_less.pop('ae_model_type', None)
     hparams_less.pop('subsample_regions', None)
@@ -454,6 +463,7 @@ def experiment_exists(hparams):
     hparams_less.pop('version', None)
 
     found_match = False
+    version = None
     for version in tt_versions:
         # load hparams
         version_file = os.path.join(hparams['expt_dir'], version, 'meta_tags.pkl')
@@ -468,7 +478,12 @@ def experiment_exists(hparams):
         except IOError:
             continue
 
-    return found_match
+    if which_version and found_match:
+        return found_match, version
+    elif which_version and not found_match:
+        return found_match, None
+    else:
+        return found_match
 
 
 def export_hparams(hparams, exp):
@@ -521,7 +536,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', default='session-01', type=str)
         parser.add_argument('--neural_bin_size', default=39.61, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='5;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
+        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
     elif lab == 'steinmetz-face':
         parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
@@ -534,7 +549,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', default='session-01', type=str)
         parser.add_argument('--neural_bin_size', default=39.61, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='5;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
+        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
     elif lab == 'datta':
         parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', default=80, help='number of pixels in x dimension', type=int)
@@ -559,7 +574,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--session', type=str)
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='5;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
+        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
 
 
 def get_lab_example(hparams, lab):

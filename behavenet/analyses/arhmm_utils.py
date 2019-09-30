@@ -151,7 +151,7 @@ def make_ind_arhmm_figures(
     # make_syllable_movies(
     #     filepath=filepath, hparams=hparams, latents=latents['val'],
     #     states=states['val'], trial_idxs=trial_idxs['val'],
-    #     data_generator=data_generator)
+    #     data_generator=data_generator, sess_idx=sess_idx)
 
     # Make real vs generated movies
     # TODO: throwing an error that Matt doesn't want to track down yet
@@ -250,7 +250,9 @@ def relabel_states_by_use(states,mapping=None):
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
-def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_generator, min_threshold=0, n_buffer=5, n_pre_frames=3):
+def make_syllable_movies(
+        filepath, hparams, latents, states, trial_idxs, data_generator, sess_idx=0,
+        min_threshold=0, n_buffer=5, n_pre_frames=3):
 
     plot_n_frames = hparams['plot_n_frames']
     if hparams['plot_frame_rate'] == 'orig':
@@ -258,7 +260,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
     else:
         plot_frame_rate = hparams['plot_frame_rate']
 
-    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[0][0]['images'].shape
+    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
 
     state_indices = get_discrete_chunks(states, include_edges=True)
 
@@ -306,7 +308,7 @@ def make_syllable_movies(filepath, hparams, latents, states, trial_idxs, data_ge
 
                     # Get movies/latents
                     which_trial = trial_idxs[over_threshold_instances[i_syllable][i_chunk,0]]
-                    movie_chunk = data_generator.datasets[0][which_trial]['images'].cpu().detach().numpy()[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
+                    movie_chunk = data_generator.datasets[sess_idx][which_trial]['images'].cpu().detach().numpy()[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
                     #movie_chunk = images[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
 
                     if hparams['lab']=='musall':

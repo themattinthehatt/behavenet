@@ -79,8 +79,7 @@ def main(hparams):
     # ####################
 
     train_ll = hmm.fit(
-        latents['train'], method='em', num_em_iters=hparams['n_iters'],
-        initialize=False)
+        latents['train'], method='em', num_em_iters=hparams['n_iters'], initialize=False)
 
     # Reconfigure model/states by usage
     zs = [hmm.most_likely_states(x) for x in latents['train']]
@@ -117,11 +116,9 @@ def main(hparams):
                 latents, trial_idxs = get_latent_arrays_by_dtype(
                     hparams, data_generator, sess_idxs=sess_idx)
                 make_ind_arhmm_figures(
-                    hparams, exp, hmm, latents, trial_idxs, data_generator,
-                    sess_idx=sess_idx)
+                    hparams, exp, hmm, latents, trial_idxs, data_generator, sess_idx=sess_idx)
         else:
-            make_ind_arhmm_figures(
-                hparams, exp, hmm, latents, trial_idxs, data_generator)
+            make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator)
         print('done')
 
     # update hparams upon successful training
@@ -140,7 +137,7 @@ def get_params(strategy):
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--model_type', default=None, type=str)
     parser.add_argument('--model_class', default='arhmm', choices=['arhmm'], type=str)
-    parser.add_argument('--sessions_csv', default='', type=str)  # specify multiple sessions
+    parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
 
     # arguments for computing resources (infer n_gpu_workers from visible gpus)
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
@@ -153,7 +150,7 @@ def get_params(strategy):
     parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], type=str)
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
-    parser.add_argument('--rng_seed', default=0, type=int)
+    # parser.add_argument('--rng_seed', default=0, type=int)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
@@ -215,9 +212,11 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
-        parser.opt_list('--train_percent', default=1.0, options=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
+        # parser.opt_list('--train_percent', default=1.0, options=[0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
+        parser.opt_list('--train_percent', default=1.0, options=[0.05, 0.10], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
+        parser.opt_list('--rng_seed', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
