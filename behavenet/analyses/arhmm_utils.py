@@ -659,3 +659,60 @@ def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
             latents[data_type] += [dataset[i_trial]['ae'][:].cpu().detach().numpy()
                                   for i_trial in trial_idxs[data_type]]
     return latents, trial_idxs
+
+
+def plot_segmentations_by_trial(
+        states, trial_info_dict=None, xtick_locs=None, frame_rate=None, save_file=None,
+        title=None):
+
+    from matplotlib.lines import Line2D
+
+    colors = ['b', 'k', 'g', 'b']
+    if trial_info_dict is not None:
+        line_kwargs = {'ymin': 0, 'ymax': 1, 'linewidth': 6, 'clip_on': False, 'alpha': 1}
+
+    n_trials = len(states)
+
+    fig = plt.figure(figsize=(10, n_trials / 4))
+    gs_bottom_left = plt.GridSpec(n_trials, 1, top=0.85, right=1)
+    for i_trial in range(n_trials):
+
+        axes = plt.subplot(gs_bottom_left[i_trial, 0])
+        axes.imshow(
+            states[i_trial][None, :], aspect='auto',
+            extent=(0, len(states[i_trial]), 0, 1), cmap='tab20b', alpha=0.9)
+        if trial_info_dict is not None:
+            i = 0
+            for key, val in trial_info_dict.items():
+                axes.axvline(x=val[i_trial], c=colors[i], label=key, **line_kwargs)
+                i += 1
+
+        axes.set_xticks([])
+        axes.set_yticks([])
+        axes.set_frame_on(False)
+
+    if trial_info_dict is not None:
+        lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='-') for c in colors]
+        plt.legend(
+            lines, trial_info_dict.keys(), loc='center left', bbox_to_anchor=(1, 0.5),
+            frameon=False)
+
+    if xtick_locs is not None and frame_rate is not None:
+        axes.set_xticks(xtick_locs)
+        axes.set_xticklabels((np.asarray(xtick_locs) / frame_rate).astype('int'))
+    axes.set_xlabel('Time (s)')
+    axes = plt.subplot(gs_bottom_left[int(np.floor(n_trials / 2)), 0])
+    axes.set_ylabel('Trials')
+
+    plt.suptitle(title)
+    plt.tight_layout()
+
+    if save_file is not None:
+        save_dir = os.path.dirname(save_file)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        fig.savefig(save_file, transparent=True, bbox_inches='tight')
+        plt.close(fig)
+    else:
+        plt.show()
+    return fig
