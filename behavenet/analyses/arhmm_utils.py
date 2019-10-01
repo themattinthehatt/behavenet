@@ -684,7 +684,8 @@ def plot_segmentations_by_trial(
         if trial_info_dict is not None:
             i = 0
             for key, val in trial_info_dict.items():
-                axes.axvline(x=val[i_trial], c=colors[i], label=key, **line_kwargs)
+                if val[i_trial] >= 0:
+                    axes.axvline(x=val[i_trial], c=colors[i], label=key, **line_kwargs)
                 i += 1
 
         axes.set_xticks([])
@@ -694,7 +695,7 @@ def plot_segmentations_by_trial(
     if trial_info_dict is not None:
         lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='-') for c in colors]
         plt.legend(
-            lines, trial_info_dict.keys(), loc='center left', bbox_to_anchor=(1, 0.5),
+            lines, trial_info_dict.keys(), loc='center left', bbox_to_anchor=(1, 15),
             frameon=False)
 
     if xtick_locs is not None and frame_rate is not None:
