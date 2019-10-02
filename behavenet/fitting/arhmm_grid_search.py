@@ -212,10 +212,9 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
-        # parser.opt_list('--train_percent', default=1.0, options=[0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
-        parser.opt_list('--train_percent', default=1.0, options=[0.05, 0.10], type=float, tunable=True)
+        parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=True)
-        parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
+        parser.opt_list('--n_arhmm_states', default=14, options=[8, 16, 32], type=int, tunable=True)
         parser.opt_list('--rng_seed', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
 
         # plotting params

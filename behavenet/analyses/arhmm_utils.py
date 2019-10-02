@@ -253,7 +253,27 @@ def relabel_states_by_use(states,mapping=None):
 
 def make_syllable_movies(
         filepath, hparams, latents, states, trial_idxs, data_generator, sess_idx=0,
-        min_threshold=0, n_buffer=5, n_pre_frames=3):
+        min_threshold=0, n_buffer=5, n_pre_frames=3, n_rows=None, append_str=None):
+    """
+    Present video clips of each individual syllable in separate panels
+
+    Args:
+        filepath (str): directory for saving movie
+        hparams (dict): for generating save name
+        latents (list of np.ndarrays):
+        states (list of np.ndarrays): inferred state for each time point
+        trial_idxs (array-like): indices into `states` for which trials should be plotted
+        data_generator (ConcatSessionsGenerator): only used for video dimensions; to remove
+        sess_idx (int): session index into data_generator
+        min_threshold (int): minimum number of frames in a syllable run to be considered for movie
+        n_buffer (int): number of blank frames between syllable instances
+        n_pre_frames (int): number of behavioral frames to precede each syllable instance
+        n_rows (int or NoneType): number of rows in output movie
+        append_str (str): appended to end of filename before saving
+
+    Returns:
+        None; saves movie to `filepath/model_name_append_str.mp4`
+    """
 
     plot_n_frames = hparams['plot_n_frames']
     if hparams['plot_frame_rate'] == 'orig':
@@ -272,7 +292,10 @@ def make_syllable_movies(
     [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
     movie_dim1 = n_channels * y_dim
     movie_dim2 = x_dim
-    dim1 = int(np.floor(np.sqrt(actual_K)))
+    if n_rows is None:
+        dim1 = int(np.floor(np.sqrt(actual_K)))
+    else:
+        dim1 = n_rows
     dim2 = int(np.ceil(actual_K / dim1))
 
     # get all example over minimum state length threshold
@@ -293,7 +316,10 @@ def make_syllable_movies(
     for i, ax in enumerate(fig.axes):
         ax.set_yticks([])
         ax.set_xticks([])
-        ax.set_title('Syllable '+str(i), fontsize=16)
+        if i < actual_K:
+            ax.set_title('Syllable '+str(i), fontsize=16)
+        else:
+            ax.set_axis_off()
     fig.tight_layout(pad=0)
 
     imshow_kwargs = {
@@ -379,8 +405,9 @@ def make_syllable_movies(
         fig,
         [ims[i] for i in range(len(ims)) if ims[i] != []], interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=max(plot_frame_rate, 10), bitrate=-1)
-    filename = str('syllable_behavior_K_%i_kappa_%0.e_noise_%s_nlags_%i.mp4' %(
-        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'], hparams['n_lags']))
+    filename = str('syllable_behavior_K_%i_kappa_%0.e_noise_%s_nlags_%i%s.mp4' % (
+        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'], hparams['n_lags'],
+        append_str))
     save_file = os.path.join(filepath, filename)
     ani.save(save_file, writer=writer)
 
