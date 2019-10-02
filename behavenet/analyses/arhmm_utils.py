@@ -263,7 +263,7 @@ def make_syllable_movies(
         latents (list of np.ndarrays):
         states (list of np.ndarrays): inferred state for each time point
         trial_idxs (array-like): indices into `states` for which trials should be plotted
-        data_generator (ConcatSessionsGenerator): only used for video dimensions; to remove
+        data_generator (ConcatSessionsGenerator):
         sess_idx (int): session index into data_generator
         min_threshold (int): minimum number of frames in a syllable run to be considered for movie
         n_buffer (int): number of blank frames between syllable instances
@@ -690,7 +690,7 @@ def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
 
 def plot_segmentations_by_trial(
         states, trial_info_dict=None, xtick_locs=None, frame_rate=None, save_file=None,
-        title=None):
+        title=None, cmap='tab20b'):
 
     from matplotlib.lines import Line2D
 
@@ -707,7 +707,7 @@ def plot_segmentations_by_trial(
         axes = plt.subplot(gs_bottom_left[i_trial, 0])
         axes.imshow(
             states[i_trial][None, :], aspect='auto',
-            extent=(0, len(states[i_trial]), 0, 1), cmap='tab20b', alpha=0.9)
+            extent=(0, len(states[i_trial]), 0, 1), cmap=cmap, alpha=0.9)
         if trial_info_dict is not None:
             i = 0
             for key, val in trial_info_dict.items():

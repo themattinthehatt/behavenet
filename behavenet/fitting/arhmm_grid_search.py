@@ -52,20 +52,20 @@ def main(hparams):
         obv_type = 'robust_ar'
     else:
         raise ValueError(hparams['noise_type']+' not a valid noise type')
+    if hparams['kappa'] == 0:
+        transitions = 'stationary'
+        transition_kwargs = None
+    else:
+        transitions = 'sticky'
+        transition_kwargs = {'kappa': hparams['kappa']}
 
     print('constructing model...', end='')
-    if hparams['kappa'] == 0:
-        print('no stickiness')
-        hmm = ssm.HMM(
-            hparams['n_arhmm_states'], hparams['n_ae_latents'],
-            observations=obv_type,
-            observation_kwargs=dict(lags=hparams['n_lags']))
-    else:
-        hmm = ssm.HMM(
-            hparams['n_arhmm_states'], hparams['n_ae_latents'],
-            observations=obv_type,
-            observation_kwargs=dict(lags=hparams['n_lags']),
-            transitions="sticky", transition_kwargs=dict(kappa=hparams['kappa']))
+    np.random.seed(hparams['random_seed_model'])
+    hmm = ssm.HMM(
+        hparams['n_arhmm_states'], hparams['n_ae_latents'],
+        observations=obv_type,
+        observation_kwargs=dict(lags=hparams['n_lags']),
+        transitions=transitions, transition_kwargs=transition_kwargs)
     hmm.initialize(latents['train'])
     hmm.observations.initialize(latents['train'], localize=True)
 
@@ -150,7 +150,8 @@ def get_params(strategy):
     parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], type=str)
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
-    # parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
+    parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
@@ -215,7 +216,7 @@ def get_arhmm_params(namespace, parser):
         parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=14, options=[8, 16, 32], type=int, tunable=True)
-        parser.opt_list('--rng_seed', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
+        parser.opt_list('--rng_seed_model', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
