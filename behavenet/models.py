@@ -6,6 +6,7 @@ import behavenet.core as core
 # from pyslds.models import HMMSLDS
 # from pyslds.states import HMMSLDSStatesEigen
 # from pybasicbayes.distributions import Gaussian, Regression
+# TODO: __repr__ methods on models for printing
 
 
 class ConvAEEncoder(nn.Module):

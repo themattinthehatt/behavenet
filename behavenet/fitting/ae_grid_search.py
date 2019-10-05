@@ -39,7 +39,7 @@ def main(hparams):
         elif hparams['search_type'] == 'latent_search':
             hparams['architecture_params']['n_ae_latents'] = hparams['n_ae_latents']
             hparams['architecture_params'].pop('learning_rate', None)
-    print('\nExperiment parameters:')
+    print('\nexperiment parameters:')
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)

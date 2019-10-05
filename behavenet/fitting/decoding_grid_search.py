@@ -26,6 +26,7 @@ def main(hparams):
     hparams.pop('optimize_parallel_cpu', False)
     hparams.pop('optimize_parallel_gpu', False)
     hparams.pop('optimize_trials_parallel_gpu', False)
+    print('\nexperiment parameters:')
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)

@@ -13,6 +13,11 @@ from behavenet.models import AE as AE
 import pandas as pd
 
 
+def get_model_str(hparams):
+    return str('K_%i_kappa_%0.e_noise_%s_nlags_%i' % (
+        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'], hparams['n_lags']))
+
+
 def make_overview_arhmm_figures(hparams):
 
     if type(hparams) is not dict:
@@ -405,94 +410,107 @@ def make_syllable_movies(
         fig,
         [ims[i] for i in range(len(ims)) if ims[i] != []], interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=max(plot_frame_rate, 10), bitrate=-1)
-    filename = str('syllable_behavior_K_%i_kappa_%0.e_noise_%s_nlags_%i%s.mp4' % (
-        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'], hparams['n_lags'],
-        append_str))
+    filename = str('syllable_behavior_' + get_model_str(hparams) + str('%s.mp4' % append_str))
     save_file = os.path.join(filepath, filename)
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
     ani.save(save_file, writer=writer)
 
 
-def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_generator, n_buffer=5):
+def make_real_vs_generated_movies(
+        filepath, hparams, hmm, latents, states, data_generator, sess_idx=0, n_buffer=5):
 
-    plot_n_frames = hparams['plot_n_frames']
-    if hparams['plot_frame_rate'] == 'orig':
+    from behavenet.data.utils import get_transforms_paths
+    from behavenet.fitting.utils import get_expt_dir
+    from behavenet.fitting.utils import get_output_session_dir
+
+    plot_n_frames = hparams.get('plot_n_frames', 400)
+    if hparams.get('plot_frame_rate', None) == 'orig':
         raise NotImplementedError
     else:
-        plot_frame_rate = hparams['plot_frame_rate']
+        plot_frame_rate = hparams.get('plot_frame_rate', 15)
     n_latents = hparams['n_ae_latents']
-    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[0][0]['images'].shape
+    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
 
     # Load in AE decoder
-    ae_model_file = os.path.join(hparams['ae_model_path'],'best_val_model.pt')
-    ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'],'meta_tags.pkl'),'rb'))
+    if hparams.get('ae_model_path', None) is not None:
+        ae_model_file = os.path.join(hparams['ae_model_path'], 'best_val_model.pt')
+        ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'], 'meta_tags.pkl'), 'rb'))
+    else:
+        hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+        hparams['expt_dir'] = get_expt_dir(hparams)
+        _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
+        # _, version = experiment_exists(hparams, which_version=True)
+        ae_model_file = os.path.join(os.path.dirname(latents_file), 'best_val_model.pt')
+        ae_arch = pickle.load(open(os.path.join(os.path.dirname(latents_file), 'meta_tags.pkl'), 'rb'))
     ae_model = AE(ae_arch)
     ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
     ae_model.eval()
 
     # Get sampled observations
     sampled_observations = [np.zeros((len(state_seg), n_latents)) for state_seg in states]
-
     for i_seg, state_seg in enumerate(states):
         for i_t in range(len(state_seg)):
             if i_t >= 1:
                 sampled_observations[i_seg][i_t] = hmm.observations.sample_x(
-                    states[i_seg][i_t], sampled_observations[i_seg][:i_t])
+                    states[i_seg][i_t], sampled_observations[i_seg][:i_t], input=np.zeros(0))
             else:
                 sampled_observations[i_seg][i_t] = hmm.observations.sample_x(
-                    states[i_seg][i_t], latents[i_seg][0].reshape((1, n_latents)))
+                    states[i_seg][i_t], latents[i_seg][0].reshape((1, n_latents)), np.zeros(0))
 
     # Make real vs simulated arrays
-    which_trials = np.arange(0,len(states)).astype('int')
+    which_trials = np.arange(0, len(states)).astype('int')
     np.random.shuffle(which_trials)
 
-    all_recon = np.zeros((0,n_channels*y_dim,x_dim))
-    i_trial=0
+    all_recon = np.zeros((0, n_channels*y_dim, x_dim))
+    i_trial = 0
     while all_recon.shape[0] < plot_n_frames:
 
-        recon = ae_model.decoding(torch.tensor(latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab']=='musall':
-            recon = np.transpose(recon,(0,1,3,2))
-        recon = np.concatenate([recon[:,i] for i in range(recon.shape[1])],axis=1)
+        recon = ae_model.decoding(
+            torch.tensor(latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
+        if hparams['lab'] == 'musall':
+            recon = np.transpose(recon, (0, 1, 3, 2))
+        recon = np.concatenate([recon[:, i] for i in range(recon.shape[1])], axis=1)
 
         # Add a few black frames
-        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
+        zero_frames = np.zeros((n_buffer, n_channels*y_dim, x_dim))
 
-        all_recon = np.concatenate((all_recon,recon,zero_frames),axis=0)
-        i_trial+=1
+        all_recon = np.concatenate((all_recon, recon, zero_frames), axis=0)
+        i_trial += 1
 
-
-    all_simulated_recon = np.zeros((0,n_channels*y_dim,x_dim))
-    i_trial=0
+    all_simulated_recon = np.zeros((0, n_channels*y_dim, x_dim))
+    i_trial = 0
     while all_simulated_recon.shape[0] < plot_n_frames:
 
-        simulated_recon = ae_model.decoding(torch.tensor(sampled_observations[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab']=='musall':
+        simulated_recon = ae_model.decoding(
+            torch.tensor(sampled_observations[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
+        if hparams['lab'] == 'musall':
             simulated_recon = np.transpose(simulated_recon,(0,1,3,2))
         simulated_recon = np.concatenate([simulated_recon[:,i] for i in range(simulated_recon.shape[1])],axis=1)
 
         # Add a few black frames
         zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
 
-        all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames),axis=0)
-        i_trial+=1
+        all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames), axis=0)
+        i_trial += 1
 
-
-    ## Make overlaid plot
-    spc=3
-    which_trial=which_trials[0]
+    # Make overlaid plot
+    spc = 3
+    which_trial = which_trials[0]
     trial_len = len(states[which_trial])
-    fig, axes = plt.subplots(2,1,sharex=True,sharey=True, figsize=(10,10))
+    fig, axes = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(10, 10))
+    # plot_states = states[which_trial][:trial_len]
+
     axes[0].imshow(states[which_trial][:trial_len][None,:],
                    aspect="auto",
                    extent=(0, trial_len, -spc-1, spc*n_latents),
                    cmap="jet", alpha=0.5)
     axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
-    axes[1].imshow(states[which_trial][:trial_len][None,:],
+    axes[1].imshow(states[which_trial][:trial_len][None, :],
                    aspect="auto",
                    extent=(0, trial_len, -spc-1, spc*n_latents),
                    cmap="jet", alpha=0.5)
     axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
-
     axes[0].set_title('Real Latents',fontsize=20)
     axes[1].set_title('Simulated Latents',fontsize=20)
     xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)
@@ -501,9 +519,9 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
         axes[i].set_yticks(spc * np.arange(n_latents))
         axes[i].set_yticklabels(np.arange(n_latents),fontsize=16)
     fig.tight_layout()
-    save_file = os.path.join(filepath,'real_vs_generated_latents_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.png')
-    fig.savefig(save_file,dpi=200)
-
+    save_file = os.path.join(
+        filepath, 'real_vs_generated_latents_' + get_model_str(hparams) + '.png')
+    fig.savefig(save_file, dpi=200)
 
     # Make videos
     plt.clf()
@@ -514,30 +532,33 @@ def make_real_vs_generated_movies(filepath, hparams, hmm, latents, states, data_
         axes[j].set_xticks([])
         axes[j].set_yticks([])
 
-    axes[0].set_title('Real Reconstructions',fontsize=16)
-    axes[1].set_title('Generative Reconstructions',fontsize=16)
+    axes[0].set_title('Real Reconstructions', fontsize=16)
+    axes[1].set_title('Generative Reconstructions', fontsize=16)
     fig.tight_layout(pad=0)
 
+    im_kwargs = {'cmap': 'gray', 'vmin': 0, 'vmax': 1, 'animated': True}
     ims = []
     for i in range(plot_n_frames):
 
         ims_curr = []
 
-        im = axes[0].imshow(all_recon[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        im = axes[0].imshow(all_recon[i], **im_kwargs)
         ims_curr.append(im)
 
-        im = axes[1].imshow(all_simulated_recon[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        im = axes[1].imshow(all_simulated_recon[i], **im_kwargs)
         ims_curr.append(im)
 
         ims.append(ims_curr)
 
     ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    save_file = os.path.join(filepath,'real_vs_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    save_file = os.path.join(
+        filepath, 'real_vs_generated_' + get_model_str(hparams) + '.mp4')
     ani.save(save_file, writer=writer)
 
 
-def make_real_vs_nonconditioned_generated_movies(filepath, hparams, real_latents, generated_latents, data_generator, trial_idxs, n_buffer=5):
+def make_real_vs_nonconditioned_generated_movies(
+        filepath, hparams, real_latents, generated_latents, data_generator, trial_idxs, n_buffer=5):
 
     plot_n_frames = hparams['plot_n_frames']
     if hparams['plot_frame_rate'] == 'orig':
@@ -744,6 +765,36 @@ def plot_segmentations_by_trial(
     else:
         plt.show()
     return fig
+
+
+def plot_states_overlaid_with_latents(
+        latents_trial, states_trial, ax, xtick_locs=None, frame_rate=None):
+    spc = 1.1 * abs(latents_trial.max())
+    n_latents = latents_trial.shape[1]
+    plotting_latents = latents_trial + spc * np.arange(n_latents)
+    ax.imshow(
+        states_trial[None, :],
+        aspect='auto',
+        extent=(
+            0, len(latents_trial),
+            min(-spc - 1, np.min(plotting_latents)),
+            max(spc * n_latents, np.max(plotting_latents))),
+        cmap='tab20b',
+        alpha=0.8)
+    ax.plot(plotting_latents, '-k', lw=1)
+    #     yticks = spc * np.arange(n_latents)
+    #     ax.set_yticks(yticks[::2])
+    #     ax.set_yticklabels(np.arange(n_latents)[::2])
+    ax.set_yticks([])
+    #     ax.set_ylabel('Latent')
+
+    ax.set_xlabel('Time (bins)')
+    if xtick_locs is not None:
+        ax.set_xticks(xtick_locs)
+        if frame_rate is not None:
+            ax.set_xticklabels((np.asarray(xtick_locs) / frame_rate).astype('int'))
+            ax.set_xlabel('Time (sec)')
+    return ax
 
 
 def plot_state_transition_matrix(model, deridge=False):
