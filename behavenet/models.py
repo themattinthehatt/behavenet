@@ -6,6 +6,7 @@ import behavenet.core as core
 # from pyslds.models import HMMSLDS
 # from pyslds.states import HMMSLDSStatesEigen
 # from pybasicbayes.distributions import Gaussian, Regression
+# TODO: __repr__ methods on models for printing
 
 
 class ConvAEEncoder(nn.Module):
@@ -436,7 +437,7 @@ class LinearAEEncoder(nn.Module):
             in_features=np.prod(self.input_size),
             bias=True)
 
-    def forward(self, x):
+    def forward(self, x, dataset=None):
         # reshape
         x = x.view(x.size(0), -1)
         return self.encoder(x), None, None
@@ -473,7 +474,7 @@ class LinearAEDecoder(nn.Module):
             self.bias = nn.Parameter(
                 torch.zeros(int(np.prod(self.output_size))), requires_grad=True)
 
-    def forward(self, x):
+    def forward(self, x, dataset=None):
         # push through
         if self.encoder is None:
             x = self.decoder(x)

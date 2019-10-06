@@ -22,11 +22,12 @@ def main(hparams):
 
     # turn matlab-style struct into dict
     hparams = vars(hparams)
+    print('\nexperiment parameters:')
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(0, 10))
+    time.sleep(np.random.uniform(1))
 
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)
@@ -51,7 +52,7 @@ def main(hparams):
     elif hparams['noise_type'] == 'studentst':
         obv_type = 'robust_ar'
     else:
-        raise ValueError(hparams['noise_type']+' not a valid noise type')
+        raise ValueError('%s is not a valid noise type' % hparams['noise_type'])
     if hparams['kappa'] == 0:
         transitions = 'stationary'
         transition_kwargs = None
@@ -60,7 +61,7 @@ def main(hparams):
         transition_kwargs = {'kappa': hparams['kappa']}
 
     print('constructing model...', end='')
-    np.random.seed(hparams['random_seed_model'])
+    np.random.seed(hparams['rng_seed_model'])
     hmm = ssm.HMM(
         hparams['n_arhmm_states'], hparams['n_ae_latents'],
         observations=obv_type,
@@ -151,7 +152,6 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
-    parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
@@ -185,6 +185,7 @@ def get_arhmm_params(namespace, parser):
         parser.add_argument('--train_percent', default=1.0, type=float)
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
+        parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')  # TODO: add this to torch models
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
@@ -197,10 +198,11 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--train_percent', default=1.0, type=int)
         # parser.add_argument('--n_ae_latents', default=12, type=int)
-        parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=False)
+        parser.opt_list('--n_ae_latents', default=12, options=[4, 8, 16], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
         parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
         parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
+        parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=True)
@@ -213,7 +215,8 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
-        parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
+        # parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
+        parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.14, 0.19, 0.27, 0.37, 0.52, 0.72, 1.0], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', default=12, options=[3, 6, 9, 12], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=14, options=[8, 16, 32], type=int, tunable=True)
         parser.opt_list('--rng_seed_model', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)

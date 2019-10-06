@@ -74,6 +74,7 @@ def main(hparams):
 
     # turn matlab-style struct into dict
     hparams = vars(hparams)
+    print('\nexperiment parameters:')
     print(hparams)
 
     # Start at random times (so test tube creates separate folders)
