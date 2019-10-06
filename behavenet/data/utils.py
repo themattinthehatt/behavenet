@@ -197,12 +197,13 @@ def get_transforms_paths(data_type, hparams, sess_id):
     from behavenet.data.transforms import Compose
 
     # check for multisession by comparing hparams and sess_id
-    hparams_ = {key: hparams[key] for key in
-                ['lab', 'expt', 'animal', 'session']}
+    hparams_ = {key: hparams[key] for key in ['lab', 'expt', 'animal', 'session']}
+    if sess_id is None:
+        sess_id = hparams_
+
     if hparams_ != sess_id:
         sess_id_str = str('%s_%s_%s_%s_' % (
-            sess_id['lab'], sess_id['expt'], sess_id['animal'],
-            sess_id['session']))
+            sess_id['lab'], sess_id['expt'], sess_id['animal'], sess_id['session']))
     else:
         sess_id_str = ''
 
@@ -215,7 +216,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
         transforms_ = []
 
         # filter neural data by region
-        if hparams['subsample_regions'] != 'none':
+        if hparams.get('subsample_regions', 'none') != 'none':
             # get region and indices
             sampling = hparams['subsample_regions']
             region_name = hparams['region']
@@ -309,7 +310,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
                 neural_ae_version = str('version_%i' % hparams['neural_ae_version'])
             else:
                 neural_ae_version = get_best_model_version(neural_ae_dir, 'val_loss')[0]
-            path = os.path.join(neural_ae_dir, neural_ae_version)
+            neural_ae_predictions = str('%spredictions.pkl' % sess_id_str)
+            path = os.path.join(neural_ae_dir, neural_ae_version, neural_ae_predictions)
 
     elif data_type == 'neural_arhmm_predictions':
 
@@ -327,7 +329,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
                 neural_arhmm_version = str('version_%i' % hparams['neural_arhmm_version'])
             else:
                 neural_arhmm_version = get_best_model_version(neural_arhmm_dir, 'val_loss')[0]
-            path = os.path.join(neural_arhmm_dir, neural_arhmm_version)
+            neural_arhmm_predictions = str('%spredictions.pkl' % sess_id_str)
+            path = os.path.join(neural_arhmm_dir, neural_arhmm_version, neural_arhmm_predictions)
 
     else:
         raise ValueError('"%s" is an invalid data_type' % data_type)

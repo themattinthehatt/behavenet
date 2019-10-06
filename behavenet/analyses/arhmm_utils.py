@@ -1,6 +1,5 @@
 import pickle
 import os
-import h5py
 import numpy as np
 import torch
 import scipy
@@ -8,7 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.animation as animation
 from matplotlib.animation import FFMpegWriter
-import time
 from behavenet.models import AE as AE
 import pandas as pd
 
@@ -211,9 +209,10 @@ def get_state_durations(latents, hmm):
     state_indices = get_discrete_chunks(states, include_edges=False)
 
     durations = []
-    for i_state in range(0,len(state_indices)):
-        if len(state_indices[i_state])>0:
-             durations = np.append(durations,np.diff(state_indices[i_state][:,1:3],1))
+    for i_state in range(0, len(state_indices)):
+        if len(state_indices[i_state]) > 0:
+             durations = np.append(durations, np.diff(state_indices[i_state][:, 1:3], 1))
+    # TODO: bad return type when n_arhmm_states=1
 
     return durations
 
@@ -254,6 +253,93 @@ def relabel_states_by_use(states,mapping=None):
 
 
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
+
+
+def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
+    """
+    Collect data from data generator and put into dictionary with keys `train`,
+    `test`, and `val`
+
+    Args:
+        hparams (dict):
+        data_generator (ConcatSessionsGenerator):
+        sess_idxs (int or list): concatenate train/test/val data across
+            multiple sessions
+
+    Returns:
+        (tuple): latents dict, trial indices dict
+    """
+    if isinstance(sess_idxs, int):
+        sess_idxs = [sess_idxs]
+    dtypes = ['train', 'val', 'test']
+    latents = {key: [] for key in dtypes}
+    trial_idxs = {key: [] for key in dtypes}
+    for sess_idx in sess_idxs:
+        dataset = data_generator.datasets[sess_idx]
+        for data_type in dtypes:
+            if data_type == 'train' and hparams['train_percent'] < 1:
+                n_tot_batches = len(dataset.batch_indxs[data_type])
+                n_batches = int(np.floor(hparams['train_percent'] * n_tot_batches))
+                trial_idxs[data_type] = dataset.batch_indxs[data_type][:n_batches]
+            else:
+                trial_idxs[data_type] = dataset.batch_indxs[data_type]
+            latents[data_type] += [dataset[i_trial]['ae'][:].cpu().detach().numpy()
+                                  for i_trial in trial_idxs[data_type]]
+    return latents, trial_idxs
+
+
+def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
+    from behavenet.data.utils import get_transforms_paths
+    from behavenet.fitting.utils import experiment_exists
+    from behavenet.fitting.utils import get_best_model_version
+    from behavenet.fitting.utils import get_expt_dir
+    from behavenet.fitting.utils import get_output_session_dir
+
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
+    # get version/model
+    if version == 'best':
+        version = get_best_model_version(hparams['expt_dir'], measure='val_ll', best_def='max')[0]
+    else:
+        _, version = experiment_exists(hparams, which_version=True)
+    # load model
+    model_file = os.path.join(hparams['expt_dir'], version, 'best_val_model.pt')
+    with open(model_file, 'rb') as f:
+        hmm = pickle.load(f)
+        # load latents
+    _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
+    with open(latents_file, 'rb') as f:
+        all_latents = pickle.load(f)
+    # collect inferred latents/states
+    trial_idxs = {}
+    latents = {}
+    states = {}
+    for data_type in ['train', 'val', 'test']:
+        trial_idxs[data_type] = all_latents['trials'][data_type]
+        latents[data_type] = [all_latents['latents'][i_trial] for i_trial in trial_idxs[data_type]]
+        states[data_type] = [hmm.most_likely_states(x) for x in latents[data_type]]
+    # collect generative latents/states
+    if generated:
+        states_gen = []
+        latents_gen = []
+        np.random.seed(101)
+        offset = 200
+        for i in range(len(latents['test'])):
+            these_states_gen, these_latents_gen = hmm.sample(latents['test'][0].shape[0] + offset)
+            latents_gen.append(these_latents_gen[offset:])
+            states_gen.append(these_states_gen[offset:])
+    else:
+        latents_gen = []
+        states_gen = []
+    return_dict = {
+        'model': hmm,
+        'latents': latents,
+        'states': states,
+        'trial_idxs': trial_idxs,
+        'latents_gen': latents_gen,
+        'states_gen': states_gen,
+    }
+    return return_dict
 
 
 def make_syllable_movies(
@@ -418,7 +504,8 @@ def make_syllable_movies(
 
 
 def make_real_vs_generated_movies(
-        filepath, hparams, hmm, latents, states, data_generator, sess_idx=0, n_buffer=5):
+        filepath, hparams, hmm, latents, states, data_generator, sess_idx=0, n_buffer=5, ptype=0,
+        xtick_locs=None):
 
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import get_expt_dir
@@ -443,6 +530,7 @@ def make_real_vs_generated_movies(
         # _, version = experiment_exists(hparams, which_version=True)
         ae_model_file = os.path.join(os.path.dirname(latents_file), 'best_val_model.pt')
         ae_arch = pickle.load(open(os.path.join(os.path.dirname(latents_file), 'meta_tags.pkl'), 'rb'))
+        print('loading model from %s' % ae_model_file)
     ae_model = AE(ae_arch)
     ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
     ae_model.eval()
@@ -462,6 +550,7 @@ def make_real_vs_generated_movies(
     which_trials = np.arange(0, len(states)).astype('int')
     np.random.shuffle(which_trials)
 
+    # reconstruct observed latents
     all_recon = np.zeros((0, n_channels*y_dim, x_dim))
     i_trial = 0
     while all_recon.shape[0] < plot_n_frames:
@@ -478,6 +567,7 @@ def make_real_vs_generated_movies(
         all_recon = np.concatenate((all_recon, recon, zero_frames), axis=0)
         i_trial += 1
 
+    # reconstruct sampled latents
     all_simulated_recon = np.zeros((0, n_channels*y_dim, x_dim))
     i_trial = 0
     while all_simulated_recon.shape[0] < plot_n_frames:
@@ -485,40 +575,57 @@ def make_real_vs_generated_movies(
         simulated_recon = ae_model.decoding(
             torch.tensor(sampled_observations[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
         if hparams['lab'] == 'musall':
-            simulated_recon = np.transpose(simulated_recon,(0,1,3,2))
-        simulated_recon = np.concatenate([simulated_recon[:,i] for i in range(simulated_recon.shape[1])],axis=1)
+            simulated_recon = np.transpose(simulated_recon, (0, 1, 3, 2))
+        simulated_recon = np.concatenate([simulated_recon[:, i] for i in range(simulated_recon.shape[1])], axis=1)
 
         # Add a few black frames
-        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
+        zero_frames = np.zeros((n_buffer, n_channels*y_dim, x_dim))
 
         all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames), axis=0)
         i_trial += 1
 
     # Make overlaid plot
-    spc = 3
     which_trial = which_trials[0]
     trial_len = len(states[which_trial])
-    fig, axes = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(10, 10))
-    # plot_states = states[which_trial][:trial_len]
+    if ptype == 0:
+        fig, axes = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(10, 10))
+        spc = 3
+        axes[0].imshow(states[which_trial][:trial_len][None,:],
+                       aspect="auto",
+                       extent=(0, trial_len, -spc-1, spc*n_latents),
+                       cmap="jet", alpha=0.5)
+        axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
+        axes[1].imshow(states[which_trial][:trial_len][None, :],
+                       aspect="auto",
+                       extent=(0, trial_len, -spc-1, spc*n_latents),
+                       cmap="jet", alpha=0.5)
+        axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
+        axes[0].set_title('Real Latents',fontsize=20)
+        axes[1].set_title('Simulated Latents',fontsize=20)
+        xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)
+        ylab = fig.text(-0.01, 0.5, 'AE Dimensions', va='center', rotation='vertical',fontsize=20)
+        for i in range(2):
+            axes[i].set_yticks(spc * np.arange(n_latents))
+            axes[i].set_yticklabels(np.arange(n_latents),fontsize=16)
+        fig.tight_layout()
+    else:
+        fig, axes = plt.subplots(2, 1, figsize=(10, 8))
+        plot_states = states[which_trial][:trial_len]
+        plot_latents = latents[which_trial][:trial_len]
+        plot_obs = sampled_observations[which_trial][:trial_len]
 
-    axes[0].imshow(states[which_trial][:trial_len][None,:],
-                   aspect="auto",
-                   extent=(0, trial_len, -spc-1, spc*n_latents),
-                   cmap="jet", alpha=0.5)
-    axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
-    axes[1].imshow(states[which_trial][:trial_len][None, :],
-                   aspect="auto",
-                   extent=(0, trial_len, -spc-1, spc*n_latents),
-                   cmap="jet", alpha=0.5)
-    axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
-    axes[0].set_title('Real Latents',fontsize=20)
-    axes[1].set_title('Simulated Latents',fontsize=20)
-    xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)
-    ylab = fig.text(-0.01, 0.5, 'AE Dimensions', va='center', rotation='vertical',fontsize=20)
-    for i in range(2):
-        axes[i].set_yticks(spc * np.arange(n_latents))
-        axes[i].set_yticklabels(np.arange(n_latents),fontsize=16)
-    fig.tight_layout()
+        axes[0] = plot_states_overlaid_with_latents(
+            plot_latents, plot_states,
+            ax=axes[0], xtick_locs=xtick_locs, frame_rate=hparams.get('frame_rate', None))
+        axes[0].set_xticks([])
+        axes[0].set_xlabel('')
+        axes[0].set_title('Inferred latents')
+
+        axes[1] = plot_states_overlaid_with_latents(
+            plot_obs, plot_states,
+            ax=axes[1], xtick_locs=xtick_locs, frame_rate=hparams.get('frame_rate', None))
+        axes[1].set_title('Generated latents')
+
     save_file = os.path.join(
         filepath, 'real_vs_generated_latents_' + get_model_str(hparams) + '.png')
     fig.savefig(save_file, dpi=200)
@@ -676,39 +783,6 @@ def make_real_vs_nonconditioned_generated_movies(
     ani.save(save_file, writer=writer)
 
 
-def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
-    """
-    Collect data from data generator and put into dictionary with keys `train`,
-    `test`, and `val`
-
-    Args:
-        hparams (dict):
-        data_generator (ConcatSessionsGenerator):
-        sess_idxs (int or list): concatenate train/test/val data across
-            multiple sessions
-
-    Returns:
-        (tuple): latents dict, trial indices dict
-    """
-    if isinstance(sess_idxs, int):
-        sess_idxs = [sess_idxs]
-    dtypes = ['train', 'val', 'test']
-    latents = {key: [] for key in dtypes}
-    trial_idxs = {key: [] for key in dtypes}
-    for sess_idx in sess_idxs:
-        dataset = data_generator.datasets[sess_idx]
-        for data_type in dtypes:
-            if data_type == 'train' and hparams['train_percent'] < 1:
-                n_tot_batches = len(dataset.batch_indxs[data_type])
-                n_batches = int(np.floor(hparams['train_percent'] * n_tot_batches))
-                trial_idxs[data_type] = dataset.batch_indxs[data_type][:n_batches]
-            else:
-                trial_idxs[data_type] = dataset.batch_indxs[data_type]
-            latents[data_type] += [dataset[i_trial]['ae'][:].cpu().detach().numpy()
-                                  for i_trial in trial_idxs[data_type]]
-    return latents, trial_idxs
-
-
 def plot_segmentations_by_trial(
         states, trial_info_dict=None, xtick_locs=None, frame_rate=None, save_file=None,
         title=None, cmap='tab20b'):
@@ -772,16 +846,16 @@ def plot_states_overlaid_with_latents(
     spc = 1.1 * abs(latents_trial.max())
     n_latents = latents_trial.shape[1]
     plotting_latents = latents_trial + spc * np.arange(n_latents)
+    ymin = min(-spc - 1, np.min(plotting_latents))
+    ymax = max(spc * n_latents, np.max(plotting_latents))
     ax.imshow(
         states_trial[None, :],
         aspect='auto',
-        extent=(
-            0, len(latents_trial),
-            min(-spc - 1, np.min(plotting_latents)),
-            max(spc * n_latents, np.max(plotting_latents))),
+        extent=(0, len(latents_trial), ymin, ymax),
         cmap='tab20b',
         alpha=0.8)
     ax.plot(plotting_latents, '-k', lw=1)
+    ax.set_ylim([ymin, ymax])
     #     yticks = spc * np.arange(n_latents)
     #     ax.set_yticks(yticks[::2])
     #     ax.set_yticklabels(np.arange(n_latents)[::2])

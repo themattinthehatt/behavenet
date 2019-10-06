@@ -683,14 +683,13 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
     hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['model_type'] = hparams['ae_model_type']
 
-    ae_transform, ae_path = get_transforms_paths('ae_latents', hparams_ae,
-                                                 None)
+    ae_transform, ae_path = get_transforms_paths('ae_latents', hparams_ae, None)
 
     # ae predictions data
     hparams_dec = copy.copy(hparams)
-    hparams_dec['experiment_name'] = hparams['decoder_experiment_name']
-    hparams_dec['model_class'] = hparams['decoder_model_class']
-    hparams_dec['model_type'] = hparams['decoder_model_type']
+    hparams_dec['neural_ae_experiment_name'] = hparams['decoder_experiment_name']
+    hparams_dec['neural_ae_model_class'] = hparams['decoder_model_class']
+    hparams_dec['neural_ae_model_type'] = hparams['decoder_model_type']
     ae_pred_transform, ae_pred_path = get_transforms_paths(
         'neural_ae_predictions', hparams_dec, None)
 
@@ -703,7 +702,7 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
 
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], hparams,
-        signals_list=signals, transforms_list=transforms, paths_list=paths,
+        signals_list=[signals], transforms_list=[transforms], paths_list=[paths],
         device='cpu', as_numpy=False, batch_load=False, rng_seed=0)
 
     if trial is None:
