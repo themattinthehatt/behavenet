@@ -32,7 +32,7 @@ def main(hparams):
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)
 
-    # build data generator
+    # build data generator  # TODO: don't grab images if not making plots/movies
     data_generator = build_data_generator(hparams, sess_ids)
 
     # ####################
@@ -43,16 +43,32 @@ def main(hparams):
         os.path.dirname(data_generator.datasets[0].paths['ae']))
 
     # Get all latents in list
+    print('collecting observations from data generator...', end='')
     latents, trial_idxs = get_latent_arrays_by_dtype(
         hparams, data_generator, sess_idxs=list(range(len(data_generator))))
     hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
+    print('done')
 
+    # collect model constructor inputs
     if hparams['noise_type'] == 'gaussian':
-        obv_type = 'ar'
+        if hparams['n_lags'] > 0:
+            obs_type = 'ar'
+        else:
+            obs_type = 'gaussian'
     elif hparams['noise_type'] == 'studentst':
-        obv_type = 'robust_ar'
+        if hparams['n_lags'] > 0:
+            obs_type = 'robust_ar'
+        else:
+            obs_type = 'studentst'
     else:
         raise ValueError('%s is not a valid noise type' % hparams['noise_type'])
+
+    if hparams['n_lags'] > 0:
+        obs_kwargs = {'lags': hparams['n_lags']}
+        obs_init_kwargs = {'localize': True}
+    else:
+        obs_kwargs = None
+        obs_init_kwargs = {}
     if hparams['kappa'] == 0:
         transitions = 'stationary'
         transition_kwargs = None
@@ -64,12 +80,10 @@ def main(hparams):
     np.random.seed(hparams['rng_seed_model'])
     hmm = ssm.HMM(
         hparams['n_arhmm_states'], hparams['n_ae_latents'],
-        observations=obv_type,
-        observation_kwargs=dict(lags=hparams['n_lags']),
+        observations=obs_type, observation_kwargs=obs_kwargs,
         transitions=transitions, transition_kwargs=transition_kwargs)
     hmm.initialize(latents['train'])
-    hmm.observations.initialize(latents['train'], localize=True)
-
+    hmm.observations.initialize(latents['train'], **obs_init_kwargs)
     # save out hparams as csv and dict
     hparams['training_completed'] = False
     export_hparams(hparams, exp)
@@ -196,18 +210,18 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--experiment_name', default='diff_init_grid_search', type=str)
 
-        parser.add_argument('--train_percent', default=1.0, type=int)
-        # parser.add_argument('--n_ae_latents', default=12, type=int)
-        parser.opt_list('--n_ae_latents', default=12, options=[4, 8, 16], type=int, tunable=True)
-        parser.opt_list('--n_arhmm_states', default=14, options=[2, 4, 8, 16, 32], type=int, tunable=True)
+        parser.add_argument('--train_percent', default=1.0, type=float)
+        parser.add_argument('--n_ae_latents', default=8, type=int)
+        # parser.opt_list('--n_ae_latents', default=12, options=[4, 8, 16], type=int, tunable=True)
+        parser.opt_list('--n_arhmm_states', default=16, options=[1, 2, 4, 8, 16, 32], type=int, tunable=True)
         parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
         parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
         parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=True)
-        parser.add_argument('--make_ind_plots', action='store_true', default=True)
-        parser.add_argument('--make_overview_plots', action='store_true', default=True)
+        parser.add_argument('--make_ind_plots', action='store_true', default=False)
+        parser.add_argument('--make_overview_plots', action='store_true', default=False)
 
     elif namespace.search_type == 'data_amounts':
 

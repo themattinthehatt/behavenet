@@ -31,7 +31,7 @@ def main(hparams):
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(0, 5))
+    time.sleep(np.random.uniform(1))
 
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)
@@ -293,7 +293,7 @@ def get_decoding_params(namespace, parser):
         # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         # regular for decoding ae latents
-        parser.opt_list('--learning_rate', default=1e-3, options=[1e-3], type=float, tunable=True)
+        parser.add_argument('--learning_rate', default=1e-3, type=float)
         parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2], type=float, tunable=True)
         parser.add_argument('--n_max_lags', default=8)  # should match largest n_lags value
