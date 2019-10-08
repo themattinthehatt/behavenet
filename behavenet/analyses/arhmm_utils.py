@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.animation as animation
 from matplotlib.animation import FFMpegWriter
+from behavenet.analyses import make_dir_if_not_exists
 from behavenet.models import AE as AE
 import pandas as pd
 
@@ -498,8 +499,7 @@ def make_syllable_movies(
     writer = FFMpegWriter(fps=max(plot_frame_rate, 10), bitrate=-1)
     filename = str('syllable_behavior_' + get_model_str(hparams) + str('%s.mp4' % append_str))
     save_file = os.path.join(filepath, filename)
-    if not os.path.exists(filepath):
-        os.makedirs(filepath)
+    make_dir_if_not_exists(save_file)
     ani.save(save_file, writer=writer)
 
 
@@ -661,6 +661,7 @@ def make_real_vs_generated_movies(
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
     save_file = os.path.join(
         filepath, 'real_vs_generated_' + get_model_str(hparams) + '.mp4')
+    make_dir_if_not_exists(save_file)
     ani.save(save_file, writer=writer)
 
 
@@ -779,7 +780,8 @@ def make_real_vs_nonconditioned_generated_movies(
 
     ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
     writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    save_file = os.path.join(filepath,hparams['dataset_name']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    save_file = os.path.join(filepath, hparams['dataset_name']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
+    make_dir_if_not_exists(save_file)
     ani.save(save_file, writer=writer)
 
 
@@ -823,7 +825,9 @@ def plot_segmentations_by_trial(
     if xtick_locs is not None and frame_rate is not None:
         axes.set_xticks(xtick_locs)
         axes.set_xticklabels((np.asarray(xtick_locs) / frame_rate).astype('int'))
-    axes.set_xlabel('Time (s)')
+        axes.set_xlabel('Time (s)')
+    else:
+        axes.set_xlabel('Time (bins)')
     axes = plt.subplot(gs_bottom_left[int(np.floor(n_trials / 2)), 0])
     axes.set_ylabel('Trials')
 
@@ -831,9 +835,7 @@ def plot_segmentations_by_trial(
     plt.tight_layout()
 
     if save_file is not None:
-        save_dir = os.path.dirname(save_file)
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+        make_dir_if_not_exists(save_file)
         fig.savefig(save_file, transparent=True, bbox_inches='tight')
         plt.close(fig)
     else:

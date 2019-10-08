@@ -149,6 +149,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--n_ae_latents', type=int)
         parser.add_argument('--ae_version', default='best')
         parser.add_argument('--ae_model_type', default='conv')
+        parser.add_argument('--ae_multisession', default='none')
     elif namespace.model_class == 'neural-arhmm' \
             or namespace.model_class == 'arhmm-neural':
         # ae arguments
@@ -161,6 +162,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--kappa', default=1e+06, type=float)
         parser.add_argument('--noise_type', default='gaussian', type=str)
         parser.add_argument('--arhmm_version', default='best')
+        parser.add_argument('--arhmm_multisession', default='none')
     elif namespace.model_class == 'neural-dlc':
         raise NotImplementedError
     else:

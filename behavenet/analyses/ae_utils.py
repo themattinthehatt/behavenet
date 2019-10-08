@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
+from behavenet.analyses import make_dir_if_not_exists
 from behavenet.data.utils import get_best_model_and_data
 from behavenet.fitting.eval import get_reconstruction
 
@@ -214,8 +215,7 @@ def _make_ae_reconstruction_movie(
     writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
 
     if save_file is not None:
-        if not os.path.isdir(os.path.dirname(save_file)):
-            os.makedirs(os.path.dirname(save_file))
+        make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
         ani.save(save_file, writer=writer)
@@ -382,8 +382,7 @@ def _make_ae_reconstruction_movie_multisession(
     writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
 
     if save_file is not None:
-        if not os.path.isdir(os.path.dirname(save_file)):
-            os.makedirs(os.path.dirname(save_file))
+        make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
         ani.save(save_file, writer=writer)
@@ -653,8 +652,7 @@ def _make_neural_reconstruction_movie(
     writer = FFMpegWriter(fps=15, bitrate=-1)
 
     if save_file is not None:
-        if not os.path.isdir(os.path.dirname(save_file)):
-            os.makedirs(os.path.dirname(save_file))
+        make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
         print('saving video')
@@ -662,7 +660,8 @@ def _make_neural_reconstruction_movie(
         print('video saved to %s' % save_file)
 
 
-def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
+def plot_neural_reconstruction_traces(
+        hparams, save_file, trial=None, xtick_locs=None, frame_rate=None):
     """
     Loads previously saved ae latents and predictions
 
@@ -670,6 +669,8 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
         hparams (dict):
         save_file (str):
         trial (int, optional):
+        xtick_locs (array-like, optional)
+        frame_rate (float, optional)
     """
 
     # find good trials
@@ -713,15 +714,18 @@ def plot_neural_reconstruction_traces(hparams, save_file, trial=None):
     traces_ae = batch['ae'].cpu().detach().numpy()
     traces_neural = batch['ae_predictions'].cpu().detach().numpy()
 
-    _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file)
+    _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file, xtick_locs, frame_rate)
 
 
-def _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file=None):
+def _plot_neural_reconstruction_traces(
+        traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None):
     """
     Args:
         traces_ae (np array):
         traces_neural (np array):
         save_file (str, optional):
+        xtick_locs (array-like, optional)
+        frame_rate (float, optional)
     """
 
     import matplotlib.pyplot as plt
@@ -762,11 +766,16 @@ def _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file=None)
         [orig_line, tuple(dls)], ['Original latents', 'Predicted latents'],
         loc='lower right', frameon=True, framealpha=0.7, edgecolor=[1, 1, 1])
 
-    plt.xlabel('Time (bins)')
+    if xtick_locs is not None and frame_rate is not None:
+        plt.xticks(xtick_locs, (np.asarray(xtick_locs) / frame_rate).astype('int'))
+        plt.xlabel('Time (s)')
+    else:
+        plt.xlabel('Time (bins)')
     plt.ylabel('Latent state')
     plt.yticks([])
 
     if save_file is not None:
+        make_dir_if_not_exists(save_file)
         plt.savefig(save_file + '.jpg', dpi=300, format='jpeg')
 
     plt.show()

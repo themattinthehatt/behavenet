@@ -183,6 +183,8 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         info (e.g. n_ae_latents) and expt_name
     """
 
+    import copy
+
     if model_class is None:
         model_class = hparams['model_class']
 
@@ -196,31 +198,43 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     if model_class == 'ae':
         model_path = os.path.join(
             'ae', model_type, '%02i_latents' % hparams['n_ae_latents'])
+        session_dir = hparams['session_dir']
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'], model_type, brain_region)
+        if hparams.get('ae_multisession', None):
+            # using a multisession autoencoder with single session en/decoder; assume multisession
+            # is at animal level (rather than experiment level)
+            hparams_ = copy.deepcopy(hparams)
+            hparams_['session'] = 'all'
+            hparams_['multisession'] = hparams['ae_multisession']
+            session_dir, _ = get_output_session_dir(hparams_)
+        else:
+            session_dir = hparams['session_dir']
     elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], model_type, brain_region)
+        session_dir = hparams['session_dir']
     elif model_class == 'arhmm':
-        # TODO: move kappa and noise type into tt versions?
         model_path = os.path.join(
             'arhmm', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
+        session_dir = hparams['session_dir']
     elif model_class == 'arhmm-decoding':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
             'arhmm-decoding', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
+        session_dir = hparams['session_dir']
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
-    expt_dir = os.path.join(hparams['session_dir'], model_path, expt_name)
+    expt_dir = os.path.join(session_dir, model_path, expt_name)
 
     return expt_dir
 
@@ -684,8 +698,7 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     for ids in sess_ids:
         print('%s' % os.path.join(
             hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
-    hparams, signals, transforms, paths = get_data_generator_inputs(
-        hparams, sess_ids)
+    hparams, signals, transforms, paths = get_data_generator_inputs(hparams, sess_ids)
     if hparams.get('trial_splits', None) is not None:
         # assumes string of form 'train;val;test;gap'
         trs = [int(tr) for tr in hparams['trial_splits'].split(';')]
