@@ -661,7 +661,7 @@ def _make_neural_reconstruction_movie(
 
 
 def plot_neural_reconstruction_traces(
-        hparams, save_file, trial=None, xtick_locs=None, frame_rate=None):
+        hparams, save_file, trial=None, xtick_locs=None, frame_rate=None, format='jpg'):
     """
     Loads previously saved ae latents and predictions
 
@@ -671,6 +671,7 @@ def plot_neural_reconstruction_traces(
         trial (int, optional):
         xtick_locs (array-like, optional)
         frame_rate (float, optional)
+        format (str, optional)
     """
 
     # find good trials
@@ -697,7 +698,7 @@ def plot_neural_reconstruction_traces(
     # export latents if they don't exist
     # export_predictions_best(hparams_ae_pred)
 
-    signals = ['ae', 'ae_predictions']
+    signals = ['ae_latents', 'ae_predictions']
     transforms = [ae_transform, ae_pred_transform]
     paths = [ae_path, ae_pred_path]
 
@@ -711,14 +712,15 @@ def plot_neural_reconstruction_traces(
         trial = data_generator.datasets[0].batch_indxs['test'][0]
 
     batch = data_generator.datasets[0][trial]
-    traces_ae = batch['ae'].cpu().detach().numpy()
+    traces_ae = batch['ae_latents'].cpu().detach().numpy()
     traces_neural = batch['ae_predictions'].cpu().detach().numpy()
 
-    _plot_neural_reconstruction_traces(traces_ae, traces_neural, save_file, xtick_locs, frame_rate)
+    _plot_neural_reconstruction_traces(
+        traces_ae, traces_neural, save_file, xtick_locs, frame_rate, format)
 
 
 def _plot_neural_reconstruction_traces(
-        traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None):
+        traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png'):
     """
     Args:
         traces_ae (np array):
@@ -726,6 +728,7 @@ def _plot_neural_reconstruction_traces(
         save_file (str, optional):
         xtick_locs (array-like, optional)
         frame_rate (float, optional)
+        format (str, optional)
     """
 
     import matplotlib.pyplot as plt
@@ -776,7 +779,7 @@ def _plot_neural_reconstruction_traces(
 
     if save_file is not None:
         make_dir_if_not_exists(save_file)
-        plt.savefig(save_file + '.jpg', dpi=300, format='jpeg')
+        plt.savefig(save_file + '.' + format, dpi=300, format=format)
 
     plt.show()
 

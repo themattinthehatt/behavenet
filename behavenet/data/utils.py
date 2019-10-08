@@ -51,14 +51,14 @@ def get_data_generator_inputs(hparams, sess_ids):
 
             ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
-            signals = ['ae']
+            signals = ['ae_latents']
             transforms = [ae_transform]
             paths = [ae_path]
 
         elif hparams['model_class'] == 'neural-ae':
 
             hparams['input_signal'] = 'neural'
-            hparams['output_signal'] = 'ae'
+            hparams['output_signal'] = 'ae_latents'
             hparams['output_size'] = hparams['n_ae_latents']
             if hparams['model_type'][-2:] == 'mv':
                 hparams['noise_dist'] = 'gaussian-full'
@@ -67,13 +67,13 @@ def get_data_generator_inputs(hparams, sess_ids):
 
             ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
-            signals = ['neural', 'ae']
+            signals = ['neural', 'ae_latents']
             transforms = [neural_transform, ae_transform]
             paths = [neural_path, ae_path]
 
         elif hparams['model_class'] == 'ae-neural':
 
-            hparams['input_signal'] = 'ae'
+            hparams['input_signal'] = 'ae_latents'
             hparams['output_signal'] = 'neural'
             hparams['output_size'] = None  # to fill in after data is loaded
             if hparams['neural_type'] == 'ca':
@@ -86,7 +86,7 @@ def get_data_generator_inputs(hparams, sess_ids):
 
             ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
-            signals = ['neural', 'ae']
+            signals = ['neural', 'ae_latents']
             transforms = [neural_transform, ae_transform]
             paths = [neural_path, ae_path]
 
@@ -267,8 +267,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
         if 'ae_latents_file' in hparams:
             path = hparams['ae_latents_file']
         else:
-            if 'ae_version' in hparams and isinstance(
-                    hparams['ae_version'], int):
+            if 'ae_version' in hparams and isinstance(hparams['ae_version'], int):
                 ae_version = str('version_%i' % hparams['ae_version'])
             else:
                 ae_version = get_best_model_version(ae_dir, 'val_loss')[0]

@@ -159,8 +159,7 @@ def get_output_session_dir(hparams, path_type='save'):
         else:
             pass
 
-        session_dir = os.path.join(
-            session_dir_base, 'multisession-%02i' % multi_indx)
+        session_dir = os.path.join(session_dir_base, 'multisession-%02i' % multi_indx)
     else:
         session_dir = session_dir_base
 
@@ -196,22 +195,23 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
 
     # get results dir
     if model_class == 'ae':
-        model_path = os.path.join(
-            'ae', model_type, '%02i_latents' % hparams['n_ae_latents'])
-        session_dir = hparams['session_dir']
-    elif model_class == 'neural-ae' or model_class == 'ae-neural':
-        brain_region = get_region_dir(hparams)
-        model_path = os.path.join(
-            model_class, '%02i_latents' % hparams['n_ae_latents'], model_type, brain_region)
-        if hparams.get('ae_multisession', None):
-            # using a multisession autoencoder with single session en/decoder; assume multisession
-            # is at animal level (rather than experiment level)
+        model_path = os.path.join('ae', model_type, '%02i_latents' % hparams['n_ae_latents'])
+        if hparams.get('ae_multisession', None) is not None:
+            # using a multisession autoencoder; assumes multisessionis at animal level
+            # (rather than experiment level), i.e.
+            # - latent session dir: lab/expt/animal/multisession-xx
+            # - en/decoding session dir: lab/expt/animal/session
             hparams_ = copy.deepcopy(hparams)
             hparams_['session'] = 'all'
             hparams_['multisession'] = hparams['ae_multisession']
             session_dir, _ = get_output_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
+    elif model_class == 'neural-ae' or model_class == 'ae-neural':
+        brain_region = get_region_dir(hparams)
+        model_path = os.path.join(
+            model_class, '%02i_latents' % hparams['n_ae_latents'], model_type, brain_region)
+        session_dir = hparams['session_dir']
     elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
@@ -224,7 +224,17 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             'arhmm', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
-        session_dir = hparams['session_dir']
+        if hparams.get('arhmm_multisession', None) is not None:
+            # using a multisession autoencoder with single session arhmm; assumes multisession
+            # is at animal level (rather than experiment level), i.e.
+            # - latent session dir: lab/expt/animal/multisession-xx
+            # - arhmm session dir: lab/expt/animal/session
+            hparams_ = copy.deepcopy(hparams)
+            hparams_['session'] = 'all'
+            hparams_['multisession'] = hparams['arhmm_multisession']
+            session_dir, _ = get_output_session_dir(hparams_)
+        else:
+            session_dir = hparams['session_dir']
     elif model_class == 'arhmm-decoding':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
@@ -460,6 +470,7 @@ def experiment_exists(hparams, which_version=False):
     hparams_less.pop('version', None)
     hparams_less.pop('plot_n_frames', None)
     hparams_less.pop('plot_frame_rate', None)
+    hparams_less.pop('ae_multisession', None)
 
     found_match = False
     version = None

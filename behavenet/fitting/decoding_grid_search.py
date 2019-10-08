@@ -142,16 +142,14 @@ def get_decoding_params(namespace, parser):
     parser.add_argument('--neural_thresh', default=1.0, help='minimum firing rate for spikes (Hz)', type=float)
 
     # add data arguments
-    if namespace.model_class == 'neural-ae' \
-            or namespace.model_class == 'ae-neural':
+    if namespace.model_class == 'neural-ae' or namespace.model_class == 'ae-neural':
         # ae arguments
         parser.add_argument('--ae_experiment_name', type=str)
         parser.add_argument('--n_ae_latents', type=int)
         parser.add_argument('--ae_version', default='best')
         parser.add_argument('--ae_model_type', default='conv')
-        parser.add_argument('--ae_multisession', default='none')
-    elif namespace.model_class == 'neural-arhmm' \
-            or namespace.model_class == 'arhmm-neural':
+        parser.add_argument('--ae_multisession', default=None, type=int)
+    elif namespace.model_class == 'neural-arhmm' or namespace.model_class == 'arhmm-neural':
         # ae arguments
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_model_type', default='conv')
@@ -162,9 +160,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--kappa', default=1e+06, type=float)
         parser.add_argument('--noise_type', default='gaussian', type=str)
         parser.add_argument('--arhmm_version', default='best')
-        parser.add_argument('--arhmm_multisession', default='none')
-    elif namespace.model_class == 'neural-dlc':
-        raise NotImplementedError
+        parser.add_argument('--arhmm_multisession', default=None, type=int)
     else:
         raise ValueError('"%s" is an invalid model class' % namespace.model_class)
 
@@ -242,7 +238,7 @@ def get_decoding_params(namespace, parser):
 
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
-        parser.add_argument('--experiment_name', '-en', default='shuffle', type=str)
+        parser.add_argument('--experiment_name', default='shuffle', type=str)
         parser.add_argument('--decoder_experiment_name', default='grid_search', type=str)
         parser.add_argument('--n_shuffles', type=int)
 

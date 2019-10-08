@@ -8,8 +8,7 @@ from torch.utils.data import SubsetRandomSampler
 import h5py
 
 
-def split_trials(
-        n_trials, rng_seed=0, train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
+def split_trials(n_trials, rng_seed=0, train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
     """
     Split trials into train/val/test blocks.
 
@@ -56,6 +55,22 @@ def split_trials(
         batch_indxs[dtype] = np.concatenate(batch_indxs[dtype], axis=0)
 
     return batch_indxs
+
+
+def load_pkl_dict(path, key, indx=None, dtype='float32'):
+    with open(path, 'rb') as f:
+        latents_dict = pickle.load(f)
+    if indx is None:
+        samp = latents_dict[key]
+    else:
+        samp = latents_dict[key][indx]
+    return samp.astype(dtype)
+
+
+def prepend_sess_id(path, sess_str):
+    pathname = os.path.dirname(path)
+    filename = os.path.basename(path)
+    return os.path.join(pathname, str('%s_%s' % (sess_str, filename)))
 
 
 class SingleSessionDatasetBatchedLoad(data.Dataset):
@@ -211,66 +226,69 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         sample[signal] = f[signal][str(
                             'trial_%04i' % indx)][()].astype(dtype)
 
-            elif signal == 'ae':
+            elif signal == 'ae_latents':
                 dtype = 'float32'
                 try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    if indx is None:
-                        sample[signal] = latents_dict['latents']
-                    else:
-                        sample[signal] = latents_dict['latents'][indx]
-                    sample[signal] = sample[signal].astype(dtype)
+                    sample[signal] = load_pkl_dict(
+                        self.paths[signal], 'latents', indx=indx, dtype=dtype)
                 except IOError:
-                    raise NotImplementedError(
-                        ('Could not open %s\n' +
-                         'Must create ae latents from model; currently not' +
-                         ' implemented') % self.paths[signal])
+                    # try prepending session string
+                    try:
+                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
+                        sample[signal] = load_pkl_dict(
+                            self.paths[signal], 'latents', indx=indx, dtype=dtype)
+                    except IOError:
+                        raise NotImplementedError(
+                            ('Could not open %s\nMust create ae latents from model;' +
+                             ' currently not implemented') % self.paths[signal])
 
             elif signal == 'ae_predictions':
                 dtype = 'float32'
                 try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    if indx is None:
-                        sample[signal] = latents_dict['predictions']
-                    else:
-                        sample[signal] = latents_dict['predictions'][indx]
-                    sample[signal] = sample[signal].astype(dtype)
+                    sample[signal] = load_pkl_dict(
+                        self.paths[signal], 'predictions', indx=indx, dtype=dtype)
                 except IOError:
-                    raise NotImplementedError(
-                        'Must create ae predictions from model; currently not' +
-                        ' implemented')
+                    # try prepending session string
+                    try:
+                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
+                        sample[signal] = load_pkl_dict(
+                            self.paths[signal], 'predictions', indx=indx, dtype=dtype)
+                    except IOError:
+                        raise NotImplementedError(
+                            ('Could not open %s\nMust create ae predictions from model;' +
+                             ' currently not implemented') % self.paths[signal])
 
             elif signal == 'arhmm':
                 dtype = 'int32'
                 try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    if indx is None:
-                        sample[signal] = latents_dict['states']
-                    else:
-                        sample[signal] = latents_dict['states'][indx]
-                    sample[signal] = sample[signal]
+                    sample[signal] = load_pkl_dict(
+                        self.paths[signal], 'states', indx=indx, dtype=dtype)
                 except IOError:
-                    raise NotImplementedError(
-                        'Must create arhmm latents from model; currently not' +
-                        ' implemented')
+                    # try prepending session string
+                    try:
+                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
+                        sample[signal] = load_pkl_dict(
+                            self.paths[signal], 'states', indx=indx, dtype=dtype)
+                    except IOError:
+                        raise NotImplementedError(
+                            ('Could not open %s\nMust create arhmm states from model;' +
+                             ' currently not implemented') % self.paths[signal])
 
             elif signal == 'arhmm_predictions':
                 dtype = 'float32'
                 try:
-                    with open(self.paths[signal], 'rb') as f:
-                        latents_dict = pickle.load(f)
-                    if indx is None:
-                        sample[signal] = latents_dict['predictions']
-                    else:
-                        sample[signal] = latents_dict['predictions'][indx]
-                    sample[signal] = sample[signal].astype(dtype)
+                    sample[signal] = load_pkl_dict(
+                        self.paths[signal], 'predictions', indx=indx, dtype=dtype)
                 except IOError:
-                    raise NotImplementedError(
-                        'Must create arhmm predictions from model; currently not' +
-                        ' implemented')
+                    # try prepending session string
+                    try:
+                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
+                        sample[signal] = load_pkl_dict(
+                            self.paths[signal], 'predictions', indx=indx, dtype=dtype)
+                    except IOError:
+                        raise NotImplementedError(
+                            ('Could not open %s\nMust create arhmm predictions from model;' +
+                             ' currently not implemented') % self.paths[signal])
 
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
