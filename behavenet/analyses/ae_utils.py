@@ -99,8 +99,7 @@ def make_ae_reconstruction_movie(
 
 
 def _make_ae_reconstruction_movie(
-        ims_orig, ims_recon_ae, ims_recon_lin=None, save_file=None,
-        frame_rate=20):
+        ims_orig, ims_recon_ae, ims_recon_lin=None, save_file=None, frame_rate=20):
     """
     Args:
         ims_orig (np array):
@@ -218,6 +217,7 @@ def _make_ae_reconstruction_movie(
         make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
+        print('saving video...')
         ani.save(save_file, writer=writer)
         # if save_file[-3:] != 'gif':
         #     save_file += '.gif'
@@ -308,8 +308,7 @@ def make_ae_reconstruction_movie_multisession(
 
 
 def _make_ae_reconstruction_movie_multisession(
-        ims_orig, ims_recon_ae, panel_titles=None, save_file=None,
-        frame_rate=20):
+        ims_orig, ims_recon_ae, panel_titles=None, save_file=None, frame_rate=20):
     """
     Args:
         ims_orig (np array):
@@ -385,6 +384,7 @@ def _make_ae_reconstruction_movie_multisession(
         make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
+        print('saving video...')
         ani.save(save_file, writer=writer)
         # if save_file[-3:] != 'gif':
         #     save_file += '.gif'
@@ -486,8 +486,7 @@ def make_neural_reconstruction_movie(hparams, save_file, trial=None):
 
 
 def _make_neural_reconstruction_movie(
-        ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural,
-        save_file=None):
+        ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural, save_file=None):
     """
     Args:
         ims_orig (np array):
@@ -564,7 +563,7 @@ def _make_neural_reconstruction_movie(
         indx = 0
 
         if i % 100 == 0:
-            print('processing frame %03i' % i)
+            print('processing frame %03i/%03i' % (i, ims_orig.shape[0]))
 
         ###################
         # behavioral videos
@@ -576,23 +575,23 @@ def _make_neural_reconstruction_movie(
             ims_orig_tmp = concat(ims_orig[i])
 
         im = axs[indx].imshow(ims_orig_tmp, **im_kwargs)
-        ims_curr.append(im);
-        indx += 1;
+        ims_curr.append(im)
+        indx += 1
         # ae reconstruction
         if n_channels == 1:
             ims_recon_ae_tmp = ims_recon_ae[i, 0]
         else:
             ims_recon_ae_tmp = concat(ims_recon_ae[i])
         im = axs[indx].imshow(ims_recon_ae_tmp, **im_kwargs)
-        ims_curr.append(im);
-        indx += 1;
+        ims_curr.append(im)
+        indx += 1
         # neural reconstruction
         if n_channels == 1:
             ims_recon_neural_tmp = ims_recon_neural[i, 0]
         else:
             ims_recon_neural_tmp = concat(ims_recon_neural[i])
         im = axs[indx].imshow(ims_recon_neural_tmp, **im_kwargs)
-        ims_curr.append(im);
+        ims_curr.append(im)
         indx += 1
         # residual
         if n_channels == 1:
@@ -600,22 +599,12 @@ def _make_neural_reconstruction_movie(
         else:
             ims_res_tmp = concat(ims_res[i])
         im = axs[indx].imshow(0.5 + ims_res_tmp, **im_kwargs)
-        ims_curr.append(im);
+        ims_curr.append(im)
         indx += 1
 
         ########
         # traces
         ########
-        # # activity over time
-        # for r in range(num_regions):
-        #     if pred_type == 'dlc':
-        #         offset = r // 2
-        #     else:
-        #         offset = r
-        #     im = axs[3].plot(
-        #         time[0:i+1], num_regions - offset + tr_multiplier * region_means[0:i+1, r],
-        #         animated=animated, label=region_labels[r], color=colors[r])[0]
-        #     ims_curr.append(im)
 
         # latents over time
         for l in range(n_ae_latents):
@@ -655,13 +644,13 @@ def _make_neural_reconstruction_movie(
         make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
-        print('saving video')
+        print('saving video...')
         ani.save(save_file, writer=writer)
         print('video saved to %s' % save_file)
 
 
 def plot_neural_reconstruction_traces(
-        hparams, save_file, trial=None, xtick_locs=None, frame_rate=None, format='jpg'):
+        hparams, save_file, trial=None, xtick_locs=None, frame_rate=None, format='png'):
     """
     Loads previously saved ae latents and predictions
 

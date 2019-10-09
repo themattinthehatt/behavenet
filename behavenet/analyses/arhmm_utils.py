@@ -218,7 +218,7 @@ def get_state_durations(latents, hmm):
     return durations
 
 
-def relabel_states_by_use(states,mapping=None):
+def relabel_states_by_use(states, mapping=None):
     '''
     Takes in discrete states and relabels according to mapping or length of time in each.
 

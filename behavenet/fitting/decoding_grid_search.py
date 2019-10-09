@@ -15,6 +15,8 @@ from behavenet.fitting.utils import get_expt_dir
 from behavenet.models import Decoder
 from behavenet.training import fit
 
+# TODO: update arhmm_version/ae_version from 'best' to actual version used in meta_tags files
+
 
 def main(hparams):
 
@@ -39,12 +41,23 @@ def main(hparams):
     # build data generator
     data_generator = build_data_generator(hparams, sess_ids)
 
-    hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
-    hparams['output_size'] = data_generator.datasets[0].dims[hparams['output_signal']][2]
-    if hparams['model_class'] == 'neural-arhmm' \
-            or hparams['model_class'] == 'arhmm-neural':
-         hparams['arhmm_model_path'] = os.path.join(
-             os.path.dirname(data_generator.datasets[0].paths['arhmm']))
+    if hparams['model_class'] == 'neural-arhmm':
+        hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
+        hparams['output_size'] = hparams['n_arhmm_states']
+    elif hparams['model_class'] == 'arhmm-neural':
+        hparams['input_size'] = hparams['n_arhmm_states']
+        hparams['output_size'] = data_generator.datasets[0].dims[hparams['output_signal']][2]
+    elif hparams['model_class'] == 'neural-ae':
+        hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
+        hparams['output_size'] = hparams['n_ae_states']
+    elif hparams['model_class'] == 'ae-neural':
+        hparams['input_size'] = hparams['n_ae_latents']
+        hparams['output_size'] = data_generator.datasets[0].dims[hparams['output_signal']][2]
+    else:
+        raise ValueError('%s is an invalid model class' % hparams['model_class'])
+
+    if hparams['model_class'] == 'neural-arhmm' or hparams['model_class'] == 'arhmm-neural':
+         hparams['arhmm_model_path'] = os.path.dirname(data_generator.datasets[0].paths['arhmm'])
 
     # ####################
     # ### CREATE MODEL ###
@@ -181,6 +194,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--export_predictions_best', action='store_true', default=True, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', default='best', type=str)
         parser.add_argument('--decoder_experiment_name', default='grid_search', type=str)
+        parser.add_argument('--shuffle_rng_seed', default=None, type=int)
 
         # load best model params
         namespace, extra = parser.parse_known_args()
@@ -218,6 +232,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', default='test', type=str)
+        parser.add_argument('--shuffle_rng_seed', default=None, type=int)
 
         if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
             parser.add_argument('--n_hid_layers', default=0, type=int)
@@ -298,6 +313,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', default='grid_search', type=str)
+        parser.add_argument('--shuffle_rng_seed', default=None, type=int)
 
         if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
             parser.add_argument('--n_hid_layers', default=0, type=int)

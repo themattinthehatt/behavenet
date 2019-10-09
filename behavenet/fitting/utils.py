@@ -294,8 +294,7 @@ def contains_session(session_dir, session_id):
     Returns:
         (bool)
     """
-    session_ids = read_session_info_from_csv(
-        os.path.join(session_dir, 'session_info.csv'))
+    session_ids = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
     contains_sess = False
     for sess_id in session_ids:
         sess_id.pop('tt_save_path', None)
@@ -382,6 +381,7 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
         (str)
     """
 
+    import pickle
     import pandas as pd
 
     # gather all versions
@@ -390,10 +390,23 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
     # load csv files with model metrics (saved out from test tube)
     metrics = []
     for i, version in enumerate(versions):
+        # make sure training has been completed
+        with open(os.path.join(model_path, version, 'meta_tags.pkl'), 'rb') as f:
+            meta_tags = pickle.load(f)
+        if not meta_tags['training_completed']:
+            continue
         # read metrics csv file
         try:
-            metric = pd.read_csv(
-                os.path.join(model_path, version, 'metrics.csv'))
+            metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
+            # ugly hack for now
+            if model_path.find('arhmm') > -1 and model_path.find('neural') < 0:
+                # throw error if not correct number of lags
+                import pickle
+                meta = os.path.join(model_path, version, 'meta_tags.pkl')
+                with open(meta, 'rb') as f:
+                    meta_tags = pickle.load(f)
+                    if meta_tags['n_lags'] != 1:
+                        raise Exception
         except:
             continue
         # get validation loss of best model
@@ -590,10 +603,10 @@ def add_lab_defaults_to_parser(parser, lab=None):
 def get_lab_example(hparams, lab):
     if lab == 'steinmetz':
         hparams['lab'] = 'steinmetz'
-        hparams['expt'] = '2-probe'
-        hparams['animal'] = 'mouse-01'
+        hparams['expt'] = '8-probe'
+        hparams['animal'] = 'mouse-02'
         hparams['session'] = 'session-01'
-        hparams['n_ae_latents'] = 12
+        hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = False
         hparams['frame_rate'] = 39.61
         hparams['x_pixels'] = 192
@@ -603,10 +616,10 @@ def get_lab_example(hparams, lab):
         hparams['neural_type'] = 'spikes'
     if lab == 'steinmetz-face':
         hparams['lab'] = 'steinmetz'
-        hparams['expt'] = '2-probe-face'
-        hparams['animal'] = 'mouse-01'
+        hparams['expt'] = '8-probe-face'
+        hparams['animal'] = 'mouse-02'
         hparams['session'] = 'session-01'
-        hparams['n_ae_latents'] = 12
+        hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = False
         hparams['frame_rate'] = 39.61
         hparams['x_pixels'] = 128
@@ -617,9 +630,9 @@ def get_lab_example(hparams, lab):
     elif lab == 'musall':
         hparams['lab'] = 'musall'
         hparams['expt'] = 'vistrained'
-        hparams['animal'] = 'mSM30'
-        hparams['session'] = '10-Oct-2017'
-        hparams['n_ae_latents'] = 16
+        hparams['animal'] = 'mSM36'
+        hparams['session'] = '05-Dec-2017'
+        hparams['n_ae_latents'] = 8
         hparams['use_output_mask'] = False
         hparams['frame_rate'] = 30  # is this correct?
         hparams['x_pixels'] = 128

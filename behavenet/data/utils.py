@@ -279,7 +279,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
         arhmm_dir = get_expt_dir(
             hparams, model_class='arhmm', expt_name=hparams['arhmm_experiment_name'])
 
-        if 'shuffle_rng_seed' in hparams:
+        if hparams.get('shuffle_rng_seed') is not None:
             transform = BlockShuffle(hparams['shuffle_rng_seed'])
         else:
             transform = None
@@ -290,7 +290,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
             if 'arhmm_version' in hparams and isinstance(hparams['arhmm_version'], int):
                 arhmm_version = str('version_%i' % hparams['arhmm_version'])
             else:
-                arhmm_version = get_best_model_version(arhmm_dir, 'val_loss')[0]
+                arhmm_version = get_best_model_version(arhmm_dir, 'val_ll', best_def='max')[0]
             arhmm_states = str('%sstates.pkl' % sess_id_str)
             path = os.path.join(arhmm_dir, arhmm_version, arhmm_states)
 
