@@ -128,7 +128,7 @@ def get_data_generator_inputs(hparams, sess_ids):
 
             ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
-            signals = ['ae', 'images']
+            signals = ['ae_latents', 'images']
             transforms = [ae_transform, None]
             paths = [ae_path, os.path.join(data_dir, 'data.hdf5')]
             if hparams.get('use_output_mask', False):

@@ -284,7 +284,7 @@ def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
                 trial_idxs[data_type] = dataset.batch_indxs[data_type][:n_batches]
             else:
                 trial_idxs[data_type] = dataset.batch_indxs[data_type]
-            latents[data_type] += [dataset[i_trial]['ae'][:].cpu().detach().numpy()
+            latents[data_type] += [dataset[i_trial]['ae_latents'][:].cpu().detach().numpy()
                                   for i_trial in trial_idxs[data_type]]
     return latents, trial_idxs
 
