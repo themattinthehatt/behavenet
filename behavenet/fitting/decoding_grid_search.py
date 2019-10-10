@@ -49,7 +49,7 @@ def main(hparams):
         hparams['output_size'] = data_generator.datasets[0].dims[hparams['output_signal']][2]
     elif hparams['model_class'] == 'neural-ae':
         hparams['input_size'] = data_generator.datasets[0].dims[hparams['input_signal']][2]
-        hparams['output_size'] = hparams['n_ae_states']
+        hparams['output_size'] = hparams['n_ae_latents']
     elif hparams['model_class'] == 'ae-neural':
         hparams['input_size'] = hparams['n_ae_latents']
         hparams['output_size'] = data_generator.datasets[0].dims[hparams['output_signal']][2]
