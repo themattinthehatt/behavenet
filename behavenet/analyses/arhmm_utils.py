@@ -345,7 +345,8 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
 
 def make_syllable_movies(
         filepath, hparams, latents, states, trial_idxs, data_generator, sess_idx=0,
-        min_threshold=0, n_buffer=5, n_pre_frames=3, n_rows=None, append_str=None):
+        min_threshold=0, n_buffer=5, n_pre_frames=3, n_rows=None, append_str=None,
+        single_syllable=None):
     """
     Present video clips of each individual syllable in separate panels
 
@@ -362,6 +363,7 @@ def make_syllable_movies(
         n_pre_frames (int): number of behavioral frames to precede each syllable instance
         n_rows (int or NoneType): number of rows in output movie
         append_str (str): appended to end of filename before saving
+        single_syllable (int or NoneType): choose only a single state for movie
 
     Returns:
         None; saves movie to `filepath/model_name_append_str.mp4`
@@ -380,16 +382,6 @@ def make_syllable_movies(
     state_indices = get_discrete_chunks(states, include_edges=True)
     actual_K = len(state_indices)
 
-    # get video dims
-    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
-    movie_dim1 = n_channels * y_dim
-    movie_dim2 = x_dim
-    if n_rows is None:
-        dim1 = int(np.floor(np.sqrt(actual_K)))
-    else:
-        dim1 = n_rows
-    dim2 = int(np.ceil(actual_K / dim1))
-
     # get all example over minimum state length threshold
     over_threshold_instances = [[] for _ in range(actual_K)]
     for i_state in range(actual_K):
@@ -401,50 +393,71 @@ def make_syllable_movies(
 
     # Initialize syllable movie frames
     plt.clf()
-    fig_dim_div = movie_dim2 * dim2 / 10  # aiming for dim 1 being 10
-    fig, axes = plt.subplots(
-        dim1, dim2, figsize=((movie_dim2 * dim2) / fig_dim_div, (movie_dim1 * dim1) / fig_dim_div))
+    if single_syllable is not None:
+        actual_K = 1
+        fig_width = 5
+        n_rows = 1
+    else:
+        fig_width = 10  # aiming for dim 1 being 10
+    # get video dims
+    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
+    movie_dim1 = n_channels * y_dim
+    movie_dim2 = x_dim
+    if n_rows is None:
+        n_rows = int(np.floor(np.sqrt(actual_K)))
+    n_cols = int(np.ceil(actual_K / n_rows))
+
+    fig_dim_div = movie_dim2 * n_cols / fig_width
+    fig_width = (movie_dim2 * n_cols) / fig_dim_div
+    fig_height = (movie_dim1 * n_rows) / fig_dim_div
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
 
     for i, ax in enumerate(fig.axes):
         ax.set_yticks([])
         ax.set_xticks([])
-        if i < actual_K:
-            ax.set_title('Syllable '+str(i), fontsize=16)
-        else:
+        if i >= actual_K:
             ax.set_axis_off()
-    fig.tight_layout(pad=0)
+        elif single_syllable is not None:
+            ax.set_title('Syllable %i' % single_syllable, fontsize=16)
+        else:
+            ax.set_title('Syllable %i' % i, fontsize=16)
+    fig.tight_layout(pad=0, h_pad=1.005)
 
-    imshow_kwargs = {
-        'animated': True,
-        'cmap': 'gray',
-        'vmin': 0,
-        'vmax': 1}
+    imshow_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
 
     ims = [[] for _ in range(plot_n_frames + bs + 200)]
 
     # Loop through syllables
-    for i_syllable in range(actual_K):
-        if len(over_threshold_instances[i_syllable]) == 0:
+    for i_k, ax in enumerate(fig.axes):
+
+        # skip if no syllable in this axis
+        if i_k >= actual_K:
             continue
+        print('processing syllable %i/%i' % (i_k + 1, actual_K))
+        # skip if no syllables are longer than threshold
+        if len(over_threshold_instances[i_k]) == 0:
+            continue
+
+        if single_syllable is not None:
+            i_k = single_syllable
 
         i_chunk = 0
         i_frame = 0
 
         while i_frame < plot_n_frames:
 
-            if i_chunk >= len(over_threshold_instances[i_syllable]):
+            if i_chunk >= len(over_threshold_instances[i_k]):
                 # show blank if out of syllable examples
-                im = fig.axes[i_syllable].imshow(
-                    np.zeros((movie_dim1, movie_dim2)), **imshow_kwargs)
+                im = ax.imshow(np.zeros((movie_dim1, movie_dim2)), **imshow_kwargs)
                 ims[i_frame].append(im)
                 i_frame += 1
             else:
 
                 # Get movies/latents
-                chunk_idx = over_threshold_instances[i_syllable][i_chunk, 0]
+                chunk_idx = over_threshold_instances[i_k][i_chunk, 0]
                 which_trial = trial_idxs[chunk_idx]
-                tr_beg = over_threshold_instances[i_syllable][i_chunk, 1]
-                tr_end = over_threshold_instances[i_syllable][i_chunk, 2]
+                tr_beg = over_threshold_instances[i_k][i_chunk, 1]
+                tr_end = over_threshold_instances[i_k][i_chunk, 2]
                 batch = data_generator.datasets[sess_idx][which_trial]['images'].cpu().detach().numpy()
                 movie_chunk = batch[max(tr_beg - n_pre_frames, 0):tr_end]
 
@@ -453,54 +466,53 @@ def make_syllable_movies(
                 movie_chunk = np.concatenate(
                     [movie_chunk[:, j] for j in range(movie_chunk.shape[1])], axis=1)
 
-                # latents_chunk = latents[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]]
-
-                # print(states[over_threshold_instances[i_syllable][i_chunk,0]][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):min(over_threshold_instances[i_syllable][i_chunk,2]+1,999)])
-                # print(hmm.most_likely_states(latents[over_threshold_instances[i_syllable][i_chunk,0]])[max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):min(over_threshold_instances[i_syllable][i_chunk,2]+1,999)])
-
-                # print(data_generator.datasets[0][which_trial]['images'][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]].shape)
-                # pred_latents, _, _ = ae_model.encoding(data_generator.datasets[0][which_trial]['images'][max(over_threshold_instances[i_syllable][i_chunk,1]-n_pre_frames,0):over_threshold_instances[i_syllable][i_chunk,2]])
-                # pred_latents = pred_latents.cpu().detach().numpy()
-
-                # print(np.max(np.abs(latents_chunk-pred_latents)))
-                # print(np.max(np.abs(latents[0][0:len(pred_latents)]-pred_latents)))
-                if np.sum(states[chunk_idx][tr_beg:tr_end-1] != i_syllable) > 0:
+                if np.sum(states[chunk_idx][tr_beg:tr_end-1] != i_k) > 0:
                     raise ValueError('Misaligned states for syllable segmentation')
 
                 # Loop over this chunk
                 for i in range(movie_chunk.shape[0]):
 
-                    im = fig.axes[i_syllable].imshow(movie_chunk[i], **imshow_kwargs)
+                    im = ax.imshow(movie_chunk[i], **imshow_kwargs)
                     ims[i_frame].append(im)
 
                     # Add red box if start of syllable
                     syllable_start = n_pre_frames if tr_beg >= n_pre_frames else tr_beg
 
-                    if syllable_start < i < (syllable_start + 2):
+                    if syllable_start <= i < (syllable_start + 2):
                         rect = matplotlib.patches.Rectangle(
                             (5, 5), 10, 10, linewidth=1, edgecolor='r', facecolor='r')
-                        im = fig.axes[i_syllable].add_patch(rect)
+                        im = ax.add_patch(rect)
                         ims[i_frame].append(im)
 
                     i_frame += 1
 
                 # Add buffer black frames
                 for j in range(n_buffer):
-                    im = fig.axes[i_syllable].imshow(
-                        np.zeros((movie_dim1, movie_dim2)), **imshow_kwargs)
+                    im = ax.imshow(np.zeros((movie_dim1, movie_dim2)), **imshow_kwargs)
                     ims[i_frame].append(im)
                     i_frame += 1
 
                 i_chunk += 1
 
+    # put together file name
+    if single_syllable is not None:
+        state_str = str('_syllable-%02i' % single_syllable)
+    else:
+        state_str = ''
+    filename = str(
+        'syllable_behavior_%s%s%s.mp4' % (get_model_str(hparams), state_str, append_str))
+    save_file = os.path.join(filepath, filename)
+    make_dir_if_not_exists(save_file)
+
+    print('creating animation...', end='')
     ani = animation.ArtistAnimation(
         fig,
         [ims[i] for i in range(len(ims)) if ims[i] != []], interval=20, blit=True, repeat=False)
+    print('done')
+    print('saving video to %s...' % filename, end='')
     writer = FFMpegWriter(fps=max(plot_frame_rate, 10), bitrate=-1)
-    filename = str('syllable_behavior_' + get_model_str(hparams) + str('%s.mp4' % append_str))
-    save_file = os.path.join(filepath, filename)
-    make_dir_if_not_exists(save_file)
     ani.save(save_file, writer=writer)
+    print('done')
 
 
 def make_real_vs_generated_movies(

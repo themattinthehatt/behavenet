@@ -17,6 +17,8 @@ from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
 from behavenet.analyses.arhmm_utils import make_overview_arhmm_figures
 matplotlib.use('agg')
 
+# TODO: hmm should be a different model type/class
+
 
 def main(hparams):
 

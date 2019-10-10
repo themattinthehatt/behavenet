@@ -272,8 +272,7 @@ def make_ae_reconstruction_movie_multisession(
         # build model(s) if they exist in the specified tt experiment
         try:
 
-            model_ae, _ = get_best_model_and_data(
-                hparams, AE, load_data=False, version=version)
+            model_ae, _ = get_best_model_and_data(hparams, AE, load_data=False, version=version)
 
             # push images through decoder
             if batch is None:

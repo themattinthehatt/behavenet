@@ -405,7 +405,7 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
                 meta = os.path.join(model_path, version, 'meta_tags.pkl')
                 with open(meta, 'rb') as f:
                     meta_tags = pickle.load(f)
-                    if meta_tags['n_lags'] != 1:
+                    if meta_tags['n_lags'] != 0:
                         raise Exception
         except:
             continue

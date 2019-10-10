@@ -285,6 +285,10 @@ def get_reconstruction(model, inputs, dataset=None):
     Returns:
         np array (batch x channels x y_pix x x_pix)
     """
+    import torch
+
+    if not isinstance(inputs, torch.Tensor):
+        inputs = torch.Tensor(inputs)
 
     # check to see if inputs are images or latents
     if len(inputs.shape) == 2:
