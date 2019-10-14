@@ -306,45 +306,55 @@ def get_reconstruction(model, inputs, dataset=None):
     return ims_recon
 
 
-def get_test_r2(hparams, model_version):
+def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
     """
     Calculate a single $R^2$ value across all test batches for a decoder
 
     Args:
         hparams (dict):
         model_version (int or str): if string, should be in format 'version_%i'
+        metric (str): 'r2' | 'fc'
+        sess_idx (int)
 
     Returns:
         (tuple): (dict, int)
     """
 
-    from sklearn.metrics import r2_score
+    from sklearn.metrics import r2_score, accuracy_score
     from behavenet.data.utils import get_best_model_and_data
     from behavenet.models import Decoder
 
     model, data_generator = get_best_model_and_data(
         hparams, Decoder, load_data=True, version=model_version)
-
-    n_test_batches = len(data_generator.datasets[0].batch_indxs['test'])
+    
+    n_test_batches = len(data_generator.datasets[sess_idx].batch_indxs['test'])
     max_lags = hparams['n_max_lags']
-    latents_ae = []
-    latents_pred = []
+    true = []
+    pred = []
     data_generator.reset_iterators('test')
     for i in range(n_test_batches):
         batch, _ = data_generator.next_batch('test')
 
-        # get true latents
-        curr_latents_ae = batch['ae'][0].cpu().detach().numpy()
+        # get true latents/states
+        if metric == 'r2':
+            curr_true = batch['ae_latents'][0].cpu().detach().numpy()
+        elif metric == 'fc':
+            curr_true = batch['arhmm'][0].cpu().detach().numpy()
+        else:
+            raise ValueError('"%s" is an invalid metric type' % metric)
 
         # get predicted latents
-        curr_latents_pred = model(batch['neural'][0])[0].cpu().detach().numpy()
+        curr_pred = model(batch['neural'][0])[0].cpu().detach().numpy()
 
-        latents_ae.append(curr_latents_ae[max_lags:-max_lags])
-        latents_pred.append(curr_latents_pred[max_lags:-max_lags])
+        true.append(curr_true[max_lags:-max_lags])
+        pred.append(curr_pred[max_lags:-max_lags])
 
-    r2 = r2_score(
-        np.concatenate(latents_ae, axis=0),
-        np.concatenate(latents_pred, axis=0),
-        multioutput='variance_weighted')
+    if metric == 'r2':
+        metric = r2_score(
+            np.concatenate(true, axis=0), np.concatenate(pred, axis=0),
+            multioutput='variance_weighted')
+    elif metric == 'fc':
+        metric = accuracy_score(
+            np.concatenate(true, axis=0), np.argmax(np.concatenate(pred, axis=0), axis=1))
 
-    return model.hparams, r2
+    return model.hparams, metric

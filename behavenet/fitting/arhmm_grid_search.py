@@ -42,7 +42,7 @@ def main(hparams):
     # ####################
 
     hparams['ae_model_path'] = os.path.join(
-        os.path.dirname(data_generator.datasets[0].paths['ae']))
+        os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
 
     # Get all latents in list
     print('collecting observations from data generator...', end='')
@@ -215,10 +215,11 @@ def get_arhmm_params(namespace, parser):
         parser.add_argument('--train_percent', default=1.0, type=float)
         parser.add_argument('--n_ae_latents', default=8, type=int)
         # parser.opt_list('--n_ae_latents', default=12, options=[4, 8, 16], type=int, tunable=True)
-        parser.opt_list('--n_arhmm_states', default=16, options=[1, 2, 4, 8, 16, 32], type=int, tunable=True)
+        parser.opt_list('--n_arhmm_states', default=16, options=[2, 4, 8, 12, 16, 24, 32], type=int, tunable=True)
         parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
         parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
-        parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
+        # parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
+        parser.opt_list('--rng_seed_model', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=True)
