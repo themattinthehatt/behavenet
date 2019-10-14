@@ -139,7 +139,7 @@ def get_r2s_across_trials(hparams, best_models_df):
         (pd.DataFrame)
     """
 
-    from behavenet.fitting.eval import get_test_r2
+    from behavenet.fitting.eval import get_test_metric
 
     dataset = get_dataset_str(hparams)
     versions = best_models_df.version.unique()
@@ -151,7 +151,7 @@ def get_r2s_across_trials(hparams, best_models_df):
             best_models_df.version == version].model_type.unique()[0]
         hparams['region'] = best_models_df[
             best_models_df.version == version].region.unique()[0]
-        hparams_, r2 = get_test_r2(hparams, model_version)
+        hparams_, r2 = get_test_metric(hparams, model_version)
         all_test_r2s.append(pd.DataFrame({
             'dataset': dataset,
             'region': hparams['region'],
