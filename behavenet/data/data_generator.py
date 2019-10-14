@@ -258,7 +258,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                             ('Could not open %s\nMust create ae predictions from model;' +
                              ' currently not implemented') % self.paths[signal])
 
-            elif signal == 'arhmm':  # TODO: change to 'states'
+            elif signal == 'arhmm' or signal == 'arhmm_states':
                 dtype = 'int32'
                 try:
                     sample[signal] = load_pkl_dict(

@@ -35,7 +35,7 @@ def export_states(hparams, data_generator, model, filename=None):
             data, dataset = data_generator.next_batch(dtype)
 
             # process batch,
-            y = data['ae'][0]
+            y = data['ae_latents'][0]
             batch_size = y.shape[0]
 
             curr_states = model.most_likely_states(y)
@@ -326,7 +326,7 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
 
     model, data_generator = get_best_model_and_data(
         hparams, Decoder, load_data=True, version=model_version)
-    
+
     n_test_batches = len(data_generator.datasets[sess_idx].batch_indxs['test'])
     max_lags = hparams['n_max_lags']
     true = []
@@ -339,7 +339,7 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
         if metric == 'r2':
             curr_true = batch['ae_latents'][0].cpu().detach().numpy()
         elif metric == 'fc':
-            curr_true = batch['arhmm'][0].cpu().detach().numpy()
+            curr_true = batch['arhmm_states'][0].cpu().detach().numpy()
         else:
             raise ValueError('"%s" is an invalid metric type' % metric)
 

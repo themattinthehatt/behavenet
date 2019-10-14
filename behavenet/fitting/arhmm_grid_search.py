@@ -218,8 +218,7 @@ def get_arhmm_params(namespace, parser):
         parser.opt_list('--n_arhmm_states', default=16, options=[2, 4, 8, 12, 16, 24, 32], type=int, tunable=True)
         parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
         parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
-        # parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
-        parser.opt_list('--rng_seed_model', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
+        parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
 
         # plotting params
         parser.add_argument('--export_states', action='store_true', default=True)

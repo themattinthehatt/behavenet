@@ -93,20 +93,20 @@ def get_data_generator_inputs(hparams, sess_ids):
         elif hparams['model_class'] == 'neural-arhmm':
 
             hparams['input_signal'] = 'neural'
-            hparams['output_signal'] = 'arhmm'
+            hparams['output_signal'] = 'arhmm_states'
             hparams['output_size'] = hparams['n_arhmm_states']
             hparams['noise_dist'] = 'categorical'
 
             arhmm_transform, arhmm_path = get_transforms_paths(
                 'arhmm_states', hparams, sess_id=sess_id)
 
-            signals = ['neural', 'arhmm']
+            signals = ['neural', 'arhmm_states']
             transforms = [neural_transform, arhmm_transform]
             paths = [neural_path, arhmm_path]
 
         elif hparams['model_class'] == 'arhmm-neural':
 
-            hparams['input_signal'] = 'arhmm'
+            hparams['input_signal'] = 'arhmm_states'
             hparams['output_signal'] = 'neural'
             hparams['output_size'] = None  # to fill in after data is loaded
             if hparams['neural_type'] == 'ca':
@@ -120,7 +120,7 @@ def get_data_generator_inputs(hparams, sess_ids):
             arhmm_transform, arhmm_path = get_transforms_paths(
                 'arhmm_states', hparams, sess_id=sess_id)
 
-            signals = ['neural', 'arhmm']
+            signals = ['neural', 'arhmm_states']
             transforms = [neural_transform, arhmm_transform]
             paths = [neural_path, arhmm_path]
 
@@ -156,11 +156,11 @@ def get_data_generator_inputs(hparams, sess_ids):
 
             # put it all together
             signals = [
-                'ae',
+                'ae_latents',
                 'images',
                 'ae_predictions',
                 'arhmm_predictions',
-                'arhmm']
+                'arhmm_states']
             transforms = [
                 ae_transform,
                 None,
