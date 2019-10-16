@@ -37,6 +37,8 @@ def main(hparams):
 
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)
+    if hparams is None:
+        return
 
     # build data generator
     data_generator = build_data_generator(hparams, sess_ids)
@@ -57,7 +59,7 @@ def main(hparams):
         raise ValueError('%s is an invalid model class' % hparams['model_class'])
 
     if hparams['model_class'] == 'neural-arhmm' or hparams['model_class'] == 'arhmm-neural':
-         hparams['arhmm_model_path'] = os.path.dirname(data_generator.datasets[0].paths['arhmm'])
+         hparams['arhmm_model_path'] = os.path.dirname(data_generator.datasets[0].paths['arhmm_states'])
 
     # ####################
     # ### CREATE MODEL ###

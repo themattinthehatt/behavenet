@@ -83,6 +83,8 @@ def main(hparams):
 
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)
+    if hparams is None:
+        return
 
     # build data generator
     data_generator = build_data_generator(hparams, sess_ids)
