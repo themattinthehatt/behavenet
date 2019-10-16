@@ -687,12 +687,12 @@ def create_tt_experiment(hparams):
     hparams['expt_dir'] = get_expt_dir(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
-    print('')
+    # print('')
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
         print('Experiment exists! Aborting fit')
-        return
+        return None, None, None
 
     # TODO: this was commented out in arhmm_decoding_grid_search - why?
     exp = Experiment(
