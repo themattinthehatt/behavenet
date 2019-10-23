@@ -816,7 +816,7 @@ def plot_segmentations_by_trial(
         axes = plt.subplot(gs_bottom_left[i_trial, 0])
         axes.imshow(
             states[i_trial][None, :], aspect='auto',
-            extent=(0, len(states[i_trial]), 0, 1), cmap=cmap, alpha=0.9)
+            extent=(0, len(states[i_trial]), 0, 1), cmap=cmap) #, alpha=0.9)
         if trial_info_dict is not None:
             i = 0
             for key, val in trial_info_dict.items():

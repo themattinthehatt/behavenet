@@ -60,6 +60,8 @@ def main(hparams):
 
     if hparams['model_class'] == 'neural-arhmm' or hparams['model_class'] == 'arhmm-neural':
          hparams['arhmm_model_path'] = os.path.dirname(data_generator.datasets[0].paths['arhmm_states'])
+    hparams['ae_model_path'] = os.path.join(
+        os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
 
     # ####################
     # ### CREATE MODEL ###
