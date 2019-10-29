@@ -1,5 +1,7 @@
 # behavenet
 
+NOTE: this repo is currently under construction! Check back in December 2019 for a more user-friendly codebase.
+
 ## Environment Set-Up
 ```
 $: conda create --name=behavenet python=3.7.2
