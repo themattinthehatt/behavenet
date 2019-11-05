@@ -170,6 +170,7 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
+    parser.add_argument('--train_frac', default=1.0, type=float)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()

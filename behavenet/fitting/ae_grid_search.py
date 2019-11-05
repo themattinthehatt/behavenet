@@ -111,6 +111,7 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=False)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--train_frac', default=1.0, type=float)
 
     # add fitting arguments
     parser.add_argument('--val_check_interval', default=1)
