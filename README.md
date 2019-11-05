@@ -63,28 +63,28 @@ Finally, the base figure directory will be used to store figure and video output
 Next you will be asked to input some prior information about the dataset to avoid supplying this 
 information at all intermediate steps (examples shown for Musall dataset):
 
-* lab or experimenter name (musall)
-* experiment name (vistrained)
-* example animal name (mSM36)
-* example session name (05-Dec-2017)
-* trial splits (8;1;1;0) - this is how trials will be split among training, validation, testing, 
+* lab or experimenter name (`musall`)
+* experiment name (`vistrained`)
+* example animal name (`mSM36`)
+* example session name (`05-Dec-2017`)
+* trial splits (`8;1;1;0`) - this is how trials will be split among training, validation, testing, 
 and gap trials, respectively. Typically we use training data to train the models; validation data
 to choose the best model from a collection of models using different hyperparameters; test data to
-produce plot and videos; and gap trials can optionally be inserted between training, validation, 
+produce plots and videos; and gap trials can optionally be inserted between training, validation, 
 and test trials if desired.
-* x pixels (128)
-* y pixels (128)
-* input channels (2) - this can refer to color channels (for RGB data) and/or multiple camera 
+* x pixels (`128`)
+* y pixels (`128`)
+* input channels (`2`) - this can refer to color channels (for RGB data) and/or multiple camera 
 views, which should be concatenated along the color channel dimension. In the Musall dataset we use
 grayscale images from two camera views, so a trial with 189 frames will have a block of video data
 of shape (189, 2, 128, 128)
-* use output mask (False) - an optional output mask can be applied to each video frame if desired;
+* use output mask (`False`) - an optional output mask can be applied to each video frame if desired;
 these output masks must also be stored in the `data.hdf5` files as `masks`.
-* frame rate (30) - in Hz; behavenet assumes that the video data and neural data are binned at the 
-same temporal resolution
-* neural data type (ca) - either 'ca' for 2-photon/widefield data, or 'spikes' for ephys data. This 
-parameter controls the noise distribution for encoding models, as well as several other model 
-hyperparameters
+* frame rate (`30`) - in Hz; behavenet assumes that the video data and neural data are binned at 
+the same temporal resolution
+* neural data type (`ca`) - either `ca` for 2-photon/widefield data, or `spikes` for ephys data. 
+This parameter controls the noise distribution for encoding models, as well as several other model 
+hyperparameters.
 
 To input this information, launch python from the behavenet environment and type:
 

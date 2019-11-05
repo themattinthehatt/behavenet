@@ -15,6 +15,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_expt_dir
+from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.models import NeuralNetDecoderLaggedSLDS
 
@@ -247,8 +248,8 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
-    parser.add_argument('--tt_save_path', '-t', type=str)
-    parser.add_argument('--data_dir', '-d', type=str)
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_class', default='arhmm-decoding', type=str)
     parser.add_argument('--model_type', default=None, type=str)
 

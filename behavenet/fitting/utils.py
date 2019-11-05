@@ -12,6 +12,36 @@ def get_subdirs(path):
         raise StopIteration('%s does not contain any subdirectories' % path)
 
 
+def get_user_dir(type):
+    """
+    Get a directory from user-defined `directories` json file
+
+    Args:
+        type (str): 'data' | 'save' | 'fig'
+
+    Returns:
+        (str): absolute path for requested directory
+    """
+    import json
+    from behavenet import get_params_dir
+    dirs_file = os.path.join(get_params_dir(), '.behavenet', 'directories')
+    with open(dirs_file, 'r') as f:
+        dirs = json.load(f)
+    return dirs[str('%s_dir' % type)]
+
+
+def get_data_dir():
+    return get_user_dir('data')
+
+
+def get_save_dir():
+    return get_user_dir('save')
+
+
+def get_fig_dir():
+    return get_user_dir('fig')
+
+
 def get_output_session_dir(hparams, path_type='save'):
     """
     Get session-level directory for saving model outputs.

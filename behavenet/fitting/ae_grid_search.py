@@ -12,6 +12,7 @@ from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_best_model_version
 from behavenet.fitting.utils import get_output_session_dir
+from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
@@ -93,8 +94,8 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', choices=['latent_search', 'test'], type=str)
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
-    parser.add_argument('--tt_save_path', type=str)
-    parser.add_argument('--data_dir', type=str)
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
     parser.add_argument('--model_class', default='ae', choices=['ae', 'vae'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')

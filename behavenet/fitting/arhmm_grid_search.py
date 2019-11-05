@@ -11,6 +11,7 @@ from behavenet.fitting.eval import export_states
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.analyses.arhmm_utils import get_latent_arrays_by_dtype
 from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
@@ -152,8 +153,8 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
-    parser.add_argument('--tt_save_path', type=str)
-    parser.add_argument('--data_dir', type=str)
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', default=None, type=str)
     parser.add_argument('--model_class', default='arhmm', choices=['arhmm'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')

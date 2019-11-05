@@ -12,6 +12,7 @@ from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_expt_dir
+from behavenet.fitting.utils import get_user_dir
 from behavenet.models import Decoder
 from behavenet.training import fit
 
@@ -108,8 +109,8 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
-    parser.add_argument('--tt_save_path', type=str)
-    parser.add_argument('--data_dir', type=str)
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm', 'ae-neural', 'arhmm-neural'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
