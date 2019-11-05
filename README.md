@@ -36,3 +36,14 @@ install from inside the main behavenet directory:
 ```
 (behavenet) $: pip install -e .
 ```
+
+Next, set up your paths to data, results, and figures. Launch python from the behavenet environment, and type:
+
+```python
+from behavenet import setup
+setup()
+```
+
+You will be asked to input a base data directory; all data should be stored as `base_data_dir/lab_name/expt_name/animal_id/session_id/data.hdf5`. More information on the dataset structure to come.
+
+You will also be asked to input a base results directory, which will store all of the model fits. Finally, the base figure directory will be used to store figure and video outputs. 
