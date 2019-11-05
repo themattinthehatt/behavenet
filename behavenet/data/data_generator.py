@@ -381,7 +381,8 @@ class ConcatSessionsGenerator(object):
 
     def __init__(
             self, data_dir, ids_list, signals_list=None, transforms_list=None, paths_list=None,
-            device='cuda', as_numpy=False, batch_load=True, rng_seed=0, trial_splits=None):
+            device='cuda', as_numpy=False, batch_load=True, rng_seed=0, trial_splits=None,
+            train_frac=1.0):
         """
 
         Args:
@@ -403,6 +404,8 @@ class ConcatSessionsGenerator(object):
             trial_splits (dict, optional): defines number of train/text/xv folds using the keys
                 'train_tr', 'val_tr', 'test_tr', and 'gap_tr'; see `split_trials` for how these are
                 used.
+            train_frac (float, optional): fraction of assigned training trials to actually use; for
+                exploring amount of data needed to properly fit models
         """
 
         if isinstance(ids_list, dict):
@@ -437,16 +440,20 @@ class ConcatSessionsGenerator(object):
 
         # get train/val/test batch indices for each dataset
         if trial_splits is None:
-            trial_splits = {
-                'train_tr': 5, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 1}
+            trial_splits = {'train_tr': 5, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 1}
         self.batch_ratios = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
             dataset.batch_indxs = split_trials(len(dataset), rng_seed=rng_seed, **trial_splits)
             dataset.n_batches = {}
             for dtype in self._dtypes:
-                dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
                 if dtype == 'train':
+                    if train_frac < 1.0:
+                        n_batches = len(dataset.batch_indxs[dtype])
+                        indxs_rand = np.random.choice(
+                            n_batches, size=int(np.floor(train_frac * n_batches)), replace=False)
+                        dataset.batch_indxs[dtype] = dataset.batch_indxs[dtype][indxs_rand]
                     self.batch_ratios[i] = len(dataset.batch_indxs[dtype])
+                dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
         # find total number of batches per data type; this will be iterated

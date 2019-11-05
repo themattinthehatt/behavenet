@@ -386,7 +386,6 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
 
     # gather all versions
     versions = get_subdirs(model_path)
-
     # load csv files with model metrics (saved out from test tube)
     metrics = []
     for i, version in enumerate(versions):
@@ -484,6 +483,8 @@ def experiment_exists(hparams, which_version=False):
     hparams_less.pop('plot_n_frames', None)
     hparams_less.pop('plot_frame_rate', None)
     hparams_less.pop('ae_multisession', None)
+    hparams_less.pop('session_dir', None)
+    hparams_less.pop('expt_dir', None)
 
     found_match = False
     version = None
