@@ -7,6 +7,7 @@ import torch
 from test_tube import HyperOptArgumentParser
 
 from behavenet.fitting.eval import export_latents_best
+from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
@@ -80,6 +81,16 @@ def main(hparams):
 
     fit(hparams, model, data_generator, exp, method='ae')
 
+    # export training plots
+    if hparams['export_train_plots']:
+        print('creating training plots...', end='')
+        version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+        save_file = os.path.join(version_dir, 'loss_training')
+        export_train_plots(hparams, 'train', save_file=save_file)
+        save_file = os.path.join(version_dir, 'loss_validation')
+        export_train_plots(hparams, 'val', save_file=save_file)
+        print('done')
+
     # update hparams upon successful training
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
@@ -117,6 +128,8 @@ def get_params(strategy):
     # add fitting arguments
     parser.add_argument('--val_check_interval', default=1)
     parser.add_argument('--l2_reg', default=0)
+
+    parser.add_argument('--export_train_plots', action='store_true', default=False)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()

@@ -358,3 +358,70 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
             np.concatenate(true, axis=0), np.argmax(np.concatenate(pred, axis=0), axis=1))
 
     return model.hparams, metric
+
+
+def export_train_plots(hparams, dtype, save_file=None):
+    """
+    Export plot with MSE/LL as a function of training epochs
+
+    Args:
+        hparams (dict):
+        dtype (str): 'train' | 'val'
+        save_file (str): full filename (absolute path) for saving plot
+    """
+    import os
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from behavenet.fitting.utils import read_session_info_from_csv
+
+    sns.set_style('white')
+    sns.set_context('talk')
+
+    version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+    metric_file = os.path.join(version_dir, 'metrics.csv')
+    metrics = pd.read_csv(metric_file)
+
+    # collect data from csv file
+    sess_ids = read_session_info_from_csv(os.path.join(version_dir, 'session_info.csv'))
+    sess_ids_strs = []
+    for sess_id in sess_ids:
+        sess_ids_strs.append(str('%s/%s' % (sess_id['animal'], sess_id['session'])))
+
+    metrics_df = []
+    for i, row in metrics.iterrows():
+        dataset = 'all' if row['dataset'] == -1 else sess_ids_strs[row['dataset']]
+        metrics_df.append(pd.DataFrame({
+            'dataset': dataset,
+            'epoch': row['epoch'],
+            'loss': row['val_loss'],
+            'dtype': 'val',
+        }, index=[0]))
+        metrics_df.append(pd.DataFrame({
+            'dataset': dataset,
+            'epoch': row['epoch'],
+            'loss': row['tr_loss'],
+            'dtype': 'train',
+        }, index=[0]))
+    metrics_df = pd.concat(metrics_df)
+
+    # plot data
+    data_queried = metrics_df[
+        (metrics_df.dtype == dtype) &
+        (metrics_df.epoch > 0) &
+        ~pd.isna(metrics_df.loss)]
+
+    splt = sns.relplot(x='epoch', y='loss', hue='dataset', kind='line', data=data_queried)
+    splt.ax.set_yscale('log')
+    splt.ax.set_ylabel('MSE per pixel')
+
+    title_str = 'Validation' if dtype == 'val' else 'Training'
+    plt.title('%s loss' % title_str)
+
+    if save_file is not None:
+        plt.savefig(save_file + '.png', dpi=300, format='png')
+        plt.close()
+    else:
+        plt.show()
+
+    return splt
