@@ -43,21 +43,14 @@ def export_states(hparams, data_generator, model, filename=None):
 
     # save states separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
-        if filename is None or data_generator.n_datasets > 1:
+        if filename is None:
             # get save name which includes lab/expt/animal/session
-            if data_generator.n_datasets > 1:
-                sess_id = str(
-                    '%s_%s_%s_%s_states.pkl' % (
-                        dataset.lab, dataset.expt, dataset.animal,
-                        dataset.session))
-            else:
-                sess_id = 'states.pkl'
+            sess_id = str('%s_%s_%s_%s_states.pkl' % (
+                dataset.lab, dataset.expt, dataset.animal, dataset.session))
             filename = os.path.join(
                 hparams['expt_dir'], 'version_%i' % hparams['version'], sess_id)
         # save out array in pickle file
-        print(
-            'saving states %i of %i:\n%s' %
-            (i + 1, data_generator.n_datasets, filename))
+        print('saving states %i of %i:\n%s' % (i + 1, data_generator.n_datasets, filename))
         states_dict = {'states': states[i], 'trials': dataset.batch_indxs}
         with open(filename, 'wb') as f:
             pickle.dump(states_dict, f)
@@ -120,21 +113,14 @@ def export_latents(data_generator, model, filename=None):
 
     # save latents separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
-        if filename is None or data_generator.n_datasets > 1:
+        if filename is None:
             # get save name which includes lab/expt/animal/session
-            if data_generator.n_datasets > 1:
-                sess_id = str(
-                    '%s_%s_%s_%s_latents.pkl' % (
-                        dataset.lab, dataset.expt, dataset.animal,
-                        dataset.session))
-            else:
-                sess_id = 'latents.pkl'
+            sess_id = str('%s_%s_%s_%s_latents.pkl' % (
+                dataset.lab, dataset.expt, dataset.animal, dataset.session))
             filename = os.path.join(
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
-        print(
-            'saving latents %i of %i:\n%s' %
-            (i + 1, data_generator.n_datasets, filename))
+        print('saving latents %i of %i:\n%s' % (i + 1, data_generator.n_datasets, filename))
         latents_dict = {'latents': latents[i], 'trials': dataset.batch_indxs}
         with open(filename, 'wb') as f:
             pickle.dump(latents_dict, f)
@@ -204,23 +190,15 @@ def export_predictions(data_generator, model, filename=None):
 
     # save latents separately for each dataset
     for i, dataset in enumerate(data_generator.datasets):
-        if filename is None or data_generator.n_datasets > 1:
+        if filename is None:
             # get save name which includes lab/expt/animal/session
-            if data_generator.n_datasets > 1:
-                sess_id = str(
-                    '%s_%s_%s_%s_predictions.pkl' % (
-                        dataset.lab, dataset.expt, dataset.animal,
-                        dataset.session))
-            else:
-                sess_id = 'predictions.pkl'
+            sess_id = str('%s_%s_%s_%s_predictions.pkl' % (
+                dataset.lab, dataset.expt, dataset.animal, dataset.session))
             filename = os.path.join(
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
-        print(
-            'saving latents %i of %i to %s' %
-            (i + 1, data_generator.n_datasets, filename))
-        predictions_dict = {
-            'predictions': predictions[i], 'trials': dataset.batch_indxs}
+        print('saving latents %i of %i to %s' % (i + 1, data_generator.n_datasets, filename))
+        predictions_dict = {'predictions': predictions[i], 'trials': dataset.batch_indxs}
         with open(filename, 'wb') as f:
             pickle.dump(predictions_dict, f)
 
@@ -239,12 +217,10 @@ def export_latents_best(hparams, filename=None, export_all=False):
 
     from behavenet.models import AE
     if export_all:
-        data_kwargs = dict(
-            trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
+        data_kwargs = dict(trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
     else:
         data_kwargs = {}
-    model, data_generator = get_best_model_and_data(
-        hparams, AE, data_kwargs=data_kwargs)
+    model, data_generator = get_best_model_and_data(hparams, AE, data_kwargs=data_kwargs)
     export_latents(data_generator, model, filename=filename)
 
 
@@ -262,12 +238,10 @@ def export_predictions_best(hparams, filename=None, export_all=False):
 
     from behavenet.models import Decoder
     if export_all:
-        data_kwargs = dict(
-            trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
+        data_kwargs = dict(trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
     else:
         data_kwargs = {}
-    model, data_generator = get_best_model_and_data(
-        hparams, Decoder, data_kwargs=data_kwargs)
+    model, data_generator = get_best_model_and_data(hparams, Decoder, data_kwargs=data_kwargs)
     export_predictions(data_generator, model, filename=filename)
 
 
