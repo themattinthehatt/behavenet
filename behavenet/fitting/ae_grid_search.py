@@ -8,17 +8,16 @@ from test_tube import HyperOptArgumentParser
 
 from behavenet.fitting.eval import export_latents_best
 from behavenet.fitting.eval import export_train_plots
+from behavenet.fitting.training import fit
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_best_model_version
 from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import get_user_dir
-from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
 from behavenet.models import AE as AE
-from behavenet.training import fit
 
 
 def main(hparams):

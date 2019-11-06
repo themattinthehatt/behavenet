@@ -7,14 +7,13 @@ from test_tube import HyperOptArgumentParser
 
 from behavenet.data.utils import get_region_list
 from behavenet.fitting.eval import export_predictions_best
+from behavenet.fitting.training import fit
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
-from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_user_dir
 from behavenet.models import Decoder
-from behavenet.training import fit
 
 # TODO: update arhmm_version/ae_version from 'best' to actual version used in meta_tags files
 
