@@ -109,7 +109,7 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
-    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--save_dir', default=get_user_dir('save'), type=str)
     parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm', 'ae-neural', 'arhmm-neural'], type=str)

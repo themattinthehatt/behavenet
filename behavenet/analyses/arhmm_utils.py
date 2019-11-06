@@ -23,7 +23,7 @@ def make_overview_arhmm_figures(hparams):
         hparams = vars(hparams)
 
     filepath = os.path.join(
-        hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+        hparams['save_dir'], hparams['lab'], hparams['expt'],
         hparams['animal'], hparams['session'], 'arhmm',
         str('%02i_latents' % hparams['n_ae_latents']))
 
@@ -56,7 +56,7 @@ def make_overview_arhmm_figures(hparams):
     kappa_vec = np.unique(np.asarray(kappa_vec))
 
     # filepath = os.path.join(
-    #         hparams['tt_save_path'], hparams['lab'], hparams['expt'],
+    #         hparams['save_dir'], hparams['lab'], hparams['expt'],
     #         hparams['animal'], hparams['session'], 'arhmm')
 
     plt.figure(figsize=(4, 4))

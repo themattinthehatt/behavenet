@@ -49,15 +49,15 @@ def get_output_session_dir(hparams, path_type='save'):
     If 'lab' == 'all', an error is thrown since multiple-lab runs are not supp
     If 'expt' == 'all', all sessions from all animals from all expts from the
         specified lab are used; the session_dir will then be
-        `tt_save_path/lab/multisession-xx`
+        `save_dir/lab/multisession-xx`
     If 'animal' == 'all', all sessions from all animals in the specified expt
         are used; the session_dir will then be
-        `tt_save_path/lab/expt/multisession-xx`
+        `save_dir/lab/expt/multisession-xx`
     If 'session' == 'all', all sessions from the specified animal are used; the
         session_dir will then be
-        `tt_save_path/lab/expt/animal/multisession-xx`
+        `save_dir/lab/expt/animal/multisession-xx`
     If none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
-        `tt_save_path/lab/expt/animal/session`
+        `save_dir/lab/expt/animal/session`
 
     The `multisession-xx` directory will contain a file `session_info.csv`
     which will contain information about the sessions that comprise the
@@ -66,7 +66,7 @@ def get_output_session_dir(hparams, path_type='save'):
 
     Args:
         hparams (dict):
-        path_type (str, optional): 'save' to use hparams['tt_save_path'],
+        path_type (str, optional): 'save' to use hparams['save_dir'],
             'data' to use hparams['data_dir']; note that using path_type='data'
             will not return multisession directories
 
@@ -80,7 +80,7 @@ def get_output_session_dir(hparams, path_type='save'):
         pass
 
     if path_type == 'save':
-        base_dir = hparams['tt_save_path']
+        base_dir = hparams['save_dir']
     elif path_type == 'data':
         base_dir = hparams['data_dir']
     else:
@@ -167,7 +167,7 @@ def get_output_session_dir(hparams, path_type='save'):
             sessions_multi = read_session_info_from_csv(csv_file)
             for d in sessions_multi:
                 # save path doesn't matter for comparison
-                d.pop('tt_save_path', None)
+                d.pop('save_dir', None)
             # compare to collection of single sessions above
             set_l1 = set(tuple(sorted(d.items())) for d in sessions_single)
             set_l2 = set(tuple(sorted(d.items())) for d in sessions_multi)
@@ -327,7 +327,7 @@ def contains_session(session_dir, session_id):
     session_ids = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
     contains_sess = False
     for sess_id in session_ids:
-        sess_id.pop('tt_save_path', None)
+        sess_id.pop('save_dir', None)
         if sess_id == session_id:
             contains_sess = True
             break
@@ -348,13 +348,13 @@ def find_session_dirs(hparams):
     """
     ids = {s: hparams[s] for s in ['lab', 'expt', 'animal', 'session']}
     lab = hparams['lab']
-    expts = get_subdirs(os.path.join(hparams['tt_save_path'], lab))
+    expts = get_subdirs(os.path.join(hparams['save_dir'], lab))
     # need to grab all multi-sessions as well as the single session
     session_dirs = []  # full paths
     session_ids  = []  # dict of lab/expt/animal/session
     for expt in expts:
         if expt[:5] == 'multi':
-            session_dir = os.path.join(hparams['tt_save_path'], lab, expt)
+            session_dir = os.path.join(hparams['save_dir'], lab, expt)
             if contains_session(session_dir, ids):
                 session_dirs.append(session_dir)
                 session_ids.append({
@@ -363,10 +363,10 @@ def find_session_dirs(hparams):
             continue
         else:
             animals = get_subdirs(os.path.join(
-                hparams['tt_save_path'], lab, expt))
+                hparams['save_dir'], lab, expt))
         for animal in animals:
             if animal[:5] == 'multi':
-                session_dir = os.path.join(hparams['tt_save_path'], lab, expt, animal)
+                session_dir = os.path.join(hparams['save_dir'], lab, expt, animal)
                 if contains_session(session_dir, ids):
                     session_dirs.append(session_dir)
                     session_ids.append({
@@ -375,10 +375,10 @@ def find_session_dirs(hparams):
                 continue
             else:
                 sessions = get_subdirs(os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal))
+                    hparams['save_dir'], lab, expt, animal))
             for session in sessions:
                 session_dir = os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal, session)
+                    hparams['save_dir'], lab, expt, animal, session)
                 if session[:5] == 'multi':
                     if contains_session(session_dir, ids):
                         session_dirs.append(session_dir)
@@ -495,7 +495,7 @@ def experiment_exists(hparams, which_version=False):
     # TODO: this is ugly and not easy to maintain
     hparams_less = copy.copy(hparams)
     hparams_less.pop('data_dir', None)
-    hparams_less.pop('tt_save_path', None)
+    hparams_less.pop('save_dir', None)
     hparams_less.pop('device', None)
     hparams_less.pop('as_numpy', None)
     hparams_less.pop('batch_load', None)
@@ -752,7 +752,7 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     print('using data from following sessions:')
     for ids in sess_ids:
         print('%s' % os.path.join(
-            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
+            hparams['save_dir'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
     hparams, signals, transforms, paths = get_data_generator_inputs(hparams, sess_ids)
     if hparams.get('trial_splits', None) is not None:
         # assumes string of form 'train;val;test;gap'
