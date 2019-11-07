@@ -3,8 +3,6 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
-# TODO: __repr__ methods on models for printing
-
 
 class ConvAEEncoder(nn.Module):
 
@@ -15,6 +13,17 @@ class ConvAEEncoder(nn.Module):
         self.hparams = hparams
         self.encoder = None
         self.build_model()
+
+    def __str__(self):
+        format_str = 'Encoder architecture:\n'
+        i = 0
+        for module in self.encoder:
+            format_str += str('    {:02d}: {}\n'.format(i, module))
+            i += 1
+        # final ff layer
+        i += 1
+        format_str += str('    {:02d}: {}\n'.format(i, self.FF))
+        return format_str
 
     def build_model(self):
 
@@ -183,6 +192,12 @@ class ConvAEDecoder(nn.Module):
         self.hparams = hparams
         self.decoder = None
         self.build_model()
+
+    def __str__(self):
+        format_str = 'Decoder architecture:\n'
+        for i, module in enumerate(self.decoder):
+            format_str += str('    {:02d}: {}\n'.format(i, module))
+        return format_str
 
     def build_model(self):
 
@@ -428,6 +443,11 @@ class LinearAEEncoder(nn.Module):
         self.input_size = input_size
         self.build_model()
 
+    def __str__(self):
+        format_str = 'Encoder architecture:\n'
+        format_str += str('    {}\n'.format(self.encoder))
+        return format_str
+
     def build_model(self):
         self.encoder = nn.Linear(
             out_features=self.n_latents,
@@ -459,6 +479,14 @@ class LinearAEDecoder(nn.Module):
         self.output_size = output_size
         self.encoder = encoder
         self.build_model()
+
+    def __str__(self):
+        format_str = 'Decoder architecture:\n'
+        if self.bias is not None:
+            format_str += str('    Encoder weights transposed (plus independent bias)\n')
+        else:
+            format_str += str('    {}\n'.format(self.decoder))
+        return format_str
 
     def build_model(self):
 
@@ -500,6 +528,14 @@ class AE(nn.Module):
                 self.hparams['x_pixels'])
         self.build_model()
 
+    def __str__(self):
+        format_str = '\nAutoencoder architecture\n'
+        format_str += '------------------------\n'
+        format_str += self.encoding.__str__()
+        format_str += self.decoding.__str__()
+        format_str += '\n'
+        return format_str
+
     def build_model(self):
 
         if self.model_type == 'conv':
@@ -510,8 +546,7 @@ class AE(nn.Module):
                 raise NotImplementedError
             n_latents = self.hparams['n_ae_latents']
             self.encoding = LinearAEEncoder(n_latents, self.img_size)
-            self.decoding = LinearAEDecoder(
-                n_latents, self.img_size, self.encoding)
+            self.decoding = LinearAEDecoder(n_latents, self.img_size, self.encoding)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 

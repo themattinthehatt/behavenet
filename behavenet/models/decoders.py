@@ -1,8 +1,6 @@
 import torch
 from torch import nn
 
-# TODO: __repr__ methods on models for printing
-
 
 class TimeLaggedLinear(nn.Module):
 
@@ -48,6 +46,9 @@ class Decoder(nn.Module):
         else:
             raise ValueError('"%s" is not a valid model type' % hparams['model_type'])
 
+    def __str__(self):
+        return self.model.__str__()
+
     def forward(self, x):
         return self.model(x)
 
@@ -59,6 +60,13 @@ class NN(nn.Module):
         super().__init__()
         self.hparams = hparams
         self.build_model()
+
+    def __str__(self):
+        format_str = '\nNN architecture\n'
+        format_str += '---------------\n'
+        for i, module in enumerate(self.decoder):
+            format_str += str('    {}: {}\n'.format(i, module))
+        return format_str
 
     def build_model(self):
 

@@ -13,6 +13,7 @@ from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_user_dir
+from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.models import Decoder
 
 # TODO: update arhmm_version/ae_version from 'best' to actual version used in meta_tags files

@@ -660,3 +660,72 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     print('done')
     print(data_generator)
     return data_generator
+
+
+# TODO: delete
+def add_lab_defaults_to_parser(parser, lab=None):
+
+    if lab == 'musall':
+        parser.add_argument('--n_input_channels', default=2, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='musall', type=str)
+        parser.add_argument('--expt', default='vistrained', type=str)
+        parser.add_argument('--animal', default='mSM30', type=str)
+        parser.add_argument('--session', default='10-Oct-2017', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='8;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
+    elif lab == 'steinmetz':
+        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=192, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=112, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='steinmetz', type=str)
+        parser.add_argument('--expt', default='2-probe', type=str)
+        parser.add_argument('--animal', default='mouse-01', type=str)
+        parser.add_argument('--session', default='session-01', type=str)
+        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
+    elif lab == 'steinmetz-face':
+        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=128, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
+        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='steinmetz', type=str)
+        parser.add_argument('--expt', default='2-probe-face', type=str)
+        parser.add_argument('--animal', default='mouse-01', type=str)
+        parser.add_argument('--session', default='session-01', type=str)
+        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
+    elif lab == 'datta':
+        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', default=80, help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', default=80, help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=True, action='store_true')
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', default='datta', type=str)
+        parser.add_argument('--expt', default='inscopix', type=str)
+        parser.add_argument('--animal', default='15566', type=str)
+        parser.add_argument('--session', default='2018-11-27', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
+    else:
+        parser.add_argument('--n_input_channels', help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', type=str)
+        parser.add_argument('--expt', type=str)
+        parser.add_argument('--animal', type=str)
+        parser.add_argument('--session', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')

@@ -151,9 +151,9 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
     def __str__(self):
         format_str = str('%s\n' % self.sess_str)
-        format_str += str('\tsignals: {}\n'.format(self.signals))
-        format_str += str('\ttransforms: {}\n'.format(self.transforms))
-        format_str += str('\tpaths: {}\n'.format(self.paths))
+        format_str += str('    signals: {}\n'.format(self.signals))
+        format_str += str('    transforms: {}\n'.format(self.transforms))
+        format_str += str('    paths: {}\n'.format(self.paths))
         # format_str += '\n'
         return format_str
 
