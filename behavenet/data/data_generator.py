@@ -8,7 +8,7 @@ from torch.utils.data import SubsetRandomSampler
 import h5py
 
 
-def split_trials(n_trials, rng_seed=0, train_tr=5, val_tr=1, test_tr=1, gap_tr=1):
+def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0):
     """
     Split trials into train/val/test blocks.
 
@@ -149,21 +149,13 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             self.transforms[signal] = transform
             self.paths[signal] = path
 
-    def __repr__(self):
-        # # return info about number of datasets
-        # if self.batch_load:
-        #     single_sess_str = 'SingleSessionDatasetBatchedLoad'
-        # else:
-        #     single_sess_str = 'SingleSessionDataset'
-        # format_str = str('Generator contains %i %s objects\n' %
-        #                  (self.n_datasets, single_sess_str))
-        # for i in range(len(self.signals)):
-        #     format_str += str('\tsignals: {}\n'.format(self.signals[i]))
-        #     format_str += str('\ttransforms: {}\n'.format(self.transforms[i]))
-        #     format_str += str('\tpaths: {}\n'.format(self.paths[i]))
-        #     format_str += '\n'
-        # return format_str
-        return self.sess_str
+    def __str__(self):
+        format_str = str('%s\n' % self.sess_str)
+        format_str += str('\tsignals: {}\n'.format(self.signals))
+        format_str += str('\ttransforms: {}\n'.format(self.transforms))
+        format_str += str('\tpaths: {}\n'.format(self.paths))
+        # format_str += '\n'
+        return format_str
 
     def __len__(self):
         return self.n_trials
@@ -481,20 +473,15 @@ class ConcatSessionsGenerator(object):
             for dtype in self._dtypes:
                 self.dataset_iters[i][dtype] = iter(self.dataset_loaders[i][dtype])
 
-    def __repr__(self):
+    def __str__(self):
         # return info about number of datasets
         if self.batch_load:
-            single_sess_str = 'SingleSessionDatasetBatchedLoad'
+            dataset_type = 'SingleSessionDatasetBatchedLoad'
         else:
-            single_sess_str = 'SingleSessionDataset'
-        format_str = str(
-            'Generator contains %i %s objects:\n' % (self.n_datasets, single_sess_str))
-        for i in range(len(self.signals)):
-            # TODO: return string from SingleSession print functions
-            format_str += str('\tsignals: {}\n'.format(self.signals[i]))
-            format_str += str('\ttransforms: {}\n'.format(self.transforms[i]))
-            format_str += str('\tpaths: {}\n'.format(self.paths[i]))
-            format_str += '\n'
+            dataset_type = 'SingleSessionDataset'
+        format_str = str('Generator contains %i %s objects:\n' % (self.n_datasets, dataset_type))
+        for dataset in self.datasets:
+            format_str += dataset.__str__()
         return format_str
 
     def __len__(self):

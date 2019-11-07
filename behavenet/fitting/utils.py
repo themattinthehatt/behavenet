@@ -168,6 +168,7 @@ def get_output_session_dir(hparams, path_type='save'):
             for d in sessions_multi:
                 # save path doesn't matter for comparison
                 d.pop('save_dir', None)
+                d.pop('tt_save_path', None)  # TODO: remove
             # compare to collection of single sessions above
             set_l1 = set(tuple(sorted(d.items())) for d in sessions_single)
             set_l2 = set(tuple(sorted(d.items())) for d in sessions_multi)
