@@ -2,60 +2,6 @@ import numpy as np
 from behavenet.data.utils import get_best_model_and_data
 
 
-def export_states(hparams, data_generator, model, filename=None):
-    """
-    Export predicted latents using an already initialized data_generator and
-    model; latents are saved based on the model's hparams dict unless another
-    file is provided.
-
-    Args:
-        hparams (dict):
-        data_generator (ConcatSessionGenerator):
-        model (HMM):
-        filename (str): absolute path
-    """
-
-    import pickle
-    import os
-
-    # initialize container for states
-    states = [[] for _ in range(data_generator.n_datasets)]
-    for i, dataset in enumerate(data_generator.datasets):
-        trial_len = dataset.trial_len
-        n_trials = dataset.n_trials
-        states[i] = np.full(
-            shape=(n_trials, trial_len),
-            fill_value=np.nan)
-
-    # partially fill container (gap trials will be included as nans)
-    dtypes = ['train', 'val', 'test']
-    for dtype in dtypes:
-        data_generator.reset_iterators(dtype)
-        for i in range(data_generator.n_tot_batches[dtype]):
-            data, dataset = data_generator.next_batch(dtype)
-
-            # process batch,
-            y = data['ae_latents'][0]
-            batch_size = y.shape[0]
-
-            curr_states = model.most_likely_states(y)
-            states[dataset][data['batch_indx'].item(), :] = curr_states
-
-    # save states separately for each dataset
-    for i, dataset in enumerate(data_generator.datasets):
-        if filename is None:
-            # get save name which includes lab/expt/animal/session
-            sess_id = str('%s_%s_%s_%s_states.pkl' % (
-                dataset.lab, dataset.expt, dataset.animal, dataset.session))
-            filename = os.path.join(
-                hparams['expt_dir'], 'version_%i' % hparams['version'], sess_id)
-        # save out array in pickle file
-        print('saving states %i of %i:\n%s' % (i + 1, data_generator.n_datasets, filename))
-        states_dict = {'states': states[i], 'trials': dataset.batch_indxs}
-        with open(filename, 'wb') as f:
-            pickle.dump(states_dict, f)
-
-
 def export_latents(data_generator, model, filename=None):
     """
     Export predicted latents using an already initialized data_generator and
@@ -124,6 +70,60 @@ def export_latents(data_generator, model, filename=None):
         latents_dict = {'latents': latents[i], 'trials': dataset.batch_indxs}
         with open(filename, 'wb') as f:
             pickle.dump(latents_dict, f)
+
+
+def export_states(hparams, data_generator, model, filename=None):
+    """
+    Export predicted latents using an already initialized data_generator and
+    model; latents are saved based on the model's hparams dict unless another
+    file is provided.
+
+    Args:
+        hparams (dict):
+        data_generator (ConcatSessionGenerator):
+        model (HMM):
+        filename (str): absolute path
+    """
+
+    import pickle
+    import os
+
+    # initialize container for states
+    states = [[] for _ in range(data_generator.n_datasets)]
+    for i, dataset in enumerate(data_generator.datasets):
+        trial_len = dataset.trial_len
+        n_trials = dataset.n_trials
+        states[i] = np.full(
+            shape=(n_trials, trial_len),
+            fill_value=np.nan)
+
+    # partially fill container (gap trials will be included as nans)
+    dtypes = ['train', 'val', 'test']
+    for dtype in dtypes:
+        data_generator.reset_iterators(dtype)
+        for i in range(data_generator.n_tot_batches[dtype]):
+            data, dataset = data_generator.next_batch(dtype)
+
+            # process batch,
+            y = data['ae_latents'][0]
+            batch_size = y.shape[0]
+
+            curr_states = model.most_likely_states(y)
+            states[dataset][data['batch_indx'].item(), :] = curr_states
+
+    # save states separately for each dataset
+    for i, dataset in enumerate(data_generator.datasets):
+        if filename is None:
+            # get save name which includes lab/expt/animal/session
+            sess_id = str('%s_%s_%s_%s_states.pkl' % (
+                dataset.lab, dataset.expt, dataset.animal, dataset.session))
+            filename = os.path.join(
+                hparams['expt_dir'], 'version_%i' % hparams['version'], sess_id)
+        # save out array in pickle file
+        print('saving states %i of %i:\n%s' % (i + 1, data_generator.n_datasets, filename))
+        states_dict = {'states': states[i], 'trials': dataset.batch_indxs}
+        with open(filename, 'wb') as f:
+            pickle.dump(states_dict, f)
 
 
 def export_predictions(data_generator, model, filename=None):
@@ -334,14 +334,16 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
     return model.hparams, metric
 
 
-def export_train_plots(hparams, dtype, save_file=None):
+def export_train_plots(hparams, dtype, save_file=None, format='png'):
     """
     Export plot with MSE/LL as a function of training epochs
 
     Args:
         hparams (dict):
         dtype (str): 'train' | 'val'
-        save_file (str): full filename (absolute path) for saving plot
+        save_file (str or NoneType, optional): full filename (absolute path) for saving plot; if
+            NoneType, plot is displayed
+        format (str): e.g. 'png' | 'pdf' | 'jpeg'
     """
     import os
     import pandas as pd
@@ -352,6 +354,7 @@ def export_train_plots(hparams, dtype, save_file=None):
     sns.set_style('white')
     sns.set_context('talk')
 
+    # find metrics csv file
     version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
     metric_file = os.path.join(version_dir, 'metrics.csv')
     metrics = pd.read_csv(metric_file)
@@ -361,7 +364,6 @@ def export_train_plots(hparams, dtype, save_file=None):
     sess_ids_strs = []
     for sess_id in sess_ids:
         sess_ids_strs.append(str('%s/%s' % (sess_id['animal'], sess_id['session'])))
-
     metrics_df = []
     for i, row in metrics.iterrows():
         dataset = 'all' if row['dataset'] == -1 else sess_ids_strs[row['dataset']]
@@ -384,16 +386,14 @@ def export_train_plots(hparams, dtype, save_file=None):
         (metrics_df.dtype == dtype) &
         (metrics_df.epoch > 0) &
         ~pd.isna(metrics_df.loss)]
-
     splt = sns.relplot(x='epoch', y='loss', hue='dataset', kind='line', data=data_queried)
     splt.ax.set_yscale('log')
     splt.ax.set_ylabel('MSE per pixel')
-
     title_str = 'Validation' if dtype == 'val' else 'Training'
     plt.title('%s loss' % title_str)
 
     if save_file is not None:
-        plt.savefig(save_file + '.png', dpi=300, format='png')
+        plt.savefig(str('%s.%s' % (save_file, format)), dpi=300, format=format)
         plt.close()
     else:
         plt.show()

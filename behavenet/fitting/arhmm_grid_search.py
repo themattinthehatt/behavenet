@@ -4,19 +4,16 @@ import numpy as np
 import random
 import ssm
 import pickle
-import matplotlib
 from test_tube import HyperOptArgumentParser
 
 from behavenet.fitting.eval import export_states
+from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.analyses.arhmm_utils import get_latent_arrays_by_dtype
-from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
-from behavenet.analyses.arhmm_utils import make_overview_arhmm_figures
-matplotlib.use('agg')
 
 # TODO: hmm should be a different model type/class
 
@@ -28,7 +25,7 @@ def main(hparams):
     print('\nexperiment parameters:')
     print(hparams)
 
-    # Start at random times (so test tube creates separate folders)
+    # start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
 
@@ -44,7 +41,7 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    # Get all latents in list
+    # get all latents in list
     print('collecting observations from data generator...', end='')
     latents, trial_idxs = get_latent_arrays_by_dtype(
         data_generator, sess_idxs=list(range(len(data_generator))))
@@ -101,15 +98,14 @@ def main(hparams):
     train_ll = hmm.fit(
         latents['train'], method='em', num_em_iters=hparams['n_iters'], initialize=False)
 
-    # Reconfigure model/states by usage
+    # reconfigure model/states by usage
     zs = [hmm.most_likely_states(x) for x in latents['train']]
     usage = np.bincount(np.concatenate(zs), minlength=hmm.K)
     perm = np.argsort(usage)[::-1]
     hmm.permute(perm)
 
-    # Save model
-    filepath = os.path.join(
-        hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
+    # save model
+    filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
 
     with open(filepath, "wb") as f:
         pickle.dump(hmm, f)   
@@ -118,27 +114,24 @@ def main(hparams):
     # ### EVALUATE ARHMM ###
     # ######################
 
-    # Evaluate log likelihood of validation data # TODO: per session
+    # evaluate log likelihood of validation data # TODO: per session
     validation_ll = hmm.log_likelihood(latents['val'])
 
     exp.log({'train_ll': np.mean(train_ll), 'val_ll': np.mean(validation_ll)})
     exp.save()
 
-    # Export states
+    # export states
     if hparams['export_states']:
         export_states(hparams, data_generator, hmm)
 
-    # ARHMM figures/videos
-    if hparams['make_ind_plots']:
-        print('creating individual arhmm figures...', end='')
-        if len(data_generator) > 1:
-            for sess_idx in range(len(data_generator)):
-                latents, trial_idxs = get_latent_arrays_by_dtype(
-                    data_generator, sess_idxs=sess_idx)
-                make_ind_arhmm_figures(
-                    hparams, exp, hmm, latents, trial_idxs, data_generator, sess_idx=sess_idx)
-        else:
-            make_ind_arhmm_figures(hparams, exp, hmm, latents, trial_idxs, data_generator)
+    # export training plots
+    if hparams['export_train_plots']:
+        print('creating training plots...', end='')
+        version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+        save_file = os.path.join(version_dir, 'loss_training')
+        export_train_plots(hparams, 'train', save_file=save_file)
+        save_file = os.path.join(version_dir, 'loss_validation')
+        export_train_plots(hparams, 'val', save_file=save_file)
         print('done')
 
     # update hparams upon successful training
@@ -163,8 +156,8 @@ def get_params(strategy):
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
-    #parser.add_argument('--mem_limit_gb', default=8.0, type=float)
-    #parser.add_argument('--gpus_viz', default='0;1', type=str)
+    parser.add_argument('--mem_limit_gb', default=8.0, type=float)
+    parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
     parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], type=str)
@@ -172,6 +165,8 @@ def get_params(strategy):
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
     parser.add_argument('--train_frac', default=1.0, type=float)
+
+    parser.add_argument('--export_train_plots', action='store_true', default=False)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
@@ -192,9 +187,6 @@ def get_arhmm_params(namespace, parser):
     parser.add_argument('--n_lags', default=1, type=int)
     parser.add_argument('--n_iters', default=150, type=int)
 
-    parser.add_argument('--plot_n_frames', default=400, type=int, help='number of frames in videos')
-    parser.add_argument('--plot_frame_rate', default=7, help='frame rate for plotting videos, if "orig": use data frame rates')
-
     # add experiment=specific arguments
     if namespace.search_type == 'test':
 
@@ -202,32 +194,24 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--n_arhmm_states', default=2, type=int)
-        parser.add_argument('--train_percent', default=1.0, type=float)
+        parser.add_argument('--train_frac', default=1.0, type=float)
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
         parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')  # TODO: add this to torch models
-
-        # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
-        parser.add_argument('--make_ind_plots', action='store_true', default=False)
-        parser.add_argument('--make_overview_plots', action='store_true', default=False)
 
     elif namespace.search_type == 'grid_search':
 
         parser.add_argument('--experiment_name', default='diff_init_grid_search', type=str)
 
-        parser.add_argument('--train_percent', default=1.0, type=float)
+        parser.add_argument('--train_frac', default=1.0, type=float)
         parser.add_argument('--n_ae_latents', default=8, type=int)
         # parser.opt_list('--n_ae_latents', default=12, options=[4, 8, 16], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=16, options=[2, 4, 8, 16, 32], type=int, tunable=True)
         parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
         parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
         parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
-
-        # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
-        parser.add_argument('--make_ind_plots', action='store_true', default=False)
-        parser.add_argument('--make_overview_plots', action='store_true', default=False)
 
     elif namespace.search_type == 'data_amounts':
 
@@ -235,17 +219,13 @@ def get_arhmm_params(namespace, parser):
 
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
-        # parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
-        # parser.opt_list('--train_percent', default=1.0, options=[0.1, 0.14, 0.19, 0.27, 0.37, 0.52, 0.72, 1.0], type=float, tunable=True)
-        parser.opt_list('--train_percent', default=1.0, options=[1.0], type=float, tunable=True)
+        # parser.opt_list('--train_frac', default=1.0, options=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], type=float, tunable=True)
+        # parser.opt_list('--train_frac', default=1.0, options=[0.1, 0.14, 0.19, 0.27, 0.37, 0.52, 0.72, 1.0], type=float, tunable=True)
+        parser.opt_list('--train_frac', default=1.0, options=[1.0], type=float, tunable=True)
         parser.opt_list('--n_ae_latents', default=12, options=[16], type=int, tunable=True)
         parser.opt_list('--n_arhmm_states', default=14, options=[16], type=int, tunable=True)
         parser.opt_list('--rng_seed_model', default=0, options=[0, 1, 2, 3, 4], type=int, tunable=True)
-
-        # plotting params
         parser.add_argument('--export_states', action='store_true', default=False)
-        parser.add_argument('--make_ind_plots', action='store_true', default=False)
-        parser.add_argument('--make_overview_plots', action='store_true', default=False)
 
 
 if __name__ == '__main__':
@@ -268,7 +248,4 @@ if __name__ == '__main__':
             nb_trials=hyperparams.tt_n_cpu_trials,
             nb_workers=hyperparams.tt_n_cpu_workers)
 
-    if hyperparams.make_overview_plots:
-        make_overview_arhmm_figures(hyperparams)
-        
     print('Total fit time: {} sec'.format(time.time() - t))
