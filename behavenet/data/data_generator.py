@@ -439,10 +439,22 @@ class ConcatSessionsGenerator(object):
             dataset.n_batches = {}
             for dtype in self._dtypes:
                 if dtype == 'train':
-                    if train_frac < 1.0:
+                    # subsample training data if requested
+                    if train_frac != 1.0:
                         n_batches = len(dataset.batch_indxs[dtype])
-                        indxs_rand = np.random.choice(
-                            n_batches, size=int(np.floor(train_frac * n_batches)), replace=False)
+                        if train_frac < 1.0:
+                            # subsample as fraction of total batches
+                            n_indxs = int(np.floor(train_frac * n_batches))
+                            if n_indxs <= 0:
+                                print(
+                                    'warning: attempting to use invalid number of training ' +
+                                    'batches; defaulting to all training batches')
+                                n_indxs = n_batches
+                        else:
+                            # subsample fixed number of batches
+                            train_frac = n_batches if train_frac > n_batches else train_frac
+                            n_indxs = int(train_frac)
+                        indxs_rand = np.random.choice(n_batches, size=n_indxs, replace=False)
                         dataset.batch_indxs[dtype] = dataset.batch_indxs[dtype][indxs_rand]
                     self.batch_ratios[i] = len(dataset.batch_indxs[dtype])
                 dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
