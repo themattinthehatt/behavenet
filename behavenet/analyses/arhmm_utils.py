@@ -256,13 +256,12 @@ def relabel_states_by_use(states, mapping=None):
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
-def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
+def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     """
     Collect data from data generator and put into dictionary with keys `train`,
     `test`, and `val`
 
     Args:
-        hparams (dict):
         data_generator (ConcatSessionsGenerator):
         sess_idxs (int or list): concatenate train/test/val data across
             multiple sessions
@@ -278,12 +277,7 @@ def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
     for sess_idx in sess_idxs:
         dataset = data_generator.datasets[sess_idx]
         for data_type in dtypes:
-            if data_type == 'train' and hparams['train_percent'] < 1:
-                n_tot_batches = len(dataset.batch_indxs[data_type])
-                n_batches = int(np.floor(hparams['train_percent'] * n_tot_batches))
-                trial_idxs[data_type] = dataset.batch_indxs[data_type][:n_batches]
-            else:
-                trial_idxs[data_type] = dataset.batch_indxs[data_type]
+            trial_idxs[data_type] = dataset.batch_indxs[data_type]
             latents[data_type] += [dataset[i_trial]['ae_latents'][:].cpu().detach().numpy()
                                    for i_trial in trial_idxs[data_type]]
     return latents, trial_idxs

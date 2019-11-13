@@ -47,7 +47,7 @@ def main(hparams):
     # Get all latents in list
     print('collecting observations from data generator...', end='')
     latents, trial_idxs = get_latent_arrays_by_dtype(
-        hparams, data_generator, sess_idxs=list(range(len(data_generator))))
+        data_generator, sess_idxs=list(range(len(data_generator))))
     hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
     print('done')
 
@@ -134,7 +134,7 @@ def main(hparams):
         if len(data_generator) > 1:
             for sess_idx in range(len(data_generator)):
                 latents, trial_idxs = get_latent_arrays_by_dtype(
-                    hparams, data_generator, sess_idxs=sess_idx)
+                    data_generator, sess_idxs=sess_idx)
                 make_ind_arhmm_figures(
                     hparams, exp, hmm, latents, trial_idxs, data_generator, sess_idx=sess_idx)
         else:
