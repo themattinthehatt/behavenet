@@ -652,7 +652,8 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
         hparams['data_dir'], sess_ids,
         signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'], batch_load=hparams['batch_load'],
-        rng_seed=hparams['rng_seed'], trial_splits=trial_splits, train_frac=hparams['train_frac'])
+        rng_seed=hparams['rng_seed_data'], trial_splits=trial_splits,
+        train_frac=hparams['train_frac'])
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(

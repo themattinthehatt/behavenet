@@ -198,7 +198,7 @@ def get_params(strategy):
     parser.add_argument('--device', default='cpu', choices=['cpu', 'cuda'], type=str)
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
-    parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
+    parser.add_argument('--rng_seed_data', default=0, type=int, help='control data splits')
 
     parser.add_argument('--export_train_plots', action='store_true', default=False)
 
@@ -231,7 +231,7 @@ def get_arhmm_params(namespace, parser):
         parser.add_argument('--train_frac', default=1.0, type=float)
         parser.add_argument('--kappa', default=0, type=int)
         parser.add_argument('--noise_type', default='gaussian', choices=['gaussian', 'studentst'], type=str)
-        parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')  # TODO: add this to torch models
+        parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
         parser.add_argument('--export_states', action='store_true', default=False)
 
     elif namespace.search_type == 'grid_search':

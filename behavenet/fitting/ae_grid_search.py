@@ -61,6 +61,7 @@ def main(hparams):
     # ####################
 
     print('constructing model...', end='')
+    torch.manual_seed(hparams['rng_seed_model'])
     torch_rnd_seed = torch.get_rng_state()
     hparams['model_build_rnd_seed'] = torch_rnd_seed
     hparams['n_datasets'] = len(sess_ids)
@@ -122,7 +123,7 @@ def get_params(strategy):
     parser.add_argument('--device', default='cuda', choices=['cpu', 'cuda'], type=str)
     parser.add_argument('--as_numpy', action='store_true', default=False)
     parser.add_argument('--batch_load', action='store_true', default=True)
-    parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--rng_seed_data', default=0, type=int, help='control data splits')
     parser.add_argument('--train_frac', default=1.0, type=float)
 
     # add fitting arguments

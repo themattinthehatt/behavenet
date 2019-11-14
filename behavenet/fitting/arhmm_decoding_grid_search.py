@@ -256,14 +256,14 @@ def get_params(strategy):
     parser.add_argument('--tt_n_gpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_trials', default=1000, type=int)
     parser.add_argument('--tt_n_cpu_workers', default=5, type=int)
-    #parser.add_argument('--mem_limit_gb', default=8.0, type=float)
+    parser.add_argument('--mem_limit_gb', default=8.0, type=float)
     parser.add_argument('--gpus_viz', default='0;1', type=str)
 
     # add data generator arguments
     parser.add_argument('--device', default='cpu', type=str)
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
-    parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--rng_seed_data', default=0, type=int, help='control data splits')
     parser.add_argument('--train_frac', default=1.0, type=float)
 
     # add fitting arguments
