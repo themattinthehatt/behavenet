@@ -1,7 +1,5 @@
 import os
 import numpy as np
-from behavenet.fitting.utils import get_expt_dir
-from behavenet.fitting.utils import get_best_model_version
 
 
 def get_data_generator_inputs(hparams, sess_ids):
@@ -200,6 +198,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
     from behavenet.data.transforms import ZScore
     from behavenet.data.transforms import BlockShuffle
     from behavenet.data.transforms import Compose
+    from behavenet.fitting.utils import get_best_model_version
+    from behavenet.fitting.utils import get_expt_dir
 
     # check for multisession by comparing hparams and sess_id
     hparams_ = {key: hparams[key] for key in ['lab', 'expt', 'animal', 'session']}

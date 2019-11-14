@@ -1,8 +1,6 @@
 import os
 import pickle
 import numpy as np
-
-
 from behavenet.data.utils import get_data_generator_inputs
 
 
@@ -46,42 +44,96 @@ def get_fig_dir():
     return get_user_dir('fig')
 
 
-def get_output_session_dir(hparams, path_type='save'):
+def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
     """
-    Get session-level directory for saving model outputs.
+    Returns all paths in `sub_dirs` that start with `multi`. The absolute paths returned are
+    determined by `base_dir`, `lab`, `expt`, `animal`, and `session` as follows:
+    base_dir/lab/expt/animal/session/sub_dir
+    Use empty strings to ignore one of the session id components.
 
-    If 'lab' == 'all', an error is thrown since multiple-lab runs are not supp
-    If 'expt' == 'all', all sessions from all animals from all expts from the
-        specified lab are used; the session_dir will then be
-        `save_dir/lab/multisession-xx`
-    If 'animal' == 'all', all sessions from all animals in the specified expt
-        are used; the session_dir will then be
-        `save_dir/lab/expt/multisession-xx`
-    If 'session' == 'all', all sessions from the specified animal are used; the
-        session_dir will then be
-        `save_dir/lab/expt/animal/multisession-xx`
+    Args:
+        base_dir (str):
+        lab (str, optional):
+        expt (str, optional):
+        animal (str, optional):
+
+    Returns:
+        (list): list of absolute paths
+    """
+    sub_dirs = get_subdirs(os.path.join(base_dir, lab, expt, animal))
+    multi_paths = []
+    for sub_dir in sub_dirs:
+        if sub_dir[:5] == 'multi':
+            # record top-level multi-session directory
+            multi_paths.append(os.path.join(base_dir, lab, expt, animal, sub_dir))
+    return multi_paths
+
+
+def _get_single_sessions(base_dir, depth, curr_depth):
+    """
+    Recursively search through non-multisession directories for all single sessions
+
+    Args:
+        base_dir (str):
+        depth (int): depth of recursion
+        curr_depth (int): current depth in recursion
+
+    Returns:
+        list of dicts: session ids for all single sessions in `base_dir`
+    """
+    session_list = []
+    if curr_depth < depth:
+        curr_depth += 1
+        sub_dirs = get_subdirs(base_dir)
+        for sub_dir in sub_dirs:
+            if sub_dir[:12] != 'multisession':
+                session_list += _get_single_sessions(
+                    os.path.join(base_dir, sub_dir), depth=depth, curr_depth=curr_depth)
+    elif curr_depth == depth:
+        # take previous 4 directories (lab/expt/animal/session)
+        sess_path = base_dir.split(os.sep)
+        session_list = [{
+            'lab': sess_path[-4],
+            'expt': sess_path[-3],
+            'animal': sess_path[-2],
+            'session': sess_path[-1]}]
+    return session_list
+
+
+def get_session_dir(hparams, path_type='save'):
+    """
+    Get session-level directory for saving model outputs. Relies on hparams keys `sessions_csv`,
+    `multisession`, `lab`, `expt`, `animal` and `session`.
+
+    `sessions_csv` takes precedence. The value for this key is a non-empty string of the pattern
+    `/path/to/session_info.csv`, where `session_info.csv` has 4 columns for lab, expt, animal and
+    session.
+
+    If `sessions_csv` is an empty string or the key is not in `hparams`, the following occurs:
+
+    If 'lab' == 'all', an error is thrown since multiple-lab runs are not currently supported
+    If 'expt' == 'all', all sessions from all animals from all expts from the specified lab are
+        used; the session_dir will then be `save_dir/lab/multisession-xx`
+    If 'animal' == 'all', all sessions from all animals in the specified expt are used; the
+        session_dir will then be `save_dir/lab/expt/multisession-xx`
+    If 'session' == 'all', all sessions from the specified animal are used; the session_dir will
+        then be `save_dir/lab/expt/animal/multisession-xx`
     If none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
         `save_dir/lab/expt/animal/session`
 
-    The `multisession-xx` directory will contain a file `session_info.csv`
-    which will contain information about the sessions that comprise the
-    multisession; this file is used to determine whether or not a new
-    multisession directory needs to be created.
+    The `multisession-xx` directory will contain a file `session_info.csv` which will contain
+    information about the sessions that comprise the multisession; this file is used to determine
+    whether or not a new multisession directory needs to be created.
 
     Args:
         hparams (dict):
-        path_type (str, optional): 'save' to use hparams['save_dir'],
-            'data' to use hparams['data_dir']; note that using path_type='data'
-            will not return multisession directories
+        path_type (str, optional): 'save' to use hparams['save_dir'], 'data' to use
+        hparams['data_dir'] as base directory; note that using path_type='data' will not return
+        multisession directories
 
     Returns:
         (tuple): (session_dir, sessions_single)
     """
-
-    if 'sessions_csv' in hparams and len(hparams['sessions_csv']) > 0:
-        # load from csv
-        # TODO: collect sessions directly from session_info.csv file
-        pass
 
     if path_type == 'save':
         base_dir = hparams['save_dir']
@@ -90,83 +142,90 @@ def get_output_session_dir(hparams, path_type='save'):
     else:
         raise ValueError('"%s" is an invalid path_type' % path_type)
 
-    # get session dir (can include multiple sessions)
-    sessions_single = []
-    sessions_multi_paths = []
-    lab = hparams['lab']
-    if lab == 'all':
-        raise ValueError('multiple labs not currently supported')
-    elif hparams['expt'] == 'all':
-        # get all experiments from one lab
-        expts = get_subdirs(os.path.join(base_dir, lab))
-        for expt in expts:
-            if expt[:5] == 'multi':
-                # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(base_dir, lab, expt))
-                continue
-            else:
-                animals = get_subdirs(os.path.join(base_dir, lab, expt))
-            for animal in animals:
-                if animal[:5] == 'multi':
-                    continue
-                else:
-                    sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
-                for session in sessions:
-                    if session[:5] == 'multi':
-                        continue
-                    else:
-                        # record bottom-level single-session directory
-                        sessions_single.append({
-                            'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
-        session_dir_base = os.path.join(base_dir, lab)
-    elif hparams['animal'] == 'all':
-        # get all animals from one experiment
-        expt = hparams['expt']
-        animals = get_subdirs(os.path.join(base_dir, lab, expt))
-        for animal in animals:
-            if animal[:5] == 'multi':
-                # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(base_dir, lab, expt, animal))
-                continue
-            else:
-                sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
-            for session in sessions:
-                if session[:5] == 'multi':
-                    continue
-                else:
-                    # record bottom-level single-session directory
-                    sessions_single.append({
-                        'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
-        session_dir_base = os.path.join(base_dir, lab, expt)
-    elif hparams['session'] == 'all':
-        # get all sessions from one animal
-        expt = hparams['expt']
-        animal = hparams['animal']
-        sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
-        for session in sessions:
-            if session[:5] == 'multi':
-                # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(base_dir, lab, expt, animal, session))
-                continue
-            else:
-                # record bottom-level single-session directory
-                sessions_single.append({
-                    'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
-        session_dir_base = os.path.join(base_dir, lab, expt, animal)
+    if len(hparams.get('sessions_csv', [])) > 0:
+        # collect all single sessions from csv
+        sessions_single = read_session_info_from_csv(hparams['sessions_csv'])
+        labs, expts, animals, sessions = [], [], [], []
+        for sess in sessions_single:
+            sess.pop('tt_save_path', None)  # TODO: remove
+            sess.pop('save_dir', None)
+            labs.append(sess['lab'])
+            expts.append(sess['expt'])
+            animals.append(sess['animal'])
+            sessions.append(sess['session'])
+        # find appropriate session directory
+        labs, expts, animals, sessions = \
+            np.array(labs), np.array(expts), np.array(animals), np.array(sessions)
+        lab, expt, animal, session = '', '', '', ''
+        if len(np.unique(sessions)) == 1:
+            # get single session from one animal
+            lab, expt, animal, session = labs[0], expts[0], animals[0], sessions[0]
+            session_dir_base = os.path.join(base_dir, lab, expt, animal, session)
+        elif len(np.unique(animals)) == 1:
+            # get all sessions from one animal
+            lab, expt, animal = labs[0], expts[0], animals[0]
+            session_dir_base = os.path.join(base_dir, lab, expt, animal)
+        elif len(np.unique(expts)) == 1:
+            lab, expt = labs[0], expts[0]
+            # get all animals from one experiment
+            session_dir_base = os.path.join(base_dir, lab, expt)
+        elif len(np.unique(labs)) == 1:
+            # get all experiments from one lab
+            lab = labs[0]
+            session_dir_base = os.path.join(base_dir, lab)
+        else:
+            raise NotImplementedError('multiple labs not currently supported')
+        # find corresponding multisession (ok if they don't exist)
+        multisession_paths = _get_multisession_paths(base_dir, lab=lab, expt=expt, animal=animal)
+
     else:
-        sessions_single.append({
-            'lab': hparams['lab'], 'expt': hparams['expt'], 'animal': hparams['animal'],
-            'session': hparams['session']})
-        session_dir_base = os.path.join(
-            base_dir, hparams['lab'], hparams['expt'], hparams['animal'], hparams['session'])
+        # get session dirs (can include multiple sessions)
+        lab = hparams['lab']
+        if lab == 'all':
+            raise NotImplementedError('multiple labs not currently supported')
+        elif hparams['expt'] == 'all':
+            # get all experiments from one lab
+            multisession_paths = _get_multisession_paths(base_dir, lab=lab)
+            sessions_single = _get_single_sessions(
+                os.path.join(base_dir, lab), depth=3, curr_depth=0)
+            session_dir_base = os.path.join(base_dir, lab)
+        elif hparams['animal'] == 'all':
+            # get all animals from one experiment
+            expt = hparams['expt']
+            multisession_paths = _get_multisession_paths(base_dir, lab=lab, expt=expt)
+            sessions_single = _get_single_sessions(
+                os.path.join(base_dir, lab, expt), depth=2, curr_depth=0)
+            session_dir_base = os.path.join(base_dir, lab, expt)
+        elif hparams['session'] == 'all':
+            # get all sessions from one animal
+            expt = hparams['expt']
+            animal = hparams['animal']
+            multisession_paths = _get_multisession_paths(
+                base_dir, lab=lab, expt=expt, animal=animal)
+            sessions_single = _get_single_sessions(
+                os.path.join(base_dir, lab, expt, animal), depth=1, curr_depth=0)
+            session_dir_base = os.path.join(base_dir, lab, expt, animal)
+        else:
+            multisession_paths = []
+            sessions_single = [{
+                'lab': hparams['lab'], 'expt': hparams['expt'], 'animal': hparams['animal'],
+                'session': hparams['session']}]
+            session_dir_base = os.path.join(
+                base_dir, hparams['lab'], hparams['expt'], hparams['animal'], hparams['session'])
 
     # construct session_dir
-    if hparams.get('multisession', None) is not None:
+    if hparams.get('multisession', None) is not None and len(hparams.get('sessions_csv', [])) == 0:
         session_dir = os.path.join(session_dir_base, 'multisession-%02i' % hparams['multisession'])
+        # overwrite sessions_single with whatever is in requested multisession
+        sessions_single = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
+        for sess in sessions_single:
+            sess.pop('tt_save_path', None)  # TODO: remove
+            sess.pop('save_dir', None)
     elif len(sessions_single) > 1:
-        # check if this combo of experiments exists in prev multi-sessions
+        # check if this combo of experiments exists in previous multi-sessions
         found_match = False
-        for session_multi in sessions_multi_paths:
+        multi_indx = None
+        for session_multi in multisession_paths:
             csv_file = os.path.join(session_multi, 'session_info.csv')
             sessions_multi = read_session_info_from_csv(csv_file)
             for d in sessions_multi:
@@ -183,10 +242,10 @@ def get_output_session_dir(hparams, path_type='save'):
                 multi_indx = int(session_multi.split('-')[-1])
                 break
 
-        # create new multi-index if match was not found
+        # create new multisession if match was not found
         if not found_match:
             multi_indxs = [
-                int(session_multi.split('-')[-1]) for session_multi in sessions_multi_paths]
+                int(session_multi.split('-')[-1]) for session_multi in multisession_paths]
             if len(multi_indxs) == 0:
                 multi_indx = 0
             else:
@@ -239,7 +298,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             hparams_ = copy.deepcopy(hparams)
             hparams_['session'] = 'all'
             hparams_['multisession'] = hparams['ae_multisession']
-            session_dir, _ = get_output_session_dir(hparams_)
+            session_dir, _ = get_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
@@ -267,7 +326,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             hparams_ = copy.deepcopy(hparams)
             hparams_['session'] = 'all'
             hparams_['multisession'] = hparams['arhmm_multisession']
-            session_dir, _ = get_output_session_dir(hparams_)
+            session_dir, _ = get_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
     elif model_class == 'arhmm-decoding':
@@ -318,8 +377,8 @@ def export_session_info_to_csv(session_dir, ids_list):
 
 def contains_session(session_dir, session_id):
     """
-    Helper function to determine if session defined by `session_id` dict is in
-    the multi-session `session_dir`
+    Helper function to determine if session defined by `session_id` dict is in the multi-session
+    `session_dir`
 
     Args:
         session_dir (str):
@@ -341,8 +400,8 @@ def contains_session(session_dir, session_id):
 
 def find_session_dirs(hparams):
     """
-    Helper function to find all session directories (single- and multi-session)
-    that contain the session defined in `hparams`
+    Helper function to find all session directories (single- and multi-session) that contain the
+    session defined in `hparams`
 
     Args:
         hparams (dict): must contain keys `lab`, `expt`, `animal` and
@@ -531,7 +590,7 @@ def create_tt_experiment(hparams):
     from test_tube import Experiment
 
     # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
     if not os.path.isdir(hparams['session_dir']):
         os.makedirs(hparams['session_dir'])
         export_session_info_to_csv(hparams['session_dir'], sess_ids)
@@ -672,7 +731,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
     from behavenet.data.data_generator import ConcatSessionsGenerator
 
     # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
     expt_dir = get_expt_dir(hparams)
 
     # get best model version

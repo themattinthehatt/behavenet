@@ -13,7 +13,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_best_model_version
-from behavenet.fitting.utils import get_output_session_dir
+from behavenet.fitting.utils import get_session_dir
 from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
@@ -294,7 +294,7 @@ def get_conv_params(namespace, parser):
 
     elif namespace.search_type == 'top_n':
         # Get top n architectures in directory
-        session_dir, _ = get_output_session_dir(vars(namespace))
+        session_dir, _ = get_session_dir(vars(namespace))
         initial_archs_dir = os.path.join(
             session_dir, namespace.model_class, 'conv',
             str('%02i_latents' % namespace.n_ae_latents),
@@ -313,7 +313,7 @@ def get_conv_params(namespace, parser):
 
     elif namespace.search_type == 'latent_search':
         # Get top 1 architectures in directory
-        session_dir, _ = get_output_session_dir(vars(namespace))
+        session_dir, _ = get_session_dir(vars(namespace))
         initial_archs_dir = os.path.join(
             session_dir, namespace.model_class, 'conv',
             str('%02i_latents' % namespace.n_ae_latents),

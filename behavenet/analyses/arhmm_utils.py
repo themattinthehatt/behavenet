@@ -139,9 +139,9 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
     from behavenet.fitting.utils import experiment_exists
     from behavenet.fitting.utils import get_best_model_version
     from behavenet.fitting.utils import get_expt_dir
-    from behavenet.fitting.utils import get_output_session_dir
+    from behavenet.fitting.utils import get_session_dir
 
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
     hparams['expt_dir'] = get_expt_dir(hparams)
     # get version/model
     if version == 'best':
@@ -369,7 +369,7 @@ def make_real_vs_generated_movies(
 
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import get_expt_dir
-    from behavenet.fitting.utils import get_output_session_dir
+    from behavenet.fitting.utils import get_session_dir
 
     plot_n_frames = hparams.get('plot_n_frames', 400)
     if hparams.get('plot_frame_rate', None) == 'orig':
@@ -384,7 +384,7 @@ def make_real_vs_generated_movies(
         ae_model_file = os.path.join(hparams['ae_model_path'], 'best_val_model.pt')
         ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'], 'meta_tags.pkl'), 'rb'))
     else:
-        hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+        hparams['session_dir'], sess_ids = get_session_dir(hparams)
         hparams['expt_dir'] = get_expt_dir(hparams)
         _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
         # _, version = experiment_exists(hparams, which_version=True)
