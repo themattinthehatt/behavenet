@@ -34,7 +34,7 @@ def main(hparams):
     if hparams is None:
         return
 
-    # build data generator  # TODO: don't grab images if not making plots/movies
+    # build data generator
     data_generator = build_data_generator(hparams, sess_ids)
 
     # ####################
@@ -188,7 +188,7 @@ def get_params(strategy):
 
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search
-    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
+    parser.add_argument('--lab_example', type=str)
     parser.add_argument('--save_dir', default=get_user_dir('save'), type=str)
     parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', default=None, type=str)

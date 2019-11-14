@@ -9,13 +9,15 @@ from behavenet.fitting.utils import get_best_model_version
 
 def get_data_generator_inputs(hparams, sess_ids):
     """
-    Helper function for generating signals, transforms and paths for
-    common models
+    Helper function for generating signals, transforms and paths for common models
+    # TODO: add support for decoding HMM states
 
     Args:
         hparams (dict):
-            - model_class
         sess_ids (list of dicts)
+
+    Returns:
+        (tuple): hparams, signals_list, transforms_list, paths_list
     """
 
     signals_list = []
@@ -124,13 +126,17 @@ def get_data_generator_inputs(hparams, sess_ids):
             transforms = [neural_transform, arhmm_transform]
             paths = [neural_path, arhmm_path]
 
-        elif hparams['model_class'] == 'arhmm':
+        elif hparams['model_class'] == 'arhmm' or hparams['model_class'] == 'hmm':
 
             ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
-            signals = ['ae_latents', 'images']
-            transforms = [ae_transform, None]
-            paths = [ae_path, os.path.join(data_dir, 'data.hdf5')]
+            signals = ['ae_latents']
+            transforms = [ae_transform]
+            paths = [ae_path]
+            if hparams.get('load_videos', False):
+                signals.append('images')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
             if hparams.get('use_output_mask', False):
                 signals.append('masks')
                 transforms.append(None)
@@ -157,22 +163,23 @@ def get_data_generator_inputs(hparams, sess_ids):
             # put it all together
             signals = [
                 'ae_latents',
-                'images',
                 'ae_predictions',
                 'arhmm_predictions',
                 'arhmm_states']
             transforms = [
                 ae_transform,
-                None,
                 neural_ae_transform,
                 neural_arhmm_transform,
                 arhmm_transform]
             paths = [
                 ae_path,
-                os.path.join(data_dir, 'data.hdf5'),
                 neural_ae_path,
                 neural_arhmm_path,
                 arhmm_path]
+            if hparams.get('load_videos', False):
+                signals.append('images')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
             if hparams.get('use_output_mask', False):
                 signals.append('masks')
                 transforms.append(None)

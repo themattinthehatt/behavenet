@@ -77,13 +77,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
     """
     Dataset class for a single session
 
-    Loads data one batch at a time; data transformations are applied to each
-    batch upon load.
+    Loads data one batch at a time; data transformations are applied to each batch upon load.
     """
 
     def __init__(
-            self, data_dir, lab='', expt='', animal='', session='',
-            signals=None, transforms=None, paths=None, device='cpu'):
+            self, data_dir, lab='', expt='', animal='', session='', signals=None, transforms=None,
+            paths=None, device='cpu'):
         """
         Args:
             data_dir (str): root directory of data
@@ -115,6 +114,14 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.name = os.path.join(self.lab, self.expt, self.animal, self.session)
         self.sess_str = str('%s_%s_%s_%s' % (self.lab, self.expt, self.animal, self.session))
 
+        # get data paths
+        self.signals = signals
+        self.transforms = OrderedDict()
+        self.paths = OrderedDict()
+        for signal, transform, path in zip(signals, transforms, paths):
+            self.transforms[signal] = transform
+            self.paths[signal] = path
+
         # get total number of trials by loading images/neural data
         self.n_trials = None
         for i, signal in enumerate(signals):
@@ -124,7 +131,22 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     self.n_trials = len(f[signal])
                     key_list = list(f[signal].keys())
                     self.trial_len = f[signal][key_list[0]].shape[0]
-                break
+                    break
+            elif signal == 'ae_latents':
+                try:
+                    latents = load_pkl_dict(self.paths[signal], 'latents', indx=0)
+                    print(type(latents))
+                except IOError:
+                    # try prepending session string
+                    try:
+                        latents = load_pkl_dict(
+                            prepend_sess_id(self.paths[signal], self.sess_str), 'latents', indx=0)
+                    except IOError:
+                        raise NotImplementedError(
+                            ('Could not open %s\nMust create ae latents from model;' +
+                             ' currently not implemented') % self.paths[signal])
+                self.n_trials = latents.shape[0]
+                self.trial_len = latents.shape[1]
 
         # meta data about train/test/xv splits; set by ConcatSessionsGenerator
         self.batch_indxs = None
@@ -140,14 +162,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         #         self.dims[signal] = f[signal][key_list[0]].shape
         #     else:
         #         self.dims[signal] = []
-
-        # get data paths
-        self.signals = signals
-        self.transforms = OrderedDict()
-        self.paths = OrderedDict()
-        for signal, transform, path in zip(signals, transforms, paths):
-            self.transforms[signal] = transform
-            self.paths[signal] = path
 
     def __str__(self):
         format_str = str('%s\n' % self.sess_str)
@@ -306,14 +320,14 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
     """
     Dataset class for a single session
 
-    Loads all data during Dataset creation and saves as an attribute. Batches
-    are then sampled from this stored data. All data transformations are
-    applied to the full dataset upon load, *not* for each batch.
+    Loads all data during Dataset creation and saves as an attribute. Batches are then sampled from
+    this stored data. All data transformations are applied to the full dataset upon load, *not*
+    for each batch.
     """
 
     def __init__(
-            self, data_dir, lab='', expt='', animal='', session='',
-            signals=None, transforms=None, paths=None, device='cuda'):
+            self, data_dir, lab='', expt='', animal='', session='', signals=None, transforms=None,
+            paths=None, device='cuda'):
         """
         Args:
             data_dir (str): root directory of data
@@ -368,6 +382,11 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
 
 class ConcatSessionsGenerator(object):
+    """
+    Dataset class for multiple sessions
+
+    Handles shuffling and iterating over sessions
+    """
 
     _dtypes = {'train', 'val', 'test'}
 
@@ -432,9 +451,10 @@ class ConcatSessionsGenerator(object):
 
         # get train/val/test batch indices for each dataset
         if trial_splits is None:
-            trial_splits = {'train_tr': 5, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 1}
+            trial_splits = {'train_tr': 8, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 0}
         self.batch_ratios = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
+            print(len(dataset))
             dataset.batch_indxs = split_trials(len(dataset), rng_seed=rng_seed, **trial_splits)
             dataset.n_batches = {}
             for dtype in self._dtypes:

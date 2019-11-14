@@ -116,7 +116,7 @@ def main(hparams):
         state_log_predictions[data_type] = [ F.log_softmax(torch.tensor(data_generator.datasets[0][i_trial]['arhmm_predictions'][:]).float(),dim=1).cpu().detach().numpy()[hparams['n_max_lags']:-hparams['n_max_lags']] for i_trial in trial_idxs[data_type]]
         states[data_type] = [data_generator.datasets[0][i_trial]['arhmm'][:].cpu().detach().numpy()[hparams['n_max_lags']:-hparams['n_max_lags']] for i_trial in trial_idxs[data_type]]
 
-    hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['images'].shape[0]
+    hparams['total_train_length'] = len(trial_idxs['train'])*data_generator.datasets[0][0]['ae_latents'].shape[0]
     export_hparams(hparams, exp)
 
     print('Model loaded')
