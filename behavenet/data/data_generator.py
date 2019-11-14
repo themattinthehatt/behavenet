@@ -400,7 +400,7 @@ class ConcatSessionsGenerator(object):
             data_dir (str): base directory for data
             ids_list (list of dicts): each element has the following keys:
                 'lab', 'expt', 'animal', 'session';
-                data (neural, images) is assumed to be located in:
+                the data (neural activity, images, masks) is assumed to be located in:
                 data_dir/lab/expt/animal/session/data.hdf5
             signals_list (list of lists): list of signals for each session
             transforms_list (list of lists): list of transforms for each session
@@ -415,8 +415,9 @@ class ConcatSessionsGenerator(object):
             trial_splits (dict, optional): defines number of train/text/xv folds using the keys
                 'train_tr', 'val_tr', 'test_tr', and 'gap_tr'; see `split_trials` for how these are
                 used.
-            train_frac (float, optional): fraction of assigned training trials to actually use; for
-                exploring amount of data needed to properly fit models
+            train_frac (float, optional): if 0 < train_frac < 1.0, defines the fraction of assigned
+                training trials to actually use; if >1.0, defines the number of assigned training
+                trials to actually use
         """
 
         if isinstance(ids_list, dict):
