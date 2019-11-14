@@ -334,13 +334,14 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
     return model.hparams, metric
 
 
-def export_train_plots(hparams, dtype, save_file=None, format='png'):
+def export_train_plots(hparams, dtype, loss_type='mse', save_file=None, format='png'):
     """
     Export plot with MSE/LL as a function of training epochs
 
     Args:
         hparams (dict):
         dtype (str): 'train' | 'val'
+        loss_type (str): 'mse' | 'll'
         save_file (str or NoneType, optional): full filename (absolute path) for saving plot; if
             NoneType, plot is displayed
         format (str): e.g. 'png' | 'pdf' | 'jpeg'
@@ -387,8 +388,14 @@ def export_train_plots(hparams, dtype, save_file=None, format='png'):
         (metrics_df.epoch > 0) &
         ~pd.isna(metrics_df.loss)]
     splt = sns.relplot(x='epoch', y='loss', hue='dataset', kind='line', data=data_queried)
+    splt.ax.set_xlabel('Epoch')
     splt.ax.set_yscale('log')
-    splt.ax.set_ylabel('MSE per pixel')
+    if loss_type == 'mse':
+        splt.ax.set_ylabel('MSE per pixel')
+    elif loss_type == 'll':
+        splt.ax.set_ylabel('Log prob per datapoint')
+    else:
+        raise ValueError('"%s" is an invalid loss type' % loss_type)
     title_str = 'Validation' if dtype == 'val' else 'Training'
     plt.title('%s loss' % title_str)
 

@@ -42,10 +42,17 @@ def main(hparams):
     # ####################
 
     # get all latents in list
+    n_datasets = len(data_generator)
     print('collecting observations from data generator...', end='')
     latents, trial_idxs = get_latent_arrays_by_dtype(
-        data_generator, sess_idxs=list(range(len(data_generator))))
+        data_generator, sess_idxs=list(range(n_datasets)))
     hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
+    # get separated by dataset as well
+    latents_sess = {d: None for d in range(n_datasets)}
+    trial_idxs_sess = {d: None for d in range(n_datasets)}
+    for d in range(n_datasets):
+        latents_sess[d], trial_idxs_sess[d] = get_latent_arrays_by_dtype(
+            data_generator, sess_idxs=d)
     print('done')
 
     hparams['ae_model_path'] = os.path.join(
@@ -95,8 +102,43 @@ def main(hparams):
     # ### TRAIN MODEL ###
     # ####################
 
-    train_ll = hmm.fit(
-        latents['train'], method='em', num_em_iters=hparams['n_iters'], initialize=False)
+    # precompute normalizers
+    n_datapoints = {}
+    n_datapoints_sess = {}
+    for dtype in {'train', 'val', 'test'}:
+        n_datapoints[dtype] = np.vstack(latents[dtype]).size
+        n_datapoints_sess[dtype] = {}
+        for d in range(n_datasets):
+            n_datapoints_sess[dtype][d] = np.vstack(latents_sess[d][dtype]).size
+
+    for epoch in range(hparams['n_iters'] + 1):
+        # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
+        # through `n_iters` training epochs
+
+        print('epoch %03i/%03i' % (epoch, hparams['n_iters']))
+        if epoch > 0:
+            hmm.fit(latents['train'], method='em', num_em_iters=1, initialize=False)
+
+        # export aggregated metrics on train/val data
+        tr_ll = hmm.log_likelihood(latents['train']) / n_datapoints['train']
+        val_ll = hmm.log_likelihood(latents['val']) / n_datapoints['val']
+        exp.log({
+            'epoch': epoch, 'dataset': -1, 'tr_loss': tr_ll, 'val_loss': val_ll, 'trial': -1})
+
+        # export individual session metrics on train/val data
+        for d in range(data_generator.n_datasets):
+            tr_ll = hmm.log_likelihood(latents_sess[d]['train']) / n_datapoints_sess['train'][d]
+            val_ll = hmm.log_likelihood(latents_sess[d]['val']) / n_datapoints_sess['val'][d]
+            exp.log({
+                'epoch': epoch, 'dataset': d, 'tr_loss': tr_ll, 'val_loss': val_ll, 'trial': -1})
+
+    # export individual session metrics on test data
+    for d in range(n_datasets):
+        for i, b in enumerate(trial_idxs_sess[d]['test']):
+            n = latents_sess[d]['test'][i].size
+            test_ll = hmm.log_likelihood(latents_sess[d]['test'][i]) / n
+            exp.log({'epoch': epoch, 'dataset': d, 'test_loss': test_ll, 'trial': b})
+    exp.save()
 
     # reconfigure model/states by usage
     zs = [hmm.most_likely_states(x) for x in latents['train']]
@@ -106,19 +148,12 @@ def main(hparams):
 
     # save model
     filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
-
-    with open(filepath, "wb") as f:
+    with open(filepath, 'wb') as f:
         pickle.dump(hmm, f)   
 
     # ######################
     # ### EVALUATE ARHMM ###
     # ######################
-
-    # evaluate log likelihood of validation data # TODO: per session
-    validation_ll = hmm.log_likelihood(latents['val'])
-
-    exp.log({'train_ll': np.mean(train_ll), 'val_ll': np.mean(validation_ll)})
-    exp.save()
 
     # export states
     if hparams['export_states']:
@@ -129,9 +164,9 @@ def main(hparams):
         print('creating training plots...', end='')
         version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
         save_file = os.path.join(version_dir, 'loss_training')
-        export_train_plots(hparams, 'train', save_file=save_file)
+        export_train_plots(hparams, 'train', loss_type='ll', save_file=save_file)
         save_file = os.path.join(version_dir, 'loss_validation')
-        export_train_plots(hparams, 'val', save_file=save_file)
+        export_train_plots(hparams, 'val', loss_type='ll', save_file=save_file)
         print('done')
 
     # update hparams upon successful training
@@ -164,7 +199,6 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
-    parser.add_argument('--train_frac', default=1.0, type=float)
 
     parser.add_argument('--export_train_plots', action='store_true', default=False)
 

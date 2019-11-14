@@ -459,9 +459,6 @@ def fit(hparams, model, data_generator, exp, method='em'):
         # Note: the 0th epoch has no training (randomly initialized model is
         # evaluated) so we cycle through `max_n_epochs` training epochs
 
-        loss.reset_metrics('train')
-        data_generator.reset_iterators('train')
-
         if hparams['max_n_epochs'] < 10:
             print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
         elif hparams['max_n_epochs'] < 100:
@@ -474,6 +471,10 @@ def fit(hparams, model, data_generator, exp, method='em'):
             print('epoch %05i/%05i' % (i_epoch, hparams['max_n_epochs']))
         else:
             print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
+
+        loss.reset_metrics('train')
+        data_generator.reset_iterators('train')
+
         for i_train in tqdm(range(data_generator.n_tot_batches['train'])):
 
             model.train()

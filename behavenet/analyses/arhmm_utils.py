@@ -109,8 +109,7 @@ def relabel_states_by_use(states, mapping=None):
 
 def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     """
-    Collect data from data generator and put into dictionary with keys `train`,
-    `test`, and `val`
+    Collect data from data generator and put into dictionary with keys `train`, `test`, and `val`
 
     Args:
         data_generator (ConcatSessionsGenerator):
@@ -128,9 +127,10 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     for sess_idx in sess_idxs:
         dataset = data_generator.datasets[sess_idx]
         for data_type in dtypes:
-            trial_idxs[data_type] = dataset.batch_indxs[data_type]
-            latents[data_type] += [dataset[i_trial]['ae_latents'][:].cpu().detach().numpy()
-                                   for i_trial in trial_idxs[data_type]]
+            curr_idxs = dataset.batch_indxs[data_type]
+            trial_idxs[data_type] += list(curr_idxs)
+            latents[data_type] += [
+                dataset[i_trial]['ae_latents'][:].cpu().detach().numpy() for i_trial in curr_idxs]
     return latents, trial_idxs
 
 
