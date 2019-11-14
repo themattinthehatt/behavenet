@@ -19,7 +19,7 @@ class FitMethod(object):
 
     Loss metrics are tracked for the aggregate dataset (potentially spanning
     multiple sessions) as well as session-specific metrics for easier
-    downstream analyses.
+    downstream plotting.
     """
 
     def __init__(self, model, metric_strs, n_datasets=1):
