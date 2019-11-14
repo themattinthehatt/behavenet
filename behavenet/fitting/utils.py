@@ -250,9 +250,9 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], model_type, brain_region)
         session_dir = hparams['session_dir']
-    elif model_class == 'arhmm':
+    elif model_class == 'arhmm' or model_class == 'hmm':
         model_path = os.path.join(
-            'arhmm', '%02i_latents' % hparams['n_ae_latents'],
+            model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
         if hparams.get('arhmm_multisession', None) is not None:

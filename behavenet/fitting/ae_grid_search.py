@@ -108,8 +108,8 @@ def get_params(strategy):
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
     parser.add_argument('--save_dir', default=get_user_dir('save'), type=str)
     parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
-    parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
     parser.add_argument('--model_class', default='ae', choices=['ae', 'vae'], type=str)
+    parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
 
     # arguments for computing resources (infer n_gpu_workers from visible gpus)

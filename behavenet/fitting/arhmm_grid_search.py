@@ -61,13 +61,21 @@ def main(hparams):
     # collect model constructor inputs
     if hparams['noise_type'] == 'gaussian':
         if hparams['n_lags'] > 0:
+            if hparams['model_class'] != 'arhmm':
+                raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'ar'
         else:
+            if hparams['model_class'] != 'hmm':
+                raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'gaussian'
     elif hparams['noise_type'] == 'studentst':
         if hparams['n_lags'] > 0:
+            if hparams['model_class'] != 'arhmm':
+                raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'robust_ar'
         else:
+            if hparams['model_class'] != 'hmm':
+                raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'studentst'
     else:
         raise ValueError('%s is not a valid noise type' % hparams['noise_type'])
@@ -184,7 +192,7 @@ def get_params(strategy):
     parser.add_argument('--save_dir', default=get_user_dir('save'), type=str)
     parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', default=None, type=str)
-    parser.add_argument('--model_class', default='arhmm', choices=['arhmm'], type=str)
+    parser.add_argument('--model_class', default='arhmm', choices=['arhmm', 'hmm'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
 
     # arguments for computing resources (infer n_gpu_workers from visible gpus)
