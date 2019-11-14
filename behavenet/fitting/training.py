@@ -9,7 +9,6 @@ from sklearn.metrics import r2_score, accuracy_score
 from behavenet.fitting.eval import export_latents
 from behavenet.fitting.eval import export_predictions
 
-# TODO: move to fitting module
 # TODO: use epoch number as rng seed so that batches are served in a controllable way?
 # TODO: make it easy to finish training if unexpectedly stopped
 
@@ -231,8 +230,7 @@ class NLLLoss(FitMethod):
         elif self.model.hparams['noise_dist'] == 'categorical':
             self._loss = nn.CrossEntropyLoss()
         else:
-            raise ValueError(
-                '"%s" is not a valid noise dist' % self.model.hparams['noise_dist'])
+            raise ValueError('"%s" is not a valid noise dist' % self.model.hparams['noise_dist'])
 
     def calc_loss(self, data, **kwargs):
         """
@@ -438,7 +436,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
         amsgrad=True)
 
     # enumerate batches on which validation metrics should be recorded
-    best_val_loss = math.inf
+    best_val_loss = np.inf
     best_val_epoch = None
     best_val_model = None
     val_check_batch = np.linspace(

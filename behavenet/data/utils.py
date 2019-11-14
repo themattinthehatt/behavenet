@@ -1,9 +1,6 @@
 import os
 import numpy as np
-import pickle
-import torch
 from behavenet.fitting.utils import get_expt_dir
-from behavenet.fitting.utils import get_output_session_dir
 from behavenet.fitting.utils import get_best_model_version
 
 
@@ -11,6 +8,7 @@ def get_data_generator_inputs(hparams, sess_ids):
     """
     Helper function for generating signals, transforms and paths for common models
     # TODO: add support for decoding HMM states
+    # TODO: move input_signal/output_signal/etc to another function (not needed for data gen)
 
     Args:
         hparams (dict):
@@ -379,77 +377,3 @@ def get_region_list(hparams):
                      for reg in regions}
 
     return indxs
-
-
-def get_best_model_and_data(hparams, Model, load_data=True, version='best', data_kwargs=None):
-    """
-    Helper function for loading the best model defined by hparams out of all available test-tube
-    versions, as well as the associated data used to fit the model.
-
-    Args:
-        hparams (dict):
-        Model (behavenet.models object:
-        load_data (bool, optional):
-        version (str or int, optional):
-        data_kwargs (dict, optional): kwargs for data generator
-
-    Returns:
-        (tuple): (model, data generator)
-    """
-
-    from behavenet.data.data_generator import ConcatSessionsGenerator
-
-    # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
-    expt_dir = get_expt_dir(hparams)
-
-    # get best model version
-    if version == 'best':
-        best_version = get_best_model_version(expt_dir)[0]
-    else:
-        if isinstance(version, str) and version[0] == 'v':
-            # assume we got a string of the form 'version_XX'
-            best_version = version
-        else:
-            best_version = str('version_{}'.format(version))
-    # get int representation as well
-    best_version_int = int(best_version.split('_')[1])
-    version_dir = os.path.join(expt_dir, best_version)
-    arch_file = os.path.join(version_dir, 'meta_tags.pkl')
-    model_file = os.path.join(version_dir, 'best_val_model.pt')
-    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
-        model_file = os.path.join(version_dir, 'best_val_model.ckpt')
-    print('Loading model defined in %s' % arch_file)
-
-    with open(arch_file, 'rb') as f:
-        hparams_new = pickle.load(f)
-
-    # update paths if performing analysis on a different machine
-    hparams_new['data_dir'] = hparams['data_dir']
-    hparams_new['session_dir'] = hparams['session_dir']
-    hparams_new['expt_dir'] = expt_dir
-    hparams_new['use_output_mask'] = hparams.get('use_output_mask', False)
-    hparams_new['device'] = 'cpu'
-
-    # build data generator
-    hparams_new, signals, transforms, paths = get_data_generator_inputs(hparams_new, sess_ids)
-    if load_data:
-        # sometimes we want a single data_generator for multiple models
-        if data_kwargs is None:
-            data_kwargs = {}
-        data_generator = ConcatSessionsGenerator(
-            hparams_new['data_dir'], sess_ids,
-            signals_list=signals, transforms_list=transforms, paths_list=paths,
-            device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
-            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'], **data_kwargs)
-    else:
-        data_generator = None
-
-    # build models
-    model = Model(hparams_new)
-    model.version = best_version_int
-    model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
-    model.to(hparams_new['device'])
-    model.eval()
-
-    return model, data_generator

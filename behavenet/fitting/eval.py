@@ -1,5 +1,5 @@
 import numpy as np
-from behavenet.data.utils import get_best_model_and_data
+from behavenet.fitting.utils import get_best_model_and_data
 
 
 def export_latents(data_generator, model, filename=None):

@@ -1,5 +1,9 @@
 import os
+import pickle
 import numpy as np
+
+
+from behavenet.data.utils import get_data_generator_inputs
 
 
 def get_subdirs(path):
@@ -396,64 +400,6 @@ def find_session_dirs(hparams):
     return session_dirs, session_ids
 
 
-def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
-    """
-    Get best model version from test tube
-
-    Args:
-        model_path (str): test tube experiment directory containing version_%i
-            subdirectories
-        measure (str, optional): heading in csv file that is used to determine
-            which model is best
-        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
-        n_best (int, optional): top `n_best` models are returned
-
-    Returns:
-        (str)
-    """
-
-    import pickle
-    import pandas as pd
-
-    # gather all versions
-    versions = get_subdirs(model_path)
-    # load csv files with model metrics (saved out from test tube)
-    metrics = []
-    for i, version in enumerate(versions):
-        # make sure training has been completed
-        with open(os.path.join(model_path, version, 'meta_tags.pkl'), 'rb') as f:
-            meta_tags = pickle.load(f)
-        if not meta_tags['training_completed']:
-            continue
-        # read metrics csv file
-        metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
-        # get validation loss of best model
-        if best_def == 'min':
-            val_loss = metric[measure].min()
-        elif best_def == 'max':
-            val_loss = metric[measure].max()
-        metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
-    # put everything in pandas dataframe
-    metrics_df = pd.concat(metrics, sort=False)
-    # get version with smallest loss
-    
-    if n_best == 1:
-        if best_def == 'min':
-            best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
-        elif best_def == 'max':
-            best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
-    else:
-        if best_def == 'min':
-            best_versions = np.asarray(
-                metrics_df['version'][metrics_df['loss'].nsmallest(n_best, 'all').index])
-        elif best_def == 'max':
-            raise NotImplementedError
-        if best_versions.shape[0] != n_best:
-            print('More versions than specified due to same validation loss')
-        
-    return best_versions
-
-
 def experiment_exists(hparams, which_version=False):
     """
     Search test tube versions to find if an experiment with the same
@@ -542,8 +488,7 @@ def export_hparams(hparams, exp):
     import pickle
 
     # save out as pickle
-    meta_file = os.path.join(
-        hparams['expt_dir'], 'version_%i' % exp.version, 'meta_tags.pkl')
+    meta_file = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'meta_tags.pkl')
     with open(meta_file, 'wb') as f:
         pickle.dump(hparams, f)
 
@@ -600,7 +545,6 @@ def create_tt_experiment(hparams):
         print('Experiment exists! Aborting fit')
         return None, None, None
 
-    # TODO: this was commented out in arhmm_decoding_grid_search - why?
     exp = Experiment(
         name=hparams['experiment_name'],
         debug=False,
@@ -649,6 +593,138 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     print('done')
     print(data_generator)
     return data_generator
+
+
+def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
+    """
+    Get best model version from test tube
+
+    Args:
+        model_path (str): test tube experiment directory containing version_%i
+            subdirectories
+        measure (str, optional): heading in csv file that is used to determine
+            which model is best
+        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
+        n_best (int, optional): top `n_best` models are returned
+
+    Returns:
+        (str)
+    """
+
+    import pickle
+    import pandas as pd
+
+    # gather all versions
+    versions = get_subdirs(model_path)
+    # load csv files with model metrics (saved out from test tube)
+    metrics = []
+    for i, version in enumerate(versions):
+        # make sure training has been completed
+        with open(os.path.join(model_path, version, 'meta_tags.pkl'), 'rb') as f:
+            meta_tags = pickle.load(f)
+        if not meta_tags['training_completed']:
+            continue
+        # read metrics csv file
+        metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
+        # get validation loss of best model
+        if best_def == 'min':
+            val_loss = metric[measure].min()
+        elif best_def == 'max':
+            val_loss = metric[measure].max()
+        metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
+    # put everything in pandas dataframe
+    metrics_df = pd.concat(metrics, sort=False)
+    # get version with smallest loss
+
+    if n_best == 1:
+        if best_def == 'min':
+            best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
+        elif best_def == 'max':
+            best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
+    else:
+        if best_def == 'min':
+            best_versions = np.asarray(
+                metrics_df['version'][metrics_df['loss'].nsmallest(n_best, 'all').index])
+        elif best_def == 'max':
+            raise NotImplementedError
+        if best_versions.shape[0] != n_best:
+            print('More versions than specified due to same validation loss')
+
+    return best_versions
+
+
+def get_best_model_and_data(hparams, Model, load_data=True, version='best', data_kwargs=None):
+    """
+    Helper function for loading the best model defined by hparams out of all available test-tube
+    versions, as well as the associated data used to fit the model.
+
+    Args:
+        hparams (dict):
+        Model (behavenet.models object:
+        load_data (bool, optional):
+        version (str or int, optional):
+        data_kwargs (dict, optional): kwargs for data generator
+
+    Returns:
+        (tuple): (model, data generator)
+    """
+
+    from behavenet.data.data_generator import ConcatSessionsGenerator
+
+    # get session_dir
+    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    expt_dir = get_expt_dir(hparams)
+
+    # get best model version
+    if version == 'best':
+        best_version = get_best_model_version(expt_dir)[0]
+    else:
+        if isinstance(version, str) and version[0] == 'v':
+            # assume we got a string of the form 'version_XX'
+            best_version = version
+        else:
+            best_version = str('version_{}'.format(version))
+    # get int representation as well
+    best_version_int = int(best_version.split('_')[1])
+    version_dir = os.path.join(expt_dir, best_version)
+    arch_file = os.path.join(version_dir, 'meta_tags.pkl')
+    model_file = os.path.join(version_dir, 'best_val_model.pt')
+    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
+        model_file = os.path.join(version_dir, 'best_val_model.ckpt')
+    print('Loading model defined in %s' % arch_file)
+
+    with open(arch_file, 'rb') as f:
+        hparams_new = pickle.load(f)
+
+    # update paths if performing analysis on a different machine
+    hparams_new['data_dir'] = hparams['data_dir']
+    hparams_new['session_dir'] = hparams['session_dir']
+    hparams_new['expt_dir'] = expt_dir
+    hparams_new['use_output_mask'] = hparams.get('use_output_mask', False)
+    hparams_new['device'] = 'cpu'
+
+    # build data generator
+    hparams_new, signals, transforms, paths = get_data_generator_inputs(hparams_new, sess_ids)
+    if load_data:
+        # sometimes we want a single data_generator for multiple models
+        if data_kwargs is None:
+            data_kwargs = {}
+        data_generator = ConcatSessionsGenerator(
+            hparams_new['data_dir'], sess_ids,
+            signals_list=signals, transforms_list=transforms, paths_list=paths,
+            device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
+            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'], **data_kwargs)
+    else:
+        data_generator = None
+
+    # build models
+    model = Model(hparams_new)
+    model.version = best_version_int
+    model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
+    model.to(hparams_new['device'])
+    model.eval()
+
+    return model, data_generator
 
 
 # TODO: delete

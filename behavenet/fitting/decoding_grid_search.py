@@ -59,10 +59,11 @@ def main(hparams):
     else:
         raise ValueError('%s is an invalid model class' % hparams['model_class'])
 
-    if hparams['model_class'] == 'neural-arhmm' or hparams['model_class'] == 'arhmm-neural':
-         hparams['arhmm_model_path'] = os.path.dirname(data_generator.datasets[0].paths['arhmm_states'])
     hparams['ae_model_path'] = os.path.join(
         os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
+    if hparams['model_class'] == 'neural-arhmm' or hparams['model_class'] == 'arhmm-neural':
+         hparams['arhmm_model_path'] = os.path.dirname(
+             data_generator.datasets[0].paths['arhmm_states'])
 
     # ####################
     # ### CREATE MODEL ###
@@ -112,7 +113,7 @@ def get_params(strategy):
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
     parser.add_argument('--save_dir', default=get_user_dir('save'), type=str)
     parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
-    parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'linear', 'linear-mv', 'lstm'], type=str)
+    parser.add_argument('--model_type', default='ff', choices=['ff', 'ff-mv', 'lstm'], type=str)
     parser.add_argument('--model_class', default='neural-ae', choices=['neural-ae', 'neural-arhmm', 'ae-neural', 'arhmm-neural'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
 
@@ -174,7 +175,6 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--n_ae_latents', default=12, type=int)
         parser.add_argument('--ae_model_type', default='conv')
         # arhmm arguments
-        # TODO: add ae_experiment_name/model_type/model_class to arhmm ids?
         parser.add_argument('--arhmm_experiment_name', type=str)
         parser.add_argument('--n_arhmm_states', default=12, type=int)
         parser.add_argument('--kappa', default=1e+06, type=float)
@@ -241,9 +241,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--experiment_name', default='test', type=str)
         parser.add_argument('--shuffle_rng_seed', default=None, type=int)
 
-        if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
-            parser.add_argument('--n_hid_layers', default=0, type=int)
-        elif namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
+        if namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
             parser.add_argument('--n_hid_layers', default=1, type=int)
             parser.add_argument('--n_final_units', default=64, type=int)
             parser.add_argument('--n_int_units', default=64, type=int)
@@ -292,10 +290,7 @@ def get_decoding_params(namespace, parser):
             n_max_lags = 8
             n_final_units = 64
             n_int_units = 64
-            if namespace.model_type == 'linear':
-                n_hid_layers = 0
-            else:
-                n_hid_layers = 1
+            n_hid_layers = 1
 
         parser.add_argument('--learning_rate', default=learning_rate, type=float)
         parser.add_argument('--n_lags', default=n_lags, type=int)
@@ -322,9 +317,7 @@ def get_decoding_params(namespace, parser):
         parser.add_argument('--experiment_name', default='grid_search', type=str)
         parser.add_argument('--shuffle_rng_seed', default=None, type=int)
 
-        if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
-            parser.add_argument('--n_hid_layers', default=0, type=int)
-        elif namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
+        if namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
             parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3, 4], type=int, tunable=True)
             parser.opt_list('--n_final_units', default=64, options=[64], type=int, tunable=True)
             parser.add_argument('--n_int_units', default=64, type=int)

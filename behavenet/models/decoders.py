@@ -38,8 +38,7 @@ class Decoder(nn.Module):
 
         self.hparams = hparams
 
-        if hparams['model_type'] == 'ff' or hparams['model_type'] == 'ff-mv' \
-                or hparams['model_type'] == 'linear' or hparams['model_type'] == 'linear-mv':
+        if hparams['model_type'] == 'ff' or hparams['model_type'] == 'ff-mv':
             self.model = NN(hparams)
         elif hparams['model_type'] == 'lstm':
             self.model = LSTM(hparams)
