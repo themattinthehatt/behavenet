@@ -426,19 +426,7 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
         if not meta_tags['training_completed']:
             continue
         # read metrics csv file
-        try:
-            metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
-            # ugly hack for now
-            if model_path.find('arhmm') > -1 and model_path.find('neural') < 0:
-                # throw error if not correct number of lags
-                import pickle
-                meta = os.path.join(model_path, version, 'meta_tags.pkl')
-                with open(meta, 'rb') as f:
-                    meta_tags = pickle.load(f)
-                    if meta_tags['n_lags'] != 1:
-                        raise Exception
-        except:
-            continue
+        metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
         # get validation loss of best model
         if best_def == 'min':
             val_loss = metric[measure].min()

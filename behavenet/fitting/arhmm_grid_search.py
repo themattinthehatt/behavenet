@@ -60,7 +60,7 @@ def main(hparams):
 
     # collect model constructor inputs
     if hparams['noise_type'] == 'gaussian':
-        if hparams['n_lags'] > 0:
+        if hparams['n_arhmm_lags'] > 0:
             if hparams['model_class'] != 'arhmm':
                 raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'ar'
@@ -69,7 +69,7 @@ def main(hparams):
                 raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'gaussian'
     elif hparams['noise_type'] == 'studentst':
-        if hparams['n_lags'] > 0:
+        if hparams['n_arhmm_lags'] > 0:
             if hparams['model_class'] != 'arhmm':
                 raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'robust_ar'
@@ -80,8 +80,8 @@ def main(hparams):
     else:
         raise ValueError('%s is not a valid noise type' % hparams['noise_type'])
 
-    if hparams['n_lags'] > 0:
-        obs_kwargs = {'lags': hparams['n_lags']}
+    if hparams['n_arhmm_lags'] > 0:
+        obs_kwargs = {'lags': hparams['n_arhmm_lags']}
         obs_init_kwargs = {'localize': True}
     else:
         obs_kwargs = None
@@ -226,7 +226,7 @@ def get_arhmm_params(namespace, parser):
     parser.add_argument('--ae_version', default='best')
     parser.add_argument('--ae_model_type', default='conv', type=str)
 
-    parser.add_argument('--n_lags', default=1, type=int)
+    parser.add_argument('--n_arhmm_lags', default=1, type=int)
     parser.add_argument('--n_iters', default=150, type=int)
 
     # add experiment=specific arguments
