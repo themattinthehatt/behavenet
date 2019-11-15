@@ -257,7 +257,7 @@ def get_reconstruction(model, inputs, dataset=None):
         dataset (int or NoneType): for use with session-specific io layers
 
     Returns:
-        np array (batch x channels x y_pix x x_pix)
+        np.ndarray (batch x channels x y_pix x x_pix)
     """
     import torch
 

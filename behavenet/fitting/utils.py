@@ -509,6 +509,8 @@ def experiment_exists(hparams, which_version=False):
     hparams_less.pop('ae_multisession', None)
     hparams_less.pop('session_dir', None)
     hparams_less.pop('expt_dir', None)
+    hparams_less.pop('rng_seed_data', None)
+    hparams_less.pop('load_videos', None)
 
     found_match = False
     version = None

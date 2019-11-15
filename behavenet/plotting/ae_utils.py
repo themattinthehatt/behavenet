@@ -11,7 +11,8 @@ from behavenet.fitting.eval import get_reconstruction
 
 
 def make_ae_reconstruction_movie_wrapper(
-        hparams, save_file, trial=None, version='best', include_linear=False, max_frames=400):
+        hparams, save_file, trial=None, sess_idx=0, version='best', include_linear=False,
+        max_frames=400, frame_rate=15):
     """
     Produce movie with original video, reconstructed video, and residual; can optionally add in
     corresponding linear reconstruction and residual.
@@ -20,10 +21,12 @@ def make_ae_reconstruction_movie_wrapper(
         hparams (dict):
         save_file (str):
         trial (int, optional): if None, use first test trial
+        sess_idx (int, optional): session index into data generator
         version (str or int, optional):
         include_linear (bool, optional): include reconstruction from corresponding linear ae (i.e.
             same number of latents)
         max_frames (int, optional): maximum number of frames to animate from a trial
+        frame_rate (float, optional): frame rate of saved movie
     """
 
     from behavenet.models import AE
@@ -44,8 +47,8 @@ def make_ae_reconstruction_movie_wrapper(
     # push images through decoder
     if trial is None:
         # choose first test trial
-        trial = data_generator.batch_indxs[0]['test'][0]
-    batch = data_generator.datasets[0][trial]
+        trial = data_generator.batch_indxs[sess_idx]['test'][0]
+    batch = data_generator.datasets[sess_idx][trial]
     ims_orig_pt = batch['images'][:max_frames]
 
     ims_recon_ae = get_reconstruction(model_ae, ims_orig_pt)
@@ -63,18 +66,21 @@ def make_ae_reconstruction_movie_wrapper(
         ims_recon_ae=ims_recon_ae,
         ims_recon_lin=ims_recon_lin,
         save_file=save_file,
-        frame_rate=hparams['frame_rate'])
+        frame_rate=frame_rate)
 
 
 def make_ae_reconstruction_movie(
         ims_orig, ims_recon_ae, ims_recon_lin=None, save_file=None, frame_rate=15):
     """
+    Produce movie with original video, reconstructed video, and residual; can optionally add in
+    corresponding linear reconstruction and residual.
+
     Args:
-        ims_orig (np array): (n_frames, n_channels, y_pix, x_pix)
-        ims_recon_ae (np array): (n_frames, n_channels, y_pix, x_pix)
-        ims_recon_lin (np array, optional): (n_frames, n_channels, y_pix, x_pix)
+        ims_orig (np.ndarray): (n_frames, n_channels, y_pix, x_pix)
+        ims_recon_ae (np.ndarray): (n_frames, n_channels, y_pix, x_pix)
+        ims_recon_lin (np.ndarray, optional): (n_frames, n_channels, y_pix, x_pix)
         save_file (str, optional):
-        frame_rate (float, optional):
+        frame_rate (float, optional): frame rate of saved movie
     """
 
     n_frames, n_channels, y_pix, x_pix = ims_orig.shape
@@ -170,16 +176,16 @@ def make_ae_reconstruction_movie(
         make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
-        print('saving video...')
+        print('saving video to %s...' % save_file, end='')
         ani.save(save_file, writer=writer)
         # if save_file[-3:] != 'gif':
         #     save_file += '.gif'
         # ani.save(save_file, writer='imagemagick', fps=15)
-        print('video saved to %s' % save_file)
+        print('done')
 
 
 def make_neural_reconstruction_movie_wrapper(
-        hparams, save_file, trial=None, max_frames=400, max_latents=8):
+        hparams, save_file, trial=None, sess_idx=0, max_frames=400, max_latents=8, frame_rate=15):
     """
     Produce movie with original video, ae reconstructed video, and neural reconstructed video.
     Latent traces are additionally plotted, as well as the residual between the ae reconstruction
@@ -190,8 +196,10 @@ def make_neural_reconstruction_movie_wrapper(
         hparams (dict):
         save_file (str):
         trial (int, optional): if None, use first test trial
+        sess_idx (int, optional): session index into data generator
         max_frames (int, optional): maximum number of frames to animate
         max_latents (int, optional): maximum number of ae latents to plot
+        frame_rate (float, optional): frame rate of saved movie
     """
 
     from behavenet.models import Decoder
@@ -211,10 +219,10 @@ def make_neural_reconstruction_movie_wrapper(
 
     if trial is None:
         # choose first test trial
-        trial = data_generator_ae.batch_indxs[0]['test'][0]
+        trial = data_generator_ae.batch_indxs[sess_idx]['test'][0]
 
     # get images from data generator (move to cpu)
-    batch = data_generator_ae.datasets[0][trial]
+    batch = data_generator_ae.datasets[sess_idx][trial]
     ims_orig_pt = batch['images'][:max_frames].cpu()  # 400
 
     # push images through ae to get reconstruction
@@ -240,7 +248,7 @@ def make_neural_reconstruction_movie_wrapper(
     model_dec.to('cpu')
 
     # get neural activity from data generator (move to cpu)
-    batch = data_generator_dec.datasets[0][trial]
+    batch = data_generator_dec.datasets[0][trial]  # 0 not sess_idx since decoders only have 1 sess
     neural_activity_pt = batch['neural'][:max_frames].cpu()
 
     # push neural activity through decoder to get prediction
@@ -255,21 +263,26 @@ def make_neural_reconstruction_movie_wrapper(
         ims_recon_neural=ims_recon_dec,
         latents_ae=latents_ae_pt.cpu().detach().numpy()[:, :max_latents],
         latents_neural=latents_dec_pt.cpu().detach().numpy()[:, :max_latents],
-        save_file=save_file)
+        save_file=save_file,
+        frame_rate=frame_rate)
 
 
 def make_neural_reconstruction_movie(
         ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural, save_file=None,
         frame_rate=15):
     """
+    Produce movie with original video, ae reconstructed video, and neural reconstructed video.
+    Latent traces are additionally plotted, as well as the residual between the ae reconstruction
+    and the neural reconstruction.
+
     Args:
-        ims_orig (np array): (n_frames, n_channels, y_pix, x_pix)
-        ims_recon_ae (np array): (n_frames, n_channels, y_pix, x_pix)
-        ims_recon_neural (np array): (n_frames, n_channels, y_pix, x_pix)
-        latents_ae (np array): (n_frames, n_latents)
-        latents_neural (np array): (n_frames, n_latents)
+        ims_orig (np.ndarray): (n_frames, n_channels, y_pix, x_pix)
+        ims_recon_ae (np.ndarray): (n_frames, n_channels, y_pix, x_pix)
+        ims_recon_neural (np.ndarray): (n_frames, n_channels, y_pix, x_pix)
+        latents_ae (np.ndarray): (n_frames, n_latents)
+        latents_neural (np.ndarray): (n_frames, n_latents)
         save_file (str, optional):
-        frame_rate (float, optional):
+        frame_rate (float, optional): frame rate of saved movie
     """
 
     means = np.mean(latents_ae, axis=0)
@@ -404,9 +417,9 @@ def make_neural_reconstruction_movie(
         make_dir_if_not_exists(save_file)
         if save_file[-3:] != 'mp4':
             save_file += '.mp4'
-        print('saving video...')
+        print('saving video to %s...' % save_file, end='')
         ani.save(save_file, writer=writer)
-        print('video saved to %s' % save_file)
+        print('done')
 
 
 def plot_neural_reconstruction_traces_wrapper(
@@ -415,7 +428,7 @@ def plot_neural_reconstruction_traces_wrapper(
     Plot ae latents and their neural reconstructions.
 
     Args:
-        hparams (dict):
+        hparams (dict): must fully specify lab, expt, animal, and session
         save_file (str, optional):
         trial (int, optional): if None, use first test trial
         xtick_locs (array-like, optional): tick locations in bin values
@@ -473,11 +486,13 @@ def plot_neural_reconstruction_traces_wrapper(
 def plot_neural_reconstruction_traces(
         traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png'):
     """
+    Plot ae latents and their neural reconstructions.
+
     Args:
-        traces_ae (np array): (n_frames, n_latents)
-        traces_neural (np array): (n_frames, n_latents)
+        traces_ae (np.ndarray): (n_frames, n_latents)
+        traces_neural (np.ndarray): (n_frames, n_latents)
         save_file (str, optional):
-        xtick_locs (array-like, optional):
+        xtick_locs (array-like, optional): tick locations in bin values
         frame_rate (float, optional): behavioral video framerate; to properly relabel xticks
         format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
 

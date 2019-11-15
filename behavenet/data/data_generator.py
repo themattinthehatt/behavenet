@@ -135,7 +135,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             elif signal == 'ae_latents':
                 try:
                     latents = load_pkl_dict(self.paths[signal], 'latents', indx=0)
-                    print(type(latents))
                 except IOError:
                     # try prepending session string
                     try:
@@ -350,7 +349,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
         # grab all data as a single batch
         self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
-        self.data.pop('batch_indx')
+        _ = self.data.pop('batch_indx')
 
         # collect dims for easy reference
         self.dims = OrderedDict()
@@ -455,7 +454,6 @@ class ConcatSessionsGenerator(object):
             trial_splits = {'train_tr': 8, 'val_tr': 1, 'test_tr': 1, 'gap_tr': 0}
         self.batch_ratios = [None] * self.n_datasets
         for i, dataset in enumerate(self.datasets):
-            print(len(dataset))
             dataset.batch_indxs = split_trials(len(dataset), rng_seed=rng_seed, **trial_splits)
             dataset.n_batches = {}
             for dtype in self._dtypes:

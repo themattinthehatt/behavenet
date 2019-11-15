@@ -12,8 +12,10 @@ from behavenet.models import AE as AE
 
 
 def get_model_str(hparams):
+    """Helper function for automatically generating figure names"""
     return str('K_%i_kappa_%0.e_noise_%s_nlags_%i' % (
-        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'], hparams['n_lags']))
+        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'],
+        hparams['n_arhmm_lags']))
 
 
 def get_discrete_chunks(states, include_edges=True):
@@ -21,89 +23,88 @@ def get_discrete_chunks(states, include_edges=True):
     Find occurences of each discrete state
 
     Args:
-        states: list of trials, each trial is numpy array containing discrete state for each frame
-        include_edges: include states at start and end of chunk
+        states (list): list of trials; each trial is numpy array containing discrete state for each
+            frame
+        include_edges (bool): include states at start and end of chunk
 
     Returns:
-        indexing_list: list of length discrete states, each list contains all occurences of that
-            discrete state by [chunk number, starting index, ending index]
-
+        list: list of length discrete states; each list contains all occurences of that discrete
+            state by [chunk number, starting index, ending index]
     """
 
     max_state = max([max(x) for x in states])
-    indexing_list = [[] for x in range(max_state+1)]
+    indexing_list = [[] for _ in range(max_state + 1)]
 
     for i_chunk, chunk in enumerate(states):
 
-        chunk = np.pad(chunk,(1,1),mode='constant',constant_values=-1) # pad either side so we get start and end chunks
-        split_indices = np.where(np.ediff1d(chunk)!=0)[0] # Don't add 1 because of start padding, this is now indice in original unpadded data
-        split_indices[-1]-=1 # Last index will be 1 higher that it should be due to padding
+        # pad either side so we get start and end chunks
+        chunk = np.pad(chunk, (1, 1), mode='constant', constant_values=-1)
+        # don't add 1 because of start padding, this is now indice in original unpadded data
+        split_indices = np.where(np.ediff1d(chunk) != 0)[0]
+        # last index will be 1 higher that it should be due to padding
+        split_indices[-1] -= 1
 
         for i in range(len(split_indices)-1):
-
-            which_state = chunk[split_indices[i]+1] # get which state this chunk was (+1 because data is still padded)
-
-            if not include_edges: # if not including the edges
-                if split_indices[i]!=0 and split_indices[i+1]!=(len(chunk)-2-1):
-                    indexing_list[which_state].append([i_chunk, split_indices[i],split_indices[i+1]])
+            # get which state this chunk was (+1 because data is still padded)
+            which_state = chunk[split_indices[i]+1]
+            if not include_edges:
+                if split_indices[i] != 0 and split_indices[i+1] != (len(chunk)-2-1):
+                    indexing_list[which_state].append(
+                        [i_chunk, split_indices[i], split_indices[i+1]])
             else:
-                indexing_list[which_state].append([i_chunk, split_indices[i],split_indices[i+1]])
+                indexing_list[which_state].append(
+                    [i_chunk, split_indices[i], split_indices[i + 1]])
 
-    # Convert lists to numpy arrays
-    indexing_list = [np.asarray(indexing_list[i_state]) for i_state in range(max_state+1)]
+    # convert lists to numpy arrays
+    indexing_list = [np.asarray(indexing_list[i_state]) for i_state in range(max_state + 1)]
 
     return indexing_list
 
 
 def get_state_durations(latents, hmm):
-
+    """Calculate frame count for each state"""
+    # TODO: bad return type when n_arhmm_states = 1
     states = [hmm.most_likely_states(x) for x in latents]
     state_indices = get_discrete_chunks(states, include_edges=False)
-
     durations = []
     for i_state in range(0, len(state_indices)):
         if len(state_indices[i_state]) > 0:
-             durations = np.append(durations, np.diff(state_indices[i_state][:, 1:3], 1))
-    # TODO: bad return type when n_arhmm_states=1
-
+            durations = np.append(durations, np.diff(state_indices[i_state][:, 1:3], 1))
     return durations
 
 
 def relabel_states_by_use(states, mapping=None):
-    '''
+    """
     Takes in discrete states and relabels according to mapping or length of time in each.
 
-    input:
-        states: list of trials, each trial is numpy array containing discrete state for each frame
-        mapping: mapping you want to use if already calculated, format mapping[old_state]=new_state (for example if using training length of times mapping on validation data)
+    Args:
+        states (list): list of trials; each trial is numpy array containing discrete state for each
+            frame
+        mapping (array-like, optional): format is mapping[old_state] = new_state; for example if
+            using training length of times mapping on validation data
 
-    output:
-        relabeled_states: same data structure but with states relabeled by use (state 0 has most frames, etc)
-        mapping: mapping of original labels to new labels, format mapping[old_state]=new_state
-
-    '''
-    frame_counts=[]
+    Returns:
+        (tuple): (relabeled states, mapping, frame counts
+            relabeled_states: same data structure but with states relabeled by use (state 0 has
+                most frames, etc)
+            mapping: mapping of original labels to new labels; mapping[old_state] = new_state
+            frame counts: updated frame counts for relabeled states
+    """
+    frame_counts = []
     if mapping is None:
-
         # Get number of frames for each state
-        max_state = max([max(x) for x in states]) # Get maximum state
-        bin_edges = np.arange(-.5,max_state+.7)
-
-        frame_counts = np.zeros((max_state+1))
+        max_state = max([max(x) for x in states])  # Get maximum state
+        bin_edges = np.arange(-.5, max_state + .7)
+        frame_counts = np.zeros((max_state + 1))
         for chunk in states:
-            these_counts, _ = np.histogram(chunk,bin_edges)
+            these_counts, _ = np.histogram(chunk, bin_edges)
             frame_counts += these_counts
-
-        # Define mapping
+        # define mapping
         mapping = np.asarray(scipy.stats.rankdata(-frame_counts,method='ordinal')-1)
-
-    # Remap states
+    # remap states
     relabeled_states = [[]]*len(states)
     for i, chunk in enumerate(states):
-
         relabeled_states[i] = mapping[chunk]
-
-
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
@@ -134,7 +135,28 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     return latents, trial_idxs
 
 
-def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
+def get_model_latents_states(hparams, version, sess_idx=0, return_samples=0, cond_sampling=False):
+    """
+    Return arhmm defined in `hparams` with associated latents and states. Can also return generated
+    latents and states.
+
+    Args:
+        hparams (dict):
+        version (str or int):
+        sess_idx (int, optional): session index into data generator
+        return_samples (int, optional): number of trials to sample from model
+        cond_sampling (bool, optional): if True return samples conditioned on discrete states from
+            test trials; if False return unconditioned samples
+
+    Returns:
+        dict:
+            'model': ssm object
+            'latents': dict with latents from train, val and test trials
+            'states': dict with states from train, val and test trials
+            'trial_idxs': dict with trial indices from train, val and test trials
+            'latents_gen': list of generated latents
+            'states_gen': list of generated states
+    """
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import experiment_exists
     from behavenet.fitting.utils import get_best_model_version
@@ -143,6 +165,7 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
 
     hparams['session_dir'], sess_ids = get_session_dir(hparams)
     hparams['expt_dir'] = get_expt_dir(hparams)
+
     # get version/model
     if version == 'best':
         version = get_best_model_version(hparams['expt_dir'], measure='val_ll', best_def='max')[0]
@@ -151,14 +174,16 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
     if version is None:
         raise FileNotFoundError(
             'Could not find the specified model version in %s' % hparams['expt_dir'])
+
     # load model
     model_file = os.path.join(hparams['expt_dir'], version, 'best_val_model.pt')
     with open(model_file, 'rb') as f:
         hmm = pickle.load(f)
-        # load latents
+    # load latents
     _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
     with open(latents_file, 'rb') as f:
         all_latents = pickle.load(f)
+
     # collect inferred latents/states
     trial_idxs = {}
     latents = {}
@@ -167,19 +192,26 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
         trial_idxs[data_type] = all_latents['trials'][data_type]
         latents[data_type] = [all_latents['latents'][i_trial] for i_trial in trial_idxs[data_type]]
         states[data_type] = [hmm.most_likely_states(x) for x in latents[data_type]]
+
     # collect generative latents/states
-    if generated:
-        states_gen = []
-        latents_gen = []
-        np.random.seed(101)
-        offset = 200
-        for i in range(len(latents['test'])):
-            these_states_gen, these_latents_gen = hmm.sample(latents['test'][0].shape[0] + offset)
-            latents_gen.append(these_latents_gen[offset:])
-            states_gen.append(these_states_gen[offset:])
+    if return_samples > 0:
+        if cond_sampling:
+            # TODO: for i in range(len(latents['test'])):
+            raise NotImplementedError
+        else:
+            states_gen = []
+            latents_gen = []
+            np.random.seed(101)
+            offset = 200
+            for i in range(return_samples):
+                these_states_gen, these_latents_gen = hmm.sample(
+                    latents['test'][0].shape[0] + offset)
+                latents_gen.append(these_latents_gen[offset:])
+                states_gen.append(these_states_gen[offset:])
     else:
         latents_gen = []
         states_gen = []
+
     return_dict = {
         'model': hmm,
         'latents': latents,
@@ -191,69 +223,130 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
     return return_dict
 
 
-def make_syllable_movies(
-        filepath, hparams, latents, states, trial_idxs, data_generator, sess_idx=0,
-        min_threshold=0, n_buffer=5, n_pre_frames=3, n_rows=None, append_str=None,
-        single_syllable=None):
+def make_syllable_movies_wrapper(
+        hparams, save_file, sess_idx=0, dtype='test', max_frames=400, frame_rate=10,
+        min_threshold=0, n_buffer=5, n_pre_frames=3, n_rows=None, single_syllable=None):
     """
     Present video clips of each individual syllable in separate panels
 
     Args:
-        filepath (str): directory for saving movie
-        hparams (dict): for generating save name
-        latents (list of np.ndarrays):
-        states (list of np.ndarrays): inferred state for each time point
-        trial_idxs (array-like): indices into `states` for which trials should be plotted
-        data_generator (ConcatSessionsGenerator):
-        sess_idx (int): session index into data_generator
-        min_threshold (int): minimum number of frames in a syllable run to be considered for movie
+        hparams (dict):
+        save_file (str):
+        sess_idx (int, optional): session index into data generator
+        dtype (str, optional): types of trials to make video with; 'train', 'val', 'test'
+        max_frames (int, optional): maximum number of frames to animate from a trial
+        frame_rate (float, optional): frame rate of saved movie
+        min_threshold (int, optional): minimum number of frames in a syllable run to be considered
+            for movie
         n_buffer (int): number of blank frames between syllable instances
         n_pre_frames (int): number of behavioral frames to precede each syllable instance
         n_rows (int or NoneType): number of rows in output movie
-        append_str (str): appended to end of filename before saving
         single_syllable (int or NoneType): choose only a single state for movie
-
-    Returns:
-        None; saves movie to `filepath/model_name_append_str.mp4`
     """
+    from behavenet.data.data_generator import ConcatSessionsGenerator
+    from behavenet.data.utils import get_data_generator_inputs
+    from behavenet.data.utils import get_transforms_paths
+    from behavenet.fitting.utils import experiment_exists
+    from behavenet.fitting.utils import get_expt_dir
+    from behavenet.fitting.utils import get_session_dir
 
-    plot_n_frames = hparams['plot_n_frames']
-    if hparams['plot_frame_rate'] == 'orig':
-        raise NotImplementedError
-    else:
-        plot_frame_rate = hparams['plot_frame_rate']
+    # load images, latents, and states
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
+    hparams['load_videos'] = True
+    hparams, signals, transforms, paths = get_data_generator_inputs(hparams, sess_ids)
+    data_generator = ConcatSessionsGenerator(
+        hparams['data_dir'], sess_ids,
+        signals_list=[signals[sess_idx]],
+        transforms_list=[transforms[sess_idx]],
+        paths_list=[paths[sess_idx]],
+        device='cpu', as_numpy=True, batch_load=False, rng_seed=hparams['rng_seed_data'])
+    ims_orig = data_generator.datasets[sess_idx].data['images']
+    del data_generator  # free up memory
+
+    # get tt version number
+    _, version = experiment_exists(hparams, which_version=True)
+    print('producing syllable videos for arhmm %s' % version)
+    # load latents
+    _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
+    with open(latents_file, 'rb') as f:
+        latents = pickle.load(f)
+    trial_idxs = latents['trials'][dtype]
+    # load model
+    model_file = os.path.join(hparams['expt_dir'], version, 'best_val_model.pt')
+    with open(model_file, 'rb') as f:
+        hmm = pickle.load(f)
+    # infer discrete states
+    states = [hmm.most_likely_states(latents['latents'][s]) for s in latents['trials'][dtype]]
+    if len(states) == 0:
+        raise ValueError('No latents for dtype=%s' % dtype)
 
     # find runs of discrete states; state indices is a list, each entry of which is a np array with
     # shape (n_state_instances, 3), where the 3 values are:
     # chunk_idx, chunk_start_idx, chunk_end_idx
     # chunk_idx is in [0, n_chunks], and indexes trial_idxs
     state_indices = get_discrete_chunks(states, include_edges=True)
-    actual_K = len(state_indices)
+    K = len(state_indices)
 
     # get all example over minimum state length threshold
-    over_threshold_instances = [[] for _ in range(actual_K)]
-    for i_state in range(actual_K):
+    over_threshold_instances = [[] for _ in range(K)]
+    for i_state in range(K):
         if state_indices[i_state].shape[0] > 0:
             state_lens = np.diff(state_indices[i_state][:, 1:3], axis=1)
             over_idxs = state_lens > min_threshold
             over_threshold_instances[i_state] = state_indices[i_state][over_idxs[:, 0]]
             np.random.shuffle(over_threshold_instances[i_state])  # shuffle instances
 
+    make_syllable_movies(
+        ims_orig=ims_orig,
+        state_list=over_threshold_instances,
+        trial_idxs=trial_idxs,
+        save_file=save_file,
+        max_frames=max_frames,
+        frame_rate=frame_rate,
+        n_buffer=n_buffer,
+        n_pre_frames=n_pre_frames,
+        n_rows=n_rows,
+        single_syllable=single_syllable)
+
+
+def make_syllable_movies(
+        ims_orig, state_list, trial_idxs, save_file=None, max_frames=400, frame_rate=10,
+        n_buffer=5, n_pre_frames=3, n_rows=None, single_syllable=None):
+    """
+    Present video clips of each individual syllable in separate panels
+
+    Args:
+        ims_orig (list): each entry (one per trial) is an np.ndarray of shape
+            (n_frames, n_channels, y_pix, x_pix)
+        state_list (list): each entry (one per state) is a
+        trial_idxs (array-like): indices into `states` for which trials should be plotted
+        save_file (str): directory for saving movie
+        max_frames (int, optional): maximum number of frames to animate from a trial
+        frame_rate (float, optional): frame rate of saved movie
+        n_buffer (int): number of blank frames between syllable instances
+        n_pre_frames (int): number of behavioral frames to precede each syllable instance
+        n_rows (int or NoneType): number of rows in output movie
+        single_syllable (int or NoneType): choose only a single state for movie
+    """
+
+    K = len(state_list)
+
     # Initialize syllable movie frames
     plt.clf()
     if single_syllable is not None:
-        actual_K = 1
+        K = 1
         fig_width = 5
         n_rows = 1
     else:
         fig_width = 10  # aiming for dim 1 being 10
     # get video dims
-    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
+    [bs, n_channels, y_dim, x_dim] = ims_orig[0].shape
     movie_dim1 = n_channels * y_dim
     movie_dim2 = x_dim
     if n_rows is None:
-        n_rows = int(np.floor(np.sqrt(actual_K)))
-    n_cols = int(np.ceil(actual_K / n_rows))
+        n_rows = int(np.floor(np.sqrt(K)))
+    n_cols = int(np.ceil(K / n_rows))
 
     fig_dim_div = movie_dim2 * n_cols / fig_width
     fig_width = (movie_dim2 * n_cols) / fig_dim_div
@@ -263,7 +356,7 @@ def make_syllable_movies(
     for i, ax in enumerate(fig.axes):
         ax.set_yticks([])
         ax.set_xticks([])
-        if i >= actual_K:
+        if i >= K:
             ax.set_axis_off()
         elif single_syllable is not None:
             ax.set_title('Syllable %i' % single_syllable, fontsize=16)
@@ -273,17 +366,17 @@ def make_syllable_movies(
 
     imshow_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
 
-    ims = [[] for _ in range(plot_n_frames + bs + 200)]
+    ims = [[] for _ in range(max_frames + bs + 200)]
 
     # Loop through syllables
     for i_k, ax in enumerate(fig.axes):
 
         # skip if no syllable in this axis
-        if i_k >= actual_K:
+        if i_k >= K:
             continue
-        print('processing syllable %i/%i' % (i_k + 1, actual_K))
+        print('processing syllable %i/%i' % (i_k + 1, K))
         # skip if no syllables are longer than threshold
-        if len(over_threshold_instances[i_k]) == 0:
+        if len(state_list[i_k]) == 0:
             continue
 
         if single_syllable is not None:
@@ -292,9 +385,9 @@ def make_syllable_movies(
         i_chunk = 0
         i_frame = 0
 
-        while i_frame < plot_n_frames:
+        while i_frame < max_frames:
 
-            if i_chunk >= len(over_threshold_instances[i_k]):
+            if i_chunk >= len(state_list[i_k]):
                 # show blank if out of syllable examples
                 im = ax.imshow(np.zeros((movie_dim1, movie_dim2)), **imshow_kwargs)
                 ims[i_frame].append(im)
@@ -302,20 +395,18 @@ def make_syllable_movies(
             else:
 
                 # Get movies/latents
-                chunk_idx = over_threshold_instances[i_k][i_chunk, 0]
+                chunk_idx = state_list[i_k][i_chunk, 0]
                 which_trial = trial_idxs[chunk_idx]
-                tr_beg = over_threshold_instances[i_k][i_chunk, 1]
-                tr_end = over_threshold_instances[i_k][i_chunk, 2]
-                batch = data_generator.datasets[sess_idx][which_trial]['images'].cpu().detach().numpy()
+                tr_beg = state_list[i_k][i_chunk, 1]
+                tr_end = state_list[i_k][i_chunk, 2]
+                batch = ims_orig[which_trial]
                 movie_chunk = batch[max(tr_beg - n_pre_frames, 0):tr_end]
 
-                if hparams['lab'] == 'musall':
-                    movie_chunk = np.transpose(movie_chunk, (0, 1, 3, 2))
                 movie_chunk = np.concatenate(
                     [movie_chunk[:, j] for j in range(movie_chunk.shape[1])], axis=1)
 
-                if np.sum(states[chunk_idx][tr_beg:tr_end-1] != i_k) > 0:
-                    raise ValueError('Misaligned states for syllable segmentation')
+                # if np.sum(states[chunk_idx][tr_beg:tr_end-1] != i_k) > 0:
+                #     raise ValueError('Misaligned states for syllable segmentation')
 
                 # Loop over this chunk
                 for i in range(movie_chunk.shape[0]):
@@ -342,28 +433,46 @@ def make_syllable_movies(
 
                 i_chunk += 1
 
-    # put together file name
-    if single_syllable is not None:
-        state_str = str('_syllable-%02i' % single_syllable)
-    else:
-        state_str = ''
-    filename = str(
-        'syllable_behavior_%s%s%s.mp4' % (get_model_str(hparams), state_str, append_str))
-    save_file = os.path.join(filepath, filename)
-    make_dir_if_not_exists(save_file)
-
     print('creating animation...', end='')
     ani = animation.ArtistAnimation(
         fig,
         [ims[i] for i in range(len(ims)) if ims[i] != []], interval=20, blit=True, repeat=False)
-    print('done')
-    print('saving video to %s...' % filename, end='')
-    writer = FFMpegWriter(fps=max(plot_frame_rate, 10), bitrate=-1)
-    ani.save(save_file, writer=writer)
+    writer = FFMpegWriter(fps=max(frame_rate, 10), bitrate=-1)
     print('done')
 
+    if save_file is not None:
+        # put together file name
+        if save_file[-3:] == 'mp4':
+            save_file = save_file[:-3]
+        if single_syllable is not None:
+            state_str = str('_syllable-%02i' % single_syllable)
+        else:
+            state_str = ''
+        save_file += state_str
+        save_file += '.mp4'
+        make_dir_if_not_exists(save_file)
+        print('saving video to %s...' % save_file, end='')
+        ani.save(save_file, writer=writer)
+        print('done')
 
-def make_real_vs_generated_movies(
+
+def real_vs_generated_samples_wrapper(
+        output, hparams, save_file, sess_idx, dtype='test', conditional=True, max_frames=400,
+        frame_rate=20, n_buffer=5):
+    # if output == 'both' or output == 'movie':
+    #     if conditional:
+    #         make_real_vs_conditionally_generated_movies()
+    #     else:
+    #         make_real_vs_unconditionally_generated_movies()
+    # if output == 'both' or output == 'plot':
+    #     if conditional:
+    #         plot_real_vs_conditionally_generated_samples()
+    #     else:
+    #         plot_real_vs_unconditionally_generated_samples()
+    pass
+
+
+def make_real_vs_conditionally_generated_movies(
         filepath, hparams, hmm, latents, states, data_generator, sess_idx=0, n_buffer=5, ptype=0,
         xtick_locs=None):
 
@@ -490,42 +599,12 @@ def make_real_vs_generated_movies(
         filepath, 'real_vs_generated_latents_' + get_model_str(hparams) + '.png')
     fig.savefig(save_file, dpi=200)
 
-    # Make videos
-    # plt.clf()
-    # fig_dim_div = x_dim*2/10 # aiming for dim 1 being 10
-    # fig, axes = plt.subplots(1,2,figsize=(x_dim*2/fig_dim_div,y_dim*n_channels/fig_dim_div))
-    #
-    # for j in range(2):
-    #     axes[j].set_xticks([])
-    #     axes[j].set_yticks([])
-    #
-    # axes[0].set_title('Real Reconstructions', fontsize=16)
-    # axes[1].set_title('Generative Reconstructions', fontsize=16)
-    # fig.tight_layout(pad=0)
-    #
-    # im_kwargs = {'cmap': 'gray', 'vmin': 0, 'vmax': 1, 'animated': True}
-    # ims = []
-    # for i in range(plot_n_frames):
-    #
-    #     ims_curr = []
-    #
-    #     im = axes[0].imshow(all_recon[i], **im_kwargs)
-    #     ims_curr.append(im)
-    #
-    #     im = axes[1].imshow(all_simulated_recon[i], **im_kwargs)
-    #     ims_curr.append(im)
-    #
-    #     ims.append(ims_curr)
-    #
-    # ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
-    # writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    # save_file = os.path.join(
-    #     filepath, 'real_vs_generated_' + get_model_str(hparams) + '.mp4')
-    # make_dir_if_not_exists(save_file)
-    # ani.save(save_file, writer=writer)
+
+def plot_real_vs_conditionally_generated_samples():
+    pass
 
 
-def make_real_vs_nonconditioned_generated_movies(
+def make_real_vs_unconditionally_generated_movies(
         filepath, hparams, real_latents, generated_latents, data_generator, trial_idxs, n_buffer=5):
 
     plot_n_frames = hparams['plot_n_frames']
@@ -645,76 +724,39 @@ def make_real_vs_nonconditioned_generated_movies(
     ani.save(save_file, writer=writer)
 
 
-def plot_segmentations_by_trial(
-        states, trial_info_dict=None, xtick_locs=None, frame_rate=None, save_file=None,
-        title=None, cmap='tab20b'):
-
-    from matplotlib.lines import Line2D
-
-    colors = ['r', 'k', 'g', 'b']
-    if trial_info_dict is not None:
-        line_kwargs = {'ymin': 0, 'ymax': 1, 'linewidth': 6, 'clip_on': False, 'alpha': 1}
-
-    n_trials = len(states)
-
-    fig = plt.figure(figsize=(10, n_trials / 4))
-    gs_bottom_left = plt.GridSpec(n_trials, 1, top=0.85, right=1)
-    for i_trial in range(n_trials):
-
-        axes = plt.subplot(gs_bottom_left[i_trial, 0])
-        axes.imshow(
-            states[i_trial][None, :], aspect='auto',
-            extent=(0, len(states[i_trial]), 0, 1), cmap=cmap) #, alpha=0.9)
-        if trial_info_dict is not None:
-            i = 0
-            for key, val in trial_info_dict.items():
-                if val[i_trial] >= 0:
-                    axes.axvline(x=val[i_trial], c=colors[i], label=key, **line_kwargs)
-                i += 1
-
-        axes.set_xticks([])
-        axes.set_yticks([])
-        axes.set_frame_on(False)
-
-    if trial_info_dict is not None:
-        lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='-') for c in colors]
-        plt.legend(
-            lines, trial_info_dict.keys(), loc='center left', bbox_to_anchor=(1, 15),
-            frameon=False)
-
-    if xtick_locs is not None and frame_rate is not None:
-        axes.set_xticks(xtick_locs)
-        axes.set_xticklabels((np.asarray(xtick_locs) / frame_rate).astype('int'))
-        axes.set_xlabel('Time (s)')
-    else:
-        axes.set_xlabel('Time (bins)')
-    axes = plt.subplot(gs_bottom_left[int(np.floor(n_trials / 2)), 0])
-    axes.set_ylabel('Trials')
-
-    plt.suptitle(title)
-    plt.tight_layout()
-
-    if save_file is not None:
-        make_dir_if_not_exists(save_file)
-        fig.savefig(save_file, transparent=True, bbox_inches='tight')
-        plt.close(fig)
-    else:
-        plt.show()
-    return fig
+def plot_real_vs_unconditionally_generated_samples():
+    pass
 
 
 def plot_states_overlaid_with_latents(
-        latents_trial, states_trial, ax, xtick_locs=None, frame_rate=None):
-    spc = 1.1 * abs(latents_trial.max())
-    n_latents = latents_trial.shape[1]
-    plotting_latents = latents_trial + spc * np.arange(n_latents)
+        latents, states, save_file=None, ax=None, xtick_locs=None, frame_rate=None, format='png'):
+    """
+    Plot states for a single trial overlaid with latents
+
+    Args:
+        latents (np.ndarray): (n_frames, n_latents)
+        states (np.ndarray): (n_frames,)
+        save_file (str, optional):
+        ax (matplotlib.Axes object, optional):
+        xtick_locs (array-like, optional): tick locations in bin values
+        frame_rate (float, optional): behavioral video framerate; to properly relabel xticks
+        format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
+
+    Returns:
+        matplotlib figure handle if `ax` is None, otherwise updated axis
+    """
+    if ax is None:
+        fig = plt.figure(figsize=(8, 4))
+        ax = fig.gca()
+    else:
+        fig = None
+    spc = 1.1 * abs(latents.max())
+    n_latents = latents.shape[1]
+    plotting_latents = latents + spc * np.arange(n_latents)
     ymin = min(-spc - 1, np.min(plotting_latents))
     ymax = max(spc * n_latents, np.max(plotting_latents))
     ax.imshow(
-        states_trial[None, :],
-        aspect='auto',
-        extent=(0, len(latents_trial), ymin, ymax),
-        cmap='tab20b',
+        states[None, :], aspect='auto', extent=(0, len(latents), ymin, ymax), cmap='tab20b',
         alpha=1.0)
     ax.plot(plotting_latents, '-k', lw=3)
     ax.set_ylim([ymin, ymax])
@@ -730,10 +772,25 @@ def plot_states_overlaid_with_latents(
         if frame_rate is not None:
             ax.set_xticklabels((np.asarray(xtick_locs) / frame_rate).astype('int'))
             ax.set_xlabel('Time (sec)')
-    return ax
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        plt.savefig(save_file + '.' + format, dpi=300, format=format)
+
+    if fig is None:
+        return ax
+    else:
+        return fig
 
 
 def plot_state_transition_matrix(model, deridge=False):
+    """
+    Plot Markov transition matrix for arhmm
+
+    Args:
+        model (ssm object):
+        deridge (bool): remove diagonal to more clearly see dynamic range of off-diagonal entries
+    """
     trans = np.copy(model.transitions.transition_matrix)
     if deridge:
         n_states = trans.shape[0]
@@ -753,6 +810,13 @@ def plot_state_transition_matrix(model, deridge=False):
 
 
 def plot_dynamics_matrices(model, deridge=False):
+    """
+    Plot autoregressive dynamics matrices for arhmm
+
+    Args:
+        model (ssm object):
+        deridge (bool): remove diagonal to more clearly see dynamic range of off-diagonal entries
+    """
     K = model.K
     D = model.D
     n_lags = model.observations.lags
@@ -805,11 +869,16 @@ def plot_dynamics_matrices(model, deridge=False):
 
 
 def plot_obs_biases(model):
-    fig = plt.figure(figsize=(6, 4))
+    """
+    Plot observation bias vectors for arhmm
 
+    Args:
+        model (ssm object)
+    """
+    fig = plt.figure(figsize=(6, 4))
     mats = np.copy(model.observations.bs.T)
     clim = np.max(np.abs(mats))
-    im = plt.imshow(mats, cmap='RdBu_r', clim=[-clim, clim], aspect='auto')
+    plt.imshow(mats, cmap='RdBu_r', clim=[-clim, clim], aspect='auto')
     plt.xlabel('State')
     plt.yticks([])
     plt.ylabel('Observation dimension')
@@ -821,6 +890,12 @@ def plot_obs_biases(model):
 
 
 def plot_obs_covariance_matrices(model):
+    """
+    Plot observation covariance matrices for arhmm
+
+    Args:
+        model (ssm object)
+    """
     K = model.K
     n_cols = int(np.sqrt(K))
     n_rows = int(np.ceil(K / n_cols))
