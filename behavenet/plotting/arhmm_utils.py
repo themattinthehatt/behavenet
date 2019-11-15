@@ -135,9 +135,11 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     return latents, trial_idxs
 
 
-def get_model_latents_states(hparams, version, sess_idx=0, return_samples=0, cond_sampling=False):
+def get_model_latents_states(
+        hparams, version, sess_idx=0, return_samples=0, cond_sampling=False, dtype='test',
+        rng_seed=0):
     """
-    Return arhmm defined in `hparams` with associated latents and states. Can also return generated
+    Return arhmm defined in `hparams` with associated latents and states. Can also return sampled
     latents and states.
 
     Args:
@@ -145,8 +147,10 @@ def get_model_latents_states(hparams, version, sess_idx=0, return_samples=0, con
         version (str or int):
         sess_idx (int, optional): session index into data generator
         return_samples (int, optional): number of trials to sample from model
-        cond_sampling (bool, optional): if True return samples conditioned on discrete states from
-            test trials; if False return unconditioned samples
+        cond_sampling (bool, optional): if True return samples conditioned on most likely state
+            sequence; if False return unconditioned samples
+        dtype (str, optional): trial type to use for conditonal sampling; 'train' | 'val' | 'test'
+        rng_seed (int, optional): control sampling
 
     Returns:
         dict:
@@ -193,15 +197,24 @@ def get_model_latents_states(hparams, version, sess_idx=0, return_samples=0, con
         latents[data_type] = [all_latents['latents'][i_trial] for i_trial in trial_idxs[data_type]]
         states[data_type] = [hmm.most_likely_states(x) for x in latents[data_type]]
 
-    # collect generative latents/states
+    # collect sampled latents/states
     if return_samples > 0:
+        states_gen = []
+        np.random.seed(rng_seed)
         if cond_sampling:
-            # TODO: for i in range(len(latents['test'])):
-            raise NotImplementedError
+            n_latents = latents[dtype][0].shape[1]
+            latents_gen = [np.zeros((len(state_seg), n_latents)) for state_seg in states[dtype]]
+            for i_seg, state_seg in enumerate(states[dtype]):
+                for i_t in range(len(state_seg)):
+                    if i_t >= 1:
+                        latents_gen[i_seg][i_t] = hmm.observations.sample_x(
+                            states[dtype][i_seg][i_t], latents_gen[i_seg][:i_t], input=np.zeros(0))
+                    else:
+                        latents_gen[i_seg][i_t] = hmm.observations.sample_x(
+                            states[dtype][i_seg][i_t],
+                            latents[dtype][i_seg][0].reshape((1, n_latents)), input=np.zeros(0))
         else:
-            states_gen = []
             latents_gen = []
-            np.random.seed(101)
             offset = 200
             for i in range(return_samples):
                 these_states_gen, these_latents_gen = hmm.sample(
@@ -233,7 +246,7 @@ def make_syllable_movies_wrapper(
         hparams (dict):
         save_file (str):
         sess_idx (int, optional): session index into data generator
-        dtype (str, optional): types of trials to make video with; 'train', 'val', 'test'
+        dtype (str, optional): types of trials to make video with; 'train' | 'val' | 'test'
         max_frames (int, optional): maximum number of frames to animate from a trial
         frame_rate (float, optional): frame rate of saved movie
         min_threshold (int, optional): minimum number of frames in a syllable run to be considered
@@ -456,276 +469,216 @@ def make_syllable_movies(
         print('done')
 
 
-def real_vs_generated_samples_wrapper(
-        output, hparams, save_file, sess_idx, dtype='test', conditional=True, max_frames=400,
-        frame_rate=20, n_buffer=5):
-    # if output == 'both' or output == 'movie':
-    #     if conditional:
-    #         make_real_vs_conditionally_generated_movies()
-    #     else:
-    #         make_real_vs_unconditionally_generated_movies()
-    # if output == 'both' or output == 'plot':
-    #     if conditional:
-    #         plot_real_vs_conditionally_generated_samples()
-    #     else:
-    #         plot_real_vs_unconditionally_generated_samples()
-    pass
+def real_vs_sampled_wrapper(
+        output_type, hparams, save_file, sess_idx, dtype='test', conditional=True, max_frames=400,
+        frame_rate=20, n_buffer=5, xtick_locs=None, frame_rate_beh=None, format='png'):
+    """
+    Produce movie with (AE) reconstructed video and sampled video. The sampled video can be
+    completely unconditional (states and latents are sampled) or conditioned on the most likely
+    state sequence.
 
+    Args:
+        output_type (str): 'plot' | 'movie' | 'both'.
+        hparams (dict):
+        save_file (str):
+        sess_idx (int, optional): session index into data generator
+        dtype (str, optional): types of trials to make plot/video with; 'train' | 'val' | 'test'
+        conditional (bool): conditional vs unconditional samples; for reconstruction title
+        max_frames (int, optional): maximum number of frames to plot/animate
+        frame_rate (float, optional): frame rate of saved movie
+        n_buffer (int): number of blank frames between animated trials if more one are needed to
+            reach `max_frames`
+        xtick_locs (array-like, optional): tick locations in bin values for plot
+        frame_rate_beh (float, optional): behavioral video framerate; to properly relabel xticks
+        format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
 
-def make_real_vs_conditionally_generated_movies(
-        filepath, hparams, hmm, latents, states, data_generator, sess_idx=0, n_buffer=5, ptype=0,
-        xtick_locs=None):
-
+    Returns:
+        matplotlib figure handle if `output_type='plot'` or `output_type='both'` else None
+    """
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import get_expt_dir
     from behavenet.fitting.utils import get_session_dir
 
-    plot_n_frames = hparams.get('plot_n_frames', 400)
-    if hparams.get('plot_frame_rate', None) == 'orig':
-        raise NotImplementedError
-    else:
-        plot_frame_rate = hparams.get('plot_frame_rate', 15)
-    n_latents = hparams['n_ae_latents']
-    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[sess_idx][0]['images'].shape
-
-    # Load in AE decoder
-    if hparams.get('ae_model_path', None) is not None:
-        ae_model_file = os.path.join(hparams['ae_model_path'], 'best_val_model.pt')
-        ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'], 'meta_tags.pkl'), 'rb'))
-    else:
-        hparams['session_dir'], sess_ids = get_session_dir(hparams)
-        hparams['expt_dir'] = get_expt_dir(hparams)
-        _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
-        # _, version = experiment_exists(hparams, which_version=True)
-        ae_model_file = os.path.join(os.path.dirname(latents_file), 'best_val_model.pt')
-        ae_arch = pickle.load(open(os.path.join(os.path.dirname(latents_file), 'meta_tags.pkl'), 'rb'))
-        print('loading model from %s' % ae_model_file)
-    ae_model = AE(ae_arch)
-    ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
-    ae_model.eval()
-
-    # Get sampled observations
-    sampled_observations = [np.zeros((len(state_seg), n_latents)) for state_seg in states]
-    for i_seg, state_seg in enumerate(states):
-        for i_t in range(len(state_seg)):
-            if i_t >= 1:
-                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(
-                    states[i_seg][i_t], sampled_observations[i_seg][:i_t], input=np.zeros(0))
-            else:
-                sampled_observations[i_seg][i_t] = hmm.observations.sample_x(
-                    states[i_seg][i_t], latents[i_seg][0].reshape((1, n_latents)), np.zeros(0))
-
-    # Make real vs simulated arrays
-    which_trials = np.arange(0, len(states)).astype('int')
+    # load latents and states (observed and sampled)
+    model_output = get_model_latents_states(
+        hparams, '', sess_idx=sess_idx, return_samples=50, cond_sampling=conditional)
+    which_trials = model_output['trial_idxs'][dtype]
     np.random.shuffle(which_trials)
 
-    # reconstruct observed latents
-    all_recon = np.zeros((0, n_channels*y_dim, x_dim))
-    i_trial = 0
-    while all_recon.shape[0] < plot_n_frames:
+    if output_type == 'both' or output_type == 'movie':
 
-        recon = ae_model.decoding(
-            torch.tensor(latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab'] == 'musall':
-            recon = np.transpose(recon, (0, 1, 3, 2))
-        recon = np.concatenate([recon[:, i] for i in range(recon.shape[1])], axis=1)
+        # load in AE decoder
+        if hparams.get('ae_model_path', None) is not None:
+            ae_model_file = os.path.join(hparams['ae_model_path'], 'best_val_model.pt')
+            ae_arch = pickle.load(
+                open(os.path.join(hparams['ae_model_path'], 'meta_tags.pkl'), 'rb'))
+        else:
+            hparams['session_dir'], sess_ids = get_session_dir(hparams)
+            hparams['expt_dir'] = get_expt_dir(hparams)
+            _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
+            ae_model_file = os.path.join(os.path.dirname(latents_file), 'best_val_model.pt')
+            ae_arch = pickle.load(
+                open(os.path.join(os.path.dirname(latents_file), 'meta_tags.pkl'), 'rb'))
+        print('loading model from %s' % ae_model_file)
+        ae_model = AE(ae_arch)
+        ae_model.load_state_dict(
+            torch.load(ae_model_file, map_location=lambda storage, loc: storage))
+        ae_model.eval()
 
-        # Add a few black frames
-        zero_frames = np.zeros((n_buffer, n_channels*y_dim, x_dim))
+        n_channels = ae_model.hparams['n_input_channels']
+        y_pix = ae_model.hparams['y_pixels']
+        x_pix = ae_model.hparams['x_pixels']
 
-        all_recon = np.concatenate((all_recon, recon, zero_frames), axis=0)
-        i_trial += 1
+        # push observed latents through ae decoder
+        ims_recon = np.zeros((0, n_channels * y_pix, x_pix))
+        i_trial = 0
+        while ims_recon.shape[0] < max_frames:
+            recon = ae_model.decoding(torch.tensor(
+                model_output['latents'][which_trials[i_trial]]), None, None).cpu().detach().numpy()
+            recon = np.concatenate([recon[:, i] for i in range(recon.shape[1])], axis=1)
+            zero_frames = np.zeros((n_buffer, n_channels * y_pix, x_pix))  # add a few black frames
+            ims_recon = np.concatenate((ims_recon, recon, zero_frames), axis=0)
+            i_trial += 1
 
-    # reconstruct sampled latents
-    all_simulated_recon = np.zeros((0, n_channels*y_dim, x_dim))
-    i_trial = 0
-    while all_simulated_recon.shape[0] < plot_n_frames:
+        # push sampled latents through ae decoder
+        ims_recon_samp = np.zeros((0, n_channels * y_pix, x_pix))
+        i_trial = 0
+        while ims_recon_samp.shape[0] < max_frames:
+            recon = ae_model.decoding(torch.tensor(
+                model_output['latents_gen'][which_trials[i_trial]]), None, None).cpu().detach().numpy()
+            recon = np.concatenate([recon[:, i] for i in range(recon.shape[1])], axis=1)
+            zero_frames = np.zeros((n_buffer, n_channels * y_pix, x_pix))  # add a few black frames
+            ims_recon_samp = np.concatenate((ims_recon_samp, recon, zero_frames), axis=0)
+            i_trial += 1
 
-        simulated_recon = ae_model.decoding(
-            torch.tensor(sampled_observations[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab'] == 'musall':
-            simulated_recon = np.transpose(simulated_recon, (0, 1, 3, 2))
-        simulated_recon = np.concatenate([simulated_recon[:, i] for i in range(simulated_recon.shape[1])], axis=1)
+        make_real_vs_sampled_movies(
+            ims_recon, ims_recon_samp, conditional=conditional, save_file=save_file,
+            frame_rate=frame_rate)
 
-        # Add a few black frames
-        zero_frames = np.zeros((n_buffer, n_channels*y_dim, x_dim))
+        return None
 
-        all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames), axis=0)
-        i_trial += 1
+    elif output_type == 'both' or output_type == 'plot':
 
-    # Make overlaid plot
-    which_trial = which_trials[0]
-    trial_len = len(states[which_trial])
-    if ptype == 0:
-        fig, axes = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(10, 10))
-        spc = 3
-        axes[0].imshow(states[which_trial][:trial_len][None,:],
-                       aspect="auto",
-                       extent=(0, trial_len, -spc-1, spc*n_latents),
-                       cmap="jet", alpha=0.5)
-        axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=3)
-        axes[1].imshow(states[which_trial][:trial_len][None, :],
-                       aspect="auto",
-                       extent=(0, trial_len, -spc-1, spc*n_latents),
-                       cmap="jet", alpha=0.5)
-        axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=3)
-        axes[0].set_title('Real Latents',fontsize=20)
-        axes[1].set_title('Simulated Latents',fontsize=20)
-        xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)
-        ylab = fig.text(-0.01, 0.5, 'AE Dimensions', va='center', rotation='vertical',fontsize=20)
-        for i in range(2):
-            axes[i].set_yticks(spc * np.arange(n_latents))
-            axes[i].set_yticklabels(np.arange(n_latents),fontsize=16)
-        fig.tight_layout()
+        latents = model_output['latents'][which_trials[0]][:max_frames]
+        latents_samp = model_output['latents_gen'][which_trials[0]][:max_frames]
+        states = model_output['states'][which_trials[0]][:max_frames]
+        if conditional:
+            states_samp = model_output['states_gen'][which_trials[0]][:max_frames]
+        else:
+            states_samp = []
+
+        fig = plot_real_vs_sampled(
+            latents, latents_samp, states, states_samp, save_file=save_file, xtick_locs=xtick_locs,
+            frame_rate=frame_rate_beh, format=format)
+        return fig
+
     else:
-        fig, axes = plt.subplots(2, 1, figsize=(10, 8))
-        plot_states = states[which_trial][:trial_len]
-        plot_latents = latents[which_trial][:trial_len]
-        plot_obs = sampled_observations[which_trial][:trial_len]
-
-        axes[0] = plot_states_overlaid_with_latents(
-            plot_latents, plot_states,
-            ax=axes[0], xtick_locs=xtick_locs, frame_rate=hparams.get('frame_rate', None))
-        axes[0].set_xticks([])
-        axes[0].set_xlabel('')
-        axes[0].set_title('Inferred latents')
-
-        axes[1] = plot_states_overlaid_with_latents(
-            plot_obs, plot_states,
-            ax=axes[1], xtick_locs=xtick_locs, frame_rate=hparams.get('frame_rate', None))
-        axes[1].set_title('Generated latents')
-
-    save_file = os.path.join(
-        filepath, 'real_vs_generated_latents_' + get_model_str(hparams) + '.png')
-    fig.savefig(save_file, dpi=200)
+        raise ValueError('"%s" is an invalid output_type' % output_type)
 
 
-def plot_real_vs_conditionally_generated_samples():
-    pass
+def make_real_vs_sampled_movies(
+        ims_recon, ims_recon_samp, conditional, save_file=None, frame_rate=15):
+    """
+    Produce movie with (AE) reconstructed video and sampled video.
 
+    Args:
+        ims_recon (np.ndarray): (n_frames, y_pix, x_pix)
+        ims_recon_samp (np.ndarray): (n_frames, y_pix, x_pix)
+        conditional (bool): conditional vs unconditional samples; for reconstruction title
+        save_file (str, optional):
+        frame_rate (float, optional): frame rate of saved movie
+    """
 
-def make_real_vs_unconditionally_generated_movies(
-        filepath, hparams, real_latents, generated_latents, data_generator, trial_idxs, n_buffer=5):
+    n_frames = ims_recon.shape[0]
 
-    plot_n_frames = hparams['plot_n_frames']
-    if hparams['plot_frame_rate'] == 'orig':
-        raise NotImplementedError
-    else:
-        plot_frame_rate = hparams['plot_frame_rate']
-
-    n_latents = hparams['n_ae_latents']
-    [bs, n_channels, y_dim, x_dim] = data_generator.datasets[0][0]['images'].shape
-
-
-    ## Load in AE decoder
-    ae_model_file = os.path.join(hparams['ae_model_path'],'best_val_model.pt')
-    print(ae_model_file)
-    ae_arch = pickle.load(open(os.path.join(hparams['ae_model_path'],'meta_tags.pkl'),'rb'))
-    ae_model = AE(ae_arch)
-    ae_model.load_state_dict(torch.load(ae_model_file, map_location=lambda storage, loc: storage))
-    ae_model.eval()
-
-
-    # Make original videos vs real recons vs simulated recons arrays
-    #which_trials = np.arange(0,len(real_latents)).astype('int')
-    #np.random.shuffle(which_trials)
-    if hparams['lab_example']=='steinmetz-face':
-        print('steinmetz-face')
-        which_trials = np.asarray([4,9])
-    elif hparams['lab_example']=='steinmetz':
-        print('steinmetz')
-        which_trials = np.asarray([4,9])
-    else:
-        which_trials = np.arange(0,len(real_latents)).astype('int')
-        np.random.shuffle(which_trials)  
-    all_orig = np.zeros((0,n_channels*y_dim,x_dim))
-    i_trial=0
-    while all_orig.shape[0] < plot_n_frames:
-
-        orig = data_generator.datasets[0][trial_idxs[which_trials[i_trial]]]['images'].cpu().detach().numpy()
-        #recon = ae_model.decoding(torch.tensor(latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab']=='musall':
-            orig = np.transpose(orig,(0,1,3,2))
-        orig = np.concatenate([orig[:,i] for i in range(orig.shape[1])],axis=1)
-
-        # Add a few black frames
-        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
-
-        all_orig = np.concatenate((all_orig,orig,zero_frames),axis=0)
-        i_trial+=1
-
-
-    all_recon = np.zeros((0,n_channels*y_dim,x_dim))
-    i_trial=0
-    while all_recon.shape[0] < plot_n_frames:
-
-        recon = ae_model.decoding(torch.tensor(real_latents[which_trials[i_trial]]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab']=='musall':
-            recon = np.transpose(recon,(0,1,3,2))
-        recon = np.concatenate([recon[:,i] for i in range(recon.shape[1])],axis=1)
-
-        # Add a few black frames
-        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
-
-        all_recon = np.concatenate((all_recon,recon,zero_frames),axis=0)
-        i_trial+=1
-
-
-    all_simulated_recon = np.zeros((0,n_channels*y_dim,x_dim))
-    i_trial=0
-    while all_simulated_recon.shape[0] < plot_n_frames:
-
-        simulated_recon = ae_model.decoding(torch.tensor(generated_latents[i_trial]).float(), None, None).cpu().detach().numpy()
-        if hparams['lab']=='musall':
-            simulated_recon = np.transpose(simulated_recon,(0,1,3,2))
-        simulated_recon = np.concatenate([simulated_recon[:,i] for i in range(simulated_recon.shape[1])],axis=1)
-
-        # Add a few black frames
-        zero_frames = np.zeros((n_buffer,n_channels*y_dim,x_dim))
-
-        all_simulated_recon = np.concatenate((all_simulated_recon,simulated_recon,zero_frames),axis=0)
-        i_trial+=1
-
-
-    # Make videos
-    plt.clf()
-    fig_dim_div = x_dim*3/10 # aiming for dim 1 being 10
-    fig, axes = plt.subplots(1,3,figsize=(x_dim*3/fig_dim_div,y_dim*n_channels/fig_dim_div))
+    n_plots = 2
+    [n_channels, y_pix, x_pix] = ims_recon[0].shape
+    fig_dim_div = x_pix * n_plots / 10  # aiming for dim 1 being 10
+    x_dim = x_pix * n_plots / fig_dim_div
+    y_dim = y_pix * n_channels / fig_dim_div
+    fig, axes = plt.subplots(1, n_plots, figsize=(x_dim, y_dim))
 
     for j in range(3):
         axes[j].set_xticks([])
         axes[j].set_yticks([])
 
-    axes[0].set_title('Original Frames',fontsize=16)
-    axes[1].set_title('Real Reconstructions',fontsize=16)
-    axes[2].set_title('Generative Reconstructions',fontsize=16)
+    axes[0].set_title('Real Reconstructions\n', fontsize=16)
+    if conditional:
+        title_str = 'Generative Reconstructions\n(Conditional)'
+    else:
+        title_str = 'Generative Reconstructions\n(Unconditional)'
+    axes[1].set_title(title_str, fontsize=16)
     fig.tight_layout(pad=0)
 
+    im_kwargs = {'cmap': 'gray', 'vmin': 0, 'vmax': 1, 'animated': True}
     ims = []
-    for i in range(plot_n_frames):
-
+    for i in range(n_frames):
         ims_curr = []
-
-        im = axes[0].imshow(all_orig[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        im = axes[0].imshow(ims_recon[i], **im_kwargs)
         ims_curr.append(im)
-
-        im = axes[1].imshow(all_recon[i],cmap='gray',vmin=0,vmax=1,animated=True)
+        im = axes[1].imshow(ims_recon_samp[i], **im_kwargs)
         ims_curr.append(im)
-
-        im = axes[2].imshow(all_simulated_recon[i],cmap='gray',vmin=0,vmax=1,animated=True)
-        ims_curr.append(im)
-
         ims.append(ims_curr)
 
-    ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
-    writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    save_file = os.path.join(filepath, hparams['dataset_name']+'_real_vs_nonconditioned_generated_K_'+str(hparams['n_arhmm_states'])+'_kappa_'+str(hparams['kappa'])+'_noise_'+hparams['noise_type']+'_nlags_'+str(hparams['n_lags'])+'.mp4')
-    make_dir_if_not_exists(save_file)
-    ani.save(save_file, writer=writer)
+    ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
+    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        if save_file[-3:] != 'mp4':
+            save_file += '.mp4'
+        print('saving video to %s...' % save_file, end='')
+        ani.save(save_file, writer=writer)
+        print('done')
 
 
-def plot_real_vs_unconditionally_generated_samples():
-    pass
+def plot_real_vs_sampled(
+        latents, latents_samp, states, states_samp, save_file=None, xtick_locs=None,
+        frame_rate=None, format='png'):
+    """
+    Plot real and sampled latents overlaying real and potentially sampled states. If the latent
+    samples are conditioned on inferred (rather than sampled) states, `states_samp` should empty.
+
+    Args:
+        latents (np.ndarray): (n_frames, n_latents)
+        latents_samp (np.ndarray): (n_frames, n_latents)
+        states (np.ndarray): (n_frames,)
+        states_samp (np.ndarray): (n_frames,) if `latents_samp` are not conditioned on `states`,
+            otherwise (0,)
+        save_file (str, optional):
+        xtick_locs (array-like, optional): tick locations in bin values
+        frame_rate (float, optional): behavioral video framerate; to properly relabel xticks
+        format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
+
+    Returns:
+        matplotlib figure handle
+    """
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8))
+
+    # plot observations
+    axes[0] = plot_states_overlaid_with_latents(
+        latents, states, ax=axes[0], xtick_locs=xtick_locs, frame_rate=frame_rate)
+    axes[0].set_xticks([])
+    axes[0].set_xlabel('')
+    axes[0].set_title('Inferred latents')
+
+    # plot samples
+    if len(states_samp) == 0:
+        plot_states = states
+        title_str = 'Sampled latents'
+    else:
+        plot_states = states_samp
+        title_str = 'Sampled states and latents'
+    axes[1] = plot_states_overlaid_with_latents(
+        latents_samp, plot_states, ax=axes[1], xtick_locs=xtick_locs, frame_rate=frame_rate)
+    axes[1].set_title(title_str)
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        plt.savefig(save_file + '.' + format, dpi=300, format=format)
+
+    return fig
 
 
 def plot_states_overlaid_with_latents(
