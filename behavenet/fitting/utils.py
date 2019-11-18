@@ -235,13 +235,13 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             session_dir, _ = get_output_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
-    elif model_class == 'arhmm-decoding':
+    elif model_class == 'bayesian-decoding':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
-            'arhmm-decoding', '%02i_latents' % hparams['n_ae_latents'],
+            'bayesian-decoding', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
-        session_dir = hparams['session_dir']
+        session_dir, _ = get_output_session_dir(hparams)
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
     expt_dir = os.path.join(session_dir, model_path, expt_name)
@@ -395,9 +395,17 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
             meta_tags = pickle.load(f)
         if not meta_tags['training_completed']:
             continue
-        # read metrics csv file
+        # try:
+        #     if meta_tags['n_lags']==16 or meta_tags['n_lags']==12:
+        #         continue
+        # except:
+        #     pass
+
         try:
+
+            # read metrics csv file
             metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
+
             # ugly hack for now
             if model_path.find('arhmm') > -1 and model_path.find('neural') < 0:
                 # throw error if not correct number of lags
@@ -409,11 +417,13 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
                         raise Exception
         except:
             continue
+
         # get validation loss of best model
         if best_def == 'min':
             val_loss = metric[measure].min()
         elif best_def == 'max':
             val_loss = metric[measure].max()
+
         metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
     # put everything in pandas dataframe
     metrics_df = pd.concat(metrics, sort=False)
@@ -484,7 +494,7 @@ def experiment_exists(hparams, which_version=False):
     hparams_less.pop('plot_n_frames', None)
     hparams_less.pop('plot_frame_rate', None)
     hparams_less.pop('ae_multisession', None)
-
+    hparams_less.pop('best_version', None)
     found_match = False
     version = None
     for version in tt_versions:
@@ -681,6 +691,7 @@ def create_tt_experiment(hparams):
 
     # get session_dir
     hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+
     if not os.path.isdir(hparams['session_dir']):
         os.makedirs(hparams['session_dir'])
         export_session_info_to_csv(hparams['session_dir'], sess_ids)
