@@ -31,6 +31,9 @@ def main(hparams):
     print('\nexperiment parameters:')
     print(hparams)
 
+    if hparams['model_type'] == 'ff':
+        hparams['n_final_units'] = hparams['n_int_units']
+
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
@@ -59,12 +62,14 @@ def main(hparams):
         raise ValueError('%s is an invalid model class' % hparams['model_class'])
 
     if hparams['model_class'] == 'neural-arhmm' or hparams['model_class'] == 'arhmm-neural':
-         hparams['arhmm_model_path'] = os.path.dirname(data_generator.datasets[0].paths['arhmm_states'])
+         hparams['arhmm_model_path'] = data_generator.datasets[0].paths['arhmm_states']
+    if hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'ae-neural':
+         hparams['ae_model_path'] = data_generator.datasets[0].paths['ae_latents']
 
     # ####################
     # ### CREATE MODEL ###
     # ####################
-
+    print(hparams['input_size'])
     print('constructing model...', end='')
     torch_rnd_seed = torch.get_rng_state()
     hparams['model_build_rnd_seed'] = torch_rnd_seed
@@ -171,7 +176,8 @@ def get_decoding_params(namespace, parser):
         # arhmm arguments
         # TODO: add ae_experiment_name/model_type/model_class to arhmm ids?
         parser.add_argument('--arhmm_experiment_name', type=str)
-        parser.add_argument('--n_arhmm_states', default=12, type=int)
+        parser.opt_list('--n_arhmm_states', default=12, options=[2, 4, 8, 16], type=int, tunable=False)
+       # parser.add_argument('--n_arhmm_states', default=12, type=int)
         parser.add_argument('--kappa', default=1e+06, type=float)
         parser.add_argument('--noise_type', default='gaussian', type=str)
         parser.add_argument('--arhmm_version', default='best')
@@ -228,8 +234,8 @@ def get_decoding_params(namespace, parser):
     elif namespace.search_type == 'test':
 
         parser.add_argument('--learning_rate', default=1e-3, type=float)
-        parser.add_argument('--n_lags', default=4, type=int)
-        parser.add_argument('--l2_reg', default=1e-3, type=float)
+        parser.opt_list('--n_lags', default=8, options=[8], type=int, tunable=True)
+        parser.opt_list('--l2_reg', default=1e-3, options=[0, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         parser.add_argument('--n_max_lags', default=8, help='should match largest value in --n_lags options')
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
@@ -303,26 +309,28 @@ def get_decoding_params(namespace, parser):
 
     elif namespace.search_type == 'grid_search':
 
-        # first-pass params
-        # parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=True)
+        # first-pssass params
+        parser.opt_list('--learning_rate', default=1e-3, options=[1e-2, 1e-3, 1e-4], type=float, tunable=False)
         # parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
         # parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2, 1e-1], type=float, tunable=True)
         # regular for decoding ae latents
-        parser.add_argument('--learning_rate', default=1e-3, type=float)
-        parser.opt_list('--n_lags', default=0, options=[0, 1, 2, 4, 8], type=int, tunable=True)
-        parser.opt_list('--l2_reg', default=0, options=[1e-5, 1e-4, 1e-3, 1e-2], type=float, tunable=True)
-        parser.add_argument('--n_max_lags', default=8)  # should match largest n_lags value
+        #parser.add_argument('--learning_rate', default=1e-3, type=float)
+        parser.opt_list('--n_lags', default=0, options=[0, 2, 4, 8, 12, 16, 20, 24], type=int, tunable=True) #, 12, 16, 20, 24
+        parser.opt_list('--l2_reg', default=0, options=[1e-4, 1e-3, 1e-2], type=float, tunable=True)
+        parser.add_argument('--n_max_lags', default=24)  # should match largest n_lags value
         parser.add_argument('--export_predictions', action='store_true', default=False, help='export predictions for each decoder')
         parser.add_argument('--export_predictions_best', action='store_true', default=False, help='export predictions best decoder in experiment')
         parser.add_argument('--experiment_name', default='grid_search', type=str)
         parser.add_argument('--shuffle_rng_seed', default=None, type=int)
 
+
         if namespace.model_type == 'linear' or namespace.model_type == 'linear-mv':
             parser.add_argument('--n_hid_layers', default=0, type=int)
         elif namespace.model_type == 'ff' or namespace.model_type == 'ff-mv':
-            parser.opt_list('--n_hid_layers', default=1, options=[1, 2, 3, 4], type=int, tunable=True)
-            parser.opt_list('--n_final_units', default=64, options=[64], type=int, tunable=True)
-            parser.add_argument('--n_int_units', default=64, type=int)
+            parser.opt_list('--n_hid_layers', default=1, options=[1, 3, 5], type=int, tunable=True)
+            parser.opt_list('--n_final_units', default=-1, options=[16, 32, 64, 128], type=int, tunable=False)
+           # parser.add_argument('--n_int_units', default=64, type=int)
+            parser.opt_list('--n_int_units', default=64, options=[32, 64, 128], type=int, tunable=True)
         elif namespace.model_type == 'lstm':
             raise NotImplementedError
         else:
@@ -335,8 +343,11 @@ def get_decoding_params(namespace, parser):
 if __name__ == '__main__':
 
     hyperparams = get_params('grid_search')
-
-    t = time.time()
+    for hyperparam_trial in hyperparams.trials(10000):
+        #print(hyperparam_trial)
+        main(hyperparam_trial)
+        #export_predictions_best(vars(hyperparam_trial))
+    # t = time.time()
     # if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
     #     if hyperparams.device == 'gpu':
     #         hyperparams.device = 'cuda'
@@ -351,8 +362,8 @@ if __name__ == '__main__':
     #         main,
     #         nb_trials=hyperparams.tt_n_cpu_trials,
     #         nb_workers=hyperparams.tt_n_cpu_workers)
-    main(hyperparams)
-    print('Total fit time: {} sec'.format(time.time() - t))
-    if hyperparams.export_predictions_best \
-            and hyperparams.subsample_regions == 'none':
-        export_predictions_best(vars(hyperparams))
+    # main(hyperparams)
+    # print('Total fit time: {} sec'.format(time.time() - t))
+    # if hyperparams.export_predictions_best \
+    #         and hyperparams.subsample_regions == 'none':
+    #     export_predictions_best(vars(hyperparams))
