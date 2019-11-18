@@ -7,11 +7,13 @@ import torch
 from test_tube import HyperOptArgumentParser
 
 from behavenet.fitting.eval import export_latents_best
+from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_best_model_version
 from behavenet.fitting.utils import get_output_session_dir
+from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.ae_model_architecture_generator import draw_archs
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
@@ -79,6 +81,16 @@ def main(hparams):
 
     fit(hparams, model, data_generator, exp, method='ae')
 
+    # export training plots
+    if hparams['export_train_plots']:
+        print('creating training plots...', end='')
+        version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+        save_file = os.path.join(version_dir, 'loss_training')
+        export_train_plots(hparams, 'train', save_file=save_file)
+        save_file = os.path.join(version_dir, 'loss_validation')
+        export_train_plots(hparams, 'val', save_file=save_file)
+        print('done')
+
     # update hparams upon successful training
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
@@ -93,8 +105,8 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', choices=['latent_search', 'test'], type=str)
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
-    parser.add_argument('--tt_save_path', type=str)
-    parser.add_argument('--data_dir', type=str)
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', type=str, choices=['conv', 'linear'])
     parser.add_argument('--model_class', default='ae', choices=['ae', 'vae'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
@@ -111,10 +123,13 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=False)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--train_frac', default=1.0, type=float)
 
     # add fitting arguments
     parser.add_argument('--val_check_interval', default=1)
     parser.add_argument('--l2_reg', default=0)
+
+    parser.add_argument('--export_train_plots', action='store_true', default=False)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()

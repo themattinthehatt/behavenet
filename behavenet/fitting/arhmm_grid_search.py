@@ -11,6 +11,7 @@ from behavenet.fitting.eval import export_states
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.analyses.arhmm_utils import get_latent_arrays_by_dtype
 from behavenet.analyses.arhmm_utils import make_ind_arhmm_figures
@@ -43,15 +44,15 @@ def main(hparams):
     # ### CREATE MODEL ###
     # ####################
 
-    hparams['ae_model_path'] = os.path.join(
-        os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
-
     # Get all latents in list
     print('collecting observations from data generator...', end='')
     latents, trial_idxs = get_latent_arrays_by_dtype(
         hparams, data_generator, sess_idxs=list(range(len(data_generator))))
     hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
     print('done')
+
+    hparams['ae_model_path'] = os.path.join(
+        os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
 
     # collect model constructor inputs
     if hparams['noise_type'] == 'gaussian':
@@ -152,8 +153,8 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
-    parser.add_argument('--tt_save_path', type=str)
-    parser.add_argument('--data_dir', type=str)
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_type', default=None, type=str)
     parser.add_argument('--model_class', default='arhmm', choices=['arhmm'], type=str)
     parser.add_argument('--sessions_csv', default='', type=str, help='specify multiple sessions')
@@ -170,6 +171,7 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int, help='control data splits')  # TODO: add `_data` to var name
+    parser.add_argument('--train_frac', default=1.0, type=float)
 
     # get lab-specific arguments
     namespace, extra = parser.parse_known_args()
@@ -217,7 +219,7 @@ def get_arhmm_params(namespace, parser):
         parser.add_argument('--train_percent', default=1.0, type=float)
         parser.add_argument('--n_ae_latents', default=8, type=int)
         # parser.opt_list('--n_ae_latents', default=12, options=[4, 8, 16], type=int, tunable=True)
-        parser.opt_list('--n_arhmm_states', default=16, options=[2, 4, 8, 12, 16, 24, 32], type=int, tunable=True)
+        parser.opt_list('--n_arhmm_states', default=16, options=[2, 4, 8, 16, 32], type=int, tunable=True)
         parser.opt_list('--kappa', default=0, options=[1e2, 1e4, 1e6, 1e8, 1e10], type=int, tunable=False)
         parser.opt_list('--noise_type', default='gaussian', options=['gaussian', 'studentst'], type=str, tunable=False)
         parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')

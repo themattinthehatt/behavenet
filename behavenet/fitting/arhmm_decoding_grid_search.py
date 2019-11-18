@@ -1,13 +1,19 @@
 import pickle
 import torch.nn.functional as F
 import torch
-from behavenet.fitting.utils import build_data_generator, create_tt_experiment
-from behavenet.fitting.utils import add_lab_defaults_to_parser, get_output_session_dir, get_expt_dir
 from pylds.lds_messages_interface import info_E_step, info_sample, filter_and_sample, E_step, kalman_filter
 from test_tube import HyperOptArgumentParser
+
 import os
 import numpy as np
 import time
+
+from behavenet.fitting.utils import build_data_generator
+from behavenet.fitting.utils import create_tt_experiment
+from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import get_expt_dir
+from behavenet.fitting.utils import get_user_dir
+
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.fitting.utils import export_hparams
 from ssm.primitives import hmm_expected_states, hmm_sample, viterbi
@@ -443,9 +449,11 @@ def get_params(strategy):
     # most important arguments
     parser.add_argument('--search_type', type=str)  # grid_search, test
     parser.add_argument('--lab_example', type=str)  # musall, steinmetz, markowitz
-    parser.add_argument('--tt_save_path', '-t', type=str)
-    parser.add_argument('--data_dir', '-d', type=str)
+
+    parser.add_argument('--tt_save_path', default=get_user_dir('save'), type=str)
+    parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_class', default='bayesian-decoding', type=str)
+
     parser.add_argument('--model_type', default=None, type=str)
 
     # arguments for computing resources (n_gpu_workers inferred from visible gpus)
@@ -462,6 +470,7 @@ def get_params(strategy):
     parser.add_argument('--as_numpy', action='store_true', default=True)
     parser.add_argument('--batch_load', action='store_true', default=True)
     parser.add_argument('--rng_seed', default=0, type=int)
+    parser.add_argument('--train_frac', default=1.0, type=float)
 
     # add fitting arguments
     parser.add_argument('--val_check_interval', default=1)

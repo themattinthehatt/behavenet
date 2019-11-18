@@ -285,7 +285,7 @@ def get_latent_arrays_by_dtype(hparams, data_generator, sess_idxs=0):
             else:
                 trial_idxs[data_type] = dataset.batch_indxs[data_type]
             latents[data_type] += [dataset[i_trial]['ae_latents'][:].cpu().detach().numpy()
-                                  for i_trial in trial_idxs[data_type]]
+                                   for i_trial in trial_idxs[data_type]]
     return latents, trial_idxs
 
 
@@ -303,6 +303,9 @@ def get_model_latents_states(hparams, version, sess_idx=0, generated=False):
         version = get_best_model_version(hparams['expt_dir'], measure='val_ll', best_def='max')[0]
     else:
         _, version = experiment_exists(hparams, which_version=True)
+    if version is None:
+        raise FileNotFoundError(
+            'Could not find the specified model version in %s' % hparams['expt_dir'])
     # load model
     model_file = os.path.join(hparams['expt_dir'], version, 'best_val_model.pt')
     with open(model_file, 'rb') as f:
@@ -606,12 +609,12 @@ def make_real_vs_generated_movies(
                        aspect="auto",
                        extent=(0, trial_len, -spc-1, spc*n_latents),
                        cmap="jet", alpha=0.5)
-        axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
+        axes[0].plot(latents[which_trial] + spc * np.arange(n_latents), '-k', lw=3)
         axes[1].imshow(states[which_trial][:trial_len][None, :],
                        aspect="auto",
                        extent=(0, trial_len, -spc-1, spc*n_latents),
                        cmap="jet", alpha=0.5)
-        axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=1)
+        axes[1].plot(sampled_observations[which_trial] + spc * np.arange(n_latents), '-k', lw=3)
         axes[0].set_title('Real Latents',fontsize=20)
         axes[1].set_title('Simulated Latents',fontsize=20)
         xlab = fig.text(0.5, -0.01, 'Time (frames)', ha='center',fontsize=20)
@@ -643,38 +646,38 @@ def make_real_vs_generated_movies(
     fig.savefig(save_file, dpi=200)
 
     # Make videos
-    plt.clf()
-    fig_dim_div = x_dim*2/10 # aiming for dim 1 being 10
-    fig, axes = plt.subplots(1,2,figsize=(x_dim*2/fig_dim_div,y_dim*n_channels/fig_dim_div))
-
-    for j in range(2):
-        axes[j].set_xticks([])
-        axes[j].set_yticks([])
-
-    axes[0].set_title('Real Reconstructions', fontsize=16)
-    axes[1].set_title('Generative Reconstructions', fontsize=16)
-    fig.tight_layout(pad=0)
-
-    im_kwargs = {'cmap': 'gray', 'vmin': 0, 'vmax': 1, 'animated': True}
-    ims = []
-    for i in range(plot_n_frames):
-
-        ims_curr = []
-
-        im = axes[0].imshow(all_recon[i], **im_kwargs)
-        ims_curr.append(im)
-
-        im = axes[1].imshow(all_simulated_recon[i], **im_kwargs)
-        ims_curr.append(im)
-
-        ims.append(ims_curr)
-
-    ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
-    writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
-    save_file = os.path.join(
-        filepath, 'real_vs_generated_' + get_model_str(hparams) + '.mp4')
-    make_dir_if_not_exists(save_file)
-    ani.save(save_file, writer=writer)
+    # plt.clf()
+    # fig_dim_div = x_dim*2/10 # aiming for dim 1 being 10
+    # fig, axes = plt.subplots(1,2,figsize=(x_dim*2/fig_dim_div,y_dim*n_channels/fig_dim_div))
+    #
+    # for j in range(2):
+    #     axes[j].set_xticks([])
+    #     axes[j].set_yticks([])
+    #
+    # axes[0].set_title('Real Reconstructions', fontsize=16)
+    # axes[1].set_title('Generative Reconstructions', fontsize=16)
+    # fig.tight_layout(pad=0)
+    #
+    # im_kwargs = {'cmap': 'gray', 'vmin': 0, 'vmax': 1, 'animated': True}
+    # ims = []
+    # for i in range(plot_n_frames):
+    #
+    #     ims_curr = []
+    #
+    #     im = axes[0].imshow(all_recon[i], **im_kwargs)
+    #     ims_curr.append(im)
+    #
+    #     im = axes[1].imshow(all_simulated_recon[i], **im_kwargs)
+    #     ims_curr.append(im)
+    #
+    #     ims.append(ims_curr)
+    #
+    # ani = animation.ArtistAnimation(fig, ims, interval=20, blit=True, repeat=False)
+    # writer = FFMpegWriter(fps=plot_frame_rate, metadata=dict(artist='mrw'))
+    # save_file = os.path.join(
+    #     filepath, 'real_vs_generated_' + get_model_str(hparams) + '.mp4')
+    # make_dir_if_not_exists(save_file)
+    # ani.save(save_file, writer=writer)
 
 
 def make_real_vs_nonconditioned_generated_movies(
@@ -803,7 +806,7 @@ def plot_segmentations_by_trial(
 
     from matplotlib.lines import Line2D
 
-    colors = ['b', 'k', 'g', 'b']
+    colors = ['r', 'k', 'g', 'b']
     if trial_info_dict is not None:
         line_kwargs = {'ymin': 0, 'ymax': 1, 'linewidth': 6, 'clip_on': False, 'alpha': 1}
 
@@ -816,7 +819,7 @@ def plot_segmentations_by_trial(
         axes = plt.subplot(gs_bottom_left[i_trial, 0])
         axes.imshow(
             states[i_trial][None, :], aspect='auto',
-            extent=(0, len(states[i_trial]), 0, 1), cmap=cmap, alpha=0.9)
+            extent=(0, len(states[i_trial]), 0, 1), cmap=cmap) #, alpha=0.9)
         if trial_info_dict is not None:
             i = 0
             for key, val in trial_info_dict.items():
@@ -867,8 +870,8 @@ def plot_states_overlaid_with_latents(
         aspect='auto',
         extent=(0, len(latents_trial), ymin, ymax),
         cmap='tab20b',
-        alpha=0.8)
-    ax.plot(plotting_latents, '-k', lw=1)
+        alpha=1.0)
+    ax.plot(plotting_latents, '-k', lw=3)
     ax.set_ylim([ymin, ymax])
     #     yticks = spc * np.arange(n_latents)
     #     ax.set_yticks(yticks[::2])

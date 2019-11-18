@@ -12,6 +12,36 @@ def get_subdirs(path):
         raise StopIteration('%s does not contain any subdirectories' % path)
 
 
+def get_user_dir(type):
+    """
+    Get a directory from user-defined `directories` json file
+
+    Args:
+        type (str): 'data' | 'save' | 'fig'
+
+    Returns:
+        (str): absolute path for requested directory
+    """
+    import json
+    from behavenet import get_params_dir
+    dirs_file = os.path.join(get_params_dir(), '.behavenet', 'directories')
+    with open(dirs_file, 'r') as f:
+        dirs = json.load(f)
+    return dirs[str('%s_dir' % type)]
+
+
+def get_data_dir():
+    return get_user_dir('data')
+
+
+def get_save_dir():
+    return get_user_dir('save')
+
+
+def get_fig_dir():
+    return get_user_dir('fig')
+
+
 def get_output_session_dir(hparams, path_type='save'):
     """
     Get session-level directory for saving model outputs.
@@ -386,7 +416,6 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
 
     # gather all versions
     versions = get_subdirs(model_path)
-
     # load csv files with model metrics (saved out from test tube)
     metrics = []
     for i, version in enumerate(versions):
@@ -495,6 +524,9 @@ def experiment_exists(hparams, which_version=False):
     hparams_less.pop('plot_frame_rate', None)
     hparams_less.pop('ae_multisession', None)
     hparams_less.pop('best_version', None)
+    # hparams_less.pop('session_dir', None)
+    # hparams_less.pop('expt_dir', None)
+
     found_match = False
     version = None
     for version in tt_versions:
@@ -745,7 +777,7 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
         hparams['data_dir'], sess_ids,
         signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'], batch_load=hparams['batch_load'],
-        rng_seed=hparams['rng_seed'], trial_splits=trial_splits)
+        rng_seed=hparams['rng_seed'], trial_splits=trial_splits, train_frac=hparams['train_frac'])
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(
