@@ -730,6 +730,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
         (tuple): (model, data generator)
     """
 
+    import torch
     from behavenet.data.data_generator import ConcatSessionsGenerator
 
     # get session_dir
@@ -774,7 +775,8 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
             hparams_new['data_dir'], sess_ids,
             signals_list=signals, transforms_list=transforms, paths_list=paths,
             device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
-            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed'], **data_kwargs)
+            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed_data'],
+            **data_kwargs)
     else:
         data_generator = None
 
