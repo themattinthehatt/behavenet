@@ -105,7 +105,7 @@ def get_params(strategy):
 
     # most important arguments
     parser.add_argument('--search_type', choices=['latent_search', 'test'], type=str)
-    parser.add_argument('--lab_example', type=str)  # musall, steinmetz, datta
+    parser.add_argument('--lab_example', default='none', type=str)  # musall, steinmetz, datta
     parser.add_argument('--save_dir', default=get_user_dir('save'), type=str)
     parser.add_argument('--data_dir', default=get_user_dir('data'), type=str)
     parser.add_argument('--model_class', default='ae', choices=['ae', 'vae'], type=str)
@@ -246,7 +246,6 @@ def get_conv_params(namespace, parser):
         raise ValueError('"%s" is not a valid search type' % namespace.search_type)
 
     namespace, extra = parser.parse_known_args()
-    print(namespace)
 
     # Load in file of architectures
     if namespace.search_type == 'test':

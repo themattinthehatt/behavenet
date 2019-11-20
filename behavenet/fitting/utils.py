@@ -791,7 +791,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
 
 
 # TODO: delete
-def add_lab_defaults_to_parser(parser, lab=None):
+def add_lab_defaults_to_parser(parser, lab='none'):
 
     if lab == 'musall':
         parser.add_argument('--n_input_channels', default=2, help='list of n_channels', type=int)
@@ -857,6 +857,7 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     else:
+        print('here')
         parser.add_argument('--n_input_channels', help='list of n_channels', type=int)
         parser.add_argument('--x_pixels', help='number of pixels in x dimension', type=int)
         parser.add_argument('--y_pixels', help='number of pixels in y dimension', type=int)
