@@ -127,6 +127,7 @@ def get_params(strategy):
     parser.add_argument('--train_frac', default=1.0, type=float)
 
     # add fitting arguments
+    parser.add_argument('--rng_seed_model', default=0, type=int, help='control model initialization')
     parser.add_argument('--val_check_interval', default=1)
     parser.add_argument('--l2_reg', default=0)
 
