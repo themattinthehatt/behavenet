@@ -101,34 +101,34 @@ def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
     return arch
 
 
-def calculate_output_dim(input_dim,kernel,stride,padding_type, layer_type):
+def calculate_output_dim(input_dim, kernel, stride, padding_type, layer_type):
     # inspired by:
     # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/common_shape_fns.cc#L21
     # https://github.com/pytorch/pytorch/issues/3867
     
     if layer_type == 'conv':
 
-        if padding_type=='same':
+        if padding_type == 'same':
             output_dim = (input_dim+stride-1)//stride
-            total_padding_needed = max(0,(output_dim-1)*stride+kernel-input_dim)
-            before_pad = total_padding_needed//2
-            after_pad = total_padding_needed-before_pad
-        elif padding_type=='valid':
-            output_dim = int(np.floor((input_dim-kernel)/stride+1))
+            total_padding_needed = max(0, (output_dim - 1) * stride + kernel - input_dim)
+            before_pad = total_padding_needed // 2
+            after_pad = total_padding_needed - before_pad
+        elif padding_type == 'valid':
+            output_dim = int(np.floor((input_dim - kernel) / stride + 1))
             before_pad = 0 
             after_pad = 0
 
     elif layer_type == 'maxpool':
        
-        if kernel!=2:
+        if kernel != 2:
             raise NotImplementedError
 
-        if padding_type=='same':
-            output_dim = int(np.ceil((input_dim-kernel)/stride+1))
-            before_pad=0
-            after_pad=0
-        elif padding_type=='valid':
-            output_dim = int(np.floor((input_dim-kernel)/stride+1))
+        if padding_type == 'same':
+            output_dim = int(np.ceil((input_dim - kernel) / stride + 1))
+            before_pad = 0
+            after_pad = 0
+        elif padding_type == 'valid':
+            output_dim = int(np.floor((input_dim - kernel) / stride + 1))
             before_pad = 0
             after_pad = 0   
 

@@ -857,16 +857,15 @@ def add_lab_defaults_to_parser(parser, lab=None):
         parser.add_argument('--neural_bin_size', default=None, help='ms')
         parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
     else:
-        raise NotImplementedError
-        # parser.add_argument('--n_input_channels', help='list of n_channels', type=int)
-        # parser.add_argument('--x_pixels', help='number of pixels in x dimension', type=int)
-        # parser.add_argument('--y_pixels', help='number of pixels in y dimension', type=int)
-        # parser.add_argument('--use_output_mask', default=False, action='store_true')
-        # parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        # parser.add_argument('--lab', type=str)
-        # parser.add_argument('--expt', type=str)
-        # parser.add_argument('--animal', type=str)
-        # parser.add_argument('--session', type=str)
-        # parser.add_argument('--neural_bin_size', default=None, help='ms')
-        # parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        # parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
+        parser.add_argument('--n_input_channels', help='list of n_channels', type=int)
+        parser.add_argument('--x_pixels', help='number of pixels in x dimension', type=int)
+        parser.add_argument('--y_pixels', help='number of pixels in y dimension', type=int)
+        parser.add_argument('--use_output_mask', default=False, action='store_true')
+        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
+        parser.add_argument('--lab', type=str)
+        parser.add_argument('--expt', type=str)
+        parser.add_argument('--animal', type=str)
+        parser.add_argument('--session', type=str)
+        parser.add_argument('--neural_bin_size', default=None, help='ms')
+        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
+        parser.add_argument('--trial_splits', default='8;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')

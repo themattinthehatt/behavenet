@@ -246,6 +246,7 @@ def get_conv_params(namespace, parser):
         raise ValueError('"%s" is not a valid search type' % namespace.search_type)
 
     namespace, extra = parser.parse_known_args()
+    print(namespace)
 
     # Load in file of architectures
     if namespace.search_type == 'test':
