@@ -603,7 +603,6 @@ def create_tt_experiment(hparams):
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
-        print('Experiment exists! Aborting fit')
         return None, None, None
 
     exp = Experiment(

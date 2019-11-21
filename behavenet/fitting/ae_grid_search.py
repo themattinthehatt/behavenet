@@ -51,7 +51,7 @@ def main(hparams):
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)
     if hparams is None:
-        # experiment already exists
+        print('Experiment exists! Aborting fit')
         return
 
     # build data generator
