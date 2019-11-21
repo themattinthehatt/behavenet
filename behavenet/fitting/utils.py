@@ -656,15 +656,13 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     return data_generator
 
 
-def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
+def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=1):
     """
     Get best model version from test tube
 
     Args:
-        model_path (str): test tube experiment directory containing version_%i
-            subdirectories
-        measure (str, optional): heading in csv file that is used to determine
-            which model is best
+        expt_dir (str): test tube experiment directory containing version_%i subdirectories
+        measure (str, optional): heading in csv file that is used to determine which model is best
         best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
         n_best (int, optional): top `n_best` models are returned
 
@@ -676,17 +674,20 @@ def get_best_model_version(model_path, measure='val_loss', best_def='min', n_bes
     import pandas as pd
 
     # gather all versions
-    versions = get_subdirs(model_path)
+    versions = get_subdirs(expt_dir)
     # load csv files with model metrics (saved out from test tube)
     metrics = []
     for i, version in enumerate(versions):
         # make sure training has been completed
-        with open(os.path.join(model_path, version, 'meta_tags.pkl'), 'rb') as f:
+        meta_file = os.path.join(expt_dir, version, 'meta_tags.pkl')
+        if not os.path.exists(meta_file):
+            continue
+        with open(meta_file, 'rb') as f:
             meta_tags = pickle.load(f)
         if not meta_tags['training_completed']:
             continue
         # read metrics csv file
-        metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
+        metric = pd.read_csv(os.path.join(expt_dir, version, 'metrics.csv'))
         # get validation loss of best model
         if best_def == 'min':
             val_loss = metric[measure].min()
