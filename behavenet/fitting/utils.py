@@ -696,7 +696,6 @@ def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=
     # put everything in pandas dataframe
     metrics_df = pd.concat(metrics, sort=False)
     # get version with smallest loss
-
     if n_best == 1:
         if best_def == 'min':
             best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
@@ -710,7 +709,8 @@ def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=
             raise NotImplementedError
         if best_versions.shape[0] != n_best:
             print('More versions than specified due to same validation loss')
-
+    # convert string to integer
+    best_versions = [int(version.split('_')[1]) for version in best_versions]
     return best_versions
 
 
