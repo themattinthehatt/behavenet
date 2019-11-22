@@ -710,7 +710,7 @@ def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=
         if best_versions.shape[0] != n_best:
             print('More versions than specified due to same validation loss')
     # convert string to integer
-    best_versions = [int(version.split('_')[1]) for version in best_versions]
+    best_versions = [int(version.split('_')[-1]) for version in best_versions]
     return best_versions
 
 
@@ -742,13 +742,12 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
         best_version = get_best_model_version(expt_dir)[0]
     else:
         if isinstance(version, str) and version[0] == 'v':
-            # assume we got a string of the form 'version_XX'
+            # assume we got a string of the form 'version_{%i}'
             best_version = version
         else:
             best_version = str('version_{}'.format(version))
     # get int representation as well
-    best_version_int = int(best_version.split('_')[1])
-    version_dir = os.path.join(expt_dir, best_version)
+    version_dir = os.path.join(expt_dir, 'version_%i' % best_version)
     arch_file = os.path.join(version_dir, 'meta_tags.pkl')
     model_file = os.path.join(version_dir, 'best_val_model.pt')
     if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
@@ -782,7 +781,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
 
     # build models
     model = Model(hparams_new)
-    model.version = best_version_int
+    model.version = best_version
     model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
     model.to(hparams_new['device'])
     model.eval()

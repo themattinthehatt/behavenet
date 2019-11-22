@@ -36,7 +36,7 @@ def export_latents(data_generator, model, filename=None):
             batch_size = y.shape[0]
             if batch_size > chunk_size:
                 latents[sess][data['batch_indx'].item()] = np.full(
-                    shape=(data['images'].shape[0], model.hparams['n_ae_latents']),
+                    shape=(data['images'].shape[1], model.hparams['n_ae_latents']),
                     fill_value=np.nan)
                 # split into chunks
                 n_chunks = int(np.ceil(batch_size / chunk_size))

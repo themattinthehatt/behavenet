@@ -514,8 +514,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
                 if loss.get_loss('val') < best_val_loss:
                     best_val_loss = loss.get_loss('val')
                     filepath = os.path.join(
-                        hparams['expt_dir'], 'version_%i' % exp.version,
-                        'best_val_model.pt')
+                        hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
                     torch.save(model.state_dict(), filepath)
 
                     model.hparams = None
