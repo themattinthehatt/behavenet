@@ -22,7 +22,7 @@ def export_latents(data_generator, model, filename=None):
     # initialize container for latents
     latents = [[] for _ in range(data_generator.n_datasets)]
     for sess, dataset in enumerate(data_generator.datasets):
-        latents[sess] = [[] for _ in range(dataset.n_trials)]
+        latents[sess] = [np.array([]) for _ in range(dataset.n_trials)]
 
     # partially fill container (gap trials will be included as nans)
     dtypes = ['train', 'val', 'test']
@@ -86,7 +86,7 @@ def export_states(hparams, data_generator, model, filename=None):
     # initialize container for states
     states = [[] for _ in range(data_generator.n_datasets)]
     for sess, dataset in enumerate(data_generator.datasets):
-        states[sess] = [[] for _ in range(dataset.n_trials)]
+        states[sess] = [np.array([]) for _ in range(dataset.n_trials)]
 
     # partially fill container (gap trials will be included as nans)
     dtypes = ['train', 'val', 'test']
@@ -140,7 +140,7 @@ def export_predictions(data_generator, model, filename=None):
     # initialize container for latents
     predictions = [[] for _ in range(data_generator.n_datasets)]
     for sess, dataset in enumerate(data_generator.datasets):
-        predictions[sess] = [[] for _ in range(dataset.n_trials)]
+        predictions[sess] = [np.array([]) for _ in range(dataset.n_trials)]
 
     # partially fill container (gap trials will be included as nans)
     max_lags = model.hparams['n_max_lags']

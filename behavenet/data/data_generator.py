@@ -59,12 +59,12 @@ def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0
 
 def load_pkl_dict(path, key, indx=None, dtype='float32'):
     with open(path, 'rb') as f:
-        latents_dict = pickle.load(f)
+        data_dict = pickle.load(f)
     if indx is None:
-        samp = latents_dict[key]
+        samp = [data.astype(dtype) for data in data_dict[key]]
     else:
-        samp = latents_dict[key][indx]
-    return samp.astype(dtype)
+        samp = data_dict[key][indx].astype(dtype)
+    return samp
 
 
 def prepend_sess_id(path, sess_str):
@@ -129,23 +129,20 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 data_file = paths[i]
                 with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
                     self.n_trials = len(f[signal])
-                    key_list = list(f[signal].keys())
-                    self.trial_len = f[signal][key_list[0]].shape[0]
                     break
             elif signal == 'ae_latents':
                 try:
-                    latents = load_pkl_dict(self.paths[signal], 'latents', indx=0)
-                except IOError:
+                    latents = load_pkl_dict(self.paths[signal], 'latents')
+                except FileNotFoundError:
                     # try prepending session string
                     try:
                         latents = load_pkl_dict(
-                            prepend_sess_id(self.paths[signal], self.sess_str), 'latents', indx=0)
-                    except IOError:
+                            prepend_sess_id(self.paths[signal], self.sess_str), 'latents')
+                    except FileNotFoundError:
                         raise NotImplementedError(
                             ('Could not open %s\nMust create ae latents from model;' +
                              ' currently not implemented') % self.paths[signal])
-                self.n_trials = latents.shape[0]
-                self.trial_len = latents.shape[1]
+                self.n_trials = len(latents)
 
         # meta data about train/test/xv splits; set by ConcatSessionsGenerator
         self.batch_indxs = None
@@ -167,7 +164,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         format_str += str('    signals: {}\n'.format(self.signals))
         format_str += str('    transforms: {}\n'.format(self.transforms))
         format_str += str('    paths: {}\n'.format(self.paths))
-        # format_str += '\n'
         return format_str
 
     def __len__(self):
@@ -215,8 +211,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                                 'trial_%04i' % tr)][()].astype(dtype)[None, :])
                         sample[signal] = np.concatenate(temp_data, axis=0)
                     else:
-                        sample[signal] = f[signal][str(
-                            'trial_%04i' % indx)][()].astype(dtype)
+                        sample[signal] = f[signal][str('trial_%04i' % indx)][()].astype(dtype)
 
             elif signal == 'neural':
                 dtype = 'float32'
@@ -233,67 +228,23 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             elif signal == 'ae_latents':
                 dtype = 'float32'
-                try:
-                    sample[signal] = load_pkl_dict(
-                        self.paths[signal], 'latents', indx=indx, dtype=dtype)
-                except IOError:
-                    # try prepending session string
-                    try:
-                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
-                        sample[signal] = load_pkl_dict(
-                            self.paths[signal], 'latents', indx=indx, dtype=dtype)
-                    except IOError:
-                        raise NotImplementedError(
-                            ('Could not open %s\nMust create ae latents from model;' +
-                             ' currently not implemented') % self.paths[signal])
+                sample[signal] = self.try_to_load(
+                    signal, key='latents', indx=indx, dtype=dtype)
 
             elif signal == 'ae_predictions':
                 dtype = 'float32'
-                try:
-                    sample[signal] = load_pkl_dict(
-                        self.paths[signal], 'predictions', indx=indx, dtype=dtype)
-                except IOError:
-                    # try prepending session string
-                    try:
-                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
-                        sample[signal] = load_pkl_dict(
-                            self.paths[signal], 'predictions', indx=indx, dtype=dtype)
-                    except IOError:
-                        raise NotImplementedError(
-                            ('Could not open %s\nMust create ae predictions from model;' +
-                             ' currently not implemented') % self.paths[signal])
+                sample[signal] = self.try_to_load(
+                    signal, key='predictions', indx=indx, dtype=dtype)
 
             elif signal == 'arhmm' or signal == 'arhmm_states':
                 dtype = 'int32'
-                try:
-                    sample[signal] = load_pkl_dict(
-                        self.paths[signal], 'states', indx=indx, dtype=dtype)
-                except IOError:
-                    # try prepending session string
-                    try:
-                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
-                        sample[signal] = load_pkl_dict(
-                            self.paths[signal], 'states', indx=indx, dtype=dtype)
-                    except IOError:
-                        raise NotImplementedError(
-                            ('Could not open %s\nMust create arhmm states from model;' +
-                             ' currently not implemented') % self.paths[signal])
+                sample[signal] = self.try_to_load(
+                    signal, key='states', indx=indx, dtype=dtype)
 
             elif signal == 'arhmm_predictions':
                 dtype = 'float32'
-                try:
-                    sample[signal] = load_pkl_dict(
-                        self.paths[signal], 'predictions', indx=indx, dtype=dtype)
-                except IOError:
-                    # try prepending session string
-                    try:
-                        self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
-                        sample[signal] = load_pkl_dict(
-                            self.paths[signal], 'predictions', indx=indx, dtype=dtype)
-                    except IOError:
-                        raise NotImplementedError(
-                            ('Could not open %s\nMust create arhmm predictions from model;' +
-                             ' currently not implemented') % self.paths[signal])
+                sample[signal] = self.try_to_load(
+                    signal, key='predictions', indx=indx, dtype=dtype)
 
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)
@@ -313,6 +264,20 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         sample['batch_indx'] = indx
 
         return sample
+
+    def try_to_load(self, signal, key, indx, dtype):
+        try:
+            data = load_pkl_dict(self.paths[signal], key, indx=indx, dtype=dtype)
+        except FileNotFoundError:
+            # try prepending session string
+            try:
+                self.paths[signal] = prepend_sess_id(self.paths[signal], self.sess_str)
+                data = load_pkl_dict(self.paths[signal], key, indx=indx, dtype=dtype)
+            except FileNotFoundError:
+                raise NotImplementedError(
+                    ('Could not open %s\nMust create %s from model;' +
+                     ' currently not implemented') % (self.paths[signal], key))
+        return data
 
 
 class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
@@ -479,8 +444,7 @@ class ConcatSessionsGenerator(object):
                 dataset.n_batches[dtype] = len(dataset.batch_indxs[dtype])
         self.batch_ratios = np.array(self.batch_ratios) / np.sum(self.batch_ratios)
 
-        # find total number of batches per data type; this will be iterated
-        # over in the training loop
+        # find total number of batches per data type; this will be iterated over in the train loop
         self.n_tot_batches = {}
         for dtype in self._dtypes:
             self.n_tot_batches[dtype] = np.sum(

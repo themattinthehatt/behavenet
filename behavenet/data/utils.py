@@ -275,7 +275,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
             if 'ae_version' in hparams and isinstance(hparams['ae_version'], int):
                 ae_version = str('version_%i' % hparams['ae_version'])
             else:
-                ae_version = get_best_model_version(ae_dir, 'val_loss')[0]
+                ae_version = 'version_%i' % get_best_model_version(ae_dir, 'val_loss')[0]
             ae_latents = str('%slatents.pkl' % sess_id_str)
             path = os.path.join(ae_dir, ae_version, ae_latents)
 
@@ -295,7 +295,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
             if 'arhmm_version' in hparams and isinstance(hparams['arhmm_version'], int):
                 arhmm_version = str('version_%i' % hparams['arhmm_version'])
             else:
-                arhmm_version = get_best_model_version(arhmm_dir, 'val_ll', best_def='max')[0]
+                arhmm_version = 'version_%i' % get_best_model_version(
+                    arhmm_dir, 'val_ll', best_def='max')[0]
             arhmm_states = str('%sstates.pkl' % sess_id_str)
             path = os.path.join(arhmm_dir, arhmm_version, arhmm_states)
 
@@ -313,7 +314,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
             if 'neural_ae_version' in hparams and isinstance(hparams['neural_ae_version'], int):
                 neural_ae_version = str('version_%i' % hparams['neural_ae_version'])
             else:
-                neural_ae_version = get_best_model_version(neural_ae_dir, 'val_loss')[0]
+                neural_ae_version = 'version_%i' % get_best_model_version(
+                    neural_ae_dir, 'val_loss')[0]
             neural_ae_predictions = str('%spredictions.pkl' % sess_id_str)
             path = os.path.join(neural_ae_dir, neural_ae_version, neural_ae_predictions)
 
@@ -332,7 +334,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
                     isinstance(hparams['neural_arhmm_version'], int):
                 neural_arhmm_version = str('version_%i' % hparams['neural_arhmm_version'])
             else:
-                neural_arhmm_version = get_best_model_version(neural_arhmm_dir, 'val_loss')[0]
+                neural_arhmm_version = 'version_%i' % get_best_model_version(
+                    neural_arhmm_dir, 'val_loss')[0]
             neural_arhmm_predictions = str('%spredictions.pkl' % sess_id_str)
             path = os.path.join(neural_arhmm_dir, neural_arhmm_version, neural_arhmm_predictions)
 
