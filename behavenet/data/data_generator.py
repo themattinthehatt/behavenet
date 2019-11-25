@@ -7,6 +7,8 @@ from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
 import h5py
 
+# TODO: rename indx to idx when updating documentation
+
 
 def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0):
     """
