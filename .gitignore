@@ -12,3 +12,7 @@ __pycache__
 scratch/
 scratch.py
 *.pyc
+
+docs/_build
+docs/_static
+docs/_templates
