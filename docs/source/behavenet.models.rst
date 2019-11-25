@@ -11,7 +11,6 @@ behavenet.models.aes module
    :members:
    :undoc-members:
    :show-inheritance:
-   :inherited-members:
 
 behavenet.models.decoders module
 --------------------------------
@@ -20,7 +19,6 @@ behavenet.models.decoders module
    :members:
    :undoc-members:
    :show-inheritance:
-   :inherited-members:
 
 Module contents
 ---------------

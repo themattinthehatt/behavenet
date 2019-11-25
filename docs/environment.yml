@@ -1,0 +1,7 @@
+name: behavenet
+
+channels:
+    - anaconda
+
+dependencies:
+    - python==3.7

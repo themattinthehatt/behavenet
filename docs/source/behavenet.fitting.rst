@@ -67,7 +67,6 @@ behavenet.fitting.training module
    :members:
    :undoc-members:
    :show-inheritance:
-   :inherited-members:
 
 behavenet.fitting.utils module
 ------------------------------

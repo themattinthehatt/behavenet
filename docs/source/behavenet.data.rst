@@ -11,7 +11,6 @@ behavenet.data.data\_generator module
    :members:
    :undoc-members:
    :show-inheritance:
-   :inherited-members:
 
 behavenet.data.transforms module
 --------------------------------
