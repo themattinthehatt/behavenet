@@ -354,7 +354,7 @@ def make_syllable_movies(
     else:
         fig_width = 10  # aiming for dim 1 being 10
     # get video dims
-    [bs, n_channels, y_dim, x_dim] = ims_orig[0].shape
+    bs, n_channels, y_dim, x_dim = ims_orig[0].shape
     movie_dim1 = n_channels * y_dim
     movie_dim2 = x_dim
     if n_rows is None:

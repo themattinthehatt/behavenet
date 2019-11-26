@@ -206,11 +206,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
     if sess_id is None:
         sess_id = hparams_
 
-    if hparams_ != sess_id:
-        sess_id_str = str('%s_%s_%s_%s_' % (
-            sess_id['lab'], sess_id['expt'], sess_id['animal'], sess_id['session']))
-    else:
-        sess_id_str = ''
+    sess_id_str = str('%s_%s_%s_%s_' % (
+        sess_id['lab'], sess_id['expt'], sess_id['animal'], sess_id['session']))
 
     if data_type == 'neural':
 

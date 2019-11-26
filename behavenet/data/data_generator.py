@@ -84,7 +84,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='', signals=None, transforms=None,
-            paths=None, device='cpu'):
+            paths=None, device='cpu', as_numpy=False):
         """
         Args:
             data_dir (str): root directory of data
@@ -104,6 +104,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 behavenet.fitting.utils.get_data_generator_inputs for examples
             device (str, optional): location of data
                 'cpu' | 'cuda'
+            as_numpy (bool)
         """
 
         # specify data
@@ -151,6 +152,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         self.n_batches = None
 
         self.device = device
+        self.as_numpy = as_numpy
 
         # # TODO: not all signals are stored in hdf5 file
         # self.dims = OrderedDict()
@@ -182,6 +184,9 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             (dict): data sample
         """
 
+        if indx is None and not self.as_numpy:
+            raise NotImplementedError('Cannot currently load all data as torch tensors')
+
         sample = OrderedDict()
         for signal in self.signals:
 
@@ -194,13 +199,11 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         temp_data = []
                         for tr in range(self.n_trials):
                             temp_data.append(f[signal][str(
-                                'trial_%04i' % tr)][()].astype(dtype)[None, :])
-                        sample[signal] = np.concatenate(temp_data, axis=0)
+                                'trial_%04i' % tr)][()].astype(dtype) / 255)
+                        sample[signal] = temp_data
                     else:
                         sample[signal] = f[signal][str(
-                            'trial_%04i' % indx)][()].astype(dtype)
-                # normalize to range [0, 1]
-                sample[signal] /= 255.0
+                            'trial_%04i' % indx)][()].astype(dtype) / 255
 
             elif signal == 'masks':
                 dtype = 'float32'
@@ -210,8 +213,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         temp_data = []
                         for tr in range(self.n_trials):
                             temp_data.append(f[signal][str(
-                                'trial_%04i' % tr)][()].astype(dtype)[None, :])
-                        sample[signal] = np.concatenate(temp_data, axis=0)
+                                'trial_%04i' % tr)][()].astype(dtype))
+                        sample[signal] = temp_data
                     else:
                         sample[signal] = f[signal][str('trial_%04i' % indx)][()].astype(dtype)
 
@@ -222,11 +225,10 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                         temp_data = []
                         for tr in range(self.n_trials):
                             temp_data.append(f[signal][str(
-                                'trial_%04i' % tr)][()].astype(dtype)[None, :])
-                        sample[signal] = np.concatenate(temp_data, axis=0)
+                                'trial_%04i' % tr)][()].astype(dtype))
+                        sample[signal] = temp_data
                     else:
-                        sample[signal] = f[signal][str(
-                            'trial_%04i' % indx)][()].astype(dtype)
+                        sample[signal] = f[signal][str('trial_%04i' % indx)][()].astype(dtype)
 
             elif signal == 'ae_latents':
                 dtype = 'float32'
@@ -256,12 +258,13 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 sample[signal] = self.transforms[signal](sample[signal])
 
             # transform into tensor
-            if dtype == 'float32':
-                sample[signal] = torch.from_numpy(sample[signal]).float()
-            else:
-                sample[signal] = torch.from_numpy(sample[signal]).long()
+            if not self.as_numpy:
+                if dtype == 'float32':
+                    sample[signal] = torch.from_numpy(sample[signal]).float()
+                else:
+                    sample[signal] = torch.from_numpy(sample[signal]).long()
 
-            sample[signal] = sample[signal].to(self.device)
+                sample[signal] = sample[signal].to(self.device)
 
         sample['batch_indx'] = indx
 
@@ -288,7 +291,8 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
     Loads all data during Dataset creation and saves as an attribute. Batches are then sampled from
     this stored data. All data transformations are applied to the full dataset upon load, *not*
-    for each batch.
+    for each batch. This automatically returns data as lists of numpy arrays; this dataloader
+    cannot be used to fit pytorch models.
     """
 
     def __init__(
@@ -315,16 +319,17 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
         super().__init__(data_dir, lab, expt, animal, session, signals, transforms, paths, device)
 
         # grab all data as a single batch
+        self.as_numpy = True
         self.data = super(SingleSessionDataset, self).__getitem__(indx=None)
         _ = self.data.pop('batch_indx')
 
         # collect dims for easy reference
-        self.dims = OrderedDict()
-        for signal, data in self.data.items():
-            self.dims[signal] = data.shape
+        # self.dims = OrderedDict()
+        # for signal, data in self.data.items():
+        #     self.dims[signal] = data.shape
 
-        if self.n_trials is None:
-            self.n_trials = self.dims[signal][0]
+        # if self.n_trials is None:
+        #     self.n_trials = self.dims[signal][0]
 
     def __len__(self):
         return self.n_trials
@@ -525,9 +530,5 @@ class ConcatSessionsGenerator(object):
                 break
             except StopIteration:
                 continue
-
-        if self.as_numpy:
-            for i, signal in enumerate(sample):
-                sample[signal] = sample[signal].cpu().detach().numpy()
 
         return sample, dataset

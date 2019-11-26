@@ -180,7 +180,7 @@ autodoc_mock_imports = [
 
 This mechanism also allows us to include `ssm` as a mock import and not worry about any complications with compiling C code on the RTD servers.
 
-Strangely, RTD uses old versions of `sphinx` as of the time of writing (Nov 2019). We can also include an upadted version of `sphinx` in the new `docs/requirements.txt` file, along with the sphinx theme we have selected:
+Strangely, RTD uses old versions of `sphinx` as of the time of writing (Nov 2019). We can also include an updated version of `sphinx` in the new `docs/requirements.txt` file, along with the sphinx theme we have selected:
 
 ```
 sphinx==2.2.1
