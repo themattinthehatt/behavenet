@@ -20,14 +20,6 @@ behavenet.fitting.ae\_model\_architecture\_generator module
    :undoc-members:
    :show-inheritance:
 
-behavenet.fitting.arhmm\_decoding\_grid\_search module
-------------------------------------------------------
-
-.. automodule:: behavenet.fitting.arhmm_decoding_grid_search
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 behavenet.fitting.arhmm\_grid\_search module
 --------------------------------------------
 
