@@ -35,6 +35,9 @@ extensions = [
     'sphinx.ext.napoleon'
 ]
 
+# mock imports; torch is too heavy
+autodoc_mock_imports = ['torch']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
