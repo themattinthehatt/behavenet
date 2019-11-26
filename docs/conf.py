@@ -36,7 +36,12 @@ extensions = [
 ]
 
 # mock imports; torch is too heavy
-autodoc_mock_imports = ['torch']
+autodoc_mock_imports = [
+    'ssm',
+    'test_tube',
+    'torch',
+    'tqdm',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
