@@ -86,9 +86,9 @@ def relabel_states_by_use(states, mapping=None):
     Returns:
         (tuple): (relabeled states, mapping, frame counts
             relabeled_states: same data structure but with states relabeled by use (state 0 has
-                most frames, etc)
-            mapping: mapping of original labels to new labels; mapping[old_state] = new_state
-            frame counts: updated frame counts for relabeled states
+            most frames, etc)
+            mapping: mapping of original labels to new labels; mapping[old_state] = new_state frame
+            counts: updated frame counts for relabeled states
     """
     frame_counts = []
     if mapping is None:

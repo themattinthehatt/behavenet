@@ -112,14 +112,18 @@ def get_session_dir(hparams, path_type='save'):
     If `sessions_csv` is an empty string or the key is not in `hparams`, the following occurs:
 
     If 'lab' == 'all', an error is thrown since multiple-lab runs are not currently supported
+
     If 'expt' == 'all', all sessions from all animals from all expts from the specified lab are
-        used; the session_dir will then be `save_dir/lab/multisession-xx`
+    used; the session_dir will then be `save_dir/lab/multisession-xx`
+
     If 'animal' == 'all', all sessions from all animals in the specified expt are used; the
-        session_dir will then be `save_dir/lab/expt/multisession-xx`
+    session_dir will then be `save_dir/lab/expt/multisession-xx`
+
     If 'session' == 'all', all sessions from the specified animal are used; the session_dir will
-        then be `save_dir/lab/expt/animal/multisession-xx`
+    then be `save_dir/lab/expt/animal/multisession-xx`
+
     If none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
-        `save_dir/lab/expt/animal/session`
+    `save_dir/lab/expt/animal/session`
 
     The `multisession-xx` directory will contain a file `session_info.csv` which will contain
     information about the sessions that comprise the multisession; this file is used to determine
@@ -272,8 +276,8 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         expt_name (str, optional): will search `hparams` if not present
 
     Returns:
-        (str): contains data info (lab/expt/animal/session) as well as model
-        info (e.g. n_ae_latents) and expt_name
+        (str): contains data info (lab/expt/animal/session) as well as model info
+        (e.g. n_ae_latents) and expt_name
     """
 
     import copy

@@ -149,6 +149,7 @@ class AELoss(FitMethod):
     """MSE loss for (non-variational) autoencoders"""
 
     def __init__(self, model, n_datasets=1):
+        """constructor"""
         metric_strs = ['batches', 'loss']
         super().__init__(model, metric_strs, n_datasets=n_datasets)
 
@@ -214,7 +215,7 @@ class NLLLoss(FitMethod):
     """Negative log-likelihood loss for supervised models (en/decoders)"""
 
     def __init__(self, model, n_datasets=1):
-
+        """constructor"""
         if n_datasets > 1:
             raise ValueError('NLLLoss only supports single datasets')
 
