@@ -13,10 +13,11 @@ BehaveNet is a probabilistic framework for the analysis of behavioral video and 
    :caption: Contents:
 
    source/installation
+   source/data_structure
    source/glossary
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

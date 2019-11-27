@@ -1,3 +1,8 @@
+"""
+Module documentation. What does this thing do?
+
+"""
+
 import pickle
 import os
 import numpy as np
@@ -29,7 +34,7 @@ def get_discrete_chunks(states, include_edges=True):
 
     Returns:
         list: list of length discrete states; each list contains all occurences of that discrete
-            state by [chunk number, starting index, ending index]
+        state by [chunk number, starting index, ending index]
     """
 
     max_state = max([max(x) for x in states])
@@ -77,19 +82,43 @@ def relabel_states_by_use(states, mapping=None):
     """
     Takes in discrete states and relabels according to mapping or length of time in each.
 
-    Args:
-        states (list): list of trials; each trial is numpy array containing discrete state for each
-            frame
-        mapping (array-like, optional): format is mapping[old_state] = new_state; for example if
-            using training length of times mapping on validation data
+    Note
+    ----
+    Some note
 
-    Returns:
-        (tuple): (relabeled states, mapping, frame counts
-            relabeled_states: same data structure but with states relabeled by use (state 0 has
-            most frames, etc)
-            mapping: mapping of original labels to new labels; mapping[old_state] = new_state frame
-            counts: updated frame counts for relabeled states
+    Parameters
+    ----------
+    states : `list`
+        list of trials; each trial is numpy array containing discrete state for each frame
+    mapping : array-like, optional
+        format is mapping[old_state] = new_state; for example if using training length of times
+        mapping on validation data
     """
+    #
+    # Returns
+    # -------
+    # relabeled_states : list
+    #     same data structure but with states relabeled by use (state 0 has most frames, etc)
+    # mapping: dict
+    #     mapping of original labels to new labels; mapping[old_state] = new_state frame
+    # counts: list
+    #     updated frame counts for relabeled states
+    # """
+    # Takes in discrete states and relabels according to mapping or length of time in each.
+    #
+    # Args:
+    #     states (list): list of trials; each trial is numpy array containing discrete state for each
+    #         frame
+    #     mapping (array-like, optional): format is mapping[old_state] = new_state; for example if
+    #         using training length of times mapping on validation data
+    #
+    # Returns:
+    #     tuple:
+    #     relabeled_states: same data structure but with states relabeled by use (state 0 has most
+    #     frames, etc)
+    #     mapping: mapping of original labels to new labels; mapping[old_state] = new_state frame
+    #     counts: updated frame counts for relabeled states
+    # """
     frame_counts = []
     if mapping is None:
         # Get number of frames for each state
