@@ -2,7 +2,12 @@
 Installation
 ############
 
-Before you begin, ensure that you have downloaded both Git (for cloning the repository) and `Anaconda <https://www.anaconda.com/distribution/>`_ (for managing the code environment).
+Before you begin, ensure that you have downloaded both Git (for cloning the repository) and `Anaconda <https://www.anaconda.com/distribution/>`_ (for managing the code environment). The following steps will show you how to:
+
+1. Set up a virtual environment using Anaconda
+2. Install the BehaveNet and ssm packages
+3. Store user paths in a local json file
+4. Add dataset metadata to a local json file
 
 Environment setup
 =================
@@ -44,7 +49,7 @@ To make the package modules visible to the python interpreter, locally run pip i
     (behavenet) $: pip install -e .
 
 
-SSM
+ssm
 ---
 
 The :code:`ssm` package is the backend state space modeling code used by BehaveNet. To install ssm, :code:`cd` to any directory where you would like to keep the ssm code and run the following:
@@ -68,18 +73,18 @@ Next, set up your paths to the directories where data, results, and figures will
 
 You will be asked to input a base data directory; all data should be stored in the form :code:`base_data_dir/lab_name/expt_name/animal_id/session_id/data.hdf5`. More information on the structure of the hdf5 file can be found :ref:`here<data_structure>`. You will also be asked to input a base results directory, which will store all of the model fits. Finally, the base figure directory will be used to store figure and video outputs.
 
-The :code:`behavenet.setup()` method will create a hidden directory named :code:`.behavenet` in your user directory.
+The :code:`behavenet.setup()` function will create a hidden directory named :code:`.behavenet` in your user directory.
 
 * In Linux, :code:`~/.behavenet`
 * In MacOS, :code:`/Users/CurrentUser/.behavenet`
 
-Within this directory the method will create a json file named :code:`directories` which you can manually edit at any point.
+Within this directory the function will create a json file named :code:`directories` which you can manually edit at any point.
 
 
 Adding a new dataset
 ====================
 
-Next you will input some prior information about the dataset to avoid supplying this information at all intermediate steps (examples shown for Musall dataset):
+You can also input some prior information about your dataset to avoid supplying this information at all intermediate steps. You will be asked to enter the following information (examples shown for Musall dataset):
 
 * lab or experimenter name (:code:`musall`)
 * experiment name (:code:`vistrained`)
@@ -93,12 +98,12 @@ Next you will input some prior information about the dataset to avoid supplying 
 * frame rate (:code:`30`) - in Hz; behavenet assumes that the video data and neural data are binned at the same temporal resolution
 * neural data type (:code:`ca`) - either :code:`ca` for 2-photon/widefield data, or :code:`spikes` for ephys data. This parameter controls the noise distribution for encoding models, as well as several other model hyperparameters.
 
-To input this information, launch python from the behavenet environment and type:
+To enter this information, launch python from the behavenet environment and type:
 
 .. code-block:: python
 
     from behavenet import add_dataset
     add_dataset()
 
-This function will create a json file named :code:`[lab name]_[experiment name]` which you can manually edit at any point.
- 
+This function will create a json file named :code:`[lab_name]_[experiment_name]` which you can manually edit at any point.
+

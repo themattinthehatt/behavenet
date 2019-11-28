@@ -1,19 +1,32 @@
+"""Utility functions for constructing inputs to data generators."""
+
 import os
 import numpy as np
 
 
 def get_data_generator_inputs(hparams, sess_ids):
-    """
-    Helper function for generating signals, transforms and paths for common models
+    """Helper function for generating signals, transforms and paths.
+
     # TODO: add support for decoding HMM states
     # TODO: move input_signal/output_signal/etc to another function (not needed for data gen)
 
-    Args:
-        hparams (dict):
-        sess_ids (list of dicts)
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        required keys: 'data_dir', 'lab', 'expt', 'animal', 'session', 'model_class', and model
+        parameters associated with the 'model_class'; see :func:`get_transforms_paths` for these
+        parameters
+    sess_ids : :obj:`list` of :obj:`dict`
+        each list entry is a session-specific dict with keys 'lab', 'expt', 'animal', 'session'
 
-    Returns:
-        (tuple): hparams, signals_list, transforms_list, paths_list
+    Returns
+    -------
+    tuple
+        - hparams (:obj:`dict`): updated with model-specific information like input and output size
+        - signals (:obj:`list`): session-specific signals
+        - transforms (:obj:`list`): session-specific transforms
+        - paths (:obj:`list`): session-specific paths
+
     """
 
     signals_list = []
@@ -192,8 +205,33 @@ def get_data_generator_inputs(hparams, sess_ids):
 
 
 def get_transforms_paths(data_type, hparams, sess_id):
+    """Helper function for generating session-specific transforms and paths.
 
-    from behavenet.data.transforms import SelectIndxs
+    Parameters
+    ----------
+    data_type : :obj:`str`
+        'neural' | 'ae_latents' | 'arhmm_states' | 'neural_ae_predictions' |
+        'neural_arhmm_predictions'
+    hparams : :obj:`dict`
+        - required keys for :obj:`data_type=neural`: 'neural_type', 'neural_thresh'
+        - required keys for :obj:`data_type=ae_latents`: 'ae_experiment_name', 'ae_model_type', 'n_ae_latents', 'ae_version' or 'ae_latents_file'; this last option defines either the specific ae version (as 'best' or an int) or a path to a specific ae latents pickle file.
+        - required keys for :obj:`data_type=arhmm_states`: 'arhmm_experiment_name', 'n_arhmm_states', 'kappa', 'noise_type', 'n_ae_latents', 'arhmm_version' or 'arhmm_states_file'; this last option defines either the specific arhmm version (as 'best' or an int) or a path to a specific ae latents pickle file.
+        - required keys for :obj:`data_type=neural_ae_predictions`: 'neural_ae_experiment_name', 'neural_ae_model_type', 'neural_ae_version' or 'ae_predictions_file' plus keys for neural and ae_latents data types.
+        - required keys for :obj:`data_type=neural_arhmm_predictions`: 'neural_arhmm_experiment_name', 'neural_arhmm_model_type', 'neural_arhmm_version' or 'arhmm_predictions_file', plus keys for neural and arhmm_states data types.
+    sess_id : :obj:`dict`
+        each list entry is a session-specific dict with keys 'lab', 'expt', 'animal', 'session'
+
+    Returns
+    -------
+    tuple
+        - hparams (:obj:`dict`): updated with model-specific information like input and output size
+        - signals (:obj:`list`): session-specific signals
+        - transforms (:obj:`list`): session-specific transforms
+        - paths (:obj:`list`): session-specific paths
+
+    """
+
+    from behavenet.data.transforms import SelectIdxs
     from behavenet.data.transforms import Threshold
     from behavenet.data.transforms import ZScore
     from behavenet.data.transforms import BlockShuffle
@@ -230,13 +268,10 @@ def get_transforms_paths(data_type, hparams, sess_id):
                 for reg_name, reg_indxs in regions.items():
                     if reg_name != region_name:
                         indxs.append(reg_indxs)
-
                 indxs = np.concatenate(indxs)
             else:
-                raise ValueError(
-                    '"%s" is an invalid region sampling option' % sampling)
-            transforms_.append(SelectIndxs(
-                indxs, str('%s-%s' % (region_name, sampling))))
+                raise ValueError('"%s" is an invalid region sampling option' % sampling)
+            transforms_.append(SelectIdxs(indxs, str('%s-%s' % (region_name, sampling))))
 
         # filter neural data by activity
         if hparams['neural_type'] == 'spikes':
@@ -249,8 +284,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
                 # don't zscore if predicting calcium activity
                 transforms_.append(ZScore())
         else:
-            raise ValueError(
-                '"%s" is an invalid neural type' % hparams['neural_type'])
+            raise ValueError('"%s" is an invalid neural type' % hparams['neural_type'])
 
         # compose filters
         if len(transforms_) == 0:
@@ -258,7 +292,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
         else:
             transform = Compose(transforms_)
 
-    elif data_type == 'ae_latents':
+    elif data_type == 'ae_latents' or data_type == 'latents':
         ae_dir = get_expt_dir(
             hparams, model_class='ae',
             expt_name=hparams['ae_experiment_name'],
@@ -276,7 +310,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
             ae_latents = str('%slatents.pkl' % sess_id_str)
             path = os.path.join(ae_dir, ae_version, ae_latents)
 
-    elif data_type == 'arhmm_states':
+    elif data_type == 'arhmm_states' or data_type == 'states':
 
         arhmm_dir = get_expt_dir(
             hparams, model_class='arhmm', expt_name=hparams['arhmm_experiment_name'])
@@ -297,7 +331,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
             arhmm_states = str('%sstates.pkl' % sess_id_str)
             path = os.path.join(arhmm_dir, arhmm_version, arhmm_states)
 
-    elif data_type == 'neural_ae_predictions':
+    elif data_type == 'neural_ae_predictions' or data_type == 'ae_predictions':
 
         neural_ae_dir = get_expt_dir(
             hparams, model_class='neural-ae',
@@ -316,7 +350,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
             neural_ae_predictions = str('%spredictions.pkl' % sess_id_str)
             path = os.path.join(neural_ae_dir, neural_ae_version, neural_ae_predictions)
 
-    elif data_type == 'neural_arhmm_predictions':
+    elif data_type == 'neural_arhmm_predictions' or data_type == 'arhmm_predictions':
 
         neural_arhmm_dir = get_expt_dir(
             hparams, model_class='neural-arhmm',
@@ -343,14 +377,18 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
 
 def get_region_list(hparams):
-    """
-    Get regions and their indexes into neural data for current session
+    """Get brain regions and their indices into neural data.
 
-    Args:
-        hparams (dict or namespace object):
+    Parameters
+    ----------
+    hparams : :obj:`dict` or :obj:`namespace` object
+        required keys: 'data_dir', 'lab', 'expt', 'animal', 'session'
 
-    Returns:
-        (dict)
+    Returns
+    -------
+    dict
+        keys are brain regions defined in :obj:`data.hdf5` file
+
     """
     import h5py
 
