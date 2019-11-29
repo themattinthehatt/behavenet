@@ -1,3 +1,5 @@
+"""Plotting functions for decoders."""
+
 import os
 import pandas as pd
 import pickle
@@ -7,24 +9,29 @@ from behavenet.fitting.utils import get_session_dir
 from behavenet.fitting.utils import get_subdirs
 
 
-def get_dataset_str(hparams):
+def _get_dataset_str(hparams):
     return os.path.join(hparams['expt'], hparams['animal'], hparams['session'])
 
 
 def get_r2s_by_trial(hparams, model_types):
-    """
-    For a given session, load R^2 metrics from all decoders defined by hparams
-    (n_ae_latents, experiment_name)
+    """For a given session, load R^2 metrics from all decoders defined by hparams.
 
-    Args:
-        hparams (dict)
-        model_types (list of strs): 'ff' | 'linear'
+    Parameters
+    ----------
+
+    hparams : :obj:`dict`
+        needs to contain enough information to specify decoders
+    model_types : :obj:`list` of :obj:`strs`
+        'ff' | 'ff-mv' | 'lstm'
 
     Returns
-        (pd.DataFrame)
+    -------
+    :obj:`pd.DataFrame`
+        pandas dataframe of decoder validation metrics
+
     """
 
-    dataset = get_dataset_str(hparams)
+    dataset = _get_dataset_str(hparams)
     region_names = get_region_list(hparams)
 
     metrics = []
@@ -77,25 +84,28 @@ def get_r2s_by_trial(hparams, model_types):
 
 
 def get_best_models(metrics_df):
-    """
-    Find best decoder over l2 regularization and learning rate (per dataset,
-    region, n_lags, and n_hid_layers). Returns a dataframe with test R^2s for
-    each batch, for the best decoder in each category.
+    """Find best decoder over l2 regularization and learning rate.
 
-    Args:
-        metrics_df (pd.DataFrame): output of get_r2s_by_trial
+    Returns a dataframe with test R^2s for each batch, for the best decoder in each category
+    (defined by dataset, region, n_lags, and n_hid_layers).
 
-    Returns:
-        (pd.DataFrame)
+    Parameters
+    ----------
+    metrics_df : :obj:`pd.DataFrame`
+        output of :func:`get_r2s_by_trial`
+
+    Returns
+    -------
+    :obj:`pd.DataFrame`
+        test R^2s for each batch
+
     """
     # for each version, only keep rows where test_loss is not nan
     data_queried = metrics_df[pd.notna(metrics_df.test_loss)]
     best_models_list = []
-
     # take min over val losses
     loss_mins = metrics_df.groupby(
-        ['dataset', 'n_lags', 'n_hid_layers',
-         'learning_rate', 'l2_reg', 'version', 'region']) \
+        ['dataset', 'n_lags', 'n_hid_layers', 'learning_rate', 'l2_reg', 'version', 'region']) \
         .min().reset_index()
     datasets = metrics_df.dataset.unique()
     datasets.sort()
@@ -122,26 +132,29 @@ def get_best_models(metrics_df):
                     # batches
                     best_models_list.append(
                         data_queried[data_queried.version == best_version])
-
     return pd.concat(best_models_list)
 
 
 def get_r2s_across_trials(hparams, best_models_df):
-    """
-    Calculate R^2 across all test trials (rather than on a trial-by-trial
-    basis)
+    """Calculate R^2 across all test trials (rather than on a trial-by-trial basis)
 
-    Args:
-        hparams (dict)
-        best_models_df (pd.DataFrame): output of get_best_models
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain the keys 'lab', 'experiment', 'animal', 'session', 'model_type', 'region',
+        'n_hid_layers', 'n_lags'
+    best_models_df : :obj:`pd.DataFrame`
+        output of :func:`get_best_models`
 
-    Returns:
-        (pd.DataFrame)
+    Returns
+    -------
+    :obj:`pd.DataFrame`
+        test R^2 across all trials
     """
 
     from behavenet.fitting.eval import get_test_metric
 
-    dataset = get_dataset_str(hparams)
+    dataset = _get_dataset_str(hparams)
     versions = best_models_df.version.unique()
 
     all_test_r2s = []

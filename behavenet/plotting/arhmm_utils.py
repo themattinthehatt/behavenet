@@ -1,7 +1,4 @@
-"""
-Module documentation. What does this thing do?
-
-"""
+"""Plotting and video making functions for ARHMMs."""
 
 import pickle
 import os
@@ -16,25 +13,22 @@ from behavenet.plotting import make_dir_if_not_exists
 from behavenet.models import AE as AE
 
 
-def get_model_str(hparams):
-    """Helper function for automatically generating figure names"""
-    return str('K_%i_kappa_%0.e_noise_%s_nlags_%i' % (
-        hparams['n_arhmm_states'], hparams['kappa'], hparams['noise_type'],
-        hparams['n_arhmm_lags']))
-
-
 def get_discrete_chunks(states, include_edges=True):
-    """
-    Find occurences of each discrete state
+    """Find occurences of each discrete state.
 
-    Args:
-        states (list): list of trials; each trial is numpy array containing discrete state for each
-            frame
-        include_edges (bool): include states at start and end of chunk
+    Parameters
+    ----------
+    states : :obj:`list`
+        list of trials; each trial is numpy array containing discrete state for each frame
+    include_edges : :obj:`bool`
+        include states at start and end of chunk
 
-    Returns:
-        list: list of length discrete states; each list contains all occurences of that discrete
-        state by [chunk number, starting index, ending index]
+    Returns
+    -------
+    :obj:`list`
+        list of length discrete states; each list contains all occurences of that discrete state by
+        :obj:`[chunk number, starting index, ending index]`
+
     """
 
     max_state = max([max(x) for x in states])
@@ -67,7 +61,21 @@ def get_discrete_chunks(states, include_edges=True):
 
 
 def get_state_durations(latents, hmm):
-    """Calculate frame count for each state"""
+    """Calculate frame count for each state.
+
+    Parameters
+    ----------
+    latents : :obj:`list` of :obj:`np.ndarray`
+        latent states
+    hmm : :obj:`ssm.HMM`
+        arhmm objecct
+
+    Returns
+    -------
+    :obj:`list`
+        number of frames for each state run
+
+    """
     # TODO: bad return type when n_arhmm_states = 1
     states = [hmm.most_likely_states(x) for x in latents]
     state_indices = get_discrete_chunks(states, include_edges=False)
@@ -79,46 +87,24 @@ def get_state_durations(latents, hmm):
 
 
 def relabel_states_by_use(states, mapping=None):
-    """
-    Takes in discrete states and relabels according to mapping or length of time in each.
-
-    Note
-    ----
-    Some note
+    """Relabel discrete states according to mapping or length of time spent in each.
 
     Parameters
     ----------
-    states : `list`
+    states : :obj:`list` of :obj:`np.ndarray`
         list of trials; each trial is numpy array containing discrete state for each frame
-    mapping : array-like, optional
+    mapping : :obj:`array-like`, optional
         format is mapping[old_state] = new_state; for example if using training length of times
         mapping on validation data
+
+    Returns
+    -------
+    :obj:`tuple`
+        - relabeled_states (:obj:`list`): same data structure but with states relabeled by use
+        - mapping (:obj:`dict`): orig labels to new labels; mapping[old_state] = new_state frame
+        - counts (:obj:`list`): updated frame counts for relabeled states
+
     """
-    #
-    # Returns
-    # -------
-    # relabeled_states : list
-    #     same data structure but with states relabeled by use (state 0 has most frames, etc)
-    # mapping: dict
-    #     mapping of original labels to new labels; mapping[old_state] = new_state frame
-    # counts: list
-    #     updated frame counts for relabeled states
-    # """
-    # Takes in discrete states and relabels according to mapping or length of time in each.
-    #
-    # Args:
-    #     states (list): list of trials; each trial is numpy array containing discrete state for each
-    #         frame
-    #     mapping (array-like, optional): format is mapping[old_state] = new_state; for example if
-    #         using training length of times mapping on validation data
-    #
-    # Returns:
-    #     tuple:
-    #     relabeled_states: same data structure but with states relabeled by use (state 0 has most
-    #     frames, etc)
-    #     mapping: mapping of original labels to new labels; mapping[old_state] = new_state frame
-    #     counts: updated frame counts for relabeled states
-    # """
     frame_counts = []
     if mapping is None:
         # Get number of frames for each state
@@ -138,16 +124,20 @@ def relabel_states_by_use(states, mapping=None):
 
 
 def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
-    """
-    Collect data from data generator and put into dictionary with keys `train`, `test`, and `val`
+    """Collect data from data generator and put into dictionary with dtypes for keys.
 
-    Args:
-        data_generator (ConcatSessionsGenerator):
-        sess_idxs (int or list): concatenate train/test/val data across
-            multiple sessions
+    Parameters
+    ----------
+    data_generator : :obj:`ConcatSessionsGenerator`
+    sess_idxs : :obj:`int` or :obj:`list`
+        concatenate train/test/val data across one or more sessions
 
-    Returns:
-        (tuple): latents dict, trial indices dict
+    Returns
+    -------
+    :obj:`tuple`
+        - latents (:obj:`dict`): with keys 'train', 'val', 'test'
+        - trial indices (:obj:`dict`): with keys 'train', 'val', 'test'
+
     """
     if isinstance(sess_idxs, int):
         sess_idxs = [sess_idxs]
@@ -167,28 +157,38 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
 def get_model_latents_states(
         hparams, version, sess_idx=0, return_samples=0, cond_sampling=False, dtype='test',
         rng_seed=0):
-    """
-    Return arhmm defined in `hparams` with associated latents and states. Can also return sampled
-    latents and states.
+    """Return arhmm defined in :obj:`hparams` with associated latents and states.
 
-    Args:
-        hparams (dict):
-        version (str or int):
-        sess_idx (int, optional): session index into data generator
-        return_samples (int, optional): number of trials to sample from model
-        cond_sampling (bool, optional): if True return samples conditioned on most likely state
-            sequence; if False return unconditioned samples
-        dtype (str, optional): trial type to use for conditonal sampling; 'train' | 'val' | 'test'
-        rng_seed (int, optional): control sampling
+    Can also return sampled latents and states.
 
-    Returns:
-        dict:
-            'model': ssm object
-            'latents': dict with latents from train, val and test trials
-            'states': dict with states from train, val and test trials
-            'trial_idxs': dict with trial indices from train, val and test trials
-            'latents_gen': list of generated latents
-            'states_gen': list of generated states
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify an arhmm
+    version : :obj:`str` or :obj:`int`
+        test tube model version (can be 'best')
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    return_samples : :obj:`int`, optional
+        number of trials to sample from model
+    cond_sampling : :obj:`bool`, optional
+        if :obj:`True` return samples conditioned on most likely state sequence; else return
+        unconditioned samples
+    dtype : :obj:`str`, optional
+        trial type to use for conditonal sampling; 'train' | 'val' | 'test'
+    rng_seed : :obj:`int`, optional
+        random number generator seed to control sampling
+
+    Returns
+    -------
+    :obj:`dict`
+        - 'model' (:obj:`ssm.HMM` object)
+        - 'latents' (:obj:`dict`): latents from train, val and test trials
+        - 'states' (:obj:`dict`): states from train, val and test trials
+        - 'trial_idxs' (:obj:`dict`): trial indices from train, val and test trials
+        - 'latents_gen' (:obj:`list`)
+        - 'states_gen' (:obj:`list`)
+
     """
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import experiment_exists
@@ -268,22 +268,36 @@ def get_model_latents_states(
 def make_syllable_movies_wrapper(
         hparams, save_file, sess_idx=0, dtype='test', max_frames=400, frame_rate=10,
         min_threshold=0, n_buffer=5, n_pre_frames=3, n_rows=None, single_syllable=None):
-    """
-    Present video clips of each individual syllable in separate panels
+    """Present video clips of each individual syllable in separate panels.
 
-    Args:
-        hparams (dict):
-        save_file (str):
-        sess_idx (int, optional): session index into data generator
-        dtype (str, optional): types of trials to make video with; 'train' | 'val' | 'test'
-        max_frames (int, optional): maximum number of frames to animate from a trial
-        frame_rate (float, optional): frame rate of saved movie
-        min_threshold (int, optional): minimum number of frames in a syllable run to be considered
-            for movie
-        n_buffer (int): number of blank frames between syllable instances
-        n_pre_frames (int): number of behavioral frames to precede each syllable instance
-        n_rows (int or NoneType): number of rows in output movie
-        single_syllable (int or NoneType): choose only a single state for movie
+    This is a high-level function that loads the arhmm model described in the hparams dictionary
+    and produces the necessary states/video frames.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify an arhmm
+    save_file : :obj:`str`
+        full save file (path and filename)
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    dtype : :obj:`str`, optional
+        types of trials to make video with; 'train' | 'val' | 'test'
+    max_frames : :obj:`int`, optional
+        maximum number of frames to animate
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+    min_threshold : :obj:`int`, optional
+        minimum number of frames in a syllable run to be considered for movie
+    n_buffer : :obj:`int`
+        number of blank frames between syllable instances
+    n_pre_frames : :obj:`int`
+        number of behavioral frames to precede each syllable instance
+    n_rows : :obj:`int` or :obj:`NoneType`
+        number of rows in output movie
+    single_syllable : :obj:`int` or :obj:`NoneType`
+        choose only a single state for movie
+
     """
     from behavenet.data.data_generator import ConcatSessionsGenerator
     from behavenet.data.utils import get_data_generator_inputs
@@ -355,21 +369,32 @@ def make_syllable_movies_wrapper(
 def make_syllable_movies(
         ims_orig, state_list, trial_idxs, save_file=None, max_frames=400, frame_rate=10,
         n_buffer=5, n_pre_frames=3, n_rows=None, single_syllable=None):
-    """
-    Present video clips of each individual syllable in separate panels
+    """Present video clips of each individual syllable in separate panels
 
-    Args:
-        ims_orig (list): each entry (one per trial) is an np.ndarray of shape
-            (n_frames, n_channels, y_pix, x_pix)
-        state_list (list): each entry (one per state) is a
-        trial_idxs (array-like): indices into `states` for which trials should be plotted
-        save_file (str): directory for saving movie
-        max_frames (int, optional): maximum number of frames to animate from a trial
-        frame_rate (float, optional): frame rate of saved movie
-        n_buffer (int): number of blank frames between syllable instances
-        n_pre_frames (int): number of behavioral frames to precede each syllable instance
-        n_rows (int or NoneType): number of rows in output movie
-        single_syllable (int or NoneType): choose only a single state for movie
+    Parameters
+    ----------
+    ims_orig : :obj:`np.ndarray`
+        shape (n_frames, n_channels, y_pix, x_pix)
+    state_list : :obj:`list`
+        each entry (one per state) contains all occurences of that discrete state by
+        :obj:`[chunk number, starting index, ending index]`
+    trial_idxs : :obj:`array-like`
+        indices into :obj:`states` for which trials should be plotted
+    save_file : :obj:`str`
+        full save file (path and filename)
+    max_frames : :obj:`int`, optional
+        maximum number of frames to animate
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+    n_buffer : :obj:`int`
+        number of blank frames between syllable instances
+    n_pre_frames : :obj:`int`
+        number of behavioral frames to precede each syllable instance
+    n_rows : :obj:`int` or :obj:`NoneType`
+        number of rows in output movie
+    single_syllable : :obj:`int` or :obj:`NoneType`
+        choose only a single state for movie
+
     """
 
     K = len(state_list)
@@ -501,28 +526,47 @@ def make_syllable_movies(
 def real_vs_sampled_wrapper(
         output_type, hparams, save_file, sess_idx, dtype='test', conditional=True, max_frames=400,
         frame_rate=20, n_buffer=5, xtick_locs=None, frame_rate_beh=None, format='png'):
-    """
-    Produce movie with (AE) reconstructed video and sampled video. The sampled video can be
-    completely unconditional (states and latents are sampled) or conditioned on the most likely
-    state sequence.
+    """Produce movie with (AE) reconstructed video and sampled video.
 
-    Args:
-        output_type (str): 'plot' | 'movie' | 'both'.
-        hparams (dict):
-        save_file (str):
-        sess_idx (int, optional): session index into data generator
-        dtype (str, optional): types of trials to make plot/video with; 'train' | 'val' | 'test'
-        conditional (bool): conditional vs unconditional samples; for reconstruction title
-        max_frames (int, optional): maximum number of frames to plot/animate
-        frame_rate (float, optional): frame rate of saved movie
-        n_buffer (int): number of blank frames between animated trials if more one are needed to
-            reach `max_frames`
-        xtick_locs (array-like, optional): tick locations in bin values for plot
-        frame_rate_beh (float, optional): behavioral video framerate; to properly relabel xticks
-        format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
+    This is a high-level function that loads the model described in the hparams dictionary and
+    produces the necessary state sequences/samples. The sampled video can be completely
+    unconditional (states and latents are sampled) or conditioned on the most likely state
+    sequence.
 
-    Returns:
-        matplotlib figure handle if `output_type='plot'` or `output_type='both'` else None
+    Parameters
+    ----------
+    output_type : :obj:`str`
+        'plot' | 'movie' | 'both'
+    hparams : :obj:`dict`
+        needs to contain enough information to specify an autoencoder
+    save_file : :obj:`str`
+        full save file (path and filename)
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    dtype : :obj:`str`, optional
+        types of trials to make plot/video with; 'train' | 'val' | 'test'
+    conditional : :obj:`bool`
+        conditional vs unconditional samples; for creating reconstruction title
+    max_frames : :obj:`int`, optional
+        maximum number of frames to animate
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+    n_buffer : :obj:`int`
+        number of blank frames between animated trials if more one are needed to reach
+        :obj:`max_frames`
+    xtick_locs : :obj:`array-like`, optional
+        tick locations in bin values for plot
+    frame_rate_beh : :obj:`float`, optional
+        behavioral video framerate; to properly relabel xticks
+    format : :obj:`str`, optional
+        any accepted matplotlib save format, e.g. 'png' | 'pdf' | 'jpeg'
+
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
+        matplotlib figure handle if :obj:`output_type='plot'` or :obj:`output_type='both'`, else
+        nothing returned (movie is saved)
+
     """
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import get_expt_dir
@@ -607,15 +651,21 @@ def real_vs_sampled_wrapper(
 
 def make_real_vs_sampled_movies(
         ims_recon, ims_recon_samp, conditional, save_file=None, frame_rate=15):
-    """
-    Produce movie with (AE) reconstructed video and sampled video.
+    """Produce movie with (AE) reconstructed video and sampled video.
 
-    Args:
-        ims_recon (np.ndarray): (n_frames, y_pix, x_pix)
-        ims_recon_samp (np.ndarray): (n_frames, y_pix, x_pix)
-        conditional (bool): conditional vs unconditional samples; for reconstruction title
-        save_file (str, optional):
-        frame_rate (float, optional): frame rate of saved movie
+    Parameters
+    ----------
+    ims_recon : :obj:`np.ndarray`
+        shape (n_frames, y_pix, x_pix)
+    ims_recon_samp : :obj:`np.ndarray`
+        shape (n_frames, y_pix, x_pix)
+    conditional : :obj:`bool`
+        conditional vs unconditional samples; for creating reconstruction title
+    save_file : :obj:`str`, optional
+        full save file (path and filename)
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+
     """
 
     n_frames = ims_recon.shape[0]
@@ -664,23 +714,33 @@ def make_real_vs_sampled_movies(
 def plot_real_vs_sampled(
         latents, latents_samp, states, states_samp, save_file=None, xtick_locs=None,
         frame_rate=None, format='png'):
-    """
-    Plot real and sampled latents overlaying real and potentially sampled states. If the latent
-    samples are conditioned on inferred (rather than sampled) states, `states_samp` should empty.
+    """Plot real and sampled latents overlaying real and (potentially sampled) states.
 
-    Args:
-        latents (np.ndarray): (n_frames, n_latents)
-        latents_samp (np.ndarray): (n_frames, n_latents)
-        states (np.ndarray): (n_frames,)
-        states_samp (np.ndarray): (n_frames,) if `latents_samp` are not conditioned on `states`,
-            otherwise (0,)
-        save_file (str, optional):
-        xtick_locs (array-like, optional): tick locations in bin values
-        frame_rate (float, optional): behavioral video framerate; to properly relabel xticks
-        format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
+    Parameters
+    ----------
+    latents : :obj:`np.ndarray`
+        shape (n_frames, n_latents)
+    latents_samp : :obj:`np.ndarray`
+        shape (n_frames, n_latents)
+    states : :obj:`np.ndarray`
+        shape (n_frames,)
+    states_samp : :obj:`np.ndarray`
+        shape (n_frames,) if :obj:`latents_samp` are not conditioned on :obj:`states`, otherwise
+        shape (0,)
+    save_file : :obj:`str`
+        full save file (path and filename)
+    xtick_locs : :obj:`array-like`, optional
+        tick locations in bin values for plot
+    frame_rate : :obj:`float`, optional
+        behavioral video framerate; to properly relabel xticks
+    format : :obj:`str`, optional
+        any accepted matplotlib save format, e.g. 'png' | 'pdf' | 'jpeg'
 
-    Returns:
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
         matplotlib figure handle
+
     """
 
     fig, axes = plt.subplots(2, 1, figsize=(10, 8))
@@ -712,20 +772,30 @@ def plot_real_vs_sampled(
 
 def plot_states_overlaid_with_latents(
         latents, states, save_file=None, ax=None, xtick_locs=None, frame_rate=None, format='png'):
-    """
-    Plot states for a single trial overlaid with latents
+    """Plot states for a single trial overlaid with latents.
 
-    Args:
-        latents (np.ndarray): (n_frames, n_latents)
-        states (np.ndarray): (n_frames,)
-        save_file (str, optional):
-        ax (matplotlib.Axes object, optional):
-        xtick_locs (array-like, optional): tick locations in bin values
-        frame_rate (float, optional): behavioral video framerate; to properly relabel xticks
-        format (str, optional): e.g. 'png' | 'pdf' | 'jpeg'
+    Parameters
+    ----------
+    latents : :obj:`np.ndarray`
+        shape (n_frames, n_latents)
+    states : :obj:`np.ndarray`
+        shape (n_frames,)
+    save_file : :obj:`str`, optional
+        full save file (path and filename)
+    ax : :obj:`matplotlib.Axes` object or :obj:`NoneType`, optional
+        axes to plot into; if :obj:`NoneType`, a new figure is created
+    xtick_locs : :obj:`array-like`, optional
+        tick locations in bin values for plot
+    frame_rate : :obj:`float`, optional
+        behavioral video framerate; to properly relabel xticks
+    format : :obj:`str`, optional
+        any accepted matplotlib save format, e.g. 'png' | 'pdf' | 'jpeg'
 
-    Returns:
-        matplotlib figure handle if `ax` is None, otherwise updated axis
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
+        matplotlib figure handle if :obj:`ax=None`, otherwise updated axis
+
     """
     if ax is None:
         fig = plt.figure(figsize=(8, 4))
@@ -766,12 +836,19 @@ def plot_states_overlaid_with_latents(
 
 
 def plot_state_transition_matrix(model, deridge=False):
-    """
-    Plot Markov transition matrix for arhmm
+    """Plot Markov transition matrix for arhmm.
 
-    Args:
-        model (ssm object):
-        deridge (bool): remove diagonal to more clearly see dynamic range of off-diagonal entries
+    Parameters
+    ----------
+    model : :obj:`ssm.HMM` object
+    deridge : :obj:`bool`, optional
+        remove diagonal to more clearly see dynamic range of off-diagonal entries
+
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
+        matplotlib figure handle
+
     """
     trans = np.copy(model.transitions.transition_matrix)
     if deridge:
@@ -792,12 +869,19 @@ def plot_state_transition_matrix(model, deridge=False):
 
 
 def plot_dynamics_matrices(model, deridge=False):
-    """
-    Plot autoregressive dynamics matrices for arhmm
+    """Plot autoregressive dynamics matrices for arhmm.
 
-    Args:
-        model (ssm object):
-        deridge (bool): remove diagonal to more clearly see dynamic range of off-diagonal entries
+    Parameters
+    ----------
+    model : :obj:`ssm.HMM` object
+    deridge : :obj:`bool`, optional
+        remove diagonal to more clearly see dynamic range of off-diagonal entries
+
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
+        matplotlib figure handle
+
     """
     K = model.K
     D = model.D
@@ -851,11 +935,17 @@ def plot_dynamics_matrices(model, deridge=False):
 
 
 def plot_obs_biases(model):
-    """
-    Plot observation bias vectors for arhmm
+    """Plot observation bias vectors for arhmm.
 
-    Args:
-        model (ssm object)
+    Parameters
+    ----------
+    model : :obj:`ssm.HMM` object
+
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
+        matplotlib figure handle
+
     """
     fig = plt.figure(figsize=(6, 4))
     mats = np.copy(model.observations.bs.T)
@@ -872,11 +962,17 @@ def plot_obs_biases(model):
 
 
 def plot_obs_covariance_matrices(model):
-    """
-    Plot observation covariance matrices for arhmm
+    """Plot observation covariance matrices for arhmm.
 
-    Args:
-        model (ssm object)
+    Parameters
+    ----------
+    model : :obj:`ssm.HMM` object
+
+    Returns
+    -------
+    :obj:`matplotlib.figure.Figure`
+        matplotlib figure handle
+
     """
     K = model.K
     n_cols = int(np.sqrt(K))
