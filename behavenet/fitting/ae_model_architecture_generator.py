@@ -61,7 +61,7 @@ def estimate_model_footprint(model, input_size, cutoff_size=20):
     return curr_bytes * 1.2  # safety blanket
 
 
-def get_possible_arch(input_dim,n_ae_latents,arch_seed=None):
+def get_possible_arch(input_dim, n_ae_latents, arch_seed=None):
     # Here is where you can set options/probabilities etc
     if arch_seed:
         np.random.seed(arch_seed)
@@ -135,11 +135,11 @@ def calculate_output_dim(input_dim, kernel, stride, padding_type, layer_type):
     return output_dim, before_pad, after_pad
 
 
-def get_encoding_conv_block(arch,opts):
+def get_encoding_conv_block(arch, opts):
     # input dims should be n channels by y pix by x pix
 
-    last_dims = arch['ae_input_dim'][0]*arch['ae_input_dim'][1]*arch['ae_input_dim'][2]
-    smallest_pix = min(arch['ae_input_dim'][1],arch['ae_input_dim'][2])
+    last_dims = arch['ae_input_dim'][0] * arch['ae_input_dim'][1] * arch['ae_input_dim'][2]
+    smallest_pix = min(arch['ae_input_dim'][1], arch['ae_input_dim'][2])
     
     arch['ae_encoding_x_dim'] = []
     arch['ae_encoding_y_dim'] = []
@@ -151,15 +151,15 @@ def get_encoding_conv_block(arch,opts):
     arch['ae_encoding_y_padding'] = []
     arch['ae_encoding_layer_type'] = []
         
-    i_layer=0
-    global_layer=0
-    while last_dims >= opts['max_latents'] and smallest_pix>=1:
+    i_layer = 0
+    global_layer = 0
+    while last_dims >= opts['max_latents'] and smallest_pix >= 1:
 
         # Get conv2d layer
         kernel_size = np.random.choice(opts['possible_kernel_sizes'])
         stride_size = np.random.choice(opts['possible_strides'],p=opts['possible_strides_probs']) if arch['ae_network_type'] == 'strides_only' else 1
 
-        if i_layer == 0: # use input dimensions
+        if i_layer == 0:  # use input dimensions
             input_dim_y, input_dim_x = arch['ae_input_dim'][1], arch['ae_input_dim'][2]
         else:
             input_dim_y, input_dim_x = arch['ae_encoding_y_dim'][i_layer-1], arch['ae_encoding_x_dim'][i_layer-1]
@@ -177,8 +177,7 @@ def get_encoding_conv_block(arch,opts):
         else:
             prob_channels = [1]
 
-
-        n_channels = np.random.choice(remaining_channels,p=prob_channels)
+        n_channels = np.random.choice(remaining_channels, p=prob_channels)
 
         if np.prod(n_channels*output_dim_x*output_dim_y)>= opts['max_latents'] and np.min([output_dim_x,output_dim_y])>=1:
             # Choices ahead of time
@@ -192,10 +191,9 @@ def get_encoding_conv_block(arch,opts):
             arch['ae_encoding_x_padding'].append((x_before_pad,x_after_pad))
             arch['ae_encoding_y_padding'].append((y_before_pad,y_after_pad))
             arch['ae_encoding_layer_type'].append('conv')
-            i_layer+=1
+            i_layer += 1
         else:
             break
-
 
         # Get max pool layer if applicable      
         if arch['ae_network_type'] == 'max_pooling':
@@ -208,14 +206,14 @@ def get_encoding_conv_block(arch,opts):
                 
                 arch['ae_encoding_n_channels'].append(n_channels)
                 arch['ae_encoding_kernel_size'].append(kernel_size)
-                arch['ae_encoding_stride_size'].append(kernel_size) # for max pool layers have stride as kernel size
-                arch['ae_encoding_x_padding'].append((x_before_pad,x_after_pad))
-                arch['ae_encoding_y_padding'].append((y_before_pad,y_after_pad))
+                arch['ae_encoding_stride_size'].append(kernel_size)  # for max pool layers have stride as kernel size
+                arch['ae_encoding_x_padding'].append((x_before_pad, x_after_pad))
+                arch['ae_encoding_y_padding'].append((y_before_pad, y_after_pad))
                 arch['ae_encoding_x_dim'].append(output_dim_x)
                 arch['ae_encoding_y_dim'].append(output_dim_y)
                 arch['ae_encoding_layer_type'].append('maxpool')
                 
-                i_layer+=1
+                i_layer += 1
             else:
                 # Delete previous conv layer
                 arch['ae_encoding_n_channels'] = arch['ae_encoding_n_channels'][:-1]
@@ -235,7 +233,7 @@ def get_encoding_conv_block(arch,opts):
         if stop_this_layer:
             break
             
-        global_layer+=1   
+        global_layer += 1
         
     return arch
 
@@ -253,9 +251,12 @@ def get_decoding_conv_block(arch):
  
     arch['ae_decoding_layer_type'] = []
     
-    arch['ae_decoding_starting_dim'] = [arch['ae_encoding_n_channels'][-1],arch['ae_encoding_y_dim'][-1],arch['ae_encoding_x_dim'][-1]]
+    arch['ae_decoding_starting_dim'] = [
+        arch['ae_encoding_n_channels'][-1],
+        arch['ae_encoding_y_dim'][-1],
+        arch['ae_encoding_x_dim'][-1]]
 
-    encoding_layer_num_vec = np.arange(len(arch['ae_encoding_n_channels'])-1,-1,-1)
+    encoding_layer_num_vec = np.arange(len(arch['ae_encoding_n_channels'])-1, -1, -1)
     
     i_layer=0
     for which_encoding_layer in encoding_layer_num_vec:       
@@ -279,7 +280,6 @@ def get_decoding_conv_block(arch):
         output_dim_x = arch['ae_encoding_x_dim'][which_encoding_layer-1] if which_encoding_layer>0 else arch['ae_input_dim'][2]
         arch['ae_decoding_y_dim'].append(output_dim_y)
         arch['ae_decoding_x_dim'].append(output_dim_x)
-
 
         if arch['ae_encoding_layer_type'][which_encoding_layer]=='maxpool':
             arch['ae_decoding_layer_type'].append('unpool')

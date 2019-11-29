@@ -1,20 +1,40 @@
+"""Autoencoder models implemented in PyTorch."""
+
+import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
-import numpy as np
+import torch.nn.functional as functional
 
 
 class ConvAEEncoder(nn.Module):
+    """Convolutional encoder."""
 
     def __init__(self, hparams):
+        """
 
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            - 'model_class' (:obj:`str`): 'ae' | 'vae'
+            - 'n_ae_latents' (:obj:`int`)
+            - 'fit_sess_io_layers; (:obj:`bool`): fit session-specific input/output layers
+            - 'ae_encoding_x_dim' (:obj:`list`)
+            - 'ae_encoding_y_dim' (:obj:`list`)
+            - 'ae_encoding_n_channels' (:obj:`list`)
+            - 'ae_encoding_kernel_size' (:obj:`list`)
+            - 'ae_encoding_stride_size' (:obj:`list`)
+            - 'ae_encoding_x_padding' (:obj:`list`)
+            - 'ae_encoding_y_padding' (:obj:`list`)
+            - 'ae_encoding_layer_type' (:obj:`list`)
+
+        """
         super(ConvAEEncoder, self).__init__()
-
         self.hparams = hparams
         self.encoder = None
         self.build_model()
 
     def __str__(self):
+        """Pretty print encoder architecture."""
         format_str = 'Encoder architecture:\n'
         i = 0
         for module in self.encoder:
@@ -22,13 +42,13 @@ class ConvAEEncoder(nn.Module):
             i += 1
         # final ff layer
         i += 1
-        format_str += str('    {:02d}: {}\n'.format(i, self.FF))
+        format_str += str('    {:02d}: {}\n'.format(i, self.ff))
         return format_str
 
     def build_model(self):
+        """Construct the encoder."""
 
         self.encoder = nn.ModuleList()
-
         # Loop over layers (each conv/batch norm/max pool/relu chunk counts as
         # one layer for global_layer_num)
         global_layer_num = 0
@@ -38,7 +58,7 @@ class ConvAEEncoder(nn.Module):
             if self.hparams['ae_encoding_layer_type'][i_layer] == 'conv':
 
                 # convolution layer
-                args = self.get_conv2d_args(i_layer, global_layer_num)
+                args = self._get_conv2d_args(i_layer, global_layer_num)
                 if self.hparams.get('fit_sess_io_layers', False) and i_layer == 0:
                     module = nn.ModuleList([
                         nn.Conv2d(
@@ -71,7 +91,7 @@ class ConvAEEncoder(nn.Module):
                 # max pool layer
                 if i_layer < (len(self.hparams['ae_encoding_n_channels'])-1) \
                         and (self.hparams['ae_encoding_layer_type'][i_layer+1] == 'maxpool'):
-                    args = self.get_maxpool2d_args(i_layer)
+                    args = self._get_maxpool2d_args(i_layer)
                     module = nn.MaxPool2d(
                         kernel_size=args['kernel_size'],
                         stride=args['stride'],
@@ -86,13 +106,13 @@ class ConvAEEncoder(nn.Module):
                     str('relu%i' % global_layer_num), nn.LeakyReLU(0.05))
                 global_layer_num += 1
 
-        # final FF layer to latents
+        # final ff layer to latents
         last_conv_size = self.hparams['ae_encoding_n_channels'][-1] \
                          * self.hparams['ae_encoding_y_dim'][-1] \
                          * self.hparams['ae_encoding_x_dim'][-1]
-        self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
+        self.ff = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
-        # If VAE model, have additional FF layer to latent variances
+        # If VAE model, have additional ff layer to latent variances
         if self.hparams['model_class'] == 'vae':
             raise NotImplementedError
             # self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
@@ -102,7 +122,7 @@ class ConvAEEncoder(nn.Module):
         else:
             raise ValueError('Not valid model type')
 
-    def get_conv2d_args(self, layer, global_layer):
+    def _get_conv2d_args(self, layer, global_layer):
 
         if layer == 0:
             in_channels = self.hparams['ae_input_dim'][0]
@@ -133,7 +153,7 @@ class ConvAEEncoder(nn.Module):
             'padding': padding}
         return args
 
-    def get_maxpool2d_args(self, layer):
+    def _get_maxpool2d_args(self, layer):
         args = {
             'kernel_size': int(self.hparams['ae_encoding_kernel_size'][layer + 1]),
             'stride': int(self.hparams['ae_encoding_stride_size'][layer + 1]),
@@ -150,8 +170,23 @@ class ConvAEEncoder(nn.Module):
         return args
 
     def forward(self, x, dataset=None):
-        # x should be batch size x n channels x xdim x ydim
+        """Process input data.
 
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+
+        Returns
+        -------
+        :obj:`tuple`
+            - encoder output (:obj:`torch.Tensor`): shape (n_latents)
+            - pool_idx (:obj:`list`): max pooling indices for each layer
+            - output_size (:obj:`list`): output size for each layer
+
+        """
         # Loop over layers, have to collect pool_idx and output sizes if using
         # max pooling to use in unpooling
         pool_idx = []
@@ -166,46 +201,71 @@ class ConvAEEncoder(nn.Module):
             else:
                 x = layer(x)
 
-        # Reshape for FF layer
+        # Reshape for ff layer
         x = x.view(x.size(0), -1)
 
         if self.hparams['model_class'] == 'ae':
-            return self.FF(x), pool_idx, target_output_size
+            return self.ff(x), pool_idx, target_output_size
         elif self.hparams['model_class'] == 'vae':
             return NotImplementedError
         else:
-            raise ValueError(
-                '"%s" is not a valid model class' % self.hparams['model_class'])
+            raise ValueError('"%s" is not a valid model class' % self.hparams['model_class'])
 
     def freeze(self):
-        # easily freeze the AE encoder parameters
+        """Prevent updates to encoder parameters."""
         for param in self.parameters():
             param.requires_grad = False
 
+    def unfreeze(self):
+        """Force updates to encoder parameters."""
+        for param in self.parameters():
+            param.requires_grad = True
+
 
 class ConvAEDecoder(nn.Module):
+    """Convolutional decoder."""
 
     def __init__(self, hparams):
+        """
 
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            - 'model_class' (:obj:`str`): 'ae' | 'vae'
+            - 'n_ae_latents' (:obj:`int`)
+            - 'fit_sess_io_layers; (:obj:`bool`): fit session-specific input/output layers
+            - 'ae_decoding_x_dim' (:obj:`list`)
+            - 'ae_decoding_y_dim' (:obj:`list`)
+            - 'ae_decoding_n_channels' (:obj:`list`)
+            - 'ae_decoding_kernel_size' (:obj:`list`)
+            - 'ae_decoding_stride_size' (:obj:`list`)
+            - 'ae_decoding_x_padding' (:obj:`list`)
+            - 'ae_decoding_y_padding' (:obj:`list`)
+            - 'ae_decoding_layer_type' (:obj:`list`)
+            - 'ae_decoding_starting_dim' (:obj:`list`)
+            - 'ae_decoding_last_FF_layer' (:obj:`bool`)
+
+        """
         super(ConvAEDecoder, self).__init__()
-
         self.hparams = hparams
         self.decoder = None
         self.build_model()
 
     def __str__(self):
+        """Pretty print decoder architecture."""
         format_str = 'Decoder architecture:\n'
         for i, module in enumerate(self.decoder):
             format_str += str('    {:02d}: {}\n'.format(i, module))
         return format_str
 
     def build_model(self):
+        """Construct the decoder."""
 
-        # First FF layer (from latents to size of last encoding layer)
+        # First ff layer (from latents to size of last encoding layer)
         first_conv_size = self.hparams['ae_decoding_starting_dim'][0] \
                           * self.hparams['ae_decoding_starting_dim'][1] \
-                          *self.hparams['ae_decoding_starting_dim'][2]
-        self.FF = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
+                          * self.hparams['ae_decoding_starting_dim'][2]
+        self.ff = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
 
         self.decoder = nn.ModuleList()
 
@@ -236,7 +296,7 @@ class ConvAEDecoder(nn.Module):
                         str('maxunpool%i' % global_layer_num), module)
 
                 # conv transpose layer
-                args = self.get_convtranspose2d_args(i_layer, global_layer_num)
+                args = self._get_convtranspose2d_args(i_layer, global_layer_num)
                 if self.hparams.get('fit_sess_io_layers', False) \
                         and i_layer == (len(self.hparams['ae_decoding_n_channels']) - 1) \
                         and not self.hparams['ae_decoding_last_FF_layer']:
@@ -282,7 +342,7 @@ class ConvAEDecoder(nn.Module):
                         str('relu%i' % global_layer_num), nn.LeakyReLU(0.05))
                 global_layer_num += 1
 
-        # optional final FF layer (rarely used)
+        # optional final ff layer (rarely used)
         if self.hparams['ae_decoding_last_FF_layer']:
             if self.hparams.get('fit_sess_io_layers', False):
                 raise NotImplementedError
@@ -295,7 +355,7 @@ class ConvAEDecoder(nn.Module):
                 * self.hparams['ae_input_dim'][1]
                 * self.hparams['ae_input_dim'][2])
             self.decoder.add_module(
-                str('last_FF%i' % global_layer_num), module)
+                str('last_ff%i' % global_layer_num), module)
             self.decoder.add_module(
                 str('sigmoid%i' % global_layer_num), nn.Sigmoid())
 
@@ -306,7 +366,7 @@ class ConvAEDecoder(nn.Module):
         else:
             raise ValueError('Not valid model type')
 
-    def get_convtranspose2d_args(self, layer, global_layer):
+    def _get_convtranspose2d_args(self, layer, global_layer):
 
         # input channels
         if layer == 0:
@@ -378,9 +438,27 @@ class ConvAEDecoder(nn.Module):
         return args
 
     def forward(self, x, pool_idx, target_output_size, dataset=None):
+        """Process input data.
 
-        # First FF layer/resize to be convolutional input
-        x = self.FF(x)
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        pool_idx : :obj:`list`
+            max pooling indices from encoder for unpooling
+        target_output_size : :obj:`list`
+            layer-specific output sizes from encoder for unpooling
+        dataset : :obj:`int`
+            used with session-specific io layers
+
+        Returns
+        -------
+        :obj:`torch.Tensor`
+            shape (n_input_channels, y_pix, x_pix)
+
+        """
+        # First ff layer/resize to be convolutional input
+        x = self.ff(x)
         x = x.view(
             x.size(0),
             self.hparams['ae_decoding_starting_dim'][0],
@@ -397,13 +475,13 @@ class ConvAEDecoder(nn.Module):
                 if self.conv_t_pads[name] is not None:
                     # asymmetric padding for convtranspose layer if necessary
                     # (-i does cropping!)
-                    x = F.pad(x, [-i for i in self.conv_t_pads[name]])
+                    x = functional.pad(x, [-i for i in self.conv_t_pads[name]])
             elif isinstance(layer, nn.ModuleList):
                 x = layer[dataset](x)
                 if self.conv_t_pads[name] is not None:
                     # asymmetric padding for convtranspose layer if necessary
                     # (-i does cropping!)
-                    x = F.pad(x, [-i for i in self.conv_t_pads[name]])
+                    x = functional.pad(x, [-i for i in self.conv_t_pads[name]])
             elif isinstance(layer, nn.Linear):
                 x = x.view(x.shape[0],-1)
                 x = layer(x)
@@ -418,69 +496,113 @@ class ConvAEDecoder(nn.Module):
         if self.hparams['model_class'] == 'ae':
             return x
         elif self.hparams['model_class'] == 'vae':
-            raise ValueError('Not Implemented Error')
+            raise NotImplementedError
         else:
-            raise ValueError('Not Implemented Error')
+            raise ValueError('"%s" is not a valid model class' % self.hparams['model_class'])
 
     def freeze(self):
-        # easily freeze the AE decoder parameters
+        """Prevent updates to decoder parameters."""
         for param in self.parameters():
             param.requires_grad = False
 
+    def unfreeze(self):
+        """Force updates to decoder parameters."""
+        for param in self.parameters():
+            param.requires_grad = True
+
 
 class LinearAEEncoder(nn.Module):
+    """Linear encoder."""
 
     def __init__(self, n_latents, input_size):
         """
 
-        Args:
-            n_latents (int):
-            input_size (list or tuple): n_channels x y_pix x x_pix
+        Parameters
+        ----------
+        n_latents : :obj:`int`
+            number of latents in encoder output
+        input_size : :obj:`array-like`
+            shape of encoder input as (n_channels, y_pix, x_pix)
+
         """
         super().__init__()
-
         self.n_latents = n_latents
         self.input_size = input_size
+        self.encoder = None
+        self.decoder = None
         self.build_model()
 
     def __str__(self):
+        """Pretty print the encoder architecture."""
         format_str = 'Encoder architecture:\n'
         format_str += str('    {}\n'.format(self.encoder))
         return format_str
 
     def build_model(self):
+        """Construct the encoder."""
         self.encoder = nn.Linear(
             out_features=self.n_latents,
             in_features=np.prod(self.input_size),
             bias=True)
 
     def forward(self, x, dataset=None):
-        # reshape
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+
+        Returns
+        -------
+        :obj:`tuple`
+            - encoder output (:obj:`torch.Tensor`): shape (n_latents)
+            - :obj:`NoneType`: to match convolutional encoder outputs
+            - :obj:`NoneType`: to match convolutional encoder outputs
+
+        """
         x = x.view(x.size(0), -1)
         return self.encoder(x), None, None
 
     def freeze(self):
+        """Prevent updates to encoder parameters."""
         for param in self.parameters():
             param.requires_grad = False
 
+    def unfreeze(self):
+        """Force updates to encoder parameters."""
+        for param in self.parameters():
+            param.requires_grad = True
+
 
 class LinearAEDecoder(nn.Module):
+    """Linear decoder."""
 
     def __init__(self, n_latents, output_size, encoder=None):
         """
 
-        Args:
-            n_latents (int):
-            output_size (list or tuple): n_channels x y_pix x x_pix
-            encoder (nn.Module object): for linking encoder/decoder weights
+        Parameters
+        ----------
+        n_latents : :obj:`int`
+            number of latents in decoder input
+        output_size : :obj:`array-like`
+            shape of decoder output as (n_channels, y_pix, x_pix)
+        encoder : :obj:`nn.Module` object or :obj:`NoneType`
+            if :obj:`nn.Module` object, use the transpose weights for the decoder plus an
+            independent bias; otherwise fit a separate set of parameters
+
         """
         super().__init__()
         self.n_latents = n_latents
         self.output_size = output_size
         self.encoder = encoder
+        self.decoder = None
         self.build_model()
 
     def __str__(self):
+        """Pretty print the decoder architecture."""
         format_str = 'Decoder architecture:\n'
         if self.bias is not None:
             format_str += str('    Encoder weights transposed (plus independent bias)\n')
@@ -489,7 +611,7 @@ class LinearAEDecoder(nn.Module):
         return format_str
 
     def build_model(self):
-
+        """Construct the decoder."""
         if self.encoder is None:
             self.decoder = nn.Linear(
                 out_features=np.prod(self.output_size),
@@ -500,25 +622,84 @@ class LinearAEDecoder(nn.Module):
                 torch.zeros(int(np.prod(self.output_size))), requires_grad=True)
 
     def forward(self, x, dataset=None):
-        # push through
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+
+        Returns
+        -------
+        :obj:`torch.Tensor`
+            shape (n_input_channels, y_pix, x_pix)
+
+        """
         if self.encoder is None:
             x = self.decoder(x)
         else:
-            x = F.linear(x, self.encoder.encoder.weight.t()) + self.bias
+            x = functional.linear(x, self.encoder.encoder.weight.t()) + self.bias
         # reshape
         x = x.view(x.size(0), *self.output_size)
-
         return x
 
     def freeze(self):
+        """Prevent updates to decoder parameters."""
         for param in self.parameters():
             param.requires_grad = False
 
+    def unfreeze(self):
+        """Force updates to decoder parameters."""
+        for param in self.parameters():
+            param.requires_grad = True
+
 
 class AE(nn.Module):
+    """Main autoencoder class.
+
+    This class can construct both linear and convolutional autoencoders. The linear autoencoder
+    utilizes a single hidden layer, dense feedforward layers (i.e. not convolutional), and the
+    encoding and decoding weights are tied to more closely resemble PCA/SVD. The convolutional
+    autoencoder architecture is defined by various keys in the dict that serves as the constructor
+    input. See the :mod:`behavenet.fitting.ae_model_architecture` module to see examples for how
+    this is done.
+    """
 
     def __init__(self, hparams):
+        """
 
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            - 'model_type' (:obj:`int`): 'conv' | 'linear'
+            - 'model_class' (:obj:`str`): 'ae' | 'vae'
+            - 'y_pixels' (:obj:`int`)
+            - 'x_pixels' (:obj:`int`)
+            - 'n_input_channels' (:obj:`int`)
+            - 'n_ae_latents' (:obj:`int`)
+            - 'fit_sess_io_layers; (:obj:`bool`): fit session-specific input/output layers
+            - 'ae_encoding_x_dim' (:obj:`list`)
+            - 'ae_encoding_y_dim' (:obj:`list`)
+            - 'ae_encoding_n_channels' (:obj:`list`)
+            - 'ae_encoding_kernel_size' (:obj:`list`)
+            - 'ae_encoding_stride_size' (:obj:`list`)
+            - 'ae_encoding_x_padding' (:obj:`list`)
+            - 'ae_encoding_y_padding' (:obj:`list`)
+            - 'ae_encoding_layer_type' (:obj:`list`)
+            - 'ae_decoding_x_dim' (:obj:`list`)
+            - 'ae_decoding_y_dim' (:obj:`list`)
+            - 'ae_decoding_n_channels' (:obj:`list`)
+            - 'ae_decoding_kernel_size' (:obj:`list`)
+            - 'ae_decoding_stride_size' (:obj:`list`)
+            - 'ae_decoding_x_padding' (:obj:`list`)
+            - 'ae_decoding_y_padding' (:obj:`list`)
+            - 'ae_decoding_layer_type' (:obj:`list`)
+            - 'ae_decoding_starting_dim' (:obj:`list`)
+            - 'ae_decoding_last_FF_layer' (:obj:`bool`)
+
+        """
         super(AE, self).__init__()
         self.hparams = hparams
         self.model_type = self.hparams['model_type']
@@ -526,9 +707,12 @@ class AE(nn.Module):
                 self.hparams['n_input_channels'],
                 self.hparams['y_pixels'],
                 self.hparams['x_pixels'])
+        self.encoding = None
+        self.decoding = None
         self.build_model()
 
     def __str__(self):
+        """Pretty print the model architecture."""
         format_str = '\nAutoencoder architecture\n'
         format_str += '------------------------\n'
         format_str += self.encoding.__str__()
@@ -537,7 +721,7 @@ class AE(nn.Module):
         return format_str
 
     def build_model(self):
-
+        """Construct the model using hparams."""
         if self.model_type == 'conv':
             self.encoding = ConvAEEncoder(self.hparams)
             self.decoding = ConvAEDecoder(self.hparams)
@@ -551,7 +735,22 @@ class AE(nn.Module):
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 
     def forward(self, x, dataset=None):
+        """Process input data.
 
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+
+        Returns
+        -------
+        :obj:`tuple`
+            - y (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - x (:obj:`torch.Tensor`): hidden representation of shape (n_frames, n_latents)
+
+        """
         if self.model_type == 'conv':
             x, pool_idx, outsize = self.encoding(x, dataset=dataset)
             y = self.decoding(x, pool_idx, outsize, dataset=dataset)
@@ -560,5 +759,4 @@ class AE(nn.Module):
             y = self.decoding(x)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
-
         return y, x

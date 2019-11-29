@@ -1,43 +1,31 @@
+"""Encoding/decoding models implemented in PyTorch."""
+
 import torch
 from torch import nn
 
 
-class TimeLaggedLinear(nn.Module):
-
-    def __init__(self, hparams, output_size):
-        super(TimeLaggedLinear, self).__init__()
-        self.hparams = hparams
-        self.output_size = output_size
-
-        self.build_model()
-
-    def build_model(self):
-
-        self.linear = nn.Conv1d(
-            self.hparams['n_neurons'], self.output_size, self.hparams['neural_lags'],
-            padding=int((self.hparams['neural_lags'] - 1) / 2))
-
-    def forward(self, x):
-        # x should be timesteps x neurons
-
-        # have to reconfigure to 1 x neurons x timesteps
-        x = x.unsqueeze(0).transpose(1, 2)
-
-        x = self.linear(x)
-
-        x = x.transpose(2, 1).squeeze(0)
-        return x
-
-
 class Decoder(nn.Module):
-    """General wrapper class for decoding models"""
+    """General wrapper class for encoding/decoding models."""
 
     def __init__(self, hparams):
+        """
 
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            - model_type (:obj:`str`): 'ff' | 'ff-mv' | 'lstm'
+            - input_size (:obj:`int`)
+            - output_size (:obj:`int`)
+            - n_hid_layers (:obj:`int`)
+            - n_int_units (:obj:`int`)
+            - n_final_units (:obj:`int`)
+            - n_lags (:obj:`int`): number of lags in input data to use for temporal convolution
+            - noise_dist (:obj:`str`): 'gaussian' | 'gaussian-full' | 'poisson' | 'categorical'
+            - activation (:obj:`str`): 'linear' | 'relu' | 'lrelu' | 'sigmoid' | 'tanh'
+
+        """
         super().__init__()
-
         self.hparams = hparams
-
         if hparams['model_type'] == 'ff' or hparams['model_type'] == 'ff-mv':
             self.model = NN(hparams)
         elif hparams['model_type'] == 'lstm':
@@ -46,21 +34,25 @@ class Decoder(nn.Module):
             raise ValueError('"%s" is not a valid model type' % hparams['model_type'])
 
     def __str__(self):
+        """Pretty print model architecture."""
         return self.model.__str__()
 
     def forward(self, x):
+        """Process input data."""
         return self.model(x)
 
 
 class NN(nn.Module):
+    """Feedforward neural network model."""
 
     def __init__(self, hparams):
-
         super().__init__()
         self.hparams = hparams
+        self.decoder = None
         self.build_model()
 
     def __str__(self):
+        """Pretty print model architecture."""
         format_str = '\nNN architecture\n'
         format_str += '---------------\n'
         for i, module in enumerate(self.decoder):
@@ -68,6 +60,7 @@ class NN(nn.Module):
         return format_str
 
     def build_model(self):
+        """Construct the model."""
 
         self.decoder = nn.ModuleList()
 
@@ -194,16 +187,20 @@ class NN(nn.Module):
             in_size = out_size
 
     def forward(self, x):
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor`
+            shape of (time, neurons)
+
+        Returns
+        -------
+        :obj:`tuple`
+            - x (:obj:`torch.Tensor`): mean prediction of model
+            - y (:obj:`torch.Tensor`): precision matrix prediction of model (when using 'ff-mv')
+
         """
-
-        Args:
-            x (torch.Tensor): time x neurons
-
-        Returns:
-
-        """
-        # print('Model input size is {}'.format(x.shape))
-        # print()
         y = None
         for name, layer in self.decoder.named_children():
 
@@ -220,20 +217,27 @@ class NN(nn.Module):
             else:
                 x = layer(x)
 
-            # print('Layer {}'.format(name))
-            # print('\toutput size: {}'.format(x.shape))
-            # for param in layer.parameters():
-            #     print('\tparam shape is {}'.format(param.size()))
-            # print()
-
         return x, y
 
     def freeze(self):
+        """Prevent updates to decoder parameters."""
         for param in self.parameters():
             param.requires_grad = False
 
+    def unfreeze(self):
+        """Force updates to decoder parameters."""
+        for param in self.parameters():
+            param.requires_grad = True
+
 
 class LSTM(nn.Module):
+    """LSTM neural network model.
+
+    Note
+    ----
+    Not currently implemented
+
+    """
 
     def __init__(self, hparams):
         super().__init__()
