@@ -32,18 +32,6 @@ def get_user_dir(type):
     return dirs[str('%s_dir' % type)]
 
 
-def get_data_dir():
-    return get_user_dir('data')
-
-
-def get_save_dir():
-    return get_user_dir('save')
-
-
-def get_fig_dir():
-    return get_user_dir('fig')
-
-
 def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
     """
     Returns all paths in `sub_dirs` that start with `multi`. The absolute paths returned are

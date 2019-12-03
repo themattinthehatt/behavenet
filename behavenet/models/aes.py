@@ -42,7 +42,7 @@ class ConvAEEncoder(nn.Module):
             i += 1
         # final ff layer
         i += 1
-        format_str += str('    {:02d}: {}\n'.format(i, self.ff))
+        format_str += str('    {:02d}: {}\n'.format(i, self.FF))
         return format_str
 
     def build_model(self):
@@ -110,7 +110,7 @@ class ConvAEEncoder(nn.Module):
         last_conv_size = self.hparams['ae_encoding_n_channels'][-1] \
                          * self.hparams['ae_encoding_y_dim'][-1] \
                          * self.hparams['ae_encoding_x_dim'][-1]
-        self.ff = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
+        self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
         # If VAE model, have additional ff layer to latent variances
         if self.hparams['model_class'] == 'vae':
@@ -205,7 +205,7 @@ class ConvAEEncoder(nn.Module):
         x = x.view(x.size(0), -1)
 
         if self.hparams['model_class'] == 'ae':
-            return self.ff(x), pool_idx, target_output_size
+            return self.FF(x), pool_idx, target_output_size
         elif self.hparams['model_class'] == 'vae':
             return NotImplementedError
         else:
@@ -265,7 +265,7 @@ class ConvAEDecoder(nn.Module):
         first_conv_size = self.hparams['ae_decoding_starting_dim'][0] \
                           * self.hparams['ae_decoding_starting_dim'][1] \
                           * self.hparams['ae_decoding_starting_dim'][2]
-        self.ff = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
+        self.FF = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
 
         self.decoder = nn.ModuleList()
 
@@ -458,7 +458,7 @@ class ConvAEDecoder(nn.Module):
 
         """
         # First ff layer/resize to be convolutional input
-        x = self.ff(x)
+        x = self.FF(x)
         x = x.view(
             x.size(0),
             self.hparams['ae_decoding_starting_dim'][0],

@@ -201,7 +201,8 @@ def get_model_latents_states(
 
     # get version/model
     if version == 'best':
-        version = get_best_model_version(hparams['expt_dir'], measure='val_ll', best_def='max')[0]
+        version = get_best_model_version(
+            hparams['expt_dir'], measure='val_loss', best_def='max')[0]
     else:
         _, version = experiment_exists(hparams, which_version=True)
     if version is None:
@@ -209,7 +210,7 @@ def get_model_latents_states(
             'Could not find the specified model version in %s' % hparams['expt_dir'])
 
     # load model
-    model_file = os.path.join(hparams['expt_dir'], version, 'best_val_model.pt')
+    model_file = os.path.join(hparams['expt_dir'], 'version_%i' % version, 'best_val_model.pt')
     with open(model_file, 'rb') as f:
         hmm = pickle.load(f)
     # load latents

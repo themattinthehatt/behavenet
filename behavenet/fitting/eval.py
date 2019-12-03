@@ -235,7 +235,7 @@ def export_predictions_best(hparams, filename=None, export_all=False):
     export_predictions(data_generator, model, filename=filename)
 
 
-def get_reconstruction(model, inputs, dataset=None):
+def get_reconstruction(model, inputs, dataset=None, return_latents=False):
     """
     Reconstruct an image from either image or latent inputs
 
@@ -245,6 +245,8 @@ def get_reconstruction(model, inputs, dataset=None):
             images (batch x channels x y_pix x x_pix)
             latents (batch x n_ae_latents)
         dataset (int or NoneType): for use with session-specific io layers
+        return_latents : :obj:`bool`
+            return tuple of (recon, latents) if :obj:`True`
 
     Returns:
         np.ndarray (batch x channels x y_pix x x_pix)
@@ -261,13 +263,18 @@ def get_reconstruction(model, inputs, dataset=None):
         input_type = 'images'
 
     if input_type == 'images':
-        ims_recon, _ = model(inputs, dataset=dataset)
+        ims_recon, latents = model(inputs, dataset=dataset)
     else:
         # TODO: how to incorporate maxpool layers for decoding only?
         ims_recon = model.decoding(inputs, None, None, dataset=None)
+        latents = inputs
     ims_recon = ims_recon.cpu().detach().numpy()
+    latents = latents.cpu().detach().numpy()
 
-    return ims_recon
+    if return_latents:
+        return ims_recon, latents
+    else:
+        return ims_recon
 
 
 def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):

@@ -362,7 +362,7 @@ def make_neural_reconstruction_movie(
     axs[indx].set_title('AE latent predictions', fontsize=fontsize)
     axs[indx].set_xlabel('Time (bins)', fontsize=fontsize)
 
-    time = np.arange(ims_orig.shape[0])
+    time = np.arange(n_time)
 
     ims_res = ims_recon_ae - ims_recon_neural
 
@@ -375,13 +375,13 @@ def make_neural_reconstruction_movie(
     # current frame; here we are just animating one artist, the image, in
     # each frame
     ims = []
-    for i in range(ims_orig.shape[0]):
+    for i in range(n_time):
 
         ims_curr = []
         indx = 0
 
         if i % 100 == 0:
-            print('processing frame %03i/%03i' % (i, ims_orig.shape[0]))
+            print('processing frame %03i/%03i' % (i, n_time))
 
         ###################
         # behavioral videos
@@ -426,15 +426,15 @@ def make_neural_reconstruction_movie(
                 time[0:i + 1], latent + latents_ae_sc[0:i + 1, latent],
                 color=latents_ae_color, alpha=0.7, label=label_ae,
                 **tr_kwargs)[0]
-            axs[indx].spines['top'].set_visible(False);
-            axs[indx].spines['right'].set_visible(False);
+            axs[indx].spines['top'].set_visible(False)
+            axs[indx].spines['right'].set_visible(False)
             axs[indx].spines['left'].set_visible(False)
             ims_curr.append(im)
             im = axs[indx].plot(
                 time[0:i + 1], latent + latents_dec_sc[0:i + 1, latent],
                 color=latents_dec_color, label=label_dec, **tr_kwargs)[0]
-            axs[indx].spines['top'].set_visible(False);
-            axs[indx].spines['right'].set_visible(False);
+            axs[indx].spines['top'].set_visible(False)
+            axs[indx].spines['right'].set_visible(False)
             axs[indx].spines['left'].set_visible(False)
             plt.legend(
                 loc='lower right', fontsize=fontsize, frameon=True,
