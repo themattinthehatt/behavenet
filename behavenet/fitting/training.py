@@ -1,4 +1,5 @@
-import math
+"""Functions and classes for fitting PyTorch models with stochastic gradient descent."""
+
 import copy
 import os
 import numpy as np
@@ -16,21 +17,23 @@ from behavenet.fitting.eval import export_predictions
 
 
 class FitMethod(object):
-    """
-    Base method for defining model losses and tracking loss metrics.
+    """Base method for defining model losses and tracking loss metrics.
 
-    Loss metrics are tracked for the aggregate dataset (potentially spanning
-    multiple sessions) as well as session-specific metrics for easier
-    downstream plotting.
+    Loss metrics are tracked for the aggregate dataset (potentially spanning multiple sessions) as
+    well as session-specific metrics for easier downstream plotting.
     """
 
     def __init__(self, model, metric_strs, n_datasets=1):
         """
-        Args:
-            model (pt Model):
-            metric_strs (list of strs): names of metrics to be tracked
-            n_datasets (int): total number of datasets (sessions) served by
-                data generator
+
+        Parameters
+        ----------
+        model : :obj:`PyTorch` model
+        metric_strs : :obj:`list` of :obj:`strs`
+            names of metrics to be tracked, e.g. 'epoch', 'batch', 'train_loss', etc.
+        n_datasets : :obj:`int`
+            total number of datasets (sessions) served by data generator
+
         """
         self.model = model
         self.metrics = {}
@@ -56,34 +59,52 @@ class FitMethod(object):
             self.metrics_by_dataset = None
 
     def get_parameters(self):
+        """Get all model parameters that have gradient updates turned on."""
         return filter(lambda p: p.requires_grad, self.model.parameters())
 
     def calc_loss(self, data, **kwargs):
+        """Calculate loss on data."""
         raise NotImplementedError
 
     def get_loss(self, dtype):
-        """return loss aggregated over all datasets"""
+        """Return loss aggregated over all datasets.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            datatype to calculate loss for (e.g. 'train', 'val', 'test')
+
+        """
         return self.metrics[dtype]['loss'] / self.metrics[dtype]['batches']
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None,
             by_dataset=False, *args, **kwargs):
-        """
-        Export metrics and other data (e.g. epoch) for logging train progress.
+        """Export metrics and other data (e.g. epoch) for logging train progress.
 
-        Args:
-            dtype (str): 'train' | 'val' | 'test'
-            epoch (int): current training epoch
-            batch (int): current training batch
-            dataset (int): dataset id for current batch
-            trial (int or NoneType): trial id within the current dataset
-            best_epoch (int): best current training epoch
-            by_dataset (bool, optional): `True` to return metrics for a
-                specific dataset, `False` to return metrics aggregated over
-                multiple datasets
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            'train' | 'val' | 'test'
+        epoch : :obj:`int`
+            current training epoch
+        batch : :obj:`int`
+            current training batch
+        dataset : :obj:`int`
+            dataset id for current batch
+        trial : :obj:`int` or :obj:`NoneType`
+            trial id within the current dataset
+        best_epoch : :obj:`int`, optional
+            best current training epoch
+        by_dataset : :obj:`bool`, optional
+            :obj:`True` to return metrics for a specific dataset, :obj:`False` to return metrics
+            aggregated over multiple datasets
 
-        Returns:
-            (dict)
+        Returns
+        -------
+        :obj:`dict`
+            aggregated metrics for current epoch/batch
+
         """
 
         if by_dataset and self.n_datasets > 1:
@@ -121,7 +142,14 @@ class FitMethod(object):
         return metric_row
 
     def reset_metrics(self, dtype):
-        """Reset all metrics"""
+        """Reset all metrics.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            datatype to reset metrics for (e.g. 'train', 'val', 'test')
+
+        """
         # reset aggregate metrics
         for key in self.metrics[dtype].keys():
             self.metrics[dtype][key] = 0
@@ -132,7 +160,17 @@ class FitMethod(object):
                     self.metrics_by_dataset[dataset][dtype][key] = 0
 
     def update_metrics(self, dtype, dataset=None):
-        """Update metrics for a specific dtype/dataset"""
+        """Update metrics for a specific dtype/dataset.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            dataset type to update metrics for (e.g. 'train', 'val', 'test')
+        dataset : :obj:`int` or :obj:`NoneType`, optional
+            if :obj:`NoneType`, updates the aggregated metrics; if :obj:`int`, updates the
+            associated dataset/session
+
+        """
         for key in self.metrics[dtype].keys():
             if self.metrics['curr'][key] is not None:
                 # update aggregate methods
@@ -146,23 +184,26 @@ class FitMethod(object):
 
 
 class AELoss(FitMethod):
-    """MSE loss for (non-variational) autoencoders"""
+    """MSE loss for non-variational autoencoders."""
 
     def __init__(self, model, n_datasets=1):
-        """constructor"""
         metric_strs = ['batches', 'loss']
         super().__init__(model, metric_strs, n_datasets=n_datasets)
 
     def calc_loss(self, data, dataset=0, **kwargs):
-        """
-        Calculate MSE loss for autoencoder. The batch is split into chunks if
-        larger than a hard-coded `chunk_size` to keep memory requirements low;
-        gradients are accumulated across all chunks before a gradient step is
+        """Calculate MSE loss for autoencoder.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
         taken.
 
-        Args:
-            data (dict):
-            dataset (int, optional)
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'images' and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+
         """
 
         y = data['images'][0]
@@ -212,10 +253,9 @@ class AELoss(FitMethod):
 
 
 class NLLLoss(FitMethod):
-    """Negative log-likelihood loss for supervised models (en/decoders)"""
+    """Negative log-likelihood loss for supervised models (en/decoders)."""
 
     def __init__(self, model, n_datasets=1):
-        """constructor"""
         if n_datasets > 1:
             raise ValueError('NLLLoss only supports single datasets')
 
@@ -236,14 +276,17 @@ class NLLLoss(FitMethod):
             raise ValueError('"%s" is not a valid noise dist' % self.model.hparams['noise_dist'])
 
     def calc_loss(self, data, **kwargs):
-        """
-        Calculate negative log-likelihood loss for supervised models, i.e.
-        encoders and decoders. The batch is split into chunks if larger than a
-        hard-coded `chunk_size` to keep memory requirements low; gradients are
-        accumulated across all chunks before a gradient step is taken.
+        """Calculate negative log-likelihood loss for supervised models.
 
-        Args:
-            data (dict): signals are 1 x T x N
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            signals are of shape (1, time, n_channels)
+
         """
 
         predictors = data[self.model.hparams['input_signal']][0]
@@ -329,6 +372,32 @@ class NLLLoss(FitMethod):
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None,
             by_dataset=False, *args, **kwargs):
+        """Export metrics and other data (e.g. epoch) for logging train progress.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            'train' | 'val' | 'test'
+        epoch : :obj:`int`
+            current training epoch
+        batch : :obj:`int`
+            current training batch
+        dataset : :obj:`int`
+            dataset id for current batch
+        trial : :obj:`int` or :obj:`NoneType`
+            trial id within the current dataset
+        best_epoch : :obj:`int`, optional
+            best current training epoch
+        by_dataset : :obj:`bool`, optional
+            :obj:`True` to return metrics for a specific dataset, :obj:`False` to return metrics
+            aggregated over multiple datasets
+
+        Returns
+        -------
+        :obj:`dict`
+            aggregated metrics for current epoch/batch
+
+        """
 
         norm = self.metrics[dtype]['batches']
         loss = self.metrics[dtype]['loss'] / norm
@@ -369,14 +438,18 @@ class NLLLoss(FitMethod):
 
 
 class EarlyStopping(object):
-    """Stop training when a monitored quantity has stopped improving"""
+    """Stop training when a monitored quantity has stopped improving."""
 
     def __init__(self, history=10, min_epochs=10):
         """
-        Args:
-            history (int): number of previous checks to average over when
-                checking for increase in loss
-            min_epochs (int): minimum number of epochs for training
+
+        Parameters
+        ----------
+        history : :obj:`int`
+            number of previous checks to average over when checking for increase in loss
+        min_epochs : :obj:`int`
+            minimum number of epochs for training
+
         """
 
         self.history = history
@@ -390,6 +463,19 @@ class EarlyStopping(object):
         self.should_stop = False
 
     def on_val_check(self, epoch, curr_loss):
+        """Check to see if loss has begun to increase on validation data for current epoch.
+
+        Rather than returning the results of the check, this method updates the class attribute
+        :obj:`should_stop`, which is checked externally by the fitting function.
+
+        Parameters
+        ----------
+        epoch : :obj:`int`
+            current epoch
+        curr_loss : :obj:`float`
+            current loss
+
+        """
 
         prev_mean = np.nanmean(self.prev_losses)
         self.prev_losses = np.roll(self.prev_losses, 1)
@@ -413,14 +499,46 @@ class EarlyStopping(object):
             self.should_stop = True
 
 
-def fit(hparams, model, data_generator, exp, method='em'):
-    """
-    Args:
-        hparams (dict):
-        model (pt Model):
-        data_generator (ConcatSessionsGenerator object):
-        exp (testube.Experiment object):
-        method (str): 'ae' | 'nll'
+def fit(hparams, model, data_generator, exp, method='ae'):
+    """Fit pytorch models with stochastic gradient descent and early stopping.
+
+    Training parameters such as min epochs, max epochs, and early stopping hyperparameters are
+    specified in :obj:`hparams`.
+
+    For more information on how model losses are calculated, see the classes that inherit from
+    :class:`FitMethod`.
+
+    For more information on how early stopping is implemented, see the class
+    :class:`EarlyStopping`.
+
+    Training progess is monitored by calculating the model loss on both training data and
+    validation data. The training loss is calculated each epoch, and the validation loss is
+    calculated according to the :obj:`hparams` key :obj:`'val_check_interval'`. For example, if
+    :obj:`val_check_interval=5` then the validation loss is calculated every 5 epochs. If
+    :obj:`val_check_interval=0.5` then the validation loss is calculated twice per epoch - after
+    the first half of the batches have been processed, then again after all batches have been
+    processed.
+
+    Monitored metrics are saved in a csv file in the model directory. This logging is handled by
+    the :obj:`testtube` package.
+
+    At the end of training, model outputs (such as latents for autoencoder models, or predictions
+    for decoder models) can optionally be computed and saved using the :obj:`hparams` keys
+    :obj:`'export_latents'` or :obj:`'export_predictions'`, respectively.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        model/training specification
+    model : :obj:`PyTorch` model
+        model to fit
+    data_generator : :obj:`ConcatSessionsGenerator` object
+        data generator to serve data batches
+    exp : :obj:`test_tube.Experiment` object
+        for logging training progress
+    method : :obj:`str`
+        specifies the type of loss - 'ae' | 'nll'
+
     """
 
     # check inputs
@@ -495,8 +613,7 @@ def fit(hparams, model, data_generator, exp, method='em'):
                 optimizer.step()
 
             # check validation according to schedule
-            curr_batch = \
-                (i_train + 1) + i_epoch * data_generator.n_tot_batches['train']
+            curr_batch = (i_train + 1) + i_epoch * data_generator.n_tot_batches['train']
             if np.any(curr_batch == val_check_batch):
 
                 loss.reset_metrics('val')

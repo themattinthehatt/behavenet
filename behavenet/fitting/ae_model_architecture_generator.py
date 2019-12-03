@@ -1,7 +1,4 @@
-import os
-import argparse
 import numpy as np
-import pickle
 from behavenet.models import AE
 import copy
 

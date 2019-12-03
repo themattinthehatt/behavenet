@@ -1,17 +1,24 @@
+"""Utility functions for evaluating model fits."""
+
 import numpy as np
 from behavenet.fitting.utils import get_best_model_and_data
 
 
 def export_latents(data_generator, model, filename=None):
-    """
-    Export predicted latents using an already initialized data_generator and
-    model; latents are saved based on the model's hparams dict unless another
-    file is provided.
+    """Export predicted latents using an already initialized data_generator and model.
 
-    Args:
-        data_generator (ConcatSessionGenerator):
-        model (AE):
-        filename (str): absolute path
+    Latents are saved based on the model's hparams dict unless another file is provided. The
+    default filename is `[lab_id]_[expt_id]_[animal_id]_[session_id]_latents.pkl`.
+
+    Parameters
+    ----------
+    data_generator : :obj:`ConcatSessionGenerator` object
+        data generator to use for latent creation
+    model : :obj:`AE` object
+        pytorch model
+    filename : :obj:`str` or :obj:`NoneType`, optional
+        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+
     """
 
     import pickle
@@ -68,16 +75,22 @@ def export_latents(data_generator, model, filename=None):
 
 
 def export_states(hparams, data_generator, model, filename=None):
-    """
-    Export predicted latents using an already initialized data_generator and
-    model; latents are saved based on the model's hparams dict unless another
-    file is provided.
+    """Export predicted latents using an already initialized data_generator and model.
 
-    Args:
-        hparams (dict):
-        data_generator (ConcatSessionGenerator):
-        model (HMM):
-        filename (str): absolute path
+    States are saved based on the hparams dict unless another file is provided. The default
+    filename is `[lab_id]_[expt_id]_[animal_id]_[session_id]_states.pkl`.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain 'expt_dir' and 'version'
+    data_generator : :obj:`ConcatSessionGenerator` object
+        data generator to use for latent creation
+    model : :obj:`HMM` object
+        ssm model
+    filename : :obj:`str` or :obj:`NoneType`, optional
+        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+
     """
 
     import pickle
@@ -118,18 +131,23 @@ def export_states(hparams, data_generator, model, filename=None):
 
 
 def export_predictions(data_generator, model, filename=None):
-    """
-    Export predictions using an already initialized data_generator and model;
-    predictions are saved based on the model's hparams dict unless another file
-    is provided.
+    """Export decoder predictions using an already initialized data_generator and model.
 
-    Currently only supported for decoding models (not AEs); to get AE
-    reconstructions see the `get_reconstruction` function in this module
+    Predictions are saved based on the model's hparams dict unless another file is provided. The
+    default filename is `[lab_id]_[expt_id]_[animal_id]_[session_id]_predictions.pkl`.
 
-    Args:
-        data_generator (ConcatSessionGenerator):
-        model (NN):
-        filename (str): absolute path
+    This function only supports pytorch decoding models - not autoencoders. To get AE
+    reconstructions see the `get_reconstruction` function in this module.
+
+    Parameters
+    ----------
+    data_generator : :obj:`ConcatSessionGenerator` object
+        data generator to use for latent creation
+    model : :obj:`NN` object
+        pytorch model
+    filename : :obj:`str` or :obj:`NoneType`, optional
+        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+
     """
 
     import pickle
@@ -194,17 +212,20 @@ def export_predictions(data_generator, model, filename=None):
 
 
 def export_latents_best(hparams, filename=None, export_all=False):
-    """
-    Export predictions for the best decoding model in a test tube experiment.
+    """Export predictions for the best decoding model in a test tube experiment.
+
     Predictions are saved in the corresponding model directory.
 
-    Args:
-        hparams (dict):
-        filename (str, optional): file to save to
-        export_all (bool, optional): True to export latents for train/val/test
-            and gap trials
-    """
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify an autoencoder
+    filename : :obj:`str` or :obj:`NoneType`, optional
+        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+    export_all : :obj:`bool`, optional
+        :obj:`True` to export latents for train, val, test, and gap trials
 
+    """
     from behavenet.models import AE
     if export_all:
         data_kwargs = dict(trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
@@ -215,15 +236,19 @@ def export_latents_best(hparams, filename=None, export_all=False):
 
 
 def export_predictions_best(hparams, filename=None, export_all=False):
-    """
-    Export predictions for the best decoding model in a test tube experiment.
+    """Export predictions for the best decoding model in a test tube experiment.
+
     Predictions are saved in the corresponding model directory.
 
-    Args:
-        hparams (dict):
-        filename (str, optional): file to save to
-        export_all (bool, optional): True to export latents for train/val/test
-            and gap trials
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify an autoencoder
+    filename : :obj:`str` or :obj:`NoneType`, optional
+        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+    export_all : :obj:`bool`, optional
+        :obj:`True` to export latents for train, val, test, and gap trials
+
     """
 
     from behavenet.models import Decoder
@@ -236,20 +261,25 @@ def export_predictions_best(hparams, filename=None, export_all=False):
 
 
 def get_reconstruction(model, inputs, dataset=None, return_latents=False):
-    """
-    Reconstruct an image from either image or latent inputs
+    """Reconstruct an image from either image or latent inputs.
 
-    Args:
-        model: pt Model
-        inputs (torch.Tensor object):
-            images (batch x channels x y_pix x x_pix)
-            latents (batch x n_ae_latents)
-        dataset (int or NoneType): for use with session-specific io layers
-        return_latents : :obj:`bool`
-            return tuple of (recon, latents) if :obj:`True`
+    Parameters
+    ----------
+    model : :obj:`AE` object
+        pytorch model
+    inputs : :obj:`torch.Tensor` object
+        - image tensor of shape (batch, channels, y_pix, x_pix)
+        - latents tensor of shape (batch, n_ae_latents)
+    dataset : :obj:`int` or :obj:`NoneType`, optional
+        for use with session-specific io layers
+    return_latents : :obj:`bool`, optional
+        if :obj:`True` return tuple of (recon, latents)
 
-    Returns:
-        np.ndarray (batch x channels x y_pix x x_pix)
+    Returns
+    -------
+    :obj:`np.ndarray`
+        reconstructed images of shape (batch, channels, y_pix, x_pix)
+
     """
     import torch
 
@@ -278,17 +308,25 @@ def get_reconstruction(model, inputs, dataset=None, return_latents=False):
 
 
 def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
-    """
-    Calculate a single $R^2$ value across all test batches for a decoder
+    """Calculate a single R\ :sup:`2` value across all test batches for a decoder.
 
-    Args:
-        hparams (dict):
-        model_version (int or str): if string, should be in format 'version_%i'
-        metric (str): 'r2' | 'fc'
-        sess_idx (int)
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify an autoencoder
+    model_version : :obj:`int` or :obj:`str`
+        version from test tube experiment defined in :obj:`hparams` or the string 'best'
+    metric : :obj:`str`, optional
+        'r2' | 'fc'
+    sess_idx : :obj:`int`, optional
+        session index into data generator
 
-    Returns:
-        (tuple): (dict, int)
+    Returns
+    -------
+    :obj:`tuple`
+        - hparams (:obj:`dict`): hparams of model used to calculate metrics
+        - metric (:obj:`int`)
+
     """
 
     from sklearn.metrics import r2_score, accuracy_score
@@ -332,16 +370,22 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
 
 
 def export_train_plots(hparams, dtype, loss_type='mse', save_file=None, format='png'):
-    """
-    Export plot with MSE/LL as a function of training epochs
+    """Export plot with MSE/LL as a function of training epochs.
 
-    Args:
-        hparams (dict):
-        dtype (str): 'train' | 'val'
-        loss_type (str): 'mse' | 'll'
-        save_file (str or NoneType, optional): full filename (absolute path) for saving plot; if
-            NoneType, plot is displayed
-        format (str): e.g. 'png' | 'pdf' | 'jpeg'
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify the desired model (autoencoder, arhmm, etc.)
+    dtype : :obj:`str`
+        type of trials to use for plotting: 'train' | 'val' (metrics are not computed for 'test'
+        trials throughout training)
+    loss_type : :obj:`str`, optional
+        'mse' | 'll'
+    save_file : :obj:`str` or :obj:`NoneType`, optional
+        full filename (absolute path) for saving plot; if :obj:`NoneType`, plot is displayed
+    format : :obj:`str`
+        file format of plot, e.g. 'png' | 'pdf' | 'jpeg'
+
     """
     import os
     import pandas as pd

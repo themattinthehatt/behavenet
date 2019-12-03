@@ -1,3 +1,5 @@
+"""Utility functions for managing model paths and the hparams dict."""
+
 import os
 import pickle
 import numpy as np
@@ -5,7 +7,19 @@ from behavenet.data.utils import get_data_generator_inputs
 
 
 def get_subdirs(path):
-    """get all first-level subdirectories in a given path (no recursion)"""
+    """Get all first-level subdirectories in a given path (no recursion).
+
+    Parameters
+    ----------
+    path : :obj:`str`
+        absolute path
+
+    Returns
+    -------
+    :obj:`list`
+        first-level subdirectories in :obj:`path`
+
+    """
     if not os.path.exists(path):
         raise ValueError('%s is not a path' % path)
     try:
@@ -15,14 +29,18 @@ def get_subdirs(path):
 
 
 def get_user_dir(type):
-    """
-    Get a directory from user-defined `directories` json file
+    """Get a directory from user-defined :obj:`directories` json file.
 
-    Args:
-        type (str): 'data' | 'save' | 'fig'
+    Parameters
+    ----------
+    type : :obj:`str`
+        'data' | 'save' | 'fig'
 
-    Returns:
-        (str): absolute path for requested directory
+    Returns
+    -------
+    :obj:`str`
+        absolute path for requested directory
+
     """
     import json
     from behavenet import get_params_dir
@@ -33,20 +51,25 @@ def get_user_dir(type):
 
 
 def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
-    """
-    Returns all paths in `sub_dirs` that start with `multi`. The absolute paths returned are
-    determined by `base_dir`, `lab`, `expt`, `animal`, and `session` as follows:
-    base_dir/lab/expt/animal/session/sub_dir
+    """Returns all paths in `base_dir` that start with `multi`.
+
+    The absolute paths returned are determined by `base_dir`, `lab`, `expt`, `animal`, and
+    `session` as follows: :obj:`base_dir/lab/expt/animal/session/sub_dir`
+
     Use empty strings to ignore one of the session id components.
 
-    Args:
-        base_dir (str):
-        lab (str, optional):
-        expt (str, optional):
-        animal (str, optional):
+    Parameters
+    ----------
+    base_dir : :obj:`str`
+    lab : :obj:`str`, optional
+    expt : :obj:`str`, optional
+    animal : :obj:`str`, optional
 
-    Returns:
-        (list): list of absolute paths
+    Returns
+    -------
+    :obj:`list`
+        list of absolute paths
+
     """
     sub_dirs = get_subdirs(os.path.join(base_dir, lab, expt, animal))
     multi_paths = []
@@ -58,16 +81,21 @@ def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
 
 
 def _get_single_sessions(base_dir, depth, curr_depth):
-    """
-    Recursively search through non-multisession directories for all single sessions
+    """Recursively search through non-multisession directories for all single sessions.
 
-    Args:
-        base_dir (str):
-        depth (int): depth of recursion
-        curr_depth (int): current depth in recursion
+    Parameters
+    ----------
+    base_dir : :obj:`str`
+    depth : :obj:`int`
+        depth of recursion
+    curr_depth : :obj:`int`
+        current depth in recursion
 
-    Returns:
-        list of dicts: session ids for all single sessions in `base_dir`
+    Returns
+    -------
+    :obj:`list` of :obj:`dict`
+        session ids for all single sessions in :obj:`base_dir`
+
     """
     session_list = []
     if curr_depth < depth:
@@ -89,42 +117,45 @@ def _get_single_sessions(base_dir, depth, curr_depth):
 
 
 def get_session_dir(hparams, path_type='save'):
-    """
-    Get session-level directory for saving model outputs. Relies on hparams keys `sessions_csv`,
-    `multisession`, `lab`, `expt`, `animal` and `session`.
+    """Get session-level directory for saving model outputs from hparams dict.
 
-    `sessions_csv` takes precedence. The value for this key is a non-empty string of the pattern
-    `/path/to/session_info.csv`, where `session_info.csv` has 4 columns for lab, expt, animal and
-    session.
+    Relies on hparams keys 'sessions_csv', 'multisession', 'lab', 'expt', 'animal' and 'session'.
+
+    The :obj:`sessions_csv` key takes precedence. The value for this key is a non-empty string of
+    the pattern :obj:`/path/to/session_info.csv`, where `session_info.csv` has 4 columns for lab,
+    expt, animal and session.
 
     If `sessions_csv` is an empty string or the key is not in `hparams`, the following occurs:
 
-    If 'lab' == 'all', an error is thrown since multiple-lab runs are not currently supported
+    - if :obj:`'lab' == 'all'`, an error is thrown since multiple-lab runs are not currently
+      supported
+    - if :obj:`'expt' == 'all'`, all sessions from all animals from all expts from the specified
+      lab are used; the session_dir will then be :obj:`save_dir/lab/multisession-xx`
+    - if :obj:`'animal' == 'all'`, all sessions from all animals in the specified expt are used;
+      the session_dir will then be :obj:`save_dir/lab/expt/multisession-xx`
+    - if :obj:`'session' == 'all'`, all sessions from the specified animal are used; the
+      session_dir will then be :obj:`save_dir/lab/expt/animal/multisession-xx`
+    - if none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
+      :obj:`save_dir/lab/expt/animal/session`
 
-    If 'expt' == 'all', all sessions from all animals from all expts from the specified lab are
-    used; the session_dir will then be `save_dir/lab/multisession-xx`
+    The :obj:`multisession-xx` directory will contain a file :obj:`session_info.csv` which will
+    contain information about the sessions that comprise the multisession; this file is used to
+    determine whether or not a new multisession directory needs to be created.
 
-    If 'animal' == 'all', all sessions from all animals in the specified expt are used; the
-    session_dir will then be `save_dir/lab/expt/multisession-xx`
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        requires `sessions_csv`, `multisession`, `lab`, `expt`, `animal` and `session`
+    path_type : :obj:`str`, optional
+        'save' to use hparams['save_dir'], 'data' to use hparams['data_dir'] as base directory;
+        note that using :obj:`path_type='data'` will not return multisession directories
 
-    If 'session' == 'all', all sessions from the specified animal are used; the session_dir will
-    then be `save_dir/lab/expt/animal/multisession-xx`
+    Returns
+    -------
+    :obj:`tuple`
+        - session_dir (:obj:`str`)
+        - sessions_single (:obj:`list`)
 
-    If none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
-    `save_dir/lab/expt/animal/session`
-
-    The `multisession-xx` directory will contain a file `session_info.csv` which will contain
-    information about the sessions that comprise the multisession; this file is used to determine
-    whether or not a new multisession directory needs to be created.
-
-    Args:
-        hparams (dict):
-        path_type (str, optional): 'save' to use hparams['save_dir'], 'data' to use
-        hparams['data_dir'] as base directory; note that using path_type='data' will not return
-        multisession directories
-
-    Returns:
-        (tuple): (session_dir, sessions_single)
     """
 
     if path_type == 'save':
@@ -139,7 +170,6 @@ def get_session_dir(hparams, path_type='save'):
         sessions_single = read_session_info_from_csv(hparams['sessions_csv'])
         labs, expts, animals, sessions = [], [], [], []
         for sess in sessions_single:
-            sess.pop('tt_save_path', None)  # TODO: remove
             sess.pop('save_dir', None)
             labs.append(sess['lab'])
             expts.append(sess['expt'])
@@ -211,7 +241,6 @@ def get_session_dir(hparams, path_type='save'):
         # overwrite sessions_single with whatever is in requested multisession
         sessions_single = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
         for sess in sessions_single:
-            sess.pop('tt_save_path', None)  # TODO: remove
             sess.pop('save_dir', None)
     elif len(sessions_single) > 1:
         # check if this combo of experiments exists in previous multi-sessions
@@ -223,7 +252,6 @@ def get_session_dir(hparams, path_type='save'):
             for d in sessions_multi:
                 # save path doesn't matter for comparison
                 d.pop('save_dir', None)
-                d.pop('tt_save_path', None)  # TODO: remove
             # compare to collection of single sessions above
             set_l1 = set(tuple(sorted(d.items())) for d in sessions_single)
             set_l2 = set(tuple(sorted(d.items())) for d in sessions_multi)
@@ -253,19 +281,35 @@ def get_session_dir(hparams, path_type='save'):
 
 
 def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
-    """
-    Get output directories associated with a particular model class/type/expt
-    name.
+    """Get output directories associated with a particular model class/type/testtube expt name.
 
-    Args:
-        hparams (dict):
-        model_class (str, optional): will search `hparams` if not present
-        model_type (str, optional): will search `hparams` if not present
-        expt_name (str, optional): will search `hparams` if not present
+    Examples
+    --------
+    * autoencoder: :obj:`session_dir/ae/conv/08_latents/expt_name`
+    * arhmm: :obj:`session_dir/arhmm/08_latents/16_states/0e+00_kappa/gaussian/expt_name`
+    * neural->ae decoder: :obj:`session_dir/neural-ae/08_latents/ff/mctx/expt_name`
+    * neural->arhmm decoder:
+      :obj:`session_dir/neural-ae/08_latents/16_states/0e+00_kappa/ff/mctx/expt_name`
+    * bayesian decoder:
+      :obj:`session_dir/arhmm-decoding/08_latents/16_states/0e+00_kappa/gaussian/mctx/expt_name`
 
-    Returns:
-        (str): contains data info (lab/expt/animal/session) as well as model info
-        (e.g. n_ae_latents) and expt_name
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        specify model hyperparameters
+    model_class : :obj:`str`, optional
+        will search :obj:`hparams` if not present
+    model_type : :obj:`str`, optional
+        will search :obj:`hparams` if not present
+    expt_name : :obj:`str`, optional
+        will search :obj:`hparams` if not present
+
+    Returns
+    -------
+    :obj:`str`
+        contains data info (lab/expt/animal/session) as well as model info (e.g. n_ae_latents) and
+        expt_name
+
     """
 
     import copy
@@ -336,14 +380,18 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
 
 
 def read_session_info_from_csv(session_file):
-    """
-    Read csv file that contains lab/expt/animal/session info
+    """Read csv file that contains lab/expt/animal/session info.
 
-    Args:
-        session_file (str): /full/path/to/session_info.csv
+    Parameters
+    ----------
+    session_file : :obj:`str`
+        /full/path/to/session_info.csv
 
-    Returns:
-        (list of dicts)
+    Returns
+    -------
+    :obj:`list` of :obj:`dict`
+        dict for each session which contains lab/expt/animal/session
+
     """
     import csv
     sessions_multi = []
@@ -356,6 +404,16 @@ def read_session_info_from_csv(session_file):
 
 
 def export_session_info_to_csv(session_dir, ids_list):
+    """Export list of sessions to csv file.
+
+    Parameters
+    ----------
+    session_dir : :obj:`str`
+        absolute path for where to save :obj:`session_info.csv` file
+    ids_list : :obj:`list` of :obj:`dict`
+        dict for each session which contains lab/expt/animal/session
+
+    """
     import csv
     session_file = os.path.join(session_dir, 'session_info.csv')
     if not os.path.isdir(session_dir):
@@ -368,17 +426,19 @@ def export_session_info_to_csv(session_dir, ids_list):
 
 
 def contains_session(session_dir, session_id):
-    """
-    Helper function to determine if session defined by `session_id` dict is in the multi-session
-    `session_dir`
+    """Determine if session defined by `session_id` dict is in the multi-session `session_dir`.
 
-    Args:
-        session_dir (str):
-        session_id (dict): must contain keys `lab`, `expt`, `animal` and
-            `session`
+    Parameters
+    ----------
+    session_dir : :obj:`str`
+        absolute path to multi-session directory that contains a :obj:`session_info.csv` file
+    session_id : :obj:`dict`
+        must contain keys 'lab', 'expt', 'animal' and 'session'
 
-    Returns:
-        (bool)
+    Returns
+    -------
+    :obj:`bool`
+
     """
     session_ids = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
     contains_sess = False
@@ -391,17 +451,20 @@ def contains_session(session_dir, session_id):
 
 
 def find_session_dirs(hparams):
-    """
-    Helper function to find all session directories (single- and multi-session) that contain the
-    session defined in `hparams`
+    """Find all session dirs (single- and multi-session) that contain the session in hparams.
 
-    Args:
-        hparams (dict): must contain keys `lab`, `expt`, `animal` and
-            `session`
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        must contain keys 'lab', 'expt', 'animal' and 'session'
 
-    Returns:
-        (list of strs)
+    Returns
+    -------
+    :obj:`list` of :obj:`str`
+        list of session directories containing session defined in :obj:`hparams`
+
     """
+    # TODO: refactor like get_session_dir?
     ids = {s: hparams[s] for s in ['lab', 'expt', 'animal', 'session']}
     lab = hparams['lab']
     expts = get_subdirs(os.path.join(hparams['save_dir'], lab))
@@ -452,17 +515,22 @@ def find_session_dirs(hparams):
 
 
 def experiment_exists(hparams, which_version=False):
-    """
-    Search test tube versions to find if an experiment with the same
-    hyperparameters has been (successfully) fit
+    """Search testtube versions to find if experiment with the same hyperparameters has been fit.
 
-    Args:
-        hparams (dict):
-        which_version (bool): `True` to return version number
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify a test tube experiment (model + training
+        parameters)
+    which_version : :obj:`bool`, optional
+        :obj:`True` to return version number
 
-    Returns:
-        (bool) if `which_version` is False
-        (tuple) (bool, int) if `which_version` is True
+    Returns
+    -------
+    variable
+        - :obj:`bool` if :obj:`which_version=False`
+        - :obj:`tuple` (:obj:`bool`, :obj:`int`) if :obj:`which_version=True`
+
     """
 
     import pickle
@@ -529,28 +597,47 @@ def experiment_exists(hparams, which_version=False):
 
 
 def export_hparams(hparams, exp):
-    """
-    Export hyperparameter dictionary as csv file (for easy human reading) and
-    as a pickled dict (for easy loading)
+    """Export hyperparameter dictionary.
 
-    Args:
-        hparams (dict):
-        exp (test_tube.Experiment object):
-    """
+    The dict is export once as a csv file (for easy human reading) and again as a pickled dict
+    (for easy python loading/parsing).
 
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        hyperparameter dict to export
+    exp : :obj:`test_tube.Experiment` object
+        defines where parameters are saved
+
+    """
     import pickle
-
     # save out as pickle
     meta_file = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'meta_tags.pkl')
     with open(meta_file, 'wb') as f:
         pickle.dump(hparams, f)
-
     # save out as csv
     exp.tag(hparams)
     exp.save()
 
 
 def get_lab_example(hparams, lab, expt):
+    """Helper function to load data-specific hyperparameters and update hparams.
+
+    These values are loaded from the json file defined by :obj:`lab` and :obj:`expt` in the
+    :obj:`.behavenet` user directory. See
+    https://behavenet.readthedocs.io/en/latest/source/installation.html#adding-a-new-dataset
+    for more information.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        hyperparmeter dict to update
+    lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
+
+    """
     import json
     from behavenet import get_params_dir
     params_file = os.path.join(get_params_dir(), str('%s_%s_params' % (lab, expt)))
@@ -560,6 +647,26 @@ def get_lab_example(hparams, lab, expt):
 
 
 def get_region_dir(hparams):
+    """Return brain region string that combines region name and inclusion info.
+
+    If not subsampling regions, will return :obj:`'all'`
+
+    If using neural activity from *only* specified region, will return e.g. :obj:`'mctx-single'`
+
+    If using neural activity from all *but* specified region (leave-one-out), will return e.g.
+    :obj:`'mctx-loo'`
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        must contain the key 'subsample_regions', else function assumes no subsampling
+
+    Returns
+    -------
+    :obj:`str`
+        region directory name
+
+    """
     if hparams.get('subsample_regions', 'none') == 'none':
         region_dir = 'all'
     elif hparams['subsample_regions'] == 'single':
@@ -572,14 +679,19 @@ def get_region_dir(hparams):
 
 
 def create_tt_experiment(hparams):
-    """
-    Create test-tube experiment
+    """Create test-tube experiment for logging training and storing models.
 
-    Args:
-        hparams:
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        dictionary of hyperparameters defining experiment that will be saved as a csv file
 
-    Returns:
-        tuple: (hparams, sess_ids, exp)
+    Returns
+    -------
+    :obj:`tuple`
+        - if experiment defined by hparams already exists, returns :obj:`(None, None, None)`
+        - if experiment does not exist, returns :obj:`(hparams, sess_ids, exp)`
+
     """
     from test_tube import Experiment
 
@@ -591,7 +703,6 @@ def create_tt_experiment(hparams):
     hparams['expt_dir'] = get_expt_dir(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
-    # print('')
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
@@ -608,15 +719,22 @@ def create_tt_experiment(hparams):
 
 
 def build_data_generator(hparams, sess_ids, export_csv=True):
-    """
+    """Helper function to build data generator from hparams dict.
 
-    Args:
-        hparams (dict):
-        sess_ids (list):
-        export_csv (bool):
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain information specifying data inputs to model
+    sess_ids : :obj:`list` of :obj:`dict`
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'
+    export_csv : :obj:`bool`, optional
+        export csv file containing session info (useful when fitting multi-sessions)
 
-    Returns:
-        ConcatSessionsGenerator
+    Returns
+    -------
+    :obj:`ConcatSessionsGenerator` object
+        data generator
+
     """
     from behavenet.data.data_generator import ConcatSessionsGenerator
     from behavenet.data.utils import get_data_generator_inputs
@@ -648,22 +766,27 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
 
 
 def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=1):
+    """Get best model version from a test tube experiment.
+
+    Parameters
+    ----------
+    expt_dir : :obj:`str`
+        test tube experiment directory containing version_%i subdirectories
+    measure : :obj:`str`, optional
+        heading in csv file that is used to determine which model is best
+    best_def : :obj:`str`, optional
+        how :obj:`measure` should be parsed; 'min' | 'max'
+    n_best : :obj:`int`, optional
+        top `n_best` models are returned
+
+    Returns
+    -------
+    :obj:`list`
+        list of best models, with best first
+
     """
-    Get best model version from test tube
-
-    Args:
-        expt_dir (str): test tube experiment directory containing version_%i subdirectories
-        measure (str, optional): heading in csv file that is used to determine which model is best
-        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
-        n_best (int, optional): top `n_best` models are returned
-
-    Returns:
-        (str)
-    """
-
     import pickle
     import pandas as pd
-
     # gather all versions
     versions = get_subdirs(expt_dir)
     # load csv files with model metrics (saved out from test tube)
@@ -707,19 +830,26 @@ def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=
 
 
 def get_best_model_and_data(hparams, Model, load_data=True, version='best', data_kwargs=None):
-    """
-    Helper function for loading the best model defined by hparams out of all available test-tube
-    versions, as well as the associated data used to fit the model.
+    """Load the best model (and data) defined by hparams out of all available test-tube versions.
 
-    Args:
-        hparams (dict):
-        Model (behavenet.models object:
-        load_data (bool, optional):
-        version (str or int, optional):
-        data_kwargs (dict, optional): kwargs for data generator
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify both a model and the associated data
+    Model : :obj:`behavenet.models` object
+        model type
+    load_data : :obj:`bool`, optional
+    version : :obj:`str` or :obj:`int`, optional
+        can be 'best' to load best model
+    data_kwargs : :obj:`dict`, optional
+        additional kwargs for data generator
 
-    Returns:
-        (tuple): (model, data generator)
+    Returns
+    -------
+    :obj:`tuple`
+        - model (:obj:`behavenet.models` object)
+        - data generator (:obj:`ConcatSessionsGenerator` object or :obj:`NoneType`)
+
     """
 
     import torch
