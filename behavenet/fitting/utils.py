@@ -839,7 +839,8 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
 
     # get best model version
     if version == 'best':
-        best_version = get_best_model_version(expt_dir)[0]
+        best_version_int = get_best_model_version(expt_dir)[0]
+        best_version = str('version_{}'.format(best_version_int))
     else:
         if isinstance(version, str) and version[0] == 'v':
             # assume we got a string of the form 'version_{%i}'
