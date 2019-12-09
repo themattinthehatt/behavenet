@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.animation as animation
 from matplotlib.animation import FFMpegWriter
-from behavenet.plotting import make_dir_if_not_exists
+from behavenet import make_dir_if_not_exists
 from behavenet.models import AE as AE
 
 

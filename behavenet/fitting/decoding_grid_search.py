@@ -12,7 +12,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import get_expt_dir
-from behavenet.fitting.utils import get_user_dir
+from behavenet import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.models import Decoder
 

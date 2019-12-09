@@ -11,7 +11,7 @@ from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import get_user_dir
+from behavenet import get_user_dir
 from behavenet.fitting.utils import add_lab_defaults_to_parser
 from behavenet.plotting.arhmm_utils import get_latent_arrays_by_dtype
 

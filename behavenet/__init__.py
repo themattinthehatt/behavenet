@@ -7,6 +7,41 @@ def get_params_dir():
     return os.path.join(Path.home(), '.behavenet')
 
 
+def get_user_dir(type):
+    """Get a directory from user-defined :obj:`directories` json file.
+
+    Parameters
+    ----------
+    type : :obj:`str`
+        'data' | 'save' | 'fig's
+
+    Returns
+    -------
+    :obj:`str`
+        absolute path for requested directory
+
+    """
+    import json
+    dirs_file = os.path.join(get_params_dir(), 'directories')
+    with open(dirs_file, 'r') as f:
+        dirs = json.load(f)
+    return dirs[str('%s_dir' % type)]
+
+
+def make_dir_if_not_exists(save_file):
+    """Utility function for creating necessary dictories for a specified filename.
+
+    Parameters
+    ----------
+    save_file : :obj:`str`
+        absolute path of save file
+
+    """
+    save_dir = os.path.dirname(save_file)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+
 def setup():
     """Set up the user's data, results, and figure directories; store info in user's home dir"""
 

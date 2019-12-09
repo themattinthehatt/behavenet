@@ -28,28 +28,6 @@ def get_subdirs(path):
         raise StopIteration('%s does not contain any subdirectories' % path)
 
 
-def get_user_dir(type):
-    """Get a directory from user-defined :obj:`directories` json file.
-
-    Parameters
-    ----------
-    type : :obj:`str`
-        'data' | 'save' | 'fig'
-
-    Returns
-    -------
-    :obj:`str`
-        absolute path for requested directory
-
-    """
-    import json
-    from behavenet import get_params_dir
-    dirs_file = os.path.join(get_params_dir(), 'directories')
-    with open(dirs_file, 'r') as f:
-        dirs = json.load(f)
-    return dirs[str('%s_dir' % type)]
-
-
 def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
     """Returns all paths in `base_dir` that start with `multi`.
 
@@ -869,7 +847,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
         else:
             best_version = str('version_{}'.format(version))
     # get int representation as well
-    version_dir = os.path.join(expt_dir, 'version_%i' % best_version)
+    version_dir = os.path.join(expt_dir, best_version)
     arch_file = os.path.join(version_dir, 'meta_tags.pkl')
     model_file = os.path.join(version_dir, 'best_val_model.pt')
     if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):

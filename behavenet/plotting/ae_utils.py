@@ -7,7 +7,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
 import numpy as np
 from behavenet.plotting import concat
-from behavenet.plotting import make_dir_if_not_exists
+from behavenet import make_dir_if_not_exists
 from behavenet.fitting.utils import get_best_model_and_data
 from behavenet.fitting.eval import get_reconstruction
 
