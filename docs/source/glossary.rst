@@ -11,7 +11,19 @@ Data
 
 * **data_dir** (*str*): absolute path to data directory
 * **save_dir** (*str*): absolute path to save directory, where models are stored
+* **lab** (*str*): lab id
+* **expt** (*str*): experiment id
+* **animal** (*str*): animal id
+* **session** (*str*): session id
 * **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be :obj:`lab`, :obj:`expt`, :obj:`animal`, :obj:`session`.
+* **n_input_channels** (*str*): number of colors channel/camera views in behavioral video
+* **x_pixels** (*int*): number of behavioral video pixels in x dimension
+* **y_pixels** (*int*): number of behavioral video pixels in y dimension
+* **use_output_mask** (*bool*): :obj:`True` to apply frame-wise output masks (must be a key :obj:`masks` in data hdf5 file)
+* **neural_bin_size** (*float*): bin size of neural/video data (ms)
+* **neural_type** (*str*): 'spikes' | 'ca'
+* **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
+* **trial_splits** (*str*): determines number of train/val/test/gap trials; entered as `8;1;1;0`, for example. See :func:`behavenet.data.data_generator.split_trials` for how these values are used.
 * **as_numpy** (*bool*): :obj:`True` to load data as numpy arrays, :obj:`False` to load as pytorch tensors
 * **batch_load** (*bool*): :obj:`True` to load data one batch at a time, :obj:`False` to load all data into memory (the data is still served to models in batches)
 * **rng_seed_data** (*int*): control randomness when splitting data into train, val, and test trials
@@ -21,12 +33,12 @@ Data
 Computational resources
 =======================
 
+* **gpus_viz** (*str*): which gpus are visible to test-tube; multiple gpus are identified as e.g. '0;1;4'
 * **device** (*str*): where to fit pytorch models; 'cpu' | 'cuda'
 * **tt_n_gpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on gpus
 * **tt_n_cpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on cpus
 * **tt_n_cpu_workers** (*int*): total number of cpu cores to use with test-tube for hyperparameter searching
 * **mem_limit_gb** (*float*): maximum size of gpu memory; used to filter out randomly generated CAEs that are too large
-* **gpus_viz** (*str*): which gpus are visible to test-tube; multiple gpus are identified as e.g. '0;1;4'
 
 
 Models
