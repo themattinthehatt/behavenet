@@ -1,0 +1,48 @@
+{
+
+## All these params will likely need to be updated for new users/data!
+
+###############################
+## Data specification params ##
+###############################
+
+"lab": "musall", # type: str
+
+"expt": "vistrained", # type: str
+
+"animal": "mSM30", # type: str
+
+"session": "10-Oct-2017", # type: str
+
+
+#############################
+## Behavioral video params ##
+#############################
+
+"n_input_channels": 2, # type: int,  help: number of channels in behavioral video
+
+"x_pixels": 128, # type: int, help: number of pixels in x dimension
+
+"y_pixels": 128, # type: int, help: number of pixels in y dimension
+
+"use_output_mask": false, # type: boolean
+
+
+########################
+## Neural data params ##
+########################
+
+"neural_bin_size": null, # help: milliseconds
+
+"neural_type": "ca", # type: str, help: spikes or ca
+
+
+#################
+## Misc params ##
+#################
+
+"approx_batch_size": 200, # type: int, help: approximate batch size for memory calculation
+
+"trial_splits": "5;1;1;1" # type: str, help: i;j;k;l correspond to train;val;test;gap'
+
+}

@@ -653,8 +653,8 @@ def draw_handcrafted_archs(
     list_of_handcrafted_archs = []
     max_latents = 64  # make sure no bottleneck smaller than this
 
-    if n_ae_latents > max_latents:
-        raise ValueError('Number of latents higher than max latents')
+    # if n_ae_latents > max_latents:
+    #     raise ValueError('Number of latents higher than max latents')
 
     # Architecture -1 (similar to Ella's old architecture, plus batch norm)
     if np.any(which_archs == -1):
@@ -800,15 +800,15 @@ def draw_handcrafted_archs(
 
         list_of_handcrafted_archs.append(arch)
 
-    if check_memory:
-        for i, new_arch in enumerate(list_of_handcrafted_archs):
-            copied_arch = copy.deepcopy(new_arch)
-            copied_arch['model_class'] = 'ae'
-            model = AE(copied_arch)
-            mem_size = estimate_model_footprint(model, tuple([batch_size] + input_dim))
-            mem_size_gb = mem_size / 1e9
-            if mem_size_gb > mem_limit_gb:  # GB
-                raise ValueError('Handcrafted architecture %i too big for memory' % which_archs[i])
-            new_arch['mem_size_gb'] = mem_size_gb
+    # if check_memory:
+    #     for i, new_arch in enumerate(list_of_handcrafted_archs):
+    #         copied_arch = copy.deepcopy(new_arch)
+    #         copied_arch['model_class'] = 'ae'
+    #         model = AE(copied_arch)
+    #         mem_size = estimate_model_footprint(model, tuple([batch_size] + input_dim))
+    #         mem_size_gb = mem_size / 1e9
+    #         if mem_size_gb > mem_limit_gb:  # GB
+    #             raise ValueError('Handcrafted architecture %i too big for memory' % which_archs[i])
+    #         new_arch['mem_size_gb'] = mem_size_gb
 
     return list_of_handcrafted_archs
