@@ -7,9 +7,6 @@ import numpy as np
 def get_data_generator_inputs(hparams, sess_ids):
     """Helper function for generating signals, transforms and paths.
 
-    # TODO: add support for decoding HMM states
-    # TODO: move input_signal/output_signal/etc to another function (not needed for data gen)
-
     Parameters
     ----------
     hparams : :obj:`dict`
@@ -28,6 +25,9 @@ def get_data_generator_inputs(hparams, sess_ids):
         - paths (:obj:`list`): session-specific paths
 
     """
+
+    # TODO: add support for decoding HMM states
+    # TODO: move input_signal/output_signal/etc to another function? (not needed for data gen)
 
     signals_list = []
     transforms_list = []

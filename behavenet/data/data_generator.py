@@ -192,15 +192,15 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             elif signal == 'ae_latents':
                 try:
                     latents = _load_pkl_dict(self.paths[signal], 'latents')[0]
+                # except FileNotFoundError:
+                #     # try prepending session string
+                #     try:
+                #         latents = _load_pkl_dict(
+                #             _prepend_sess_id(self.paths[signal], self.sess_str), 'latents')[0]
                 except FileNotFoundError:
-                    # try prepending session string
-                    try:
-                        latents = _load_pkl_dict(
-                            _prepend_sess_id(self.paths[signal], self.sess_str), 'latents')[0]
-                    except FileNotFoundError:
-                        raise NotImplementedError(
-                            ('Could not open %s\nMust create ae latents from model;' +
-                             ' currently not implemented') % self.paths[signal])
+                    raise NotImplementedError(
+                        ('Could not open %s\nMust create ae latents from model;' +
+                         ' currently not implemented') % self.paths[signal])
                 self.n_trials = len(latents)
 
         # meta data about train/test/xv splits; set by ConcatSessionsGenerator

@@ -376,8 +376,8 @@ class NLLLoss(FitMethod):
         self.metrics['curr']['batches'] = 1
 
     def create_metric_row(
-            self, dtype, epoch, batch, dataset, trial, best_epoch=None,
-            by_dataset=False, *args, **kwargs):
+            self, dtype, epoch, batch, dataset, trial, best_epoch=None, by_dataset=False,
+            *args, **kwargs):
         """Export metrics and other data (e.g. epoch) for logging train progress.
 
         Parameters
@@ -557,9 +557,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
     # optimizer set-up
     optimizer = torch.optim.Adam(
-        loss.get_parameters(),
-        lr=hparams['learning_rate'],
-        weight_decay=hparams.get('l2_reg', 0),
+        loss.get_parameters(), lr=hparams['learning_rate'], weight_decay=hparams.get('l2_reg', 0),
         amsgrad=True)
 
     # enumerate batches on which validation metrics should be recorded
@@ -569,20 +567,19 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     val_check_batch = np.linspace(
         data_generator.n_tot_batches['train'] * hparams['val_check_interval'],
         data_generator.n_tot_batches['train'] * (hparams['max_n_epochs']+1),
-        int((hparams['max_n_epochs']+1) / hparams['val_check_interval'])).astype('int')
+        int((hparams['max_n_epochs'] + 1) / hparams['val_check_interval'])).astype('int')
 
     # early stopping set-up
     if hparams['enable_early_stop']:
         early_stop = EarlyStopping(
-            history=hparams['early_stop_history'],
-            min_epochs=hparams['min_n_epochs'])
+            history=hparams['early_stop_history'], min_epochs=hparams['min_n_epochs'])
     else:
         early_stop = None
 
     i_epoch = 0
     for i_epoch in range(hparams['max_n_epochs'] + 1):
-        # Note: the 0th epoch has no training (randomly initialized model is
-        # evaluated) so we cycle through `max_n_epochs` training epochs
+        # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
+        # through `max_n_epochs` training epochs
 
         if hparams['max_n_epochs'] < 10:
             print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
@@ -596,6 +593,10 @@ def fit(hparams, model, data_generator, exp, method='ae'):
             print('epoch %05i/%05i' % (i_epoch, hparams['max_n_epochs']))
         else:
             print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
+
+        # control how data is batched to that models can be restarted from a particular epoch
+        torch.manual_seed(i_epoch)  # order of trials within sessions
+        np.random.seed(i_epoch)  # order of sessions
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')
@@ -688,17 +689,14 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
     # save out last model
     if hparams.get('save_last_model', False):
-        filepath = os.path.join(
-            hparams['expt_dir'], 'version_%i' % exp.version, 'last_model.pt')
+        filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'last_model.pt')
         torch.save(model.state_dict(), filepath)
 
     # compute test loss
     if method == 'ae':
-        test_loss = AELoss(
-            best_val_model, n_datasets=data_generator.n_datasets)
+        test_loss = AELoss(best_val_model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
-        test_loss = NLLLoss(
-            best_val_model, n_datasets=data_generator.n_datasets)
+        test_loss = NLLLoss(best_val_model, n_datasets=data_generator.n_datasets)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 
@@ -718,8 +716,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
         # calculate metrics for each *batch* (rather than whole dataset)
         exp.log(test_loss.create_metric_row(
-            'test', i_epoch, i_test, dataset, trial=data['batch_idx'].item(),
-            by_dataset=True))
+            'test', i_epoch, i_test, dataset, trial=data['batch_idx'].item(), by_dataset=True))
 
     exp.save()
 
