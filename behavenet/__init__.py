@@ -2,7 +2,7 @@ import os
 import json
 
 
-def get_params_dir():
+def _get_params_dir():
     from pathlib import Path
     return os.path.join(Path.home(), '.behavenet')
 
@@ -22,7 +22,7 @@ def get_user_dir(type):
 
     """
     import json
-    dirs_file = os.path.join(get_params_dir(), 'directories')
+    dirs_file = os.path.join(_get_params_dir(), 'directories')
     with open(dirs_file, 'r') as f:
         dirs = json.load(f)
     return dirs[str('%s_dir' % type)]
@@ -56,7 +56,7 @@ def setup():
     prompt = "Enter base figures directory: "
     dirs['fig_dir'] = input(prompt)
 
-    params_dir = get_params_dir()
+    params_dir = _get_params_dir()
     if not os.path.exists(params_dir):
         os.makedirs(params_dir)
     params_file = os.path.join(params_dir, 'directories')
@@ -111,7 +111,7 @@ def add_dataset():
     params['neural_bin_size'] = 1.0 / float(params['frame_rate'])
     params['approx_batch_size'] = 200
 
-    params_dir = get_params_dir()
+    params_dir = _get_params_dir()
     if not os.path.exists(params_dir):
         os.makedirs(params_dir)
     params_file = os.path.join(params_dir, str('%s_%s_params' % (params['lab'], params['expt'])))

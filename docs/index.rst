@@ -14,6 +14,7 @@ BehaveNet is a probabilistic framework for the analysis of behavioral video and 
 
    source/installation
    source/user_guide
+   source/adv_user_guide
    source/data_structure
    source/glossary
 

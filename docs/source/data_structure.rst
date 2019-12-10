@@ -1,7 +1,7 @@
 .. _data_structure:
 
-############################
-The BehaveNet data structure
-############################
+########################
+BehaveNet data structure
+########################
 
 More info coming soon!

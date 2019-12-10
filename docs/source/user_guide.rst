@@ -1,12 +1,12 @@
 ##########
-User Guide
+User guide
 ##########
 
 .. toctree::
    :maxdepth: 1
    :caption: Contents:
 
-   user_guide.cli
+   user_guide.intro
    user_guide.autoencoders
    user_guide.arhmms
    user_guide.decoders
