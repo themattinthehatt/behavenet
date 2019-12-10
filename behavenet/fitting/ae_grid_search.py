@@ -96,15 +96,6 @@ def main(hparams, *args):
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
 
-def get_params(args=None):
-    parser = HyperOptArgumentParser(strategy='grid_search')
-
-    parser.opt_list('--lr', default=0.001, type=float, options=[0.0002, 0.001, 0.005], tunable=False)
-    parser.add_argument('--device', default='cuda')
-    parser.add_argument('--gpus_viz', default='0', type=str, help="add multiple as '0;1;4' etc")
-
-    return parser.parse_args(args)
-
 if __name__ == '__main__':
 
     hyperparams = get_all_params('grid_search')
