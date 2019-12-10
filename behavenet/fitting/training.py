@@ -206,6 +206,9 @@ class AELoss(FitMethod):
 
         """
 
+        if self.model.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
         y = data['images'][0]
 
         if 'masks' in data:
@@ -221,19 +224,19 @@ class AELoss(FitMethod):
             n_chunks = int(np.ceil(batch_size / chunk_size))
             loss_val = 0
             for chunk in range(n_chunks):
-                indx_beg = chunk * chunk_size
-                indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                y_mu, _ = self.model(y[indx_beg:indx_end], dataset=dataset)
+                idx_beg = chunk * chunk_size
+                idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                y_mu, _ = self.model(y[idx_beg:idx_end], dataset=dataset)
                 if masks is not None:
                     loss = torch.mean((
-                        (y[indx_beg:indx_end] - y_mu) ** 2) *
-                        masks[indx_beg:indx_end])
+                        (y[idx_beg:idx_end] - y_mu) ** 2) *
+                        masks[idx_beg:idx_end])
                 else:
-                    loss = torch.mean((y[indx_beg:indx_end] - y_mu) ** 2)
+                    loss = torch.mean((y[idx_beg:idx_end] - y_mu) ** 2)
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
-                loss_val += loss.item() * (indx_end - indx_beg)
+                loss_val += loss.item() * (idx_end - idx_beg)
             loss_val /= y.shape[0]
         else:
             y_mu, _ = self.model(y, dataset=dataset)
@@ -289,6 +292,9 @@ class NLLLoss(FitMethod):
 
         """
 
+        if self.model.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
         predictors = data[self.model.hparams['input_signal']][0]
         targets = data[self.model.hparams['output_signal']][0]
 
@@ -304,19 +310,19 @@ class NLLLoss(FitMethod):
             loss_val = 0
             for chunk in range(n_chunks):
                 # take chunks of size chunk_size, plus overlap due to max_lags
-                indx_beg = np.max([chunk * chunk_size - max_lags, 0])
-                indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
-                outputs, precision = self.model(predictors[indx_beg:indx_end])
+                idx_beg = np.max([chunk * chunk_size - max_lags, 0])
+                idx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
+                outputs, precision = self.model(predictors[idx_beg:idx_end])
                 # define loss on allowed window of data
                 if self.model.hparams['noise_dist'] == 'gaussian-full':
                     loss = self._loss(
                         outputs[max_lags:-max_lags],
-                        targets[indx_beg:indx_end][max_lags:-max_lags],
+                        targets[idx_beg:idx_end][max_lags:-max_lags],
                         precision[max_lags:-max_lags])
                 else:
                     loss = self._loss(
                         outputs[max_lags:-max_lags],
-                        targets[indx_beg:indx_end][max_lags:-max_lags])
+                        targets[idx_beg:idx_end][max_lags:-max_lags])
                 # compute gradients
                 loss.backward()
                 # get loss value (weighted by batch size)
@@ -712,7 +718,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
         # calculate metrics for each *batch* (rather than whole dataset)
         exp.log(test_loss.create_metric_row(
-            'test', i_epoch, i_test, dataset, trial=data['batch_indx'].item(),
+            'test', i_epoch, i_test, dataset, trial=data['batch_idx'].item(),
             by_dataset=True))
 
     exp.save()

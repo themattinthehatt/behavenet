@@ -59,7 +59,7 @@ def make_ae_reconstruction_movie_wrapper(
     # push images through decoder
     if trial is None:
         # choose first test trial
-        trial = data_generator.batch_indxs[sess_idx]['test'][0]
+        trial = data_generator.batch_idxs[sess_idx]['test'][0]
     batch = data_generator.datasets[sess_idx][trial]
     ims_orig_pt = batch['images'][:max_frames]
 
@@ -246,7 +246,7 @@ def make_neural_reconstruction_movie_wrapper(
 
     if trial is None:
         # choose first test trial
-        trial = data_generator_ae.batch_indxs[sess_idx]['test'][0]
+        trial = data_generator_ae.batch_idxs[sess_idx]['test'][0]
 
     # get images from data generator (move to cpu)
     batch = data_generator_ae.datasets[sess_idx][trial]
@@ -354,13 +354,13 @@ def make_neural_reconstruction_movie(
 
     # check that the axes are correct
     fontsize = 12
-    indx = 0
-    axs[indx].set_title('Original', fontsize=fontsize); indx += 1
-    axs[indx].set_title('AE reconstructed', fontsize=fontsize); indx += 1
-    axs[indx].set_title('Neural reconstructed', fontsize=fontsize); indx += 1
-    axs[indx].set_title('Reconstructions residual', fontsize=fontsize); indx += 1
-    axs[indx].set_title('AE latent predictions', fontsize=fontsize)
-    axs[indx].set_xlabel('Time (bins)', fontsize=fontsize)
+    idx = 0
+    axs[idx].set_title('Original', fontsize=fontsize); idx += 1
+    axs[idx].set_title('AE reconstructed', fontsize=fontsize); idx += 1
+    axs[idx].set_title('Neural reconstructed', fontsize=fontsize); idx += 1
+    axs[idx].set_title('Reconstructions residual', fontsize=fontsize); idx += 1
+    axs[idx].set_title('AE latent predictions', fontsize=fontsize)
+    axs[idx].set_xlabel('Time (bins)', fontsize=fontsize)
 
     time = np.arange(n_time)
 
@@ -378,7 +378,7 @@ def make_neural_reconstruction_movie(
     for i in range(n_time):
 
         ims_curr = []
-        indx = 0
+        idx = 0
 
         if i % 100 == 0:
             print('processing frame %03i/%03i' % (i, n_time))
@@ -388,27 +388,27 @@ def make_neural_reconstruction_movie(
         ###################
         # original video
         ims_tmp = ims_orig[i, 0] if n_channels == 1 else concat(ims_orig[i])
-        im = axs[indx].imshow(ims_tmp, **im_kwargs)
+        im = axs[idx].imshow(ims_tmp, **im_kwargs)
         ims_curr.append(im)
-        indx += 1
+        idx += 1
 
         # ae reconstruction
         ims_tmp = ims_recon_ae[i, 0] if n_channels == 1 else concat(ims_recon_ae[i])
-        im = axs[indx].imshow(ims_tmp, **im_kwargs)
+        im = axs[idx].imshow(ims_tmp, **im_kwargs)
         ims_curr.append(im)
-        indx += 1
+        idx += 1
 
         # neural reconstruction
         ims_tmp = ims_recon_neural[i, 0] if n_channels == 1 else concat(ims_recon_neural[i])
-        im = axs[indx].imshow(ims_tmp, **im_kwargs)
+        im = axs[idx].imshow(ims_tmp, **im_kwargs)
         ims_curr.append(im)
-        indx += 1
+        idx += 1
 
         # residual
         ims_tmp = ims_res[i, 0] if n_channels == 1 else concat(ims_res[i])
-        im = axs[indx].imshow(0.5 + ims_tmp, **im_kwargs)
+        im = axs[idx].imshow(0.5 + ims_tmp, **im_kwargs)
         ims_curr.append(im)
-        indx += 1
+        idx += 1
 
         ########
         # traces
@@ -422,20 +422,20 @@ def make_neural_reconstruction_movie(
             else:
                 label_ae = None
                 label_dec = None
-            im = axs[indx].plot(
+            im = axs[idx].plot(
                 time[0:i + 1], latent + latents_ae_sc[0:i + 1, latent],
                 color=latents_ae_color, alpha=0.7, label=label_ae,
                 **tr_kwargs)[0]
-            axs[indx].spines['top'].set_visible(False)
-            axs[indx].spines['right'].set_visible(False)
-            axs[indx].spines['left'].set_visible(False)
+            axs[idx].spines['top'].set_visible(False)
+            axs[idx].spines['right'].set_visible(False)
+            axs[idx].spines['left'].set_visible(False)
             ims_curr.append(im)
-            im = axs[indx].plot(
+            im = axs[idx].plot(
                 time[0:i + 1], latent + latents_dec_sc[0:i + 1, latent],
                 color=latents_dec_color, label=label_dec, **tr_kwargs)[0]
-            axs[indx].spines['top'].set_visible(False)
-            axs[indx].spines['right'].set_visible(False)
-            axs[indx].spines['left'].set_visible(False)
+            axs[idx].spines['top'].set_visible(False)
+            axs[idx].spines['right'].set_visible(False)
+            axs[idx].spines['left'].set_visible(False)
             plt.legend(
                 loc='lower right', fontsize=fontsize, frameon=True,
                 framealpha=0.7, edgecolor=[1, 1, 1])
@@ -517,7 +517,7 @@ def plot_neural_reconstruction_traces_wrapper(
 
     if trial is None:
         # choose first test trial
-        trial = data_generator.datasets[0].batch_indxs['test'][0]
+        trial = data_generator.datasets[0].batch_idxs['test'][0]
 
     batch = data_generator.datasets[0][trial]
     traces_ae = batch['ae_latents'].cpu().detach().numpy()

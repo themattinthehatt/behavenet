@@ -118,13 +118,12 @@ def _load_pkl_dict(path, key, idx=None, dtype='float32'):
     return samp
 
 
-# TODO: remove
-def _prepend_sess_id(path, sess_str):
-    """Prepend session id to a file in a path"""
-    print('WARNING: deprecated function')
-    pathname = os.path.dirname(path)
-    filename = os.path.basename(path)
-    return os.path.join(pathname, str('%s_%s' % (sess_str, filename)))
+# def _prepend_sess_id(path, sess_str):
+#     """Prepend session id to a file in a path"""
+#     print('WARNING: deprecated function')
+#     pathname = os.path.dirname(path)
+#     filename = os.path.basename(path)
+#     return os.path.join(pathname, str('%s_%s' % (sess_str, filename)))
 
 
 class SingleSessionDatasetBatchedLoad(data.Dataset):
@@ -313,24 +312,28 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                 else:
                     sample[signal] = torch.from_numpy(sample[signal]).long()
 
-                sample[signal] = sample[signal].to(self.device)
-
         sample['batch_idx'] = idx
 
         return sample
 
     def _try_to_load(self, signal, key, idx, dtype):
+        # try:
+        #     data = _load_pkl_dict(self.paths[signal], key, idx=idx, dtype=dtype)
+        # except FileNotFoundError:
+        #     # try prepending session string
+        #     try:
+        #         self.paths[signal] = _prepend_sess_id(self.paths[signal], self.sess_str)
+        #         data = _load_pkl_dict(self.paths[signal], key, idx=idx, dtype=dtype)
+        #     except FileNotFoundError:
+        #         raise NotImplementedError(
+        #             ('Could not open %s\nMust create %s from model;' +
+        #              ' currently not implemented') % (self.paths[signal], key))
         try:
             data = _load_pkl_dict(self.paths[signal], key, idx=idx, dtype=dtype)
         except FileNotFoundError:
-            # try prepending session string
-            try:
-                self.paths[signal] = _prepend_sess_id(self.paths[signal], self.sess_str)
-                data = _load_pkl_dict(self.paths[signal], key, idx=idx, dtype=dtype)
-            except FileNotFoundError:
-                raise NotImplementedError(
-                    ('Could not open %s\nMust create %s from model;' +
-                     ' currently not implemented') % (self.paths[signal], key))
+            raise NotImplementedError(
+                ('Could not open %s\nMust create %s from model;' +
+                 ' currently not implemented') % (self.paths[signal], key))
         return data
 
 
@@ -541,7 +544,8 @@ class ConcatSessionsGenerator(object):
                     dataset,
                     batch_size=1,
                     sampler=SubsetRandomSampler(dataset.batch_idxs[dtype]),
-                    num_workers=0)
+                    num_workers=0,
+                    pin_memory=False)
 
         # create all iterators (will iterate through data loaders)
         self.dataset_iters = [None] * self.n_datasets

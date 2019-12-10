@@ -35,7 +35,7 @@ def get_r2s_by_trial(hparams, model_types):
     region_names = get_region_list(hparams)
 
     metrics = []
-    model_indx = 0
+    model_idx = 0
     model_counter = 0
     for region in region_names:
         hparams['region'] = region
@@ -68,7 +68,7 @@ def get_r2s_by_trial(hparams, model_types):
                     hparams = pickle.load(f)
                 # append model info to metrics ()
                 version_num = version[8:]
-                metric['version'] = str('version_%i' % model_indx + version_num)
+                metric['version'] = str('version_%i' % model_idx + version_num)
                 metric['region'] = region
                 metric['dataset'] = dataset
                 metric['model_type'] = model_type
@@ -77,7 +77,7 @@ def get_r2s_by_trial(hparams, model_types):
                         metric[key] = val
                 metrics.append(metric)
 
-            model_indx += 10000  # assumes no more than 10k model versions/expt
+            model_idx += 10000  # assumes no more than 10k model versions/expt
     # put everything in pandas dataframe
     metrics_df = pd.concat(metrics, sort=False)
     return metrics_df

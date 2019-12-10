@@ -42,7 +42,7 @@ def export_latents(data_generator, model, filename=None):
             y = data['images'][0]
             batch_size = y.shape[0]
             if batch_size > chunk_size:
-                latents[sess][data['batch_indx'].item()] = np.full(
+                latents[sess][data['batch_idx'].item()] = np.full(
                     shape=(data['images'].shape[1], model.hparams['n_ae_latents']),
                     fill_value=np.nan)
                 # split into chunks
@@ -50,14 +50,14 @@ def export_latents(data_generator, model, filename=None):
                 for chunk in range(n_chunks):
                     # take chunks of size chunk_size, plus overlap due to
                     # max_lags
-                    indx_beg = chunk * chunk_size
-                    indx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                    curr_latents, _, _ = model.encoding(y[indx_beg:indx_end], dataset=sess)
-                    latents[sess][data['batch_indx'].item()][indx_beg:indx_end, :] = \
+                    idx_beg = chunk * chunk_size
+                    idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                    curr_latents, _, _ = model.encoding(y[idx_beg:idx_end], dataset=sess)
+                    latents[sess][data['batch_idx'].item()][idx_beg:idx_end, :] = \
                         curr_latents.cpu().detach().numpy()
             else:
                 curr_latents, _, _ = model.encoding(y, dataset=sess)
-                latents[sess][data['batch_indx'].item()] = curr_latents.cpu().detach().numpy()
+                latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
 
     # save latents separately for each dataset
     for sess, dataset in enumerate(data_generator.datasets):
@@ -69,7 +69,7 @@ def export_latents(data_generator, model, filename=None):
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
         print('saving latents %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename))
-        latents_dict = {'latents': latents[sess], 'trials': dataset.batch_indxs}
+        latents_dict = {'latents': latents[sess], 'trials': dataset.batch_idxs}
         with open(filename, 'wb') as f:
             pickle.dump(latents_dict, f)
 
@@ -113,7 +113,7 @@ def export_states(hparams, data_generator, model, filename=None):
             batch_size = y.shape[0]
 
             curr_states = model.most_likely_states(y)
-            states[sess][data['batch_indx'].item()] = curr_states
+            states[sess][data['batch_idx'].item()] = curr_states
 
     # save states separately for each dataset
     for sess, dataset in enumerate(data_generator.datasets):
@@ -125,7 +125,7 @@ def export_states(hparams, data_generator, model, filename=None):
                 hparams['expt_dir'], 'version_%i' % hparams['version'], sess_id)
         # save out array in pickle file
         print('saving states %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename))
-        states_dict = {'states': states[sess], 'trials': dataset.batch_indxs}
+        states_dict = {'states': states[sess], 'trials': dataset.batch_idxs}
         with open(filename, 'wb') as f:
             pickle.dump(states_dict, f)
 
@@ -171,7 +171,7 @@ def export_predictions(data_generator, model, filename=None):
             predictors = data[model.hparams['input_signal']][0]
             targets = data[model.hparams['output_signal']][0]
 
-            predictions[sess][data['batch_indx'].item()] = np.full(
+            predictions[sess][data['batch_idx'].item()] = np.full(
                 shape=targets.shape, fill_value=np.nan)
 
             # process batch, perhaps in chunks if full batch is too large
@@ -184,16 +184,16 @@ def export_predictions(data_generator, model, filename=None):
                 for chunk in range(n_chunks):
                     # take chunks of size chunk_size, plus overlap due to
                     # max_lags
-                    indx_beg = np.max([chunk * chunk_size - max_lags, 0])
-                    indx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
-                    outputs, _ = model(predictors[indx_beg:indx_end])
-                    slc = (indx_beg + max_lags, indx_end - max_lags)
-                    predictions[sess][data['batch_indx'].item()][slice(*slc), :] = \
+                    idx_beg = np.max([chunk * chunk_size - max_lags, 0])
+                    idx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
+                    outputs, _ = model(predictors[idx_beg:idx_end])
+                    slc = (idx_beg + max_lags, idx_end - max_lags)
+                    predictions[sess][data['batch_idx'].item()][slice(*slc), :] = \
                         outputs[max_lags:-max_lags].cpu().detach().numpy()
             else:
                 outputs, _ = model(predictors)
                 slc = (max_lags, -max_lags)
-                predictions[sess][data['batch_indx'].item()][slice(*slc), :] = \
+                predictions[sess][data['batch_idx'].item()][slice(*slc), :] = \
                     outputs[max_lags:-max_lags].cpu().detach().numpy()
 
     # save latents separately for each dataset
@@ -206,7 +206,7 @@ def export_predictions(data_generator, model, filename=None):
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
         print('saving latents %i of %i to %s' % (sess + 1, data_generator.n_datasets, filename))
-        predictions_dict = {'predictions': predictions[sess], 'trials': dataset.batch_indxs}
+        predictions_dict = {'predictions': predictions[sess], 'trials': dataset.batch_idxs}
         with open(filename, 'wb') as f:
             pickle.dump(predictions_dict, f)
 
@@ -336,7 +336,7 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
     model, data_generator = get_best_model_and_data(
         hparams, Decoder, load_data=True, version=model_version)
 
-    n_test_batches = len(data_generator.datasets[sess_idx].batch_indxs['test'])
+    n_test_batches = len(data_generator.datasets[sess_idx].batch_idxs['test'])
     max_lags = hparams['n_max_lags']
     true = []
     pred = []

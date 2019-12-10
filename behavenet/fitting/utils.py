@@ -223,7 +223,7 @@ def get_session_dir(hparams, path_type='save'):
     elif len(sessions_single) > 1:
         # check if this combo of experiments exists in previous multi-sessions
         found_match = False
-        multi_indx = None
+        multi_idx = None
         for session_multi in multisession_paths:
             csv_file = os.path.join(session_multi, 'session_info.csv')
             sessions_multi = read_session_info_from_csv(csv_file)
@@ -237,21 +237,21 @@ def get_session_dir(hparams, path_type='save'):
             if len(set_diff) == 0:
                 # found match; record index
                 found_match = True
-                multi_indx = int(session_multi.split('-')[-1])
+                multi_idx = int(session_multi.split('-')[-1])
                 break
 
         # create new multisession if match was not found
         if not found_match:
-            multi_indxs = [
+            multi_idxs = [
                 int(session_multi.split('-')[-1]) for session_multi in multisession_paths]
-            if len(multi_indxs) == 0:
-                multi_indx = 0
+            if len(multi_idxs) == 0:
+                multi_idx = 0
             else:
-                multi_indx = max(multi_indxs) + 1
+                multi_idx = max(multi_idxs) + 1
         else:
             pass
 
-        session_dir = os.path.join(session_dir_base, 'multisession-%02i' % multi_indx)
+        session_dir = os.path.join(session_dir_base, 'multisession-%02i' % multi_idx)
     else:
         session_dir = session_dir_base
 

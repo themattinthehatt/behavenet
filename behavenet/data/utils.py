@@ -262,16 +262,16 @@ def get_transforms_paths(data_type, hparams, sess_id):
             region_name = hparams['region']
             regions = get_region_list(hparams)
             if sampling == 'single':
-                indxs = regions[region_name]
+                idxs = regions[region_name]
             elif sampling == 'loo':
-                indxs = []
-                for reg_name, reg_indxs in regions.items():
+                idxs = []
+                for reg_name, reg_idxs in regions.items():
                     if reg_name != region_name:
-                        indxs.append(reg_indxs)
-                indxs = np.concatenate(indxs)
+                        idxs.append(reg_idxs)
+                idxs = np.concatenate(idxs)
             else:
                 raise ValueError('"%s" is an invalid region sampling option' % sampling)
-            transforms_.append(SelectIdxs(indxs, str('%s-%s' % (region_name, sampling))))
+            transforms_.append(SelectIdxs(idxs, str('%s-%s' % (region_name, sampling))))
 
         # filter neural data by activity
         if hparams['neural_type'] == 'spikes':
@@ -400,18 +400,18 @@ def get_region_list(hparams):
         hparams['animal'], hparams['session'], 'data.hdf5')
 
     with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
-        indx_types = list(f['regions'])
-        if 'indxs_consolidate' in indx_types:
+        idx_types = list(f['regions'])
+        if 'indxs_consolidate' in idx_types:
             regions = list(f['regions']['indxs_consolidate'].keys())
-            indxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()]) for
+            idxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()]) for
                      reg in regions}
-        elif 'indxs_consolidate_lr' in indx_types:
+        elif 'indxs_consolidate_lr' in idx_types:
             regions = list(f['regions']['indxs_consolidate_lr'].keys())
-            indxs = {reg: np.ravel(f['regions']['indxs_consolidate_lr'][reg][()])
+            idxs = {reg: np.ravel(f['regions']['indxs_consolidate_lr'][reg][()])
                      for reg in regions}
         else:
             regions = list(f['regions']['indxs'])
-            indxs = {reg: np.ravel(f['regions']['indxs'][reg][()])
+            idxs = {reg: np.ravel(f['regions']['indxs'][reg][()])
                      for reg in regions}
 
-    return indxs
+    return idxs
