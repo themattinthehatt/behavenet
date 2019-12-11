@@ -74,7 +74,6 @@ def add_dataset():
         'expt': ['name of experiment (str): ', str],
         'animal': ['example animal name (str): ', str],
         'session': ['example session name (str): ', str],
-        'trial_splits': ['trial splits as train;val;test;gap (e.g. 8;1;1;0): ', str],
     }
     params_video = {
         'x_pixels': ['number of x pixels (int): ', int],

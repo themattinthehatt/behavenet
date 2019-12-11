@@ -43,6 +43,4 @@
 
 "approx_batch_size": 200, # type: int, help: approximate batch size for memory calculation
 
-"trial_splits": "5;1;1;1" # type: str, help: i;j;k;l correspond to train;val;test;gap'
-
 }

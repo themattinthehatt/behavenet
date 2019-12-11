@@ -2,18 +2,18 @@ import os
 import time
 import numpy as np
 import random
-import pickle
 import torch
-from test_tube import HyperOptArgumentParser
 
 from behavenet.fitting.eval import export_latents_best
 from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.training import fit
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
+from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import export_hparams
 from behavenet.models import AE as AE
 from behavenet.fitting.hyperparam_utils import get_all_params
+
 
 def main(hparams, *args):
 
@@ -95,6 +95,10 @@ def main(hparams, *args):
     # update hparams upon successful training
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
+
+    # get rid of unneeded logging info
+    _clean_tt_dir(hparams)
+
 
 if __name__ == '__main__':
 

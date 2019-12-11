@@ -118,14 +118,6 @@ def _load_pkl_dict(path, key, idx=None, dtype='float32'):
     return samp
 
 
-# def _prepend_sess_id(path, sess_str):
-#     """Prepend session id to a file in a path"""
-#     print('WARNING: deprecated function')
-#     pathname = os.path.dirname(path)
-#     filename = os.path.basename(path)
-#     return os.path.join(pathname, str('%s_%s' % (sess_str, filename)))
-
-
 class SingleSessionDatasetBatchedLoad(data.Dataset):
     """Dataset class for a single session with batch loading of data."""
 
@@ -192,11 +184,6 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
             elif signal == 'ae_latents':
                 try:
                     latents = _load_pkl_dict(self.paths[signal], 'latents')[0]
-                # except FileNotFoundError:
-                #     # try prepending session string
-                #     try:
-                #         latents = _load_pkl_dict(
-                #             _prepend_sess_id(self.paths[signal], self.sess_str), 'latents')[0]
                 except FileNotFoundError:
                     raise NotImplementedError(
                         ('Could not open %s\nMust create ae latents from model;' +

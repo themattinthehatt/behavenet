@@ -71,7 +71,7 @@ Next, set up your paths to the directories where data, results, and figures will
     from behavenet import setup
     setup()
 
-You will be asked to input a base data directory; all data should be stored in the form :code:`base_data_dir/lab_name/expt_name/animal_id/session_id/data.hdf5`. More information on the structure of the hdf5 file can be found :ref:`here<data_structure>`. You will also be asked to input a base results directory, which will store all of the model fits. Finally, the base figure directory will be used to store figure and video outputs.
+You will be asked to input a base data directory; all data should be stored in the form :code:`base_data_dir/lab_id/expt_id/animal_id/session_id/data.hdf5`. More information on the structure of the hdf5 file can be found :ref:`here<data_structure>`. You will also be asked to input a base results directory, which will store all of the model fits. Finally, the base figure directory will be used to store figure and video outputs.
 
 The :code:`behavenet.setup()` function will create a hidden directory named :code:`.behavenet` in your user directory.
 
@@ -79,31 +79,4 @@ The :code:`behavenet.setup()` function will create a hidden directory named :cod
 * In MacOS, :code:`/Users/CurrentUser/.behavenet`
 
 Within this directory the function will create a json file named :code:`directories` which you can manually edit at any point.
-
-
-Adding a new dataset
-====================
-
-You can also input some prior information about your dataset to avoid supplying this information at all intermediate steps. You will be asked to enter the following information (examples shown for Musall dataset):
-
-* lab or experimenter name (:code:`musall`)
-* experiment name (:code:`vistrained`)
-* example animal name (:code:`mSM36`)
-* example session name (:code:`05-Dec-2017`)
-* trial splits (:code:`8;1;1;0`) - this is how trials will be split among training, validation, testing, and gap trials, respectively. Typically we use training data to train the models; validation data to choose the best model from a collection of models using different hyperparameters; test data to produce plots and videos; and gap trials can optionally be inserted between training, validation, and test trials if desired.
-* x pixels (:code:`128`)
-* y pixels (:code:`128`)
-* input channels (:code:`2`) - this can refer to color channels (for RGB data) and/or multiple camera views, which should be concatenated along the color channel dimension. In the Musall dataset we use grayscale images from two camera views, so a trial with 189 frames will have a block of video data of shape (189, 2, 128, 128)
-* use output mask (:code:`False`) - an optional output mask can be applied to each video frame if desired; these output masks must also be stored in the :code:`data.hdf5` files as :code:`masks`.
-* frame rate (:code:`30`) - in Hz; behavenet assumes that the video data and neural data are binned at the same temporal resolution
-* neural data type (:code:`ca`) - either :code:`ca` for 2-photon/widefield data, or :code:`spikes` for ephys data. This parameter controls the noise distribution for encoding models, as well as several other model hyperparameters.
-
-To enter this information, launch python from the behavenet environment and type:
-
-.. code-block:: python
-
-    from behavenet import add_dataset
-    add_dataset()
-
-This function will create a json file named :code:`[lab_name]_[experiment_name]` which you can manually edit at any point.
 

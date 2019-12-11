@@ -4,7 +4,7 @@
 Hyperparameter glossary
 #######################
 
-The BehaveNet code requires a diverse array of hyperparameters (hparams) that specify details about the data, computational resources to be used for model fitting, and the models themselves. This glossary contains a brief description for each of the hparams options. See the example json files for hparams defaults.
+The BehaveNet code requires a diverse array of hyperparameters (hparams) to specify details about the data, computational resources, training algorithms, and the models themselves. This glossary contains a brief description for each of the hparams options. See the `example json files <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`_ for reasonable hparams defaults.
 
 Data
 ====
@@ -15,7 +15,6 @@ Data
 * **expt** (*str*): experiment id
 * **animal** (*str*): animal id
 * **session** (*str*): session id
-* **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be :obj:`lab`, :obj:`expt`, :obj:`animal`, :obj:`session`.
 * **n_input_channels** (*str*): number of colors channel/camera views in behavioral video
 * **x_pixels** (*int*): number of behavioral video pixels in x dimension
 * **y_pixels** (*int*): number of behavioral video pixels in y dimension
@@ -23,11 +22,6 @@ Data
 * **neural_bin_size** (*float*): bin size of neural/video data (ms)
 * **neural_type** (*str*): 'spikes' | 'ca'
 * **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
-* **trial_splits** (*str*): determines number of train/val/test/gap trials; entered as `8;1;1;0`, for example. See :func:`behavenet.data.data_generator.split_trials` for how these values are used.
-* **as_numpy** (*bool*): :obj:`True` to load data as numpy arrays, :obj:`False` to load as pytorch tensors
-* **batch_load** (*bool*): :obj:`True` to load data one batch at a time, :obj:`False` to load all data into memory (the data is still served to models in batches)
-* **rng_seed_data** (*int*): control randomness when splitting data into train, val, and test trials
-* **train_frac** (*float*): if :obj:`0 < train_frac < 1.0`, defines the *fraction* of assigned training trials to actually use; if :obj:`train_frac > 1.0`, defines the *number* of assigned training trials to actually use (rounded to the nearest integer)
 
 
 Computational resources
@@ -39,6 +33,34 @@ Computational resources
 * **tt_n_cpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on cpus
 * **tt_n_cpu_workers** (*int*): total number of cpu cores to use with test-tube for hyperparameter searching
 * **mem_limit_gb** (*float*): maximum size of gpu memory; used to filter out randomly generated CAEs that are too large
+
+
+Training
+========
+
+All models:
+
+* **as_numpy** (*bool*): :obj:`True` to load data as numpy arrays, :obj:`False` to load as pytorch tensors
+* **batch_load** (*bool*): :obj:`True` to load data one batch at a time, :obj:`False` to load all data into memory (the data is still served to models in batches)
+* **rng_seed_data** (*int*): control randomness when splitting data into train, val, and test trials
+* **train_frac** (*float*): if :obj:`0 < train_frac < 1.0`, defines the *fraction* of assigned training trials to actually use; if :obj:`train_frac > 1.0`, defines the *number* of assigned training trials to actually use (rounded to the nearest integer)
+* **trial_splits** (*str*): determines number of train/val/test/gap trials; entered as `8;1;1;0`, for example. See :func:`behavenet.data.data_generator.split_trials` for how these values are used.
+* **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be :obj:`lab`, :obj:`expt`, :obj:`animal`, :obj:`session`.
+* **export_train_plots** (*bool*): :obj:`True` to automatically export training/validation loss as a function of epoch upon completion of training [AEs and ARHMMs only]
+* **export_latents** (*bool*): :obj:`True` to automatically export train/val/test autoencoder latents using best model upon completion of training [analogous parameters **export_states** and **export_predictions** exist for arhmms and decoders, respectively)
+
+Pytorch models (all but 'arhmm' and 'bayesian-decoding'):
+
+* **val_check_interval**: (*float*): frequency with which metrics are calculated on validation data. These metrics are logged in a csv file via test-tube, and can also be used for early stopping if enabled. If :obj:`0 < val_check_interval < 1.0`, metrics are computed multiple times per epoch (val_check_interval=0.5 corresponds to checking every half epoch); if :obj:`val_check_interval > 1.0`, defines number of epochs between metric computation.
+* **learning_rate** (*float*): learning rate of adam optimizer
+* **max_n_epochs** (*int*): maximum number of training epochs
+* **min_n_epochs** (*int*): minimum number of training epochs, even when early stopping is used
+* **enable_early_stop** (*bool*): if :obj:`False`, training proceeds until maximum number of epochs is reached
+* **early_stop_history** (*int*): number of epochs over which to average validation loss
+
+ARHMM:
+
+* **n_iters** (*int*): number of EM iterations (currently no early stopping)
 
 
 Models
@@ -63,12 +85,6 @@ All models:
 
 Pytorch models (all but 'arhmm' and 'bayesian-decoding'):
 
-* **learning_rate** (*float*): learning rate of adam optimizer
-* **min_n_epochs** (*int*): minimum number of training epochs, even when early stopping is used
-* **max_n_epochs** (*int*): maximum number of training epochs
-* **val_check_interval**: (*float*): frequency with which metrics are calculated on validation data. These metrics are logged in a csv file via test-tube, and can also be used for early stopping if enabled. If :obj:`0 < val_check_interval < 1.0`, metrics are computed multiple times per epoch (val_check_interval=0.5 corresponds to checking every half epoch); if :obj:`val_check_interval > 1.0`, defines number of epochs between metric computation.
-* **enable_early_stop** (*bool*): if :obj:`False`, training proceeds until maximum number of epochs is reached
-* **early_stop_history** (*int*): number of epochs over which to average validation loss
 * **l2_reg** (*float*): L2 regularization value applied to all model weights
 
 
@@ -78,8 +94,7 @@ Autoencoder
 * **model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): output dimensions of AE encoder network
 * **fit_sess_io_layers** (*bool*): :obj:`True` to fit session-specific input and output layers; all other layers are shared across all sessions
-* **export_train_plots** (*bool*): :obj:`True` to automatically export training/validation loss as a function of epoch upon completion of training
-* **export_latents** (*bool*): :obj:`True` to automatically export train/val/test latents using best model upon completion of training
+* **arch_types** (*str*)
 
 
 ARHMM
@@ -89,7 +104,7 @@ ARHMM
 * **n_arhmm_lags** (*int*): number of autoregressive lags (order of AR process)
 * **noise_type** (*str*): observation noise; 'gaussian' | 'studentst'
 * **kappa** (*float*): stickiness parameter that biases diagonal of Markov transition matrix, which increases average state durations
-* **n_iters** (*int*): number of EM iterations (currently no early stopping)
+
 * **ae_experiment_name** (*str*): name of AE test-tube experiment
 * **ae_version** (*str* or *int*): 'best' to choose best version in AE experiment, otherwise an integer specifying test-tube version number
 * **ae_model_type** (*str*): 'conv' | 'linear'
@@ -139,6 +154,7 @@ For the discrete decoder:
 * **ae_model_type** (*str*): 'conv' | 'linear'
 * **arhmm_experiment_name** (*str*): name of ARHMM test-tube experiment
 * **n_arhmm_states** (*int*): number of ARHMM discrete states; this will be the number of classes the decoder is trained on
+* **n_arhmm_lags** (*int*): number of autoregressive lags (order of AR process)
 * **kappa** (*float*): 'kappa' parameter of the desired ARHMM
 * **noise_type** (*str*): 'noise_type' parameter of the desired ARHMM; 'gaussian' | 'studentst'
 * **arhmm_version** (*str* or *int*): 'best' to choose best version in ARHMM experiment, otherwise an integer specifying test-tube version number

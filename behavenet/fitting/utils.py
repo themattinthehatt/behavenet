@@ -512,7 +512,6 @@ def experiment_exists(hparams, which_version=False):
     """
 
     import pickle
-    import copy
 
     try:
         tt_versions = get_subdirs(hparams['expt_dir'])
@@ -523,32 +522,8 @@ def experiment_exists(hparams, which_version=False):
         else:
             return False
 
-    # get rid of parameters that are not model-specific
-    # TODO: this is ugly and not easy to maintain
-    hparams_less = copy.copy(hparams)
-    hparams_less.pop('data_dir', None)
-    hparams_less.pop('save_dir', None)
-    hparams_less.pop('device', None)
-    hparams_less.pop('as_numpy', None)
-    hparams_less.pop('batch_load', None)
-    hparams_less.pop('architecture_params', None)
-    hparams_less.pop('list_index', None)
-    hparams_less.pop('lab_example', None)
-    hparams_less.pop('tt_n_gpu_trials', None)
-    hparams_less.pop('tt_n_cpu_trials', None)
-    hparams_less.pop('tt_n_cpu_workers', None)
-    hparams_less.pop('use_output_mask', None)
-    hparams_less.pop('ae_model_type', None)
-    hparams_less.pop('subsample_regions', None)
-    hparams_less.pop('reg_list', None)
-    hparams_less.pop('version', None)
-    hparams_less.pop('plot_n_frames', None)
-    hparams_less.pop('plot_frame_rate', None)
-    hparams_less.pop('ae_multisession', None)
-    hparams_less.pop('session_dir', None)
-    hparams_less.pop('expt_dir', None)
-    hparams_less.pop('rng_seed_data', None)
-    hparams_less.pop('load_videos', None)
+    # get model-specific params
+    hparams_less = get_model_params(hparams)
 
     found_match = False
     version = None
@@ -572,6 +547,74 @@ def experiment_exists(hparams, which_version=False):
         return found_match, None
     else:
         return found_match
+
+
+def get_model_params(hparams):
+    """
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        all relevant hparams for the given model class will be pulled from this dict
+
+    Returns
+    -------
+    dict
+        hparams dict containing all params considered essential for defining a model in that class
+
+    """
+
+    model_class = hparams['model_class']
+
+    # start with general params
+    hparams_less = {
+        'rng_seed_data': hparams['rng_seed_data'],
+        'trial_splits': hparams['trial_splits'],
+        'train_frac': hparams['train_frac'],
+        'rng_seed_model': hparams['rng_seed_model'],
+        'model_class': hparams['model_class'],
+        'model_type': hparams['model_type'],
+    }
+
+    if model_class == 'ae' or model_class == 'vae':
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+        hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
+        hparams_less['learning_rate'] = hparams['learning_rate']
+        hparams_less['l2_reg'] = hparams['l2_reg']
+    elif model_class == 'hmm' or model_class == 'arhmm':
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['noise_type'] = hparams['noise_type']
+        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
+        hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'neural-ae' or model_class == 'ae-neural':
+        hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
+        hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
+        hparams_less['arhmm_experiment_name'] = hparams['arhmm_experiment_name']
+        hparams_less['arhmm_version'] = hparams['arhmm_version']
+        hparams_less['n_arhmm_states'] = hparams['n_arhmm_states']
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['noise_type'] = hparams['noise_type']
+        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'bayesian-decoding':
+        raise NotImplementedError
+    else:
+        raise NotImplementedError('"%s" is not a valid model class' % model_class)
+
+    # decoder arch params
+    if model_class == 'neural-ae' or model_class == 'ae-neural' \
+            or model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
+        pass
+        # TODO
+
+    return hparams_less
 
 
 def export_hparams(hparams, exp):
@@ -617,8 +660,8 @@ def get_lab_example(hparams, lab, expt):
 
     """
     import json
-    from behavenet import get_params_dir
-    params_file = os.path.join(get_params_dir(), str('%s_%s_params' % (lab, expt)))
+    from behavenet import _get_params_dir
+    params_file = os.path.join(_get_params_dir(), str('%s_%s_params' % (lab, expt)))
     with open(params_file, 'r') as f:
         dparams = json.load(f)
     hparams.update(dparams)
@@ -890,6 +933,5 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
     return model, data_generator
 
 
-# TODO: delete
-def add_lab_defaults_to_parser(parser, lab='none'):
+def _clean_tt_dir(hparams):
     pass
