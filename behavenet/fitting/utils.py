@@ -661,7 +661,7 @@ def get_lab_example(hparams, lab, expt):
     """
     import json
     from behavenet import _get_params_dir
-    params_file = os.path.join(_get_params_dir(), str('%s_%s_params' % (lab, expt)))
+    params_file = os.path.join(_get_params_dir(), str('%s_%s_params.json' % (lab, expt)))
     with open(params_file, 'r') as f:
         dparams = json.load(f)
     hparams.update(dparams)

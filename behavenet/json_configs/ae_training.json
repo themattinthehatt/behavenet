@@ -39,8 +39,8 @@
 
 "rng_seed_data": 0, # type: int, help: controls data splits
 
-"train_frac": 1.0 # type: float, help: fraction of data
+"train_frac": 1.0, # type: float, help: fraction of data
 
-"trial_splits": "5;1;1;1" # type: str, help: i;j;k;l correspond to train;val;test;gap'
+"trial_splits": "8;1;1;0" # type: str, help: i;j;k;l correspond to train;val;test;gap'
 
 }

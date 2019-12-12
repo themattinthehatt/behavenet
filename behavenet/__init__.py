@@ -22,7 +22,7 @@ def get_user_dir(type):
 
     """
     import json
-    dirs_file = os.path.join(_get_params_dir(), 'directories')
+    dirs_file = os.path.join(_get_params_dir(), 'directories.json')
     with open(dirs_file, 'r') as f:
         dirs = json.load(f)
     return dirs[str('%s_dir' % type)]
@@ -59,7 +59,7 @@ def setup():
     params_dir = _get_params_dir()
     if not os.path.exists(params_dir):
         os.makedirs(params_dir)
-    params_file = os.path.join(params_dir, 'directories')
+    params_file = os.path.join(params_dir, 'directories.json')
     with open(params_file, 'w') as f:
         json.dump(dirs, f, sort_keys=False, indent=4)
 
@@ -113,7 +113,8 @@ def add_dataset():
     params_dir = _get_params_dir()
     if not os.path.exists(params_dir):
         os.makedirs(params_dir)
-    params_file = os.path.join(params_dir, str('%s_%s_params' % (params['lab'], params['expt'])))
+    params_file = os.path.join(
+        params_dir, str('%s_%s_params.json' % (params['lab'], params['expt'])))
     with open(params_file, 'w') as f:
         json.dump(params, f, sort_keys=False, indent=4)
 
