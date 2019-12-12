@@ -937,6 +937,7 @@ def _clean_tt_dir(hparams):
     """Delete all (unnecessary) subdirectories in the model directory (created test-tube)"""
     import shutil
     # get subdirs
-    subdirs = get_subdirs(os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version']))
+    version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+    subdirs = get_subdirs(version_dir)
     for subdir in subdirs:
-        shutil.rmtree(subdir)
+        shutil.rmtree(os.path.join(version_dir, subdir))
