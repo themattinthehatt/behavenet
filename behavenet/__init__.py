@@ -76,9 +76,9 @@ def add_dataset():
         'session': ['example session name (str): ', str],
     }
     params_video = {
-        'x_pixels': ['number of x pixels (int): ', int],
-        'y_pixels': ['number of y pixels (int): ', int],
         'n_input_channels': ['number of camera views (int): ', int],
+        'y_pixels': ['number of y pixels (int): ', int],
+        'x_pixels': ['number of x pixels (int): ', int],
         'use_output_mask': ['are you applying any masks to the video? (True/False): ', bool],
         'frame_rate': ['frame rate of video (Hz) (float): ', float],
     }

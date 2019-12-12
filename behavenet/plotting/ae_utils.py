@@ -101,28 +101,26 @@ def make_ae_reconstruction_movie(
     """
 
     n_frames, n_channels, y_pix, x_pix = ims_orig.shape
-    n_cols = 2
-    n_rows = 2 if ims_recon_lin is None else 3
+    n_cols = 1 if ims_recon_lin is None else 2
+    n_rows = 3
     offset = 1  # 0 if ims_recon_lin is None else 1
     scale_ = 5
     fig_width = scale_ * n_cols * n_channels / 2
     fig_height = y_pix / x_pix * scale_ * n_rows / 2
     fig = plt.figure(figsize=(fig_width, fig_height + offset),dpi=100)
-    # if n_ae_latents is not None:
-    #     title = str(
-    #         'Behavorial video compression\n%i dimensions' % n_ae_latents)
-    # else:
-    #     title = 'Behavorial video compression'
-    # fig.suptitle(title, fontsize=20)
 
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
-    axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-    axs.append(fig.add_subplot(gs[1, 0]))  # 1: ae reconstructed frames
-    axs.append(fig.add_subplot(gs[1, 1]))  # 2: ae residuals
     if ims_recon_lin is not None:
+        axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
+        axs.append(fig.add_subplot(gs[1, 0]))  # 1: ae reconstructed frames
+        axs.append(fig.add_subplot(gs[1, 1]))  # 2: ae residuals
         axs.append(fig.add_subplot(gs[2, 0]))  # 3: linear reconstructed frames
         axs.append(fig.add_subplot(gs[2, 1]))  # 4: linear residuals
+    else:
+        axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
+        axs.append(fig.add_subplot(gs[1, 0]))  # 1: ae reconstructed frames
+        axs.append(fig.add_subplot(gs[2, 0]))  # 2: ae residuals
     for ax in fig.axes:
         ax.set_xticks([])
         ax.set_yticks([])

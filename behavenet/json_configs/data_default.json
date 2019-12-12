@@ -21,9 +21,9 @@
 
 "n_input_channels": 2, # type: int,  help: number of channels in behavioral video
 
-"x_pixels": 128, # type: int, help: number of pixels in x dimension
-
 "y_pixels": 128, # type: int, help: number of pixels in y dimension
+
+"x_pixels": 128, # type: int, help: number of pixels in x dimension
 
 "use_output_mask": false, # type: boolean
 

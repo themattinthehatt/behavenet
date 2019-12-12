@@ -7,7 +7,6 @@ Before you begin, ensure that you have downloaded both Git (for cloning the repo
 1. Set up a virtual environment using Anaconda
 2. Install the BehaveNet and ssm packages
 3. Store user paths in a local json file
-4. Add dataset metadata to a local json file
 
 Environment setup
 =================
@@ -16,13 +15,7 @@ First set up the anaconda environment from the command line.
 .. code-block:: console
 
     $: conda create --name=behavenet python=3.7.2
-    $: source activate behavenet
-
-To be able to use this environment for jupyter notebooks:
-
-.. code-block:: console
-
-    (behavenet) $: python -m ipykernel install --user --name behavenet
+    $: conda activate behavenet
 
 Package installation
 ====================
@@ -47,6 +40,12 @@ To make the package modules visible to the python interpreter, locally run pip i
 .. code-block:: console
 
     (behavenet) $: pip install -e .
+
+Installing the BehaveNet package automatically installed the :obj:`ipykernel` package, which allows you to work with python code in Jupyter notebooks. To be able to use the behavenet conda environment for Jupyter notebooks, run the following command from the terminal:
+
+.. code-block:: console
+
+    (behavenet) $: python -m ipykernel install --user --name behavenet
 
 
 ssm

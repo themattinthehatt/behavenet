@@ -934,4 +934,9 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
 
 
 def _clean_tt_dir(hparams):
-    pass
+    """Delete all (unnecessary) subdirectories in the model directory (created test-tube)"""
+    import shutil
+    # get subdirs
+    subdirs = get_subdirs(os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version']))
+    for subdir in subdirs:
+        shutil.rmtree(subdir)

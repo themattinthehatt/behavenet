@@ -16,8 +16,8 @@ Data
 * **animal** (*str*): animal id
 * **session** (*str*): session id
 * **n_input_channels** (*str*): number of colors channel/camera views in behavioral video
-* **x_pixels** (*int*): number of behavioral video pixels in x dimension
 * **y_pixels** (*int*): number of behavioral video pixels in y dimension
+* **x_pixels** (*int*): number of behavioral video pixels in x dimension
 * **use_output_mask** (*bool*): :obj:`True` to apply frame-wise output masks (must be a key :obj:`masks` in data hdf5 file)
 * **neural_bin_size** (*float*): bin size of neural/video data (ms)
 * **neural_type** (*str*): 'spikes' | 'ca'
