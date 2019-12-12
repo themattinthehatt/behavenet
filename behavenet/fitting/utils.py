@@ -941,3 +941,15 @@ def _clean_tt_dir(hparams):
     subdirs = get_subdirs(version_dir)
     for subdir in subdirs:
         shutil.rmtree(os.path.join(version_dir, subdir))
+
+
+def _print_hparams(hparams):
+    """Pretty print hparams to console."""
+    import commentjson
+    config_files = ['data', 'compute', 'training', 'model']
+    for config_file in config_files:
+        print('\n%s CONFIG:' % config_file.upper())
+        config_json = commentjson.load(open(hparams['%s_config' % config_file], 'r'))
+        for key in config_json.keys():
+            print('    {}: {}'.format(key, hparams[key]))
+    print('')

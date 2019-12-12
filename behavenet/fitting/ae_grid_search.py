@@ -7,9 +7,10 @@ import torch
 from behavenet.fitting.eval import export_latents_best
 from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.training import fit
+from behavenet.fitting.utils import _clean_tt_dir
+from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
-from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import export_hparams
 from behavenet.models import AE as AE
 from behavenet.fitting.hyperparam_utils import get_all_params
@@ -20,14 +21,15 @@ def main(hparams, *args):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
+    # print hparams to console
+    _print_hparams(hparams)
+
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
         hparams = {**hparams, **hparams['architecture_params']}
-    print('\nexperiment parameters:')
-    print(hparams['data_config'])
 
     if hparams['model_type'] == 'conv' and hparams['n_ae_latents'] > hparams['max_latents']:
-         raise ValueError('Number of latents higher than max latents, architecture will not work')
+        raise ValueError('Number of latents higher than max latents, architecture will not work')
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
