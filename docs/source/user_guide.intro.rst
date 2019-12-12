@@ -34,6 +34,8 @@ For example, the command line call to fit an autoencoder would be (using the def
 We recommend that you copy the default config files in the behavenet repo into a separate directory on your local machine and make edits there. For more information on the different hyperparameters, see the :ref:`hyperparameters glossary<glossary>`.
 
 
+.. _add_dataset:
+
 Adding a new dataset
 --------------------
 
@@ -57,7 +59,7 @@ To enter this information, launch python from the behavenet environment and type
     from behavenet import add_dataset
     add_dataset()
 
-This function will create a json file named :code:`[lab_id]_[expt_id]` in the :code:`.behavenet` directory in your user home directory, which you can manually update at any point using a text editor.
+This function will create a json file named ``[lab_id]_[expt_id]`` in the ``.behavenet`` directory in your user home directory, which you can manually update at any point using a text editor.
 
 
 Organizing model fits with test-tube
@@ -65,22 +67,22 @@ Organizing model fits with test-tube
 
 BehaveNet uses the `test-tube package <https://williamfalcon.github.io/test-tube/>`_ to organize model fits into user-defined experiments, log meta and training data, and perform grid searches over model hyperparameters. Most of this occurs behind the scenes, but there are a couple of important pieces of information that will improve your model fitting experience.
 
-BehaveNet organizes model fits using a combination of hyperparameters and user-defined experiment names. For example, let's say you want to fit 5 different convolutional autoencoder architectures, all with 12 latents, to find the best one. Let's call this experiment "arch_search", which you will set in the :obj:`model_config` json in the :obj:`experiment_name` field. The results will then be stored in the directory :obj:`results_dir/lab_id/expt_id/animal_id/session_id/ae/conv/12_latents/arch_search/`.
+BehaveNet organizes model fits using a combination of hyperparameters and user-defined experiment names. For example, let's say you want to fit 5 different convolutional autoencoder architectures, all with 12 latents, to find the best one. Let's call this experiment "arch_search", which you will set in the ``model_config`` json in the ``experiment_name`` field. The results will then be stored in the directory ``results_dir/lab_id/expt_id/animal_id/session_id/ae/conv/12_latents/arch_search/``.
 
-Each model will automatically be assigned it's own "version" by test-tube, so the :obj:`arch_search` directory will have subdirectories :obj:`version_0`, ..., :obj:`version_4`. If an additional CAE model is later fit with 12 latents (and using the "arch_search" experiment name), test-tube will add it to the :obj:`arch_search` directory as :obj:`version_5`. Different versions may have different architectures, learning rates, regularization values, etc. Each model class (autoencoder, arhmm, decoders) has a set of hyperparameters that are used for directory names, and another set that are used to distinguish test-tube versions within the user-defined experiment.
+Each model will automatically be assigned it's own "version" by test-tube, so the ``arch_search`` directory will have subdirectories ``version_0``, ..., ``version_4``. If an additional CAE model is later fit with 12 latents (and using the "arch_search" experiment name), test-tube will add it to the ``arch_search`` directory as ``version_5``. Different versions may have different architectures, learning rates, regularization values, etc. Each model class (autoencoder, arhmm, decoders) has a set of hyperparameters that are used for directory names, and another set that are used to distinguish test-tube versions within the user-defined experiment.
 
-Within the :obj:`version_x` directory, there are various files saved during training. Here are some of the files automatically output when training an autoencoder:
+Within the ``version_x`` directory, there are various files saved during training. Here are some of the files automatically output when training an autoencoder:
 
 * **best_val_model.pt**: the best model (not necessarily from the final training epoch) as determined by computing the loss on validation data
 * **meta_tags.csv**: hyperparameters associated with data, computational resources, training, and model
 * **metrics.csv**: metrics computed on dataset as a function of epochs; the default is that metrics are computed on training and validation data every epoch (and reported as a mean over all batches) while metrics are computed on test data only at the end of training using the best model (and reported per batch).
 * **session_info.csv**: experimental sessions used to fit the model
 
-Additionally, if you set :obj:`export_latents` to :obj:`True` in the training config file, you will see
+Additionally, if you set ``export_latents`` to ``True`` in the training config file, you will see
 
 * **[lab_id]_[expt_id]_[animal_id]_[session_id]_latents.pkl**: list of np.ndarrays of CAE latents computed using the best model
 
-and if you set :obj:`export_train_plots` to :obj:`True` in the training config file, you will see
+and if you set ``export_train_plots`` to ``True`` in the training config file, you will see
 
 * **loss_training.png**: plot of MSE as a function of training epoch on training data
 * **loss_validation.png**: same as above using validation data
@@ -111,9 +113,9 @@ To specify the computing resources for this job, you will next edit the compute 
     "tt_n_cpu_workers": 5,
     ...
 
-With the :obj:`device` field set to :obj:`cuda`, test-tube will use gpus to run this job. The :obj:`gpus_viz` field can further specify which subset of gpus to use. The :obj:`tt_n_gpu_trials` defines the maximum number of jobs to run. If this number is larger than the total number of hyperparameter configurations, all configurations are fit; if this number is smaller than the total number (say if :obj:`"tt_n_gpu_trials": 2` in this example) then this number of configurations is randomly sampled from all possible choices.
+With the ``device`` field set to ``cuda``, test-tube will use gpus to run this job. The ``gpus_viz`` field can further specify which subset of gpus to use. The ``tt_n_gpu_trials`` defines the maximum number of jobs to run. If this number is larger than the total number of hyperparameter configurations, all configurations are fit; if this number is smaller than the total number (say if ``"tt_n_gpu_trials": 2`` in this example) then this number of configurations is randomly sampled from all possible choices.
 
-To fit models using the cpu instead, set the :obj:`device` field to :obj:`cpu`; then :obj:`tt_n_cpu_workers` defines the total number of cpus to run the job (total number of models fitting at any one time) and :obj:`tt_n_cpu_trials` is analogous to :obj:`tt_n_gpu_trials`.
+To fit models using the cpu instead, set the ``device`` field to ``cpu``; then ``tt_n_cpu_workers`` defines the total number of cpus to run the job (total number of models fitting at any one time) and ``tt_n_cpu_trials`` is analogous to ``tt_n_gpu_trials``.
 
 Finally, multiple hyperparameters can be searched over simultaneously; for example, to search over both AE latents and regularization values, set these parameters in the model config file like so:
 

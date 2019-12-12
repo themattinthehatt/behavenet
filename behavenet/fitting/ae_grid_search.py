@@ -20,25 +20,11 @@ def main(hparams, *args):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
-    hparams.pop('trials', False)
-    hparams.pop('generate_trials', False)
-    hparams.pop('optimize_parallel', False)
-    hparams.pop('optimize_parallel_cpu', False)
-    hparams.pop('optimize_parallel_gpu', False)
-    hparams.pop('optimize_trials_parallel_gpu', False)
-
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
         hparams = {**hparams, **hparams['architecture_params']}
-        # # get index of architecture in list
-        # if hparams['search_type'] == 'initial':
-        #     list_of_archs = pickle.load(open(hparams['arch_file_name'], 'rb'))
-        #     hparams['list_index'] = list_of_archs.index(hparams['architecture_params'])
-        # elif hparams['search_type'] == 'latent_search':
-        #     hparams['architecture_params']['n_ae_latents'] = hparams['n_ae_latents']
-        #     hparams['architecture_params'].pop('learning_rate', None)
     print('\nexperiment parameters:')
-    print(hparams)
+    print(hparams['data_config'])
 
     if hparams['model_type'] == 'conv' and hparams['n_ae_latents'] > hparams['max_latents']:
          raise ValueError('Number of latents higher than max latents, architecture will not work')

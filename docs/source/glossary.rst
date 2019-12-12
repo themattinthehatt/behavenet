@@ -18,7 +18,7 @@ Data
 * **n_input_channels** (*str*): number of colors channel/camera views in behavioral video
 * **y_pixels** (*int*): number of behavioral video pixels in y dimension
 * **x_pixels** (*int*): number of behavioral video pixels in x dimension
-* **use_output_mask** (*bool*): :obj:`True` to apply frame-wise output masks (must be a key :obj:`masks` in data hdf5 file)
+* **use_output_mask** (*bool*): `True`` to apply frame-wise output masks (must be a key ``masks`` in data hdf5 file)
 * **neural_bin_size** (*float*): bin size of neural/video data (ms)
 * **neural_type** (*str*): 'spikes' | 'ca'
 * **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
@@ -40,22 +40,22 @@ Training
 
 All models:
 
-* **as_numpy** (*bool*): :obj:`True` to load data as numpy arrays, :obj:`False` to load as pytorch tensors
-* **batch_load** (*bool*): :obj:`True` to load data one batch at a time, :obj:`False` to load all data into memory (the data is still served to models in batches)
+* **as_numpy** (*bool*): ``True`` to load data as numpy arrays, ``False`` to load as pytorch tensors
+* **batch_load** (*bool*): ``True`` to load data one batch at a time, ``False`` to load all data into memory (the data is still served to models in batches)
 * **rng_seed_data** (*int*): control randomness when splitting data into train, val, and test trials
-* **train_frac** (*float*): if :obj:`0 < train_frac < 1.0`, defines the *fraction* of assigned training trials to actually use; if :obj:`train_frac > 1.0`, defines the *number* of assigned training trials to actually use (rounded to the nearest integer)
+* **train_frac** (*float*): if ``0 < train_frac < 1.0``, defines the *fraction* of assigned training trials to actually use; if ``train_frac > 1.0``, defines the *number* of assigned training trials to actually use (rounded to the nearest integer)
 * **trial_splits** (*str*): determines number of train/val/test/gap trials; entered as `8;1;1;0`, for example. See :func:`behavenet.data.data_generator.split_trials` for how these values are used.
-* **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be :obj:`lab`, :obj:`expt`, :obj:`animal`, :obj:`session`.
-* **export_train_plots** (*bool*): :obj:`True` to automatically export training/validation loss as a function of epoch upon completion of training [AEs and ARHMMs only]
-* **export_latents** (*bool*): :obj:`True` to automatically export train/val/test autoencoder latents using best model upon completion of training [analogous parameters **export_states** and **export_predictions** exist for arhmms and decoders, respectively)
+* **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be ``lab``, ``expt``, ``animal``, ``session``.
+* **export_train_plots** (*bool*): ``True`` to automatically export training/validation loss as a function of epoch upon completion of training [AEs and ARHMMs only]
+* **export_latents** (*bool*): ``True`` to automatically export train/val/test autoencoder latents using best model upon completion of training [analogous parameters **export_states** and **export_predictions** exist for arhmms and decoders, respectively)
 
 Pytorch models (all but 'arhmm' and 'bayesian-decoding'):
 
-* **val_check_interval**: (*float*): frequency with which metrics are calculated on validation data. These metrics are logged in a csv file via test-tube, and can also be used for early stopping if enabled. If :obj:`0 < val_check_interval < 1.0`, metrics are computed multiple times per epoch (val_check_interval=0.5 corresponds to checking every half epoch); if :obj:`val_check_interval > 1.0`, defines number of epochs between metric computation.
+* **val_check_interval**: (*float*): frequency with which metrics are calculated on validation data. These metrics are logged in a csv file via test-tube, and can also be used for early stopping if enabled. If ``0 < val_check_interval < 1.0``, metrics are computed multiple times per epoch (val_check_interval=0.5 corresponds to checking every half epoch); if ``val_check_interval > 1.0``, defines number of epochs between metric computation.
 * **learning_rate** (*float*): learning rate of adam optimizer
 * **max_n_epochs** (*int*): maximum number of training epochs
 * **min_n_epochs** (*int*): minimum number of training epochs, even when early stopping is used
-* **enable_early_stop** (*bool*): if :obj:`False`, training proceeds until maximum number of epochs is reached
+* **enable_early_stop** (*bool*): if ``False``, training proceeds until maximum number of epochs is reached
 * **early_stop_history** (*int*): number of epochs over which to average validation loss
 
 ARHMM:
@@ -93,7 +93,7 @@ Autoencoder
 
 * **model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): output dimensions of AE encoder network
-* **fit_sess_io_layers** (*bool*): :obj:`True` to fit session-specific input and output layers; all other layers are shared across all sessions
+* **fit_sess_io_layers** (*bool*): ``True`` to fit session-specific input and output layers; all other layers are shared across all sessions
 * **arch_types** (*str*)
 
 
@@ -109,8 +109,8 @@ ARHMM
 * **ae_version** (*str* or *int*): 'best' to choose best version in AE experiment, otherwise an integer specifying test-tube version number
 * **ae_model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): number of autoencoder latents; this will be the observation dimension in the ARHMM
-* **export_train_plots** ('*bool*): :obj:`True` to automatically export training/validation log probability as a function of epoch upon completion of training
-* **export_states** (*bool*): :obj:`True` to automatically export train/val/test states using best model upon completion of training
+* **export_train_plots** ('*bool*): ``True`` to automatically export training/validation log probability as a function of epoch upon completion of training
+* **export_states** (*bool*): ``True`` to automatically export train/val/test states using best model upon completion of training
 
 
 Decoder
@@ -120,17 +120,17 @@ For both continuous and discrete decoders:
 
 * **model_type**: 
 
-    * 'ff' - standard feedforward neural network; use :obj:`n_hid_layers=0` (see below) for linear regression
+    * 'ff' - standard feedforward neural network; use ``n_hid_layers=0`` (see below) for linear regression
     * 'ff-mv' - use the neural network to estimate both the mean and the covariance matrix of the AE latents
     * 'lstm' - currently not implemented
 
 * **n_hid_layers** (*int*): number of hidden layers in decoder, not counting data or output layer
 * **n_final_units** (*int*): number of units in the final hidden layer; the code will automatically choose the correct number of units for the output layer based on the data size
 * **n_int_units** (*int*): number of units in all hidden layers except the final
-* **n_lags** (*int*): number of time lags in neural activity to use in predicting outputs; if :obj:`n_lags=n`, then the window of neural activity :obj:`t-n:t+n` is used to predict the outputs at time :obj:`t` (and therefore :obj:`2n+1` total time points are used to predict each time point)
-* **n_max_lags** (*int*): maximum number of lags the user thinks they may search over; the first :obj:`n_max_lags` and final :obj:`n_max_lags` time points of each batch are not used in the calculation of metrics to make models with differing numbers of lags directly comparable
+* **n_lags** (*int*): number of time lags in neural activity to use in predicting outputs; if ``n_lags=n``, then the window of neural activity ``t-n:t+n`` is used to predict the outputs at time ``t`` (and therefore ``2n+1`` total time points are used to predict each time point)
+* **n_max_lags** (*int*): maximum number of lags the user thinks they may search over; the first ``n_max_lags`` and final ``n_max_lags`` time points of each batch are not used in the calculation of metrics to make models with differing numbers of lags directly comparable
 * **activation** (*str*): activation function of hidden layers; activation function of final layer is automatically chosen based on decoder/data type; 'linear' | 'relu' | 'lrelu' | 'sigmoid' | 'tanh'
-* **export_predictions** (*bool*): :obj:`True` to automatically export train/val/test predictions using best model upon completion of training
+* **export_predictions** (*bool*): ``True`` to automatically export train/val/test predictions using best model upon completion of training
 * **reg_list** (*str*):  
 * **subsample_regions** (*str*): determines how neural regions are subsampled
 

@@ -23,13 +23,13 @@ Package installation
 BehaveNet
 ---------
 
-:code:`cd` to the directory that will contain the BehaveNet code, and then clone the BehaveNet repository from github:
+``cd`` to the directory that will contain the BehaveNet code, and then clone the BehaveNet repository from github:
 
 .. code-block:: console
 
     (behavenet) $: git clone https://github.com/ebatty/behavenet
 
-:code:`cd` into the :code:`behavenet` repository and install the required dependencies:
+``cd`` into the ``behavenet`` repository and install the required dependencies:
 
 .. code-block:: console
 
@@ -41,7 +41,7 @@ To make the package modules visible to the python interpreter, locally run pip i
 
     (behavenet) $: pip install -e .
 
-Installing the BehaveNet package automatically installed the :obj:`ipykernel` package, which allows you to work with python code in Jupyter notebooks. To be able to use the behavenet conda environment for Jupyter notebooks, run the following command from the terminal:
+Installing the BehaveNet package automatically installed the ``ipykernel`` package, which allows you to work with python code in Jupyter notebooks. To be able to use the behavenet conda environment for Jupyter notebooks, run the following command from the terminal:
 
 .. code-block:: console
 
@@ -51,7 +51,7 @@ Installing the BehaveNet package automatically installed the :obj:`ipykernel` pa
 ssm
 ---
 
-The :code:`ssm` package is the backend state space modeling code used by BehaveNet. To install ssm, :code:`cd` to any directory where you would like to keep the ssm code and run the following:
+The ``ssm`` package is the backend state space modeling code used by BehaveNet. To install ssm, ``cd`` to any directory where you would like to keep the ssm code and run the following:
 
 .. code-block:: console
 
@@ -70,12 +70,12 @@ Next, set up your paths to the directories where data, results, and figures will
     from behavenet import setup
     setup()
 
-You will be asked to input a base data directory; all data should be stored in the form :code:`base_data_dir/lab_id/expt_id/animal_id/session_id/data.hdf5`. More information on the structure of the hdf5 file can be found :ref:`here<data_structure>`. You will also be asked to input a base results directory, which will store all of the model fits. Finally, the base figure directory will be used to store figure and video outputs.
+You will be asked to input a base data directory; all data should be stored in the form ``base_data_dir/lab_id/expt_id/animal_id/session_id/data.hdf5``. More information on the structure of the hdf5 file can be found :ref:`here<data_structure>`. You will also be asked to input a base results directory, which will store all of the model fits. Finally, the base figure directory will be used to store figure and video outputs.
 
-The :code:`behavenet.setup()` function will create a hidden directory named :code:`.behavenet` in your user directory.
+The ``behavenet.setup()`` function will create a hidden directory named ``.behavenet`` in your user directory.
 
-* In Linux, :code:`~/.behavenet`
-* In MacOS, :code:`/Users/CurrentUser/.behavenet`
+* In Linux, ``~/.behavenet``
+* In MacOS, ``/Users/CurrentUser/.behavenet``
 
-Within this directory the function will create a json file named :code:`directories` which you can manually edit at any point.
+Within this directory the function will create a json file named ``directories`` which you can manually edit at any point.
 
