@@ -12,7 +12,7 @@ def export_latents(data_generator, model, filename=None):
 
     Parameters
     ----------
-    data_generator : :obj:`ConcatSessionGenerator` object
+    data_genernext(model.parameters()).is_cudaator : :obj:`ConcatSessionGenerator` object
         data generator to use for latent creation
     model : :obj:`AE` object
         pytorch model
@@ -37,6 +37,10 @@ def export_latents(data_generator, model, filename=None):
         data_generator.reset_iterators(dtype)
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
+
+            if next(model.parameters()).is_cuda:
+                data = {key: val.to('cuda') for key, val in data.items()}
+
             # process batch, perhaps in chunks if full batch is too large to fit on gpu
             chunk_size = 200
             y = data['images'][0]
@@ -109,10 +113,11 @@ def export_states(hparams, data_generator, model, filename=None):
             data, sess = data_generator.next_batch(dtype)
 
             # process batch,
-            y = data['ae_latents'][0]
+            y = data['ae_latents'][0][0]
             batch_size = y.shape[0]
 
             curr_states = model.most_likely_states(y)
+
             states[sess][data['batch_idx'].item()] = curr_states
 
     # save states separately for each dataset
@@ -168,11 +173,15 @@ def export_predictions(data_generator, model, filename=None):
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
 
+            if next(model.parameters()).is_cuda:
+                data = {key: val.to('cuda') for key, val in data.items()}
+
             predictors = data[model.hparams['input_signal']][0]
             targets = data[model.hparams['output_signal']][0]
 
+            trial_len = targets.shape[0]
             predictions[sess][data['batch_idx'].item()] = np.full(
-                shape=targets.shape, fill_value=np.nan)
+                shape=(trial_len, model.hparams['output_size']), fill_value=np.nan)
 
             # process batch, perhaps in chunks if full batch is too large
             # to fit on gpu
@@ -193,6 +202,7 @@ def export_predictions(data_generator, model, filename=None):
             else:
                 outputs, _ = model(predictors)
                 slc = (max_lags, -max_lags)
+
                 predictions[sess][data['batch_idx'].item()][slice(*slc), :] = \
                     outputs[max_lags:-max_lags].cpu().detach().numpy()
 
@@ -202,6 +212,7 @@ def export_predictions(data_generator, model, filename=None):
             # get save name which includes lab/expt/animal/session
             sess_id = str('%s_%s_%s_%s_predictions.pkl' % (
                 dataset.lab, dataset.expt, dataset.animal, dataset.session))
+
             filename = os.path.join(
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
         # save out array in pickle file
