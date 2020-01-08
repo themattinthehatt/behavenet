@@ -26,7 +26,7 @@ To install ssm, `cd` to any directory where you would like to keep the ssm code 
 following:
 
 ```
-(behavenet) $: git clone git@github.com:slinderman/ssm.git
+(behavenet) $: git clone https://github.com/slinderman/ssm.git --branch behavenet-v1 --single-branch
 (behavenet) $: cd ssm
 (behavenet) $: pip install cython
 (behavenet) $: pip install -e .
