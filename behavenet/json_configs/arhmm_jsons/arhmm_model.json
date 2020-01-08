@@ -1,0 +1,48 @@
+{
+
+##############################
+ ## Commonly changed params ##
+##############################
+
+"experiment_name": "state_number_search", # type: str
+
+"n_arhmm_states": [4, 8, 12], # type: int
+
+"rng_seed_model": 0, # type: int, help: control model initialization
+
+
+######################
+## ARHMM parameters ##
+######################
+
+"n_arhmm_lags": 1, # type: int
+
+"kappa": 0, # type: int
+
+"noise_type": "gaussian", # type: str, help: gaussian or students
+
+
+###################
+## AE parameters ##
+###################
+
+# specify which AE to use (should match how you trained the AE)
+
+"ae_experiment_name": "latent_search",
+
+"ae_version": "best",
+
+"ae_model_type": "conv", # type of AE, linear or conv
+
+"n_ae_latents": 8, # type: int
+
+
+#################
+## Misc params ##
+#################
+
+"model_class": "arhmm", # type: str, help: arhmm or hmm
+
+"model_type": null
+
+}

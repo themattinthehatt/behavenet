@@ -4,7 +4,7 @@
 ## Commonly changed parameters ##
 #################################
 
-"gpus_viz": "0", # type: str, help: add multiple gpus as '0;1;4' etc
+"gpus_viz": "0;1;2", # type: str, help: add multiple gpus as '0;1;4' etc
 
 "device": "cuda", # type: str, help: cpu or cuda
 

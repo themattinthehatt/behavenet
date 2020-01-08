@@ -1,0 +1,52 @@
+{
+
+#############################
+## Commonly changed params ##
+#############################
+
+"experiment_name": "grid_search", # type: str, name of this experiment
+
+"n_lags": [2, 4, 6, 8], # type: int
+
+"n_max_lags": 8, # type: int, should match largest n_lags value (so all lags are evaluated on exact same data)
+
+"l2_reg": [1e-4, 1e-3, 1e-2], # type: float
+
+"rng_seed_model": 0, # type: int, help: control model initialization
+
+###################   
+## AE parameters ##
+###################
+
+"model_class": "neural-ae", # type: str
+
+# specify which AE to use (should match how you trained the AE)
+
+"ae_experiment_name": "latent_search",
+
+"ae_version": "best",
+
+"ae_model_type": "conv", # type of AE, linear or conv
+
+"n_ae_latents": 8, # type: int
+
+"ae_multisession": null, # type: int
+
+
+########################
+## Model Architecture ##
+########################
+
+"model_type": "ff", # type: str, currently ff only option (ff with 0 hidden layers is linear)
+
+"n_hid_layers": [0, 1, 3, 5], # type: int
+
+"n_hidden_units": [32, 64, 128], # type: int
+
+"activation": "relu" # type: str, could be linear, relu, lrelu, sigmoid, tanh
+
+}
+
+
+
+

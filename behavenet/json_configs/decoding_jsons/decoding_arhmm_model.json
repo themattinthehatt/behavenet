@@ -1,0 +1,57 @@
+{
+
+#############################
+## Commonly changed params ##
+#############################
+
+"experiment_name": "grid_search", # type: str, name of this experiment
+
+"n_lags": [2, 4, 6, 8], # type: int
+
+"n_max_lags": 8, # type: int, should match largest n_lags value (so all lags are evaluated on exact same data)
+
+"l2_reg": [1e-4, 1e-3, 1e-2], # type: float
+
+"rng_seed_model": 0, # type: int, help: control model initialization
+
+######################   
+## ARHMM parameters ##
+######################
+
+"model_class": "neural-arhmm", # type: str
+
+# specify which ARHMM to use (should match how you trained the AE)
+
+"ae_model_type": "conv", # type of AE, linear or conv
+
+"n_ae_latents": 4, # type: int
+
+"arhmm_experiment_name": "state_number_search",
+
+"n_arhmm_states": 4, # type: int
+
+"kappa": 0e00, # type: float
+
+"noise_type": "gaussian", # type: str
+
+"arhmm_version": "best", # type: str
+
+"arhmm_multisession": null, # type: int
+
+
+########################
+## Model Architecture ##
+########################
+
+"model_type": "ff", # type: str, currently ff only option (ff with 0 hidden layers is linear)
+
+"n_hid_layers": [0, 1, 3, 5], # type: int
+
+"n_hidden_units": [32, 64, 128], # type: int
+
+"activation": "relu" # type: str, could be linear, relu, lrelu, sigmoid, tanh
+
+}
+
+
+

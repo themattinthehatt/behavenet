@@ -36,6 +36,14 @@
 
 "neural_type": "ca", # type: str, help: spikes or ca
 
+"reg_list": "none",
+
+"subsample_regions": "none",
+
+"region": "all",
+
+"neural_thresh": 1.0,
+
 
 #################
 ## Misc params ##

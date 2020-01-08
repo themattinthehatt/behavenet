@@ -1,0 +1,34 @@
+{
+
+
+#################################
+## Commonly changed parameters ##
+#################################
+
+"export_train_plots": true, # type: boolean
+
+"export_states": true, # type: boolean
+
+
+##########################
+## Training loop params ##
+##########################
+
+"n_iters": 150, # type: int
+
+
+###########################
+## Data generator params ##
+###########################
+
+"as_numpy": true, # type: boolean
+
+"batch_load": false, # type: boolean
+
+"rng_seed_data": 0, # type: int, help: controls data splits
+
+"train_frac": 1.0, # type: float, help: fraction of data
+
+"trial_splits": "8;1;1;0" # type: str, help: i;j;k;l correspond to train;val;test;gap'
+
+}

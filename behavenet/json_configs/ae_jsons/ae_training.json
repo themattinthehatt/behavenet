@@ -1,0 +1,47 @@
+{
+
+#################################
+## Commonly changed parameters ##
+#################################
+
+"export_train_plots": true, # type: boolean
+
+"export_latents": true, # type: boolean
+
+"export_latents_best": false, # type: boolean
+
+"sessions_csv": "", # type: str, help: specify multiple sessions
+
+
+##########################
+## Training loop params ##
+##########################
+
+"val_check_interval": 1, # type: int
+
+"learning_rate": 1e-4, # type: float
+
+"max_n_epochs": 1000, # type: int
+
+"min_n_epochs": 500, # type: int
+
+"enable_early_stop": true, # type: boolean
+
+"early_stop_history": 10, # type: int
+
+
+###########################
+## Data generator params ##
+###########################
+
+"as_numpy": false, # type: boolean
+
+"batch_load": true, # type: boolean
+
+"rng_seed_data": 0, # type: int, help: controls data splits
+
+"train_frac": 1.0, # type: float, help: fraction of data
+
+"trial_splits": "8;1;1;0" # type: str, help: i;j;k;l correspond to train;val;test;gap'
+
+}
