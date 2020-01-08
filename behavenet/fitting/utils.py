@@ -598,7 +598,7 @@ def get_model_params(hparams):
         hparams_less['arhmm_experiment_name'] = hparams['arhmm_experiment_name']
         hparams_less['arhmm_version'] = hparams['arhmm_version']
         hparams_less['n_arhmm_states'] = hparams['n_arhmm_states']
-        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+       # hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
         hparams_less['kappa'] = hparams['kappa']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
@@ -823,6 +823,7 @@ def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=
             continue
         # read metrics csv file
         metric = pd.read_csv(os.path.join(expt_dir, version, 'metrics.csv'))
+
         # get validation loss of best model
         if best_def == 'min':
             val_loss = metric[measure].min()
@@ -925,7 +926,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
 
     # build models
     model = Model(hparams_new)
-    model.version = best_version
+    model.version = int(best_version.split('_')[1])
     model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
     model.to(hparams_new['device'])
     model.eval()
