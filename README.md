@@ -18,7 +18,7 @@ To be able to use this environment for jupyter notebooks:
 
 ### pytorch
 
-Install pytorch 1.0.1 in accordance with platform/cuda requirements
+Install pytorch 1.3.1 in accordance with platform/cuda requirements
 
 ### ssm
 
