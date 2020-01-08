@@ -111,10 +111,12 @@ def _load_pkl_dict(path, key, idx=None, dtype='float32'):
     """
     with open(path, 'rb') as f:
         data_dict = pickle.load(f)
+
     if idx is None:
         samp = [data.astype(dtype) for data in data_dict[key]]
     else:
         samp = [data_dict[key][idx].astype(dtype)]
+
     return samp
 
 
@@ -183,11 +185,12 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     break
             elif signal == 'ae_latents':
                 try:
-                    latents = _load_pkl_dict(self.paths[signal], 'latents')[0]
+                    latents = _load_pkl_dict(self.paths[signal], 'latents') #[0]
                 except FileNotFoundError:
                     raise NotImplementedError(
                         ('Could not open %s\nMust create ae latents from model;' +
                          ' currently not implemented') % self.paths[signal])
+
                 self.n_trials = len(latents)
 
         # meta data about train/test/xv splits; set by ConcatSessionsGenerator
@@ -237,8 +240,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                                 'trial_%04i' % tr)][()].astype(dtype) / 255)
                         sample[signal] = temp_data
                     else:
-                        sample[signal] = f[signal][str(
-                            'trial_%04i' % idx)][()].astype(dtype) / 255
+                        sample[signal] = [f[signal][str(
+                            'trial_%04i' % idx)][()].astype(dtype) / 255]
 
             elif signal == 'masks':
                 dtype = 'float32'
@@ -263,7 +266,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                                 'trial_%04i' % tr)][()].astype(dtype))
                         sample[signal] = temp_data
                     else:
-                        sample[signal] = f[signal][str('trial_%04i' % idx)][()].astype(dtype)
+                        sample[signal] = [f[signal][str('trial_%04i' % idx)][()].astype(dtype)]
 
             elif signal == 'ae_latents':
                 dtype = 'float32'
@@ -290,14 +293,14 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             # apply transforms
             if self.transforms[signal]:
-                sample[signal] = self.transforms[signal](sample[signal])
+                sample[signal] = [self.transforms[signal](samp) for samp in sample[signal]]
 
             # transform into tensor
             if not self.as_numpy:
                 if dtype == 'float32':
-                    sample[signal] = torch.from_numpy(sample[signal]).float()
+                    sample[signal] = torch.from_numpy(sample[signal][0]).float()
                 else:
-                    sample[signal] = torch.from_numpy(sample[signal]).long()
+                    sample[signal] = torch.from_numpy(sample[signal][0]).long()
 
         sample['batch_idx'] = idx
 
@@ -339,7 +342,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
     def __init__(
             self, data_dir, lab='', expt='', animal='', session='', signals=None, transforms=None,
-            paths=None, device='cuda'):
+            paths=None, device='cuda', as_numpy=False):
         """
 
         Parameters
@@ -372,7 +375,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
         super().__init__(data_dir, lab, expt, animal, session, signals, transforms, paths, device)
 
         # grab all data as a single batch
-        self.as_numpy = True
+        self.as_numpy = as_numpy
         self.data = super(SingleSessionDataset, self).__getitem__(idx=None)
         _ = self.data.pop('batch_idx')
 
@@ -404,7 +407,8 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
         sample = OrderedDict()
         for signal in self.signals:
-            sample[signal] = self.data[signal][idx]
+            sample[signal] = [self.data[signal][idx]]
+
         sample['batch_idx'] = idx
         return sample
 
@@ -478,7 +482,7 @@ class ConcatSessionsGenerator(object):
             self.datasets.append(SingleSession(
                 data_dir, lab=ids['lab'], expt=ids['expt'], animal=ids['animal'],
                 session=ids['session'], signals=signals, transforms=transforms, paths=paths,
-                device=device))
+                device=device, as_numpy=self.as_numpy))
             self.datasets_info.append({
                 'lab': ids['lab'], 'expt': ids['expt'], 'animal': ids['animal'],
                 'session': ids['session']})
@@ -600,4 +604,10 @@ class ConcatSessionsGenerator(object):
                 break
             except StopIteration:
                 continue
+
+        if self.as_numpy:
+            for i, signal in enumerate(sample):
+                if signal is not 'batch_idx':
+                    sample[signal] = [ss.cpu().detach().numpy() for ss in sample[signal]]
+
         return sample, dataset
