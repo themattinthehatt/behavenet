@@ -698,7 +698,7 @@ def draw_handcrafted_archs(
         arch['x_pixels'] = input_dim[2]
 
         arch['ae_input_dim'] = input_dim
-        arch['n_ae_latents'] = n_ae_latents
+        #arch['n_ae_latents'] = n_ae_latents
 
         arch['ae_network_type'] = 'strides_only'
         arch['ae_padding_type'] = 'same'
