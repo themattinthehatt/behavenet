@@ -6,7 +6,7 @@
 Welcome to BehaveNet's documentation!
 =====================================
 
-BehaveNet is a probabilistic framework for the analysis of behavioral video and neural activity. This framework provides tools for compression, segmentation, generation, and decoding of behavioral videos. Please see the `paper <https://openreview.net/forum?id=ByxMASrlUB>`_ for additional details.
+BehaveNet is a probabilistic framework for the analysis of behavioral video and neural activity. This framework provides tools for compression, segmentation, generation, and decoding of behavioral videos. Please see the `paper <https://papers.nips.cc/paper/9701-behavenet-nonlinear-embedding-and-bayesian-neural-decoding-of-behavioral-videos>`_ for additional details.
 
 .. toctree::
    :maxdepth: 2

@@ -58,6 +58,16 @@ def get_data_generator_inputs(hparams, sess_ids):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
 
+        elif hparams['model_class'] == 'cond-ae':
+
+            signals = ['images', 'labels']
+            transforms = [None, None]
+            paths = [os.path.join(data_dir, 'data.hdf5'), os.path.join(data_dir, 'data.hdf5')]
+            if hparams.get('use_output_mask', False):
+                signals.append('masks')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
+
         elif hparams['model_class'] == 'ae_latents':
 
             ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
