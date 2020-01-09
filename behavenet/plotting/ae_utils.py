@@ -41,10 +41,14 @@ def make_ae_reconstruction_movie_wrapper(
 
     """
 
-    from behavenet.models import AE
-
     # build model(s)
-    model_ae, data_generator = get_best_model_and_data(hparams, AE, version=version)
+    if hparams['model_class'] == 'ae':
+        from behavenet.models import AE as Model
+    elif hparams['model_class'] == 'cond-ae':
+        from behavenet.models import ConditionalAE as Model
+    else:
+        raise NotImplementedError('"%s" is an invalid model class' % hparams['model_class'])
+    model_ae, data_generator = get_best_model_and_data(hparams, Model, version=version)
 
     if include_linear:
         import copy
@@ -52,7 +56,7 @@ def make_ae_reconstruction_movie_wrapper(
         hparams_lin['model_type'] = 'linear'
         if 'lin_experiment_name' in hparams:
             hparams_lin['experiment_name'] = hparams['lin_experiment_name']
-        model_lin, _ = get_best_model_and_data(hparams_lin, AE, load_data=False)
+        model_lin, _ = get_best_model_and_data(hparams_lin, Model, load_data=False)
     else:
         model_lin = None
 
@@ -62,10 +66,14 @@ def make_ae_reconstruction_movie_wrapper(
         trial = data_generator.batch_idxs[sess_idx]['test'][0]
     batch = data_generator.datasets[sess_idx][trial]
     ims_orig_pt = batch['images'][:max_frames]
+    if hparams['model_class'] == 'cond-ae':
+        labels_pt = batch['labels'][:max_frames]
+    else:
+        labels_pt = None
 
-    ims_recon_ae = get_reconstruction(model_ae, ims_orig_pt)
+    ims_recon_ae = get_reconstruction(model_ae, ims_orig_pt, labels=labels_pt)
     if include_linear:
-        ims_recon_lin = get_reconstruction(model_lin, ims_orig_pt)
+        ims_recon_lin = get_reconstruction(model_lin, ims_orig_pt, labels=labels_pt)
     else:
         ims_recon_lin = None
 
@@ -228,7 +236,6 @@ def make_neural_reconstruction_movie_wrapper(
     """
 
     from behavenet.models import Decoder
-    from behavenet.models import AE
 
     ###############################
     # build ae model/data generator
@@ -237,8 +244,14 @@ def make_neural_reconstruction_movie_wrapper(
     hparams_ae['experiment_name'] = hparams['ae_experiment_name']
     hparams_ae['model_class'] = hparams['ae_model_class']
     hparams_ae['model_type'] = hparams['ae_model_type']
+    if hparams['model_class'] == 'ae':
+        from behavenet.models import AE as Model
+    elif hparams['model_class'] == 'cond-ae':
+        from behavenet.models import ConditionalAE as Model
+    else:
+        raise NotImplementedError('"%s" is an invalid model class' % hparams['model_class'])
     model_ae, data_generator_ae = get_best_model_and_data(
-        hparams_ae, AE, version=hparams['ae_version'])
+        hparams_ae, Model, version=hparams['ae_version'])
     # move model to cpu
     model_ae.to('cpu')
 
@@ -249,9 +262,13 @@ def make_neural_reconstruction_movie_wrapper(
     # get images from data generator (move to cpu)
     batch = data_generator_ae.datasets[sess_idx][trial]
     ims_orig_pt = batch['images'][:max_frames].cpu()  # 400
+    if hparams['model_class'] == 'cond-ae':
+        labels_pt = batch['labels'][:max_frames]
+    else:
+        labels_pt = None
 
     # push images through ae to get reconstruction
-    ims_recon_ae = get_reconstruction(model_ae, ims_orig_pt)
+    ims_recon_ae = get_reconstruction(model_ae, ims_orig_pt, labels=labels_pt)
     # push images through ae to get latents
     latents_ae_pt, _, _ = model_ae.encoding(ims_orig_pt)
 
@@ -279,7 +296,7 @@ def make_neural_reconstruction_movie_wrapper(
     # push neural activity through decoder to get prediction
     latents_dec_pt, _ = model_dec(neural_activity_pt)
     # push prediction through ae to get reconstruction
-    ims_recon_dec = get_reconstruction(model_ae, latents_dec_pt)
+    ims_recon_dec = get_reconstruction(model_ae, latents_dec_pt, labels=labels_pt)
 
     # away
     make_neural_reconstruction_movie(
