@@ -257,9 +257,11 @@ def get_reconstruction(model, inputs, dataset=None, return_latents=False):
         input_type = 'images'
 
     if input_type == 'images':
-        ims_recon, latents = model(inputs, dataset=dataset)
+        ims_recon, latents = model(inputs, dataset=dataset, labels=labels)
     else:
         # TODO: how to incorporate maxpool layers for decoding only?
+        if model.hparams['model_class'] == 'cond-ae':
+            inputs = torch.cat((inputs, labels), dim=1)
         ims_recon = model.decoding(inputs, None, None, dataset=None)
         latents = inputs
     ims_recon = ims_recon.cpu().detach().numpy()

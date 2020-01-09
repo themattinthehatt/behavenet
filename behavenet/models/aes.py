@@ -113,12 +113,12 @@ class ConvAEEncoder(nn.Module):
         self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
         # If VAE model, have additional ff layer to latent variances
-        if self.hparams['model_class'] == 'vae':
+        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
+            pass
+        elif self.hparams['model_class'] == 'vae':
             raise NotImplementedError
             # self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
             # self.softplus = nn.Softplus()
-        elif self.hparams['model_class'] == 'ae':
-            pass
         else:
             raise ValueError('Not valid model type')
 
@@ -204,7 +204,7 @@ class ConvAEEncoder(nn.Module):
         # Reshape for ff layer
         x = x.view(x.size(0), -1)
 
-        if self.hparams['model_class'] == 'ae':
+        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
             return self.FF(x), pool_idx, target_output_size
         elif self.hparams['model_class'] == 'vae':
             return NotImplementedError
@@ -265,7 +265,7 @@ class ConvAEDecoder(nn.Module):
         first_conv_size = self.hparams['ae_decoding_starting_dim'][0] \
                           * self.hparams['ae_decoding_starting_dim'][1] \
                           * self.hparams['ae_decoding_starting_dim'][2]
-        self.FF = nn.Linear(self.hparams['n_ae_latents'], first_conv_size)
+        self.FF = nn.Linear(self.hparams['hidden_layer_size'], first_conv_size)
 
         self.decoder = nn.ModuleList()
 
@@ -359,10 +359,10 @@ class ConvAEDecoder(nn.Module):
             self.decoder.add_module(
                 str('sigmoid%i' % global_layer_num), nn.Sigmoid())
 
-        if self.hparams['model_class'] == 'vae':
-            raise NotImplementedError
-        elif self.hparams['model_class'] == 'ae':
+        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
             pass
+        elif self.hparams['model_class'] == 'vae':
+            raise NotImplementedError
         else:
             raise ValueError('Not valid model type')
 
@@ -493,7 +493,7 @@ class ConvAEDecoder(nn.Module):
             else:
                 x = layer(x)
 
-        if self.hparams['model_class'] == 'ae':
+        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
             return x
         elif self.hparams['model_class'] == 'vae':
             raise NotImplementedError
@@ -722,6 +722,7 @@ class AE(nn.Module):
 
     def build_model(self):
         """Construct the model using hparams."""
+        self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents']
         if self.model_type == 'conv':
             self.encoding = ConvAEEncoder(self.hparams)
             self.decoding = ConvAEDecoder(self.hparams)
@@ -734,7 +735,7 @@ class AE(nn.Module):
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
 
-    def forward(self, x, dataset=None):
+    def forward(self, x, dataset=None, **kwargs):
         """Process input data.
 
         Parameters
@@ -759,4 +760,62 @@ class AE(nn.Module):
             y = self.decoding(x)
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
+        return y, x
+
+
+class ConditionalAE(AE):
+    """Conditional autoencoder class.
+
+    This class constructs conditional convolutional autoencoders. At the latent layer an additional
+    set of variables, saved under the 'labels' key in the hdf5 data file, are concatenated with the
+    latents before being reshaped into a 2D array for decoding. Note that standard implementations
+    of conditional convolutional autoencoders also include the labels as input to the encoder,
+    which does not occur here.
+    """
+
+    def __init__(self, hparams):
+        """See constructor documentation of AE for hparams details
+
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            in addition to the standard keys, must also contain :obj:`n_labels`
+
+        """
+        if hparams['model_type'] == 'linear':
+            raise NotImplementedError
+        super(ConditionalAE, self).__init__(hparams)
+
+    def build_model(self):
+        """Construct the model using hparams.
+
+        The ConditionalAE is initialized when :obj:`model_class='cond-ae`, and currently only
+        supports :obj:`model_type='conv` (i.e. no linear)
+        """
+        self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents'] + self.hparams['n_labels']
+        self.encoding = ConvAEEncoder(self.hparams)
+        self.decoding = ConvAEDecoder(self.hparams)
+
+    def forward(self, x, dataset=None, labels=None):
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+        labels : :obj:`torch.Tensor` object
+            labels corresponding to input data
+
+        Returns
+        -------
+        :obj:`tuple`
+            - y (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - x (:obj:`torch.Tensor`): hidden representation of shape (n_frames, n_latents)
+
+        """
+        x, pool_idx, outsize = self.encoding(x, dataset=dataset)
+        z = torch.cat((x, labels), dim=1)
+        y = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return y, x

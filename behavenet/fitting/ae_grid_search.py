@@ -52,7 +52,16 @@ def main(hparams, *args):
     torch_rnd_seed = torch.get_rng_state()
     hparams['model_build_rnd_seed'] = torch_rnd_seed
     hparams['n_datasets'] = len(sess_ids)
-    model = AE(hparams)
+    if hparams['model_class'] == 'ae' or hparams['model_class'] == 'vae':
+        model = AE(hparams)
+    elif hparams['model_class'] == 'cond-ae':
+        data, _ = data_generator.next_batch('train')
+        sh = data['labels'].shape
+        hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+        model = ConditionalAE(hparams)
+    else:
+        raise NotImplementedError(
+            'The model class "%s" is not currently implemented' % hparams['model_class'])
     model.to(hparams['device'])
     model.version = exp.version
     torch_rnd_seed = torch.get_rng_state()
@@ -63,9 +72,9 @@ def main(hparams, *args):
     export_hparams(hparams, exp)
     print('done')
 
-    # ####################
+    # ###################
     # ### TRAIN MODEL ###
-    # ####################
+    # ###################
 
     fit(hparams, model, data_generator, exp, method='ae')
 

@@ -303,8 +303,9 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         expt_name = hparams['experiment_name']
 
     # get results dir
-    if model_class == 'ae':
-        model_path = os.path.join('ae', model_type, '%02i_latents' % hparams['n_ae_latents'])
+    if model_class == 'ae' or model_class == 'cond-ae':
+        model_path = os.path.join(
+            model_class, model_type, '%02i_latents' % hparams['n_ae_latents'])
         if hparams.get('ae_multisession', None) is not None:
             # using a multisession autoencoder; assumes multisessionis at animal level
             # (rather than experiment level), i.e.
@@ -592,7 +593,7 @@ def get_model_params(hparams):
         'model_type': hparams['model_type'],
     }
 
-    if model_class == 'ae' or model_class == 'vae':
+    if model_class == 'ae' or model_class == 'vae' or model_class == 'cond-ae':
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']

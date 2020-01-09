@@ -216,6 +216,11 @@ class AELoss(FitMethod):
         else:
             masks = None
 
+        if self.model.hparams['model_class'] == 'cond-ae':
+            labels = data['labels'][0]
+        else:
+            labels = None
+
         chunk_size = 200
         batch_size = y.shape[0]
 
@@ -226,11 +231,10 @@ class AELoss(FitMethod):
             for chunk in range(n_chunks):
                 idx_beg = chunk * chunk_size
                 idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                y_mu, _ = self.model(y[idx_beg:idx_end], dataset=dataset)
+                y_mu, _ = self.model(
+                    y[idx_beg:idx_end], dataset=dataset, labels=labels[idx_beg:idx_end])
                 if masks is not None:
-                    loss = torch.mean((
-                        (y[idx_beg:idx_end] - y_mu) ** 2) *
-                        masks[idx_beg:idx_end])
+                    loss = torch.mean(((y[idx_beg:idx_end] - y_mu) ** 2) * masks[idx_beg:idx_end])
                 else:
                     loss = torch.mean((y[idx_beg:idx_end] - y_mu) ** 2)
                 # compute gradients
@@ -239,7 +243,7 @@ class AELoss(FitMethod):
                 loss_val += loss.item() * (idx_end - idx_beg)
             loss_val /= y.shape[0]
         else:
-            y_mu, _ = self.model(y, dataset=dataset)
+            y_mu, _ = self.model(y, dataset=dataset, labels=labels)
             # define loss
             if masks is not None:
                 loss = torch.mean(((y - y_mu)**2) * masks)
