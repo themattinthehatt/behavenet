@@ -265,6 +265,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     --------
     * autoencoder: :obj:`session_dir/ae/conv/08_latents/expt_name`
     * arhmm: :obj:`session_dir/arhmm/08_latents/16_states/0e+00_kappa/gaussian/expt_name`
+    * arhmm-labels: :obj:`session_dir/arhmm-labels/16_states/0e+00_kappa/gaussian/expt_name`
     * neural->ae decoder: :obj:`session_dir/neural-ae/08_latents/ff/mctx/expt_name`
     * neural->arhmm decoder:
       :obj:`session_dir/neural-ae/08_latents/16_states/0e+00_kappa/ff/mctx/expt_name`
@@ -331,6 +332,21 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
+            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
+        if hparams.get('arhmm_multisession', None) is not None:
+            # using a multisession autoencoder with single session arhmm; assumes multisession
+            # is at animal level (rather than experiment level), i.e.
+            # - latent session dir: lab/expt/animal/multisession-xx
+            # - arhmm session dir: lab/expt/animal/session
+            hparams_ = copy.deepcopy(hparams)
+            hparams_['session'] = 'all'
+            hparams_['multisession'] = hparams['arhmm_multisession']
+            session_dir, _ = get_session_dir(hparams_)
+        else:
+            session_dir = hparams['session_dir']
+    elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
+        model_path = os.path.join(
+            model_class, '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
         if hparams.get('arhmm_multisession', None) is not None:
             # using a multisession autoencoder with single session arhmm; assumes multisession
@@ -550,7 +566,7 @@ def experiment_exists(hparams, which_version=False):
 
 
 def get_model_params(hparams):
-    """
+    """Returns dict containing all params considered essential for defining a model in that class.
 
     Parameters
     ----------
@@ -559,8 +575,8 @@ def get_model_params(hparams):
 
     Returns
     -------
-    dict
-        hparams dict containing all params considered essential for defining a model in that class
+    :obj:`dict`
+        hparams dict
 
     """
 
@@ -581,7 +597,7 @@ def get_model_params(hparams):
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['l2_reg'] = hparams['l2_reg']
-    elif model_class == 'hmm' or model_class == 'arhmm':
+    elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
         hparams_less['kappa'] = hparams['kappa']
@@ -589,6 +605,10 @@ def get_model_params(hparams):
         hparams_less['ae_version'] = hparams['ae_version']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['noise_type'] = hparams['noise_type']
+        hparams_less['kappa'] = hparams['kappa']
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
         hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
         hparams_less['ae_version'] = hparams['ae_version']
@@ -598,7 +618,7 @@ def get_model_params(hparams):
         hparams_less['arhmm_experiment_name'] = hparams['arhmm_experiment_name']
         hparams_less['arhmm_version'] = hparams['arhmm_version']
         hparams_less['n_arhmm_states'] = hparams['n_arhmm_states']
-       # hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        # hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
         hparams_less['kappa'] = hparams['kappa']
         hparams_less['ae_model_type'] = hparams['ae_model_type']

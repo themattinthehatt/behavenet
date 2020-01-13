@@ -15,6 +15,7 @@ from behavenet.fitting.utils import export_hparams
 from behavenet.plotting.arhmm_utils import get_latent_arrays_by_dtype
 from behavenet.fitting.hyperparam_utils import get_all_params
 
+
 def main(hparams):
 
     if not isinstance(hparams, dict):
@@ -43,8 +44,12 @@ def main(hparams):
     # get all latents in list
     n_datasets = len(data_generator)
     print('collecting observations from data generator...', end='')
+    data_key = 'ae_latents'
+    if hparams['model_class'].find('labels') > -1:
+        data_key = 'labels'
     latents, trial_idxs = get_latent_arrays_by_dtype(
-        data_generator, sess_idxs=list(range(n_datasets)))
+        data_generator, sess_idxs=list(range(n_datasets)), data_key=data_key)
+    obs_dim = latents['train'][0].shape[1]
 
     hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
     # get separated by dataset as well
@@ -52,12 +57,13 @@ def main(hparams):
     trial_idxs_sess = {d: None for d in range(n_datasets)}
     for d in range(n_datasets):
         latents_sess[d], trial_idxs_sess[d] = get_latent_arrays_by_dtype(
-            data_generator, sess_idxs=d)
+            data_generator, sess_idxs=d, data_key=data_key)
     print('done')
 
-    hparams['ae_model_path'] = os.path.join(
-        os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
-    hparams['ae_model_latents_file'] = data_generator.datasets[0].paths['ae_latents']
+    if hparams['model_class'] == 'arhmm' or hparams['model_class'] == 'hmm':
+        hparams['ae_model_path'] = os.path.join(
+            os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
+        hparams['ae_model_latents_file'] = data_generator.datasets[0].paths['ae_latents']
 
     # collect model constructor inputs
     if hparams['noise_type'] == 'gaussian':
@@ -97,7 +103,7 @@ def main(hparams):
     print('constructing model...', end='')
     np.random.seed(hparams['rng_seed_model'])
     hmm = ssm.HMM(
-        hparams['n_arhmm_states'], hparams['n_ae_latents'],
+        hparams['n_arhmm_states'], obs_dim,
         observations=obs_type, observation_kwargs=obs_kwargs,
         transitions=transitions, transition_kwargs=transition_kwargs)
     hmm.initialize(latents['train'])
@@ -186,6 +192,7 @@ def main(hparams):
 
     # get rid of unneeded logging info
     _clean_tt_dir(hparams)
+
 
 if __name__ == '__main__':
 

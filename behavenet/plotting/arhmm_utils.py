@@ -123,7 +123,7 @@ def relabel_states_by_use(states, mapping=None):
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
-def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
+def get_latent_arrays_by_dtype(data_generator, sess_idxs=0, data_key='ae_latents'):
     """Collect data from data generator and put into dictionary with dtypes for keys.
 
     Parameters
@@ -131,6 +131,8 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     data_generator : :obj:`ConcatSessionsGenerator`
     sess_idxs : :obj:`int` or :obj:`list`
         concatenate train/test/val data across one or more sessions
+    data_key : :obj:`str`
+        key into data generator object; 'ae_latents' | 'labels'
 
     Returns
     -------
@@ -149,8 +151,7 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
         for data_type in dtypes:
             curr_idxs = dataset.batch_idxs[data_type]
             trial_idxs[data_type] += list(curr_idxs)
-            latents[data_type] += [
-                dataset[i_trial]['ae_latents'][0][:] for i_trial in curr_idxs]
+            latents[data_type] += [dataset[i_trial][data_key][0][:] for i_trial in curr_idxs]
     return latents, trial_idxs
 
 

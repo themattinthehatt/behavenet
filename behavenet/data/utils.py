@@ -151,6 +151,20 @@ def get_data_generator_inputs(hparams, sess_ids):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
 
+        elif hparams['model_class'] == 'arhmm-labels' or hparams['model_class'] == 'hmm-labels':
+
+            signals = ['labels']
+            transforms = [None]
+            paths = [os.path.join(data_dir, 'data.hdf5')]
+            if hparams.get('load_videos', False):
+                signals.append('images')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
+            if hparams.get('use_output_mask', False):
+                signals.append('masks')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
+
         elif hparams['model_class'] == 'arhmm-decoding':
 
             # get autoencoder latents info
