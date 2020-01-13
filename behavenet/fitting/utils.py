@@ -366,7 +366,10 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             'bayesian-decoding', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
-        session_dir, _ = get_session_dir(hparams)
+        session_dir = hparams['session_dir']
+    elif model_class == 'labels-images':
+        model_path = os.path.join(model_class, model_type)
+        session_dir = hparams['session_dir']
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
     expt_dir = os.path.join(session_dir, model_path, expt_name)
@@ -626,6 +629,10 @@ def get_model_params(hparams):
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
     elif model_class == 'bayesian-decoding':
         raise NotImplementedError
+    elif model_class == 'labels-images':
+        hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
+        hparams_less['learning_rate'] = hparams['learning_rate']
+        hparams_less['l2_reg'] = hparams['l2_reg']
     else:
         raise NotImplementedError('"%s" is not a valid model class' % model_class)
 

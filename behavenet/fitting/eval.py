@@ -288,6 +288,8 @@ def get_reconstruction(model, inputs, dataset=None, return_latents=False, labels
         for use with session-specific io layers
     return_latents : :obj:`bool`, optional
         if :obj:`True` return tuple of (recon, latents)
+    labels : :obj:`torch.Tensor` object or :obj:`NoneType`, optional
+        label tensor of shape (batch, n_labels)
 
     Returns
     -------

@@ -49,7 +49,8 @@ def add_to_parser(parser, arg_name, value):
 
 
 def add_dependent_params(parser, namespace):
-    if namespace.model_class == 'ae' or namespace.model_class == 'cond-ae':
+    if namespace.model_class == 'ae' or namespace.model_class == 'cond-ae'\
+            or namespace.model_class == 'labels-images':
 
         if namespace.arch_types == "default":
 
