@@ -259,6 +259,76 @@ class AELoss(FitMethod):
         self.metrics['curr']['batches'] = 1
 
 
+class ConvDecoderLoss(AELoss):
+    """MSE loss for convolutional decoders."""
+
+    def __init__(self, model, n_datasets=1):
+        super().__init__(model, n_datasets=n_datasets)
+
+    def calc_loss(self, data, dataset=0, **kwargs):
+        """Calculate MSE loss for convolutional decoder.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'labels', 'images' and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+
+        """
+
+        if self.model.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
+        y = data['images'][0]
+        x = data['labels'][0]
+
+        if 'masks' in data:
+            masks = data['masks'][0]
+        else:
+            masks = None
+
+        chunk_size = 200
+        batch_size = y.shape[0]
+
+        if batch_size > chunk_size:
+            # split into chunks
+            n_chunks = int(np.ceil(batch_size / chunk_size))
+            loss_val = 0
+            for chunk in range(n_chunks):
+                idx_beg = chunk * chunk_size
+                idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                y_mu = self.model(x[idx_beg:idx_end], dataset=dataset)
+                if masks is not None:
+                    loss = torch.mean(((y[idx_beg:idx_end] - y_mu) ** 2) * masks[idx_beg:idx_end])
+                else:
+                    loss = torch.mean((y[idx_beg:idx_end] - y_mu) ** 2)
+                # compute gradients
+                loss.backward()
+                # get loss value (weighted by batch size)
+                loss_val += loss.item() * (idx_end - idx_beg)
+            loss_val /= y.shape[0]
+        else:
+            y_mu = self.model(x, dataset=dataset)
+            # define loss
+            if masks is not None:
+                loss = torch.mean(((y - y_mu) ** 2) * masks)
+            else:
+                loss = torch.mean((y - y_mu) ** 2)
+            # compute gradients
+            loss.backward()
+            # get loss value
+            loss_val = loss.item()
+
+        # store current metrics
+        self.metrics['curr']['loss'] = loss_val
+        self.metrics['curr']['batches'] = 1
+
+
 class NLLLoss(FitMethod):
     """Negative log-likelihood loss for supervised models (en/decoders)."""
 
@@ -556,6 +626,8 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         loss = AELoss(model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
         loss = NLLLoss(model, n_datasets=data_generator.n_datasets)
+    elif method == 'conv-decoder':
+        loss = ConvDecoderLoss(model, n_datasets=data_generator.n_datasets)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 
@@ -708,6 +780,8 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         test_loss = AELoss(best_val_model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
         test_loss = NLLLoss(best_val_model, n_datasets=data_generator.n_datasets)
+    elif method == 'conv-decoder':
+        test_loss = ConvDecoderLoss(model, n_datasets=data_generator.n_datasets)
     else:
         raise ValueError('"%s" is an invalid fitting method' % method)
 
@@ -738,3 +812,5 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     elif method == 'nll' and hparams['export_predictions']:
         print('exporting predictions')
         export_predictions(data_generator, best_val_model)
+    elif method == 'conv-decoder' and hparams['export_predictions']:
+        print('warning! exporting predictions not currently implemented for convolutional decoder')

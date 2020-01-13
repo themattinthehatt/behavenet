@@ -363,6 +363,8 @@ class ConvAEDecoder(nn.Module):
             pass
         elif self.hparams['model_class'] == 'vae':
             raise NotImplementedError
+        elif self.hparams['model_class'] == 'labels-images':
+            pass
         else:
             raise ValueError('Not valid model type')
 
@@ -497,6 +499,8 @@ class ConvAEDecoder(nn.Module):
             return x
         elif self.hparams['model_class'] == 'vae':
             raise NotImplementedError
+        elif self.hparams['model_class'] == 'labels-images':
+            return x
         else:
             raise ValueError('"%s" is not a valid model class' % self.hparams['model_class'])
 

@@ -238,3 +238,89 @@ class LSTM(nn.Module):
     def __init__(self, hparams):
         super().__init__()
         raise NotImplementedError
+
+
+class ConvDecoder(nn.Module):
+    """Decode images from predictors with a convolutional decoder."""
+
+    def __init__(self, hparams):
+        """
+
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            - 'model_type' (:obj:`int`): 'conv' | 'linear'
+            - 'model_class' (:obj:`str`): 'conv-decoder'
+            - 'y_pixels' (:obj:`int`)
+            - 'x_pixels' (:obj:`int`)
+            - 'n_input_channels' (:obj:`int`)
+            - 'n_labels' (:obj:`int`)
+            - 'fit_sess_io_layers; (:obj:`bool`): fit session-specific input/output layers
+            - 'ae_decoding_x_dim' (:obj:`list`)
+            - 'ae_decoding_y_dim' (:obj:`list`)
+            - 'ae_decoding_n_channels' (:obj:`list`)
+            - 'ae_decoding_kernel_size' (:obj:`list`)
+            - 'ae_decoding_stride_size' (:obj:`list`)
+            - 'ae_decoding_x_padding' (:obj:`list`)
+            - 'ae_decoding_y_padding' (:obj:`list`)
+            - 'ae_decoding_layer_type' (:obj:`list`)
+            - 'ae_decoding_starting_dim' (:obj:`list`)
+            - 'ae_decoding_last_FF_layer' (:obj:`bool`)
+
+        """
+        super(ConvDecoder, self).__init__()
+        self.hparams = hparams
+        self.model_type = self.hparams['model_type']
+        self.img_size = (
+                self.hparams['n_input_channels'],
+                self.hparams['y_pixels'],
+                self.hparams['x_pixels'])
+        self.decoding = None
+        self.build_model()
+
+    def __str__(self):
+        """Pretty print the model architecture."""
+        format_str = '\nConvolutional decoder architecture\n'
+        format_str += '------------------------\n'
+        format_str += self.decoding.__str__()
+        format_str += '\n'
+        return format_str
+
+    def build_model(self):
+        """Construct the model using hparams."""
+        self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents']
+        if self.model_type == 'conv':
+            from behavenet.models.aes import ConvAEDecoder
+            self.decoding = ConvAEDecoder(self.hparams)
+        elif self.model_type == 'linear':
+            from behavenet.models.aes import LinearAEDecoder
+            if self.hparams.get('fit_sess_io_layers', False):
+                raise NotImplementedError
+            self.decoding = LinearAEDecoder(self.hparams['n_labels'], self.img_size)
+        else:
+            raise ValueError('"%s" is an invalid model_type' % self.model_type)
+
+    def forward(self, x, dataset=None, **kwargs):
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+
+        Returns
+        -------
+        :obj:`tuple`
+            - y (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - x (:obj:`torch.Tensor`): hidden representation of shape (n_frames, n_latents)
+
+        """
+        if self.model_type == 'conv':
+            y = self.decoding(x, None, None, dataset=dataset)
+        elif self.model_type == 'linear':
+            y = self.decoding(x)
+        else:
+            raise ValueError('"%s" is an invalid model_type' % self.model_type)
+        return y
