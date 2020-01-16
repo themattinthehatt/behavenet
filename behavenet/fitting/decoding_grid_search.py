@@ -23,9 +23,6 @@ def main(hparams, *args):
     # print hparams to console
     _print_hparams(hparams)
 
-    if hparams['model_type'] == 'ff':
-        hparams['n_final_units'] = hparams['n_int_units']
-
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
