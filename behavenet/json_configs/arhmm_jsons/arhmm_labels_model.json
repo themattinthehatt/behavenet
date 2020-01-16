@@ -1,0 +1,33 @@
+{
+
+#############################
+## Commonly changed params ##
+#############################
+
+"experiment_name": "state_number_search", # type: str
+
+"n_arhmm_states": [4, 8, 12], # type: int
+
+"rng_seed_model": 0, # type: int, help: control model initialization
+
+
+######################
+## ARHMM parameters ##
+######################
+
+"n_arhmm_lags": 1, # type: int
+
+"kappa": 0, # type: int
+
+"noise_type": "gaussian", # type: str, help: gaussian or students
+
+
+#################
+## Misc params ##
+#################
+
+"model_class": "arhmm-labels", # type: str, help: arhmm-labels or hmm-labels
+
+"model_type": null
+
+}

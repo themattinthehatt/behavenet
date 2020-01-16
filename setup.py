@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-import numpy as np
+
 from distutils.core import setup
-# from Cython.Build import cythonize
 
 setup(name='behavenet',
       version='0.0.2',
@@ -11,6 +10,4 @@ setup(name='behavenet',
       url='http://www.github.com/ebatty/behavenet',
       install_requires=['numpy', 'scipy', 'matplotlib'],
       packages=['behavenet', 'tests'],
-      # ext_modules=cythonize('**/*.pyx'),
-      # include_dirs=[np.get_include(),],
       )

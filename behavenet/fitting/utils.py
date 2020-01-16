@@ -1,9 +1,25 @@
+"""Utility functions for managing model paths and the hparams dict."""
+
 import os
+import pickle
 import numpy as np
+from behavenet.data.utils import get_data_generator_inputs
 
 
 def get_subdirs(path):
-    """get all first-level subdirectories in a given path (no recursion)"""
+    """Get all first-level subdirectories in a given path (no recursion).
+
+    Parameters
+    ----------
+    path : :obj:`str`
+        absolute path
+
+    Returns
+    -------
+    :obj:`list`
+        first-level subdirectories in :obj:`path`
+
+    """
     if not os.path.exists(path):
         raise ValueError('%s is not a path' % path)
     try:
@@ -12,162 +28,208 @@ def get_subdirs(path):
         raise StopIteration('%s does not contain any subdirectories' % path)
 
 
-def get_user_dir(type):
+def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
+    """Returns all paths in `base_dir` that start with `multi`.
+
+    The absolute paths returned are determined by `base_dir`, `lab`, `expt`, `animal`, and
+    `session` as follows: :obj:`base_dir/lab/expt/animal/session/sub_dir`
+
+    Use empty strings to ignore one of the session id components.
+
+    Parameters
+    ----------
+    base_dir : :obj:`str`
+    lab : :obj:`str`, optional
+    expt : :obj:`str`, optional
+    animal : :obj:`str`, optional
+
+    Returns
+    -------
+    :obj:`list`
+        list of absolute paths
+
     """
-    Get a directory from user-defined `directories` json file
+    sub_dirs = get_subdirs(os.path.join(base_dir, lab, expt, animal))
+    multi_paths = []
+    for sub_dir in sub_dirs:
+        if sub_dir[:5] == 'multi':
+            # record top-level multi-session directory
+            multi_paths.append(os.path.join(base_dir, lab, expt, animal, sub_dir))
+    return multi_paths
 
-    Args:
-        type (str): 'data' | 'save' | 'fig'
 
-    Returns:
-        (str): absolute path for requested directory
+def _get_single_sessions(base_dir, depth, curr_depth):
+    """Recursively search through non-multisession directories for all single sessions.
+
+    Parameters
+    ----------
+    base_dir : :obj:`str`
+    depth : :obj:`int`
+        depth of recursion
+    curr_depth : :obj:`int`
+        current depth in recursion
+
+    Returns
+    -------
+    :obj:`list` of :obj:`dict`
+        session ids for all single sessions in :obj:`base_dir`
+
     """
-    import json
-    from behavenet import get_params_dir
-    dirs_file = os.path.join(get_params_dir(), '.behavenet', 'directories')
-    with open(dirs_file, 'r') as f:
-        dirs = json.load(f)
-    return dirs[str('%s_dir' % type)]
+    session_list = []
+    if curr_depth < depth:
+        curr_depth += 1
+        sub_dirs = get_subdirs(base_dir)
+        for sub_dir in sub_dirs:
+            if sub_dir[:12] != 'multisession':
+                session_list += _get_single_sessions(
+                    os.path.join(base_dir, sub_dir), depth=depth, curr_depth=curr_depth)
+    elif curr_depth == depth:
+        # take previous 4 directories (lab/expt/animal/session)
+        sess_path = base_dir.split(os.sep)
+        session_list = [{
+            'lab': sess_path[-4],
+            'expt': sess_path[-3],
+            'animal': sess_path[-2],
+            'session': sess_path[-1]}]
+    return session_list
 
 
-def get_data_dir():
-    return get_user_dir('data')
+def get_session_dir(hparams, path_type='save'):
+    """Get session-level directory for saving model outputs from hparams dict.
 
+    Relies on hparams keys 'sessions_csv', 'multisession', 'lab', 'expt', 'animal' and 'session'.
 
-def get_save_dir():
-    return get_user_dir('save')
+    The :obj:`sessions_csv` key takes precedence. The value for this key is a non-empty string of
+    the pattern :obj:`/path/to/session_info.csv`, where `session_info.csv` has 4 columns for lab,
+    expt, animal and session.
 
+    If `sessions_csv` is an empty string or the key is not in `hparams`, the following occurs:
 
-def get_fig_dir():
-    return get_user_dir('fig')
+    - if :obj:`'lab' == 'all'`, an error is thrown since multiple-lab runs are not currently
+      supported
+    - if :obj:`'expt' == 'all'`, all sessions from all animals from all expts from the specified
+      lab are used; the session_dir will then be :obj:`save_dir/lab/multisession-xx`
+    - if :obj:`'animal' == 'all'`, all sessions from all animals in the specified expt are used;
+      the session_dir will then be :obj:`save_dir/lab/expt/multisession-xx`
+    - if :obj:`'session' == 'all'`, all sessions from the specified animal are used; the
+      session_dir will then be :obj:`save_dir/lab/expt/animal/multisession-xx`
+    - if none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
+      :obj:`save_dir/lab/expt/animal/session`
 
+    The :obj:`multisession-xx` directory will contain a file :obj:`session_info.csv` which will
+    contain information about the sessions that comprise the multisession; this file is used to
+    determine whether or not a new multisession directory needs to be created.
 
-def get_output_session_dir(hparams, path_type='save'):
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        requires `sessions_csv`, `multisession`, `lab`, `expt`, `animal` and `session`
+    path_type : :obj:`str`, optional
+        'save' to use hparams['save_dir'], 'data' to use hparams['data_dir'] as base directory;
+        note that using :obj:`path_type='data'` will not return multisession directories
+
+    Returns
+    -------
+    :obj:`tuple`
+        - session_dir (:obj:`str`)
+        - sessions_single (:obj:`list`)
+
     """
-    Get session-level directory for saving model outputs.
-
-    If 'lab' == 'all', an error is thrown since multiple-lab runs are not supp
-    If 'expt' == 'all', all sessions from all animals from all expts from the
-        specified lab are used; the session_dir will then be
-        `tt_save_path/lab/multisession-xx`
-    If 'animal' == 'all', all sessions from all animals in the specified expt
-        are used; the session_dir will then be
-        `tt_save_path/lab/expt/multisession-xx`
-    If 'session' == 'all', all sessions from the specified animal are used; the
-        session_dir will then be
-        `tt_save_path/lab/expt/animal/multisession-xx`
-    If none of 'lab', 'expt', 'animal' or 'session' is 'all', session_dir is
-        `tt_save_path/lab/expt/animal/session`
-
-    The `multisession-xx` directory will contain a file `session_info.csv`
-    which will contain information about the sessions that comprise the
-    multisession; this file is used to determine whether or not a new
-    multisession directory needs to be created.
-
-    Args:
-        hparams (dict):
-        path_type (str, optional): 'save' to use hparams['tt_save_path'],
-            'data' to use hparams['data_dir']; note that using path_type='data'
-            will not return multisession directories
-
-    Returns:
-        (tuple): (session_dir, sessions_single)
-    """
-
-    if 'sessions_csv' in hparams and len(hparams['sessions_csv']) > 0:
-        # load from csv
-        # TODO: collect sessions directly from session_info.csv file
-        pass
 
     if path_type == 'save':
-        base_dir = hparams['tt_save_path']
+        base_dir = hparams['save_dir']
     elif path_type == 'data':
         base_dir = hparams['data_dir']
     else:
         raise ValueError('"%s" is an invalid path_type' % path_type)
 
-    # get session dir (can include multiple sessions)
-    sessions_single = []
-    sessions_multi_paths = []
-    lab = hparams['lab']
-    if lab == 'all':
-        raise ValueError('multiple labs not currently supported')
-    elif hparams['expt'] == 'all':
-        # get all experiments from one lab
-        expts = get_subdirs(os.path.join(base_dir, lab))
-        for expt in expts:
-            if expt[:5] == 'multi':
-                # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(base_dir, lab, expt))
-                continue
-            else:
-                animals = get_subdirs(os.path.join(base_dir, lab, expt))
-            for animal in animals:
-                if animal[:5] == 'multi':
-                    continue
-                else:
-                    sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
-                for session in sessions:
-                    if session[:5] == 'multi':
-                        continue
-                    else:
-                        # record bottom-level single-session directory
-                        sessions_single.append({
-                            'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
-        session_dir_base = os.path.join(base_dir, lab)
-    elif hparams['animal'] == 'all':
-        # get all animals from one experiment
-        expt = hparams['expt']
-        animals = get_subdirs(os.path.join(base_dir, lab, expt))
-        for animal in animals:
-            if animal[:5] == 'multi':
-                # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(base_dir, lab, expt, animal))
-                continue
-            else:
-                sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
-            for session in sessions:
-                if session[:5] == 'multi':
-                    continue
-                else:
-                    # record bottom-level single-session directory
-                    sessions_single.append({
-                        'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
-        session_dir_base = os.path.join(base_dir, lab, expt)
-    elif hparams['session'] == 'all':
-        # get all sessions from one animal
-        expt = hparams['expt']
-        animal = hparams['animal']
-        sessions = get_subdirs(os.path.join(base_dir, lab, expt, animal))
-        for session in sessions:
-            if session[:5] == 'multi':
-                # record top-level multi-session directory
-                sessions_multi_paths.append(os.path.join(base_dir, lab, expt, animal, session))
-                continue
-            else:
-                # record bottom-level single-session directory
-                sessions_single.append({
-                    'lab': lab, 'expt': expt, 'animal': animal, 'session': session})
-        session_dir_base = os.path.join(base_dir, lab, expt, animal)
+    if len(hparams.get('sessions_csv', [])) > 0:
+        # collect all single sessions from csv
+        sessions_single = read_session_info_from_csv(hparams['sessions_csv'])
+        labs, expts, animals, sessions = [], [], [], []
+        for sess in sessions_single:
+            sess.pop('save_dir', None)
+            labs.append(sess['lab'])
+            expts.append(sess['expt'])
+            animals.append(sess['animal'])
+            sessions.append(sess['session'])
+        # find appropriate session directory
+        labs, expts, animals, sessions = \
+            np.array(labs), np.array(expts), np.array(animals), np.array(sessions)
+        lab, expt, animal, session = '', '', '', ''
+        if len(np.unique(sessions)) == 1:
+            # get single session from one animal
+            lab, expt, animal, session = labs[0], expts[0], animals[0], sessions[0]
+            session_dir_base = os.path.join(base_dir, lab, expt, animal, session)
+        elif len(np.unique(animals)) == 1:
+            # get all sessions from one animal
+            lab, expt, animal = labs[0], expts[0], animals[0]
+            session_dir_base = os.path.join(base_dir, lab, expt, animal)
+        elif len(np.unique(expts)) == 1:
+            lab, expt = labs[0], expts[0]
+            # get all animals from one experiment
+            session_dir_base = os.path.join(base_dir, lab, expt)
+        elif len(np.unique(labs)) == 1:
+            # get all experiments from one lab
+            lab = labs[0]
+            session_dir_base = os.path.join(base_dir, lab)
+        else:
+            raise NotImplementedError('multiple labs not currently supported')
+        # find corresponding multisession (ok if they don't exist)
+        multisession_paths = _get_multisession_paths(base_dir, lab=lab, expt=expt, animal=animal)
+
     else:
-        sessions_single.append({
-            'lab': hparams['lab'], 'expt': hparams['expt'], 'animal': hparams['animal'],
-            'session': hparams['session']})
-        session_dir_base = os.path.join(
-            base_dir, hparams['lab'], hparams['expt'], hparams['animal'], hparams['session'])
+        # get session dirs (can include multiple sessions)
+        lab = hparams['lab']
+        if lab == 'all':
+            raise NotImplementedError('multiple labs not currently supported')
+        elif hparams['expt'] == 'all':
+            # get all experiments from one lab
+            multisession_paths = _get_multisession_paths(base_dir, lab=lab)
+            sessions_single = _get_single_sessions(
+                os.path.join(base_dir, lab), depth=3, curr_depth=0)
+            session_dir_base = os.path.join(base_dir, lab)
+        elif hparams['animal'] == 'all':
+            # get all animals from one experiment
+            expt = hparams['expt']
+            multisession_paths = _get_multisession_paths(base_dir, lab=lab, expt=expt)
+            sessions_single = _get_single_sessions(
+                os.path.join(base_dir, lab, expt), depth=2, curr_depth=0)
+            session_dir_base = os.path.join(base_dir, lab, expt)
+        elif hparams['session'] == 'all':
+            # get all sessions from one animal
+            expt = hparams['expt']
+            animal = hparams['animal']
+            multisession_paths = _get_multisession_paths(
+                base_dir, lab=lab, expt=expt, animal=animal)
+            sessions_single = _get_single_sessions(
+                os.path.join(base_dir, lab, expt, animal), depth=1, curr_depth=0)
+            session_dir_base = os.path.join(base_dir, lab, expt, animal)
+        else:
+            multisession_paths = []
+            sessions_single = [{
+                'lab': hparams['lab'], 'expt': hparams['expt'], 'animal': hparams['animal'],
+                'session': hparams['session']}]
+            session_dir_base = os.path.join(
+                base_dir, hparams['lab'], hparams['expt'], hparams['animal'], hparams['session'])
 
     # construct session_dir
-    if hparams.get('multisession', None) is not None:
+    if hparams.get('multisession', None) is not None and len(hparams.get('sessions_csv', [])) == 0:
         session_dir = os.path.join(session_dir_base, 'multisession-%02i' % hparams['multisession'])
+        # overwrite sessions_single with whatever is in requested multisession
+        sessions_single = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
+        for sess in sessions_single:
+            sess.pop('save_dir', None)
     elif len(sessions_single) > 1:
-        # check if this combo of experiments exists in prev multi-sessions
+        # check if this combo of experiments exists in previous multi-sessions
         found_match = False
-        for session_multi in sessions_multi_paths:
+        multi_idx = None
+        for session_multi in multisession_paths:
             csv_file = os.path.join(session_multi, 'session_info.csv')
             sessions_multi = read_session_info_from_csv(csv_file)
             for d in sessions_multi:
                 # save path doesn't matter for comparison
-                d.pop('tt_save_path', None)
+                d.pop('save_dir', None)
             # compare to collection of single sessions above
             set_l1 = set(tuple(sorted(d.items())) for d in sessions_single)
             set_l2 = set(tuple(sorted(d.items())) for d in sessions_multi)
@@ -175,21 +237,21 @@ def get_output_session_dir(hparams, path_type='save'):
             if len(set_diff) == 0:
                 # found match; record index
                 found_match = True
-                multi_indx = int(session_multi.split('-')[-1])
+                multi_idx = int(session_multi.split('-')[-1])
                 break
 
-        # create new multi-index if match was not found
+        # create new multisession if match was not found
         if not found_match:
-            multi_indxs = [
-                int(session_multi.split('-')[-1]) for session_multi in sessions_multi_paths]
-            if len(multi_indxs) == 0:
-                multi_indx = 0
+            multi_idxs = [
+                int(session_multi.split('-')[-1]) for session_multi in multisession_paths]
+            if len(multi_idxs) == 0:
+                multi_idx = 0
             else:
-                multi_indx = max(multi_indxs) + 1
+                multi_idx = max(multi_idxs) + 1
         else:
             pass
 
-        session_dir = os.path.join(session_dir_base, 'multisession-%02i' % multi_indx)
+        session_dir = os.path.join(session_dir_base, 'multisession-%02i' % multi_idx)
     else:
         session_dir = session_dir_base
 
@@ -197,19 +259,36 @@ def get_output_session_dir(hparams, path_type='save'):
 
 
 def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
-    """
-    Get output directories associated with a particular model class/type/expt
-    name.
+    """Get output directories associated with a particular model class/type/testtube expt name.
 
-    Args:
-        hparams (dict):
-        model_class (str, optional): will search `hparams` if not present
-        model_type (str, optional): will search `hparams` if not present
-        expt_name (str, optional): will search `hparams` if not present
+    Examples
+    --------
+    * autoencoder: :obj:`session_dir/ae/conv/08_latents/expt_name`
+    * arhmm: :obj:`session_dir/arhmm/08_latents/16_states/0e+00_kappa/gaussian/expt_name`
+    * arhmm-labels: :obj:`session_dir/arhmm-labels/16_states/0e+00_kappa/gaussian/expt_name`
+    * neural->ae decoder: :obj:`session_dir/neural-ae/08_latents/ff/mctx/expt_name`
+    * neural->arhmm decoder:
+      :obj:`session_dir/neural-ae/08_latents/16_states/0e+00_kappa/ff/mctx/expt_name`
+    * bayesian decoder:
+      :obj:`session_dir/arhmm-decoding/08_latents/16_states/0e+00_kappa/gaussian/mctx/expt_name`
 
-    Returns:
-        (str): contains data info (lab/expt/animal/session) as well as model
-        info (e.g. n_ae_latents) and expt_name
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        specify model hyperparameters
+    model_class : :obj:`str`, optional
+        will search :obj:`hparams` if not present
+    model_type : :obj:`str`, optional
+        will search :obj:`hparams` if not present
+    expt_name : :obj:`str`, optional
+        will search :obj:`hparams` if not present
+
+    Returns
+    -------
+    :obj:`str`
+        contains data info (lab/expt/animal/session) as well as model info (e.g. n_ae_latents) and
+        expt_name
+
     """
 
     import copy
@@ -234,7 +313,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             hparams_ = copy.deepcopy(hparams)
             hparams_['session'] = 'all'
             hparams_['multisession'] = hparams['ae_multisession']
-            session_dir, _ = get_output_session_dir(hparams_)
+            session_dir, _ = get_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
@@ -249,9 +328,9 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], model_type, brain_region)
         session_dir = hparams['session_dir']
-    elif model_class == 'arhmm':
+    elif model_class == 'arhmm' or model_class == 'hmm':
         model_path = os.path.join(
-            'arhmm', '%02i_latents' % hparams['n_ae_latents'],
+            model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
         if hparams.get('arhmm_multisession', None) is not None:
@@ -262,7 +341,22 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             hparams_ = copy.deepcopy(hparams)
             hparams_['session'] = 'all'
             hparams_['multisession'] = hparams['arhmm_multisession']
-            session_dir, _ = get_output_session_dir(hparams_)
+            session_dir, _ = get_session_dir(hparams_)
+        else:
+            session_dir = hparams['session_dir']
+    elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
+        model_path = os.path.join(
+            model_class, '%02i_states' % hparams['n_arhmm_states'],
+            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
+        if hparams.get('arhmm_multisession', None) is not None:
+            # using a multisession autoencoder with single session arhmm; assumes multisession
+            # is at animal level (rather than experiment level), i.e.
+            # - latent session dir: lab/expt/animal/multisession-xx
+            # - arhmm session dir: lab/expt/animal/session
+            hparams_ = copy.deepcopy(hparams)
+            hparams_['session'] = 'all'
+            hparams_['multisession'] = hparams['arhmm_multisession']
+            session_dir, _ = get_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
     elif model_class == 'arhmm-decoding':
@@ -280,14 +374,18 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
 
 
 def read_session_info_from_csv(session_file):
-    """
-    Read csv file that contains lab/expt/animal/session info
+    """Read csv file that contains lab/expt/animal/session info.
 
-    Args:
-        session_file (str): /full/path/to/session_info.csv
+    Parameters
+    ----------
+    session_file : :obj:`str`
+        /full/path/to/session_info.csv
 
-    Returns:
-        (list of dicts)
+    Returns
+    -------
+    :obj:`list` of :obj:`dict`
+        dict for each session which contains lab/expt/animal/session
+
     """
     import csv
     sessions_multi = []
@@ -300,6 +398,16 @@ def read_session_info_from_csv(session_file):
 
 
 def export_session_info_to_csv(session_dir, ids_list):
+    """Export list of sessions to csv file.
+
+    Parameters
+    ----------
+    session_dir : :obj:`str`
+        absolute path for where to save :obj:`session_info.csv` file
+    ids_list : :obj:`list` of :obj:`dict`
+        dict for each session which contains lab/expt/animal/session
+
+    """
     import csv
     session_file = os.path.join(session_dir, 'session_info.csv')
     if not os.path.isdir(session_dir):
@@ -312,22 +420,24 @@ def export_session_info_to_csv(session_dir, ids_list):
 
 
 def contains_session(session_dir, session_id):
-    """
-    Helper function to determine if session defined by `session_id` dict is in
-    the multi-session `session_dir`
+    """Determine if session defined by `session_id` dict is in the multi-session `session_dir`.
 
-    Args:
-        session_dir (str):
-        session_id (dict): must contain keys `lab`, `expt`, `animal` and
-            `session`
+    Parameters
+    ----------
+    session_dir : :obj:`str`
+        absolute path to multi-session directory that contains a :obj:`session_info.csv` file
+    session_id : :obj:`dict`
+        must contain keys 'lab', 'expt', 'animal' and 'session'
 
-    Returns:
-        (bool)
+    Returns
+    -------
+    :obj:`bool`
+
     """
     session_ids = read_session_info_from_csv(os.path.join(session_dir, 'session_info.csv'))
     contains_sess = False
     for sess_id in session_ids:
-        sess_id.pop('tt_save_path', None)
+        sess_id.pop('save_dir', None)
         if sess_id == session_id:
             contains_sess = True
             break
@@ -335,26 +445,29 @@ def contains_session(session_dir, session_id):
 
 
 def find_session_dirs(hparams):
-    """
-    Helper function to find all session directories (single- and multi-session)
-    that contain the session defined in `hparams`
+    """Find all session dirs (single- and multi-session) that contain the session in hparams.
 
-    Args:
-        hparams (dict): must contain keys `lab`, `expt`, `animal` and
-            `session`
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        must contain keys 'lab', 'expt', 'animal' and 'session'
 
-    Returns:
-        (list of strs)
+    Returns
+    -------
+    :obj:`list` of :obj:`str`
+        list of session directories containing session defined in :obj:`hparams`
+
     """
+    # TODO: refactor like get_session_dir?
     ids = {s: hparams[s] for s in ['lab', 'expt', 'animal', 'session']}
     lab = hparams['lab']
-    expts = get_subdirs(os.path.join(hparams['tt_save_path'], lab))
+    expts = get_subdirs(os.path.join(hparams['save_dir'], lab))
     # need to grab all multi-sessions as well as the single session
     session_dirs = []  # full paths
     session_ids  = []  # dict of lab/expt/animal/session
     for expt in expts:
         if expt[:5] == 'multi':
-            session_dir = os.path.join(hparams['tt_save_path'], lab, expt)
+            session_dir = os.path.join(hparams['save_dir'], lab, expt)
             if contains_session(session_dir, ids):
                 session_dirs.append(session_dir)
                 session_ids.append({
@@ -363,10 +476,10 @@ def find_session_dirs(hparams):
             continue
         else:
             animals = get_subdirs(os.path.join(
-                hparams['tt_save_path'], lab, expt))
+                hparams['save_dir'], lab, expt))
         for animal in animals:
             if animal[:5] == 'multi':
-                session_dir = os.path.join(hparams['tt_save_path'], lab, expt, animal)
+                session_dir = os.path.join(hparams['save_dir'], lab, expt, animal)
                 if contains_session(session_dir, ids):
                     session_dirs.append(session_dir)
                     session_ids.append({
@@ -375,10 +488,10 @@ def find_session_dirs(hparams):
                 continue
             else:
                 sessions = get_subdirs(os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal))
+                    hparams['save_dir'], lab, expt, animal))
             for session in sessions:
                 session_dir = os.path.join(
-                    hparams['tt_save_path'], lab, expt, animal, session)
+                    hparams['save_dir'], lab, expt, animal, session)
                 if session[:5] == 'multi':
                     if contains_session(session_dir, ids):
                         session_dirs.append(session_dir)
@@ -395,92 +508,26 @@ def find_session_dirs(hparams):
     return session_dirs, session_ids
 
 
-def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
-    """
-    Get best model version from test tube
-
-    Args:
-        model_path (str): test tube experiment directory containing version_%i
-            subdirectories
-        measure (str, optional): heading in csv file that is used to determine
-            which model is best
-        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
-        n_best (int, optional): top `n_best` models are returned
-
-    Returns:
-        (str)
-    """
-
-    import pickle
-    import pandas as pd
-
-    # gather all versions
-    versions = get_subdirs(model_path)
-    # load csv files with model metrics (saved out from test tube)
-    metrics = []
-    for i, version in enumerate(versions):
-        # make sure training has been completed
-        with open(os.path.join(model_path, version, 'meta_tags.pkl'), 'rb') as f:
-            meta_tags = pickle.load(f)
-        if not meta_tags['training_completed']:
-            continue
-        # read metrics csv file
-        try:
-            metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
-            # ugly hack for now
-            if model_path.find('arhmm') > -1 and model_path.find('neural') < 0:
-                # throw error if not correct number of lags
-                import pickle
-                meta = os.path.join(model_path, version, 'meta_tags.pkl')
-                with open(meta, 'rb') as f:
-                    meta_tags = pickle.load(f)
-                    if meta_tags['n_lags'] != 1:
-                        raise Exception
-        except:
-            continue
-        # get validation loss of best model
-        if best_def == 'min':
-            val_loss = metric[measure].min()
-        elif best_def == 'max':
-            val_loss = metric[measure].max()
-        metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
-    # put everything in pandas dataframe
-    metrics_df = pd.concat(metrics, sort=False)
-    # get version with smallest loss
-    
-    if n_best == 1:
-        if best_def == 'min':
-            best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
-        elif best_def == 'max':
-            best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
-    else:
-        if best_def == 'min':
-            best_versions = np.asarray(
-                metrics_df['version'][metrics_df['loss'].nsmallest(n_best, 'all').index])
-        elif best_def == 'max':
-            raise NotImplementedError
-        if best_versions.shape[0] != n_best:
-            print('More versions than specified due to same validation loss')
-        
-    return best_versions
-
-
 def experiment_exists(hparams, which_version=False):
-    """
-    Search test tube versions to find if an experiment with the same
-    hyperparameters has been (successfully) fit
+    """Search testtube versions to find if experiment with the same hyperparameters has been fit.
 
-    Args:
-        hparams (dict):
-        which_version (bool): `True` to return version number
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify a test tube experiment (model + training
+        parameters)
+    which_version : :obj:`bool`, optional
+        :obj:`True` to return version number
 
-    Returns:
-        (bool) if `which_version` is False
-        (tuple) (bool, int) if `which_version` is True
+    Returns
+    -------
+    variable
+        - :obj:`bool` if :obj:`which_version=False`
+        - :obj:`tuple` (:obj:`bool`, :obj:`int`) if :obj:`which_version=True`
+
     """
 
     import pickle
-    import copy
 
     try:
         tt_versions = get_subdirs(hparams['expt_dir'])
@@ -491,30 +538,8 @@ def experiment_exists(hparams, which_version=False):
         else:
             return False
 
-    # get rid of parameters that are not model-specific
-    # TODO: this is ugly and not easy to maintain
-    hparams_less = copy.copy(hparams)
-    hparams_less.pop('data_dir', None)
-    hparams_less.pop('tt_save_path', None)
-    hparams_less.pop('device', None)
-    hparams_less.pop('as_numpy', None)
-    hparams_less.pop('batch_load', None)
-    hparams_less.pop('architecture_params', None)
-    hparams_less.pop('list_index', None)
-    hparams_less.pop('lab_example', None)
-    hparams_less.pop('tt_n_gpu_trials', None)
-    hparams_less.pop('tt_n_cpu_trials', None)
-    hparams_less.pop('tt_n_cpu_workers', None)
-    hparams_less.pop('use_output_mask', None)
-    hparams_less.pop('ae_model_type', None)
-    hparams_less.pop('subsample_regions', None)
-    hparams_less.pop('reg_list', None)
-    hparams_less.pop('version', None)
-    hparams_less.pop('plot_n_frames', None)
-    hparams_less.pop('plot_frame_rate', None)
-    hparams_less.pop('ae_multisession', None)
-    hparams_less.pop('session_dir', None)
-    hparams_less.pop('expt_dir', None)
+    # get model-specific params
+    hparams_less = get_model_params(hparams)
 
     found_match = False
     version = None
@@ -533,160 +558,161 @@ def experiment_exists(hparams, which_version=False):
             continue
 
     if which_version and found_match:
-        return found_match, version
+        return found_match, int(version.split('_')[-1])
     elif which_version and not found_match:
         return found_match, None
     else:
         return found_match
 
 
+def get_model_params(hparams):
+    """Returns dict containing all params considered essential for defining a model in that class.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        all relevant hparams for the given model class will be pulled from this dict
+
+    Returns
+    -------
+    :obj:`dict`
+        hparams dict
+
+    """
+
+    model_class = hparams['model_class']
+
+    # start with general params
+    hparams_less = {
+        'rng_seed_data': hparams['rng_seed_data'],
+        'trial_splits': hparams['trial_splits'],
+        'train_frac': hparams['train_frac'],
+        'rng_seed_model': hparams['rng_seed_model'],
+        'model_class': hparams['model_class'],
+        'model_type': hparams['model_type'],
+    }
+
+    if model_class == 'ae' or model_class == 'vae':
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+        hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
+        hparams_less['learning_rate'] = hparams['learning_rate']
+        hparams_less['l2_reg'] = hparams['l2_reg']
+    elif model_class == 'arhmm' or model_class == 'hmm':
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['noise_type'] = hparams['noise_type']
+        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
+        hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['noise_type'] = hparams['noise_type']
+        hparams_less['kappa'] = hparams['kappa']
+    elif model_class == 'neural-ae' or model_class == 'ae-neural':
+        hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
+        hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
+        hparams_less['arhmm_experiment_name'] = hparams['arhmm_experiment_name']
+        hparams_less['arhmm_version'] = hparams['arhmm_version']
+        hparams_less['n_arhmm_states'] = hparams['n_arhmm_states']
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['noise_type'] = hparams['noise_type']
+        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'bayesian-decoding':
+        raise NotImplementedError
+    else:
+        raise NotImplementedError('"%s" is not a valid model class' % model_class)
+
+    # decoder arch params
+    if model_class == 'neural-ae' or model_class == 'ae-neural' \
+            or model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
+        hparams_less['n_lags'] = hparams['n_lags']
+        hparams_less['l2_reg'] = hparams['l2_reg']
+        hparams_less['model_type'] = hparams['model_type']
+        hparams_less['n_hid_layers'] = hparams['n_hid_layers']
+        if hparams['n_hid_layers'] != 0:
+            hparams_less['n_hid_units'] = hparams['n_hid_units']
+        hparams_less['activation'] = hparams['activation']
+
+    return hparams_less
+
+
 def export_hparams(hparams, exp):
-    """
-    Export hyperparameter dictionary as csv file (for easy human reading) and
-    as a pickled dict (for easy loading)
+    """Export hyperparameter dictionary.
 
-    Args:
-        hparams (dict):
-        exp (test_tube.Experiment object):
-    """
+    The dict is export once as a csv file (for easy human reading) and again as a pickled dict
+    (for easy python loading/parsing).
 
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        hyperparameter dict to export
+    exp : :obj:`test_tube.Experiment` object
+        defines where parameters are saved
+
+    """
     import pickle
-
     # save out as pickle
-    meta_file = os.path.join(
-        hparams['expt_dir'], 'version_%i' % exp.version, 'meta_tags.pkl')
+    meta_file = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'meta_tags.pkl')
     with open(meta_file, 'wb') as f:
         pickle.dump(hparams, f)
-
     # save out as csv
     exp.tag(hparams)
     exp.save()
 
 
-def add_lab_defaults_to_parser(parser, lab=None):
+def get_lab_example(hparams, lab, expt):
+    """Helper function to load data-specific hyperparameters and update hparams.
 
-    if lab == 'musall':
-        parser.add_argument('--n_input_channels', default=2, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', default=128, help='number of pixels in y dimension', type=int)
-        parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', default='musall', type=str)
-        parser.add_argument('--expt', default='vistrained', type=str)
-        parser.add_argument('--animal', default='mSM30', type=str)
-        parser.add_argument('--session', default='10-Oct-2017', type=str)
-        parser.add_argument('--neural_bin_size', default=None, help='ms')
-        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='8;1;1;0', type=str, help='i;j;k;l correspond to train;val;test;gap')
-    elif lab == 'steinmetz':
-        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', default=192, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', default=112, help='number of pixels in y dimension', type=int)
-        parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', default='steinmetz', type=str)
-        parser.add_argument('--expt', default='2-probe', type=str)
-        parser.add_argument('--animal', default='mouse-01', type=str)
-        parser.add_argument('--session', default='session-01', type=str)
-        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
-        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
-    elif lab == 'steinmetz-face':
-        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', default=128, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', default=128, help='number of pixels in y dimension', type=int)
-        parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', '-b', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', default='steinmetz', type=str)
-        parser.add_argument('--expt', default='2-probe-face', type=str)
-        parser.add_argument('--animal', default='mouse-01', type=str)
-        parser.add_argument('--session', default='session-01', type=str)
-        parser.add_argument('--neural_bin_size', default=39.61, help='ms')
-        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
-    elif lab == 'datta':
-        parser.add_argument('--n_input_channels', default=1, help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', default=80, help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', default=80, help='number of pixels in y dimension', type=int)
-        parser.add_argument('--use_output_mask', default=True, action='store_true')
-        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', default='datta', type=str)
-        parser.add_argument('--expt', default='inscopix', type=str)
-        parser.add_argument('--animal', default='15566', type=str)
-        parser.add_argument('--session', default='2018-11-27', type=str)
-        parser.add_argument('--neural_bin_size', default=None, help='ms')
-        parser.add_argument('--neural_type', default='ca', choices=['spikes', 'ca'])
-    else:
-        parser.add_argument('--n_input_channels', help='list of n_channels', type=int)
-        parser.add_argument('--x_pixels', help='number of pixels in x dimension', type=int)
-        parser.add_argument('--y_pixels', help='number of pixels in y dimension', type=int)
-        parser.add_argument('--use_output_mask', default=False, action='store_true')
-        parser.add_argument('--approx_batch_size', default=200, help='batch_size', type=int) # approximate batch size for memory calculation
-        parser.add_argument('--lab', type=str)
-        parser.add_argument('--expt', type=str)
-        parser.add_argument('--animal', type=str)
-        parser.add_argument('--session', type=str)
-        parser.add_argument('--neural_bin_size', default=None, help='ms')
-        parser.add_argument('--neural_type', default='spikes', choices=['spikes', 'ca'])
-        parser.add_argument('--trial_splits', default='5;1;1;1', type=str, help='i;j;k;l correspond to train;val;test;gap')
+    These values are loaded from the json file defined by :obj:`lab` and :obj:`expt` in the
+    :obj:`.behavenet` user directory. See
+    https://behavenet.readthedocs.io/en/latest/source/installation.html#adding-a-new-dataset
+    for more information.
 
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        hyperparmeter dict to update
+    lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
 
-def get_lab_example(hparams, lab):
-    if lab == 'steinmetz':
-        hparams['lab'] = 'steinmetz'
-        hparams['expt'] = '8-probe'
-        hparams['animal'] = 'mouse-02'
-        hparams['session'] = 'session-01'
-        hparams['n_ae_latents'] = 8
-        hparams['use_output_mask'] = False
-        hparams['frame_rate'] = 39.61
-        hparams['x_pixels'] = 192
-        hparams['y_pixels'] = 112
-        hparams['n_input_channels'] = 1
-        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
-        hparams['neural_type'] = 'spikes'
-    if lab == 'steinmetz-face':
-        hparams['lab'] = 'steinmetz'
-        hparams['expt'] = '8-probe-face'
-        hparams['animal'] = 'mouse-02'
-        hparams['session'] = 'session-01'
-        hparams['n_ae_latents'] = 8
-        hparams['use_output_mask'] = False
-        hparams['frame_rate'] = 39.61
-        hparams['x_pixels'] = 128
-        hparams['y_pixels'] = 128
-        hparams['n_input_channels'] = 1
-        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
-        hparams['neural_type'] = 'spikes'
-    elif lab == 'musall':
-        hparams['lab'] = 'musall'
-        hparams['expt'] = 'vistrained'
-        hparams['animal'] = 'mSM36'
-        hparams['session'] = '05-Dec-2017'
-        hparams['n_ae_latents'] = 8
-        hparams['use_output_mask'] = False
-        hparams['frame_rate'] = 30  # is this correct?
-        hparams['x_pixels'] = 128
-        hparams['y_pixels'] = 128
-        hparams['n_input_channels'] = 2
-        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
-        hparams['neural_type'] = 'ca'
-    elif lab == 'datta':
-        hparams['lab'] = 'datta'
-        hparams['expt'] = 'inscopix'
-        hparams['animal'] = '15566'
-        hparams['session'] = '2018-11-27'
-        hparams['n_ae_latents'] = 8
-        hparams['use_output_mask'] = True
-        hparams['frame_rate'] = 30
-        hparams['x_pixels'] = 80
-        hparams['y_pixels'] = 80
-        hparams['n_input_channels'] = 1
-        hparams['neural_bin_size'] = 1.0 / hparams['frame_rate']
-        hparams['neural_type'] = 'ca'
+    """
+    import json
+    from behavenet import _get_params_dir
+    params_file = os.path.join(_get_params_dir(), str('%s_%s_params.json' % (lab, expt)))
+    with open(params_file, 'r') as f:
+        dparams = json.load(f)
+    hparams.update(dparams)
 
 
 def get_region_dir(hparams):
+    """Return brain region string that combines region name and inclusion info.
+
+    If not subsampling regions, will return :obj:`'all'`
+
+    If using neural activity from *only* specified region, will return e.g. :obj:`'mctx-single'`
+
+    If using neural activity from all *but* specified region (leave-one-out), will return e.g.
+    :obj:`'mctx-loo'`
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        must contain the key 'subsample_regions', else function assumes no subsampling
+
+    Returns
+    -------
+    :obj:`str`
+        region directory name
+
+    """
     if hparams.get('subsample_regions', 'none') == 'none':
         region_dir = 'all'
     elif hparams['subsample_regions'] == 'single':
@@ -699,33 +725,35 @@ def get_region_dir(hparams):
 
 
 def create_tt_experiment(hparams):
-    """
-    Create test-tube experiment
+    """Create test-tube experiment for logging training and storing models.
 
-    Args:
-        hparams:
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        dictionary of hyperparameters defining experiment that will be saved as a csv file
 
-    Returns:
-        tuple: (hparams, sess_ids, exp)
+    Returns
+    -------
+    :obj:`tuple`
+        - if experiment defined by hparams already exists, returns :obj:`(None, None, None)`
+        - if experiment does not exist, returns :obj:`(hparams, sess_ids, exp)`
+
     """
     from test_tube import Experiment
 
     # get session_dir
-    hparams['session_dir'], sess_ids = get_output_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
     if not os.path.isdir(hparams['session_dir']):
         os.makedirs(hparams['session_dir'])
         export_session_info_to_csv(hparams['session_dir'], sess_ids)
     hparams['expt_dir'] = get_expt_dir(hparams)
     if not os.path.isdir(hparams['expt_dir']):
         os.makedirs(hparams['expt_dir'])
-    # print('')
 
     # check to see if experiment already exists
     if experiment_exists(hparams):
-        print('Experiment exists! Aborting fit')
         return None, None, None
 
-    # TODO: this was commented out in arhmm_decoding_grid_search - why?
     exp = Experiment(
         name=hparams['experiment_name'],
         debug=False,
@@ -737,22 +765,29 @@ def create_tt_experiment(hparams):
 
 
 def build_data_generator(hparams, sess_ids, export_csv=True):
-    """
+    """Helper function to build data generator from hparams dict.
 
-    Args:
-        hparams (dict):
-        sess_ids (list):
-        export_csv (bool):
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain information specifying data inputs to model
+    sess_ids : :obj:`list` of :obj:`dict`
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'
+    export_csv : :obj:`bool`, optional
+        export csv file containing session info (useful when fitting multi-sessions)
 
-    Returns:
-        ConcatSessionsGenerator
+    Returns
+    -------
+    :obj:`ConcatSessionsGenerator` object
+        data generator
+
     """
     from behavenet.data.data_generator import ConcatSessionsGenerator
     from behavenet.data.utils import get_data_generator_inputs
     print('using data from following sessions:')
     for ids in sess_ids:
         print('%s' % os.path.join(
-            hparams['tt_save_path'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
+            hparams['save_dir'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
     hparams, signals, transforms, paths = get_data_generator_inputs(hparams, sess_ids)
     if hparams.get('trial_splits', None) is not None:
         # assumes string of form 'train;val;test;gap'
@@ -765,7 +800,8 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
         hparams['data_dir'], sess_ids,
         signals_list=signals, transforms_list=transforms, paths_list=paths,
         device=hparams['device'], as_numpy=hparams['as_numpy'], batch_load=hparams['batch_load'],
-        rng_seed=hparams['rng_seed'], trial_splits=trial_splits, train_frac=hparams['train_frac'])
+        rng_seed=hparams['rng_seed_data'], trial_splits=trial_splits,
+        train_frac=hparams['train_frac'])
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(
@@ -773,3 +809,173 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     print('done')
     print(data_generator)
     return data_generator
+
+
+def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=1):
+    """Get best model version from a test tube experiment.
+
+    Parameters
+    ----------
+    expt_dir : :obj:`str`
+        test tube experiment directory containing version_%i subdirectories
+    measure : :obj:`str`, optional
+        heading in csv file that is used to determine which model is best
+    best_def : :obj:`str`, optional
+        how :obj:`measure` should be parsed; 'min' | 'max'
+    n_best : :obj:`int`, optional
+        top `n_best` models are returned
+
+    Returns
+    -------
+    :obj:`list`
+        list of best models, with best first
+
+    """
+    import pickle
+    import pandas as pd
+    # gather all versions
+    versions = get_subdirs(expt_dir)
+    # load csv files with model metrics (saved out from test tube)
+    metrics = []
+    for i, version in enumerate(versions):
+        # make sure training has been completed
+        meta_file = os.path.join(expt_dir, version, 'meta_tags.pkl')
+        if not os.path.exists(meta_file):
+            continue
+        with open(meta_file, 'rb') as f:
+            meta_tags = pickle.load(f)
+        if not meta_tags['training_completed']:
+            continue
+        # read metrics csv file
+        metric = pd.read_csv(os.path.join(expt_dir, version, 'metrics.csv'))
+
+        # get validation loss of best model
+        if best_def == 'min':
+            val_loss = metric[measure].min()
+        elif best_def == 'max':
+            val_loss = metric[measure].max()
+        metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
+    # put everything in pandas dataframe
+    metrics_df = pd.concat(metrics, sort=False)
+    # get version with smallest loss
+    if n_best == 1:
+        if best_def == 'min':
+            best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
+        elif best_def == 'max':
+            best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
+    else:
+        if best_def == 'min':
+            best_versions = np.asarray(
+                metrics_df['version'][metrics_df['loss'].nsmallest(n_best, 'all').index])
+        elif best_def == 'max':
+            raise NotImplementedError
+        if best_versions.shape[0] != n_best:
+            print('More versions than specified due to same validation loss')
+    # convert string to integer
+    best_versions = [int(version.split('_')[-1]) for version in best_versions]
+    return best_versions
+
+
+def get_best_model_and_data(hparams, Model, load_data=True, version='best', data_kwargs=None):
+    """Load the best model (and data) defined by hparams out of all available test-tube versions.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify both a model and the associated data
+    Model : :obj:`behavenet.models` object
+        model type
+    load_data : :obj:`bool`, optional
+    version : :obj:`str` or :obj:`int`, optional
+        can be 'best' to load best model
+    data_kwargs : :obj:`dict`, optional
+        additional kwargs for data generator
+
+    Returns
+    -------
+    :obj:`tuple`
+        - model (:obj:`behavenet.models` object)
+        - data generator (:obj:`ConcatSessionsGenerator` object or :obj:`NoneType`)
+
+    """
+
+    import torch
+    from behavenet.data.data_generator import ConcatSessionsGenerator
+
+    # get session_dir
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    expt_dir = get_expt_dir(hparams)
+
+    # get best model version
+    if version == 'best':
+        best_version_int = get_best_model_version(expt_dir)[0]
+        best_version = str('version_{}'.format(best_version_int))
+    else:
+        if isinstance(version, str) and version[0] == 'v':
+            # assume we got a string of the form 'version_{%i}'
+            best_version = version
+        else:
+            best_version = str('version_{}'.format(version))
+    # get int representation as well
+    version_dir = os.path.join(expt_dir, best_version)
+    arch_file = os.path.join(version_dir, 'meta_tags.pkl')
+    model_file = os.path.join(version_dir, 'best_val_model.pt')
+    if not os.path.exists(model_file) and not os.path.exists(model_file + '.meta'):
+        model_file = os.path.join(version_dir, 'best_val_model.ckpt')
+    print('Loading model defined in %s' % arch_file)
+
+    with open(arch_file, 'rb') as f:
+        hparams_new = pickle.load(f)
+
+    # update paths if performing analysis on a different machine
+    hparams_new['data_dir'] = hparams['data_dir']
+    hparams_new['session_dir'] = hparams['session_dir']
+    hparams_new['expt_dir'] = expt_dir
+    hparams_new['use_output_mask'] = hparams.get('use_output_mask', False)
+    hparams_new['device'] = 'cpu'
+
+    # build data generator
+    hparams_new, signals, transforms, paths = get_data_generator_inputs(hparams_new, sess_ids)
+    if load_data:
+        # sometimes we want a single data_generator for multiple models
+        if data_kwargs is None:
+            data_kwargs = {}
+        data_generator = ConcatSessionsGenerator(
+            hparams_new['data_dir'], sess_ids,
+            signals_list=signals, transforms_list=transforms, paths_list=paths,
+            device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
+            batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed_data'],
+            **data_kwargs)
+    else:
+        data_generator = None
+
+    # build models
+    model = Model(hparams_new)
+    model.version = int(best_version.split('_')[1])
+    model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
+    model.to(hparams_new['device'])
+    model.eval()
+
+    return model, data_generator
+
+
+def _clean_tt_dir(hparams):
+    """Delete all (unnecessary) subdirectories in the model directory (created test-tube)"""
+    import shutil
+    # get subdirs
+    version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+    subdirs = get_subdirs(version_dir)
+    for subdir in subdirs:
+        shutil.rmtree(os.path.join(version_dir, subdir))
+
+
+def _print_hparams(hparams):
+    """Pretty print hparams to console."""
+    import commentjson
+    config_files = ['data', 'compute', 'training', 'model']
+    for config_file in config_files:
+        print('\n%s CONFIG:' % config_file.upper())
+        config_json = commentjson.load(open(hparams['%s_config' % config_file], 'r'))
+        for key in config_json.keys():
+            print('    {}: {}'.format(key, hparams[key]))
+    print('')

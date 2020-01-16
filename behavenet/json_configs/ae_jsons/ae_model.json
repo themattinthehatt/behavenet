@@ -1,0 +1,33 @@
+{
+
+#############################
+## Commonly changed params ##
+#############################
+
+"experiment_name": "latent_search", # type: str
+
+"model_type": "conv", # type: str, help: conv or linear
+
+"n_ae_latents": [4, 8, 12, 16], # type: int, help: number of latents
+
+"l2_reg": 0.0, # type: float
+
+"rng_seed_model": 0, # type: int, help: control model initialization
+
+
+#############################################
+## Conv params (will be ignored if linear) ##
+#############################################
+
+"fit_sess_io_layers": false, # type: boolean
+
+"arch_types": "default", # type: str, help: this uses the default architecture from behavenet paper
+
+
+#################
+## Misc params ##
+#################
+
+"model_class": "ae" # type: str
+
+}

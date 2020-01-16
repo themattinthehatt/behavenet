@@ -1,0 +1,23 @@
+{
+
+
+#################################
+## Commonly changed parameters ##
+#################################
+
+"gpus_viz": "0;1", # type: str, help: add multiple gpus as '0;1;4' etc
+
+"device": "cpu", # type: str, help: cpu or cuda
+
+######################
+## Test tube params ##
+######################
+
+"tt_n_gpu_trials": 10000, # type: int
+
+"tt_n_cpu_trials": 100000, # type: int
+
+"tt_n_cpu_workers": 3 # type: int
+
+
+}

@@ -2,9 +2,44 @@ import os
 import json
 
 
-def get_params_dir():
+def _get_params_dir():
     from pathlib import Path
-    return Path.home()
+    return os.path.join(Path.home(), '.behavenet')
+
+
+def get_user_dir(type):
+    """Get a directory from user-defined :obj:`directories` json file.
+
+    Parameters
+    ----------
+    type : :obj:`str`
+        'data' | 'save' | 'fig's
+
+    Returns
+    -------
+    :obj:`str`
+        absolute path for requested directory
+
+    """
+    import json
+    dirs_file = os.path.join(_get_params_dir(), 'directories.json')
+    with open(dirs_file, 'r') as f:
+        dirs = json.load(f)
+    return dirs[str('%s_dir' % type)]
+
+
+def make_dir_if_not_exists(save_file):
+    """Utility function for creating necessary dictories for a specified filename.
+
+    Parameters
+    ----------
+    save_file : :obj:`str`
+        absolute path of save file
+
+    """
+    save_dir = os.path.dirname(save_file)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
 
 def setup():
@@ -21,10 +56,10 @@ def setup():
     prompt = "Enter base figures directory: "
     dirs['fig_dir'] = input(prompt)
 
-    params_dir = os.path.join(get_params_dir(), '.behavenet')
+    params_dir = _get_params_dir()
     if not os.path.exists(params_dir):
         os.makedirs(params_dir)
-    params_file = os.path.join(params_dir, 'directories')
+    params_file = os.path.join(params_dir, 'directories.json')
     with open(params_file, 'w') as f:
         json.dump(dirs, f, sort_keys=False, indent=4)
 
@@ -39,12 +74,11 @@ def add_dataset():
         'expt': ['name of experiment (str): ', str],
         'animal': ['example animal name (str): ', str],
         'session': ['example session name (str): ', str],
-        'trial_splits': ['trial splits as train;val;test;gap (e.g. 8;1;1;0): ', str],
     }
     params_video = {
-        'x_pixels': ['number of x pixels (int): ', int],
-        'y_pixels': ['number of y pixels (int): ', int],
         'n_input_channels': ['number of camera views (int): ', int],
+        'y_pixels': ['number of y pixels (int): ', int],
+        'x_pixels': ['number of x pixels (int): ', int],
         'use_output_mask': ['are you applying any masks to the video? (True/False): ', bool],
         'frame_rate': ['frame rate of video (Hz) (float): ', float],
     }
@@ -76,10 +110,11 @@ def add_dataset():
     params['neural_bin_size'] = 1.0 / float(params['frame_rate'])
     params['approx_batch_size'] = 200
 
-    params_dir = os.path.join(get_params_dir(), '.behavenet')
+    params_dir = _get_params_dir()
     if not os.path.exists(params_dir):
         os.makedirs(params_dir)
-    params_file = os.path.join(params_dir, str('%s_%s_params' % (params['lab'], params['expt'])))
+    params_file = os.path.join(
+        params_dir, str('%s_%s_params.json' % (params['lab'], params['expt'])))
     with open(params_file, 'w') as f:
         json.dump(params, f, sort_keys=False, indent=4)
 
