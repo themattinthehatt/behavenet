@@ -14,7 +14,7 @@
 ## Training loop params ##
 ##########################
 
-"n_iters": 150, # type: int
+"n_iters": 100, # type: int
 
 
 ###########################

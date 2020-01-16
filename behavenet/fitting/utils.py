@@ -558,7 +558,7 @@ def experiment_exists(hparams, which_version=False):
             continue
 
     if which_version and found_match:
-        return found_match, version
+        return found_match, int(version.split('_')[-1])
     elif which_version and not found_match:
         return found_match, None
     else:

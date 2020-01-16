@@ -6,7 +6,7 @@
 
 "experiment_name": "state_number_search", # type: str
 
-"n_arhmm_states": [4, 8, 12], # type: int
+"n_arhmm_states": [2, 4, 8, 12], # type: int
 
 "rng_seed_model": 0, # type: int, help: control model initialization
 
@@ -28,13 +28,13 @@
 
 # specify which AE to use (should match how you trained the AE)
 
-"ae_experiment_name": "latent_search",
+"ae_experiment_name": "ae-example",
 
 "ae_version": "best",
 
 "ae_model_type": "conv", # type of AE, linear or conv
 
-"n_ae_latents": 8, # type: int
+"n_ae_latents": 9, # type: int
 
 
 #################

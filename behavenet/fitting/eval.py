@@ -112,8 +112,11 @@ def export_states(hparams, data_generator, model, filename=None):
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
 
-            # process batch,
-            y = data['ae_latents'][0][0]
+            # process batch
+            if hparams['model_class'].find('label') > -1:
+                y = data['labels'][0][0]
+            else:
+                y = data['ae_latents'][0][0]
             batch_size = y.shape[0]
 
             curr_states = model.most_likely_states(y)
@@ -441,11 +444,11 @@ def export_train_plots(hparams, dtype, loss_type='mse', save_file=None, format='
         ~pd.isna(metrics_df.loss)]
     splt = sns.relplot(x='epoch', y='loss', hue='dataset', kind='line', data=data_queried)
     splt.ax.set_xlabel('Epoch')
-    splt.ax.set_yscale('log')
     if loss_type == 'mse':
+        splt.ax.set_yscale('log')
         splt.ax.set_ylabel('MSE per pixel')
     elif loss_type == 'll':
-        splt.ax.set_ylabel('Log prob per datapoint')
+        splt.ax.set_ylabel('Neg log prob per datapoint')
     else:
         raise ValueError('"%s" is an invalid loss type' % loss_type)
     title_str = 'Validation' if dtype == 'val' else 'Training'

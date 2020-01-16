@@ -178,7 +178,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         # get total number of trials by loading images/neural data
         self.n_trials = None
         for i, signal in enumerate(signals):
-            if signal == 'images' or signal == 'neural':
+            if signal == 'images' or signal == 'neural' or signal == 'labels':
                 data_file = paths[i]
                 with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
                     self.n_trials = len(f[signal])

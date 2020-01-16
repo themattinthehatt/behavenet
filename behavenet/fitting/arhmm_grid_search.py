@@ -68,20 +68,20 @@ def main(hparams):
     # collect model constructor inputs
     if hparams['noise_type'] == 'gaussian':
         if hparams['n_arhmm_lags'] > 0:
-            if hparams['model_class'] != 'arhmm':
+            if hparams['model_class'][:5] != 'arhmm':  # 'arhmm' or 'arhmm-labels'
                 raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'ar'
         else:
-            if hparams['model_class'] != 'hmm':
+            if hparams['model_class'][:3] != 'hmm':  # 'hmm' or 'hmm-labels'
                 raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'gaussian'
     elif hparams['noise_type'] == 'studentst':
         if hparams['n_arhmm_lags'] > 0:
-            if hparams['model_class'] != 'arhmm':
+            if hparams['model_class'][:5] != 'arhmm':  # 'arhmm' or 'arhmm-labels'
                 raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'robust_ar'
         else:
-            if hparams['model_class'] != 'hmm':
+            if hparams['model_class'][:3] != 'hmm':  # 'hmm' or 'hmm-labels'
                 raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'studentst'
     else:
