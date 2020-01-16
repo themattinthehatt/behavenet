@@ -7,13 +7,13 @@ import pickle
 
 from behavenet.fitting.eval import export_states
 from behavenet.fitting.eval import export_train_plots
+from behavenet.fitting.hyperparam_utils import get_all_params
 from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.plotting.arhmm_utils import get_latent_arrays_by_dtype
-from behavenet.fitting.hyperparam_utils import get_all_params
 
 
 def main(hparams):

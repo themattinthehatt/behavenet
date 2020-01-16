@@ -125,8 +125,7 @@ For both continuous and discrete decoders:
     * 'lstm' - currently not implemented
 
 * **n_hid_layers** (*int*): number of hidden layers in decoder, not counting data or output layer
-* **n_final_units** (*int*): number of units in the final hidden layer; the code will automatically choose the correct number of units for the output layer based on the data size
-* **n_int_units** (*int*): number of units in all hidden layers except the final
+* **n_hid_units** (*int*): number of units in all hidden layers; the code will automatically choose the correct number of units for the output layer based on the data size
 * **n_lags** (*int*): number of time lags in neural activity to use in predicting outputs; if ``n_lags=n``, then the window of neural activity ``t-n:t+n`` is used to predict the outputs at time ``t`` (and therefore ``2n+1`` total time points are used to predict each time point)
 * **n_max_lags** (*int*): maximum number of lags the user thinks they may search over; the first ``n_max_lags`` and final ``n_max_lags`` time points of each batch are not used in the calculation of metrics to make models with differing numbers of lags directly comparable
 * **activation** (*str*): activation function of hidden layers; activation function of final layer is automatically chosen based on decoder/data type; 'linear' | 'relu' | 'lrelu' | 'sigmoid' | 'tanh'

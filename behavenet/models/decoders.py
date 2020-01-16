@@ -17,7 +17,7 @@ class Decoder(nn.Module):
             - input_size (:obj:`int`)
             - output_size (:obj:`int`)
             - n_hid_layers (:obj:`int`)
-            - n_hidden_units (:obj:`int`)
+            - n_hid_units (:obj:`int`)
             - n_lags (:obj:`int`): number of lags in input data to use for temporal convolution
             - noise_dist (:obj:`str`): 'gaussian' | 'gaussian-full' | 'poisson' | 'categorical'
             - activation (:obj:`str`): 'linear' | 'relu' | 'lrelu' | 'sigmoid' | 'tanh'
@@ -71,7 +71,7 @@ class NN(nn.Module):
         if self.hparams['n_hid_layers'] == 0:
             out_size = self.hparams['output_size']
         else:
-            out_size = self.hparams['n_hidden_units']
+            out_size = self.hparams['n_hid_units']
 
 
         layer = nn.Conv1d(
@@ -131,7 +131,7 @@ class NN(nn.Module):
             if i_layer == self.hparams['n_hid_layers'] - 1:
                 out_size = self.hparams['output_size']
             else:
-                out_size = self.hparams['n_hidden_units']
+                out_size = self.hparams['n_hid_units']
 
             # add layer
             layer = nn.Linear(in_features=in_size, out_features=out_size)

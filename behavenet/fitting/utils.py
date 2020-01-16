@@ -618,7 +618,7 @@ def get_model_params(hparams):
         hparams_less['arhmm_experiment_name'] = hparams['arhmm_experiment_name']
         hparams_less['arhmm_version'] = hparams['arhmm_version']
         hparams_less['n_arhmm_states'] = hparams['n_arhmm_states']
-        # hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
+        hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
         hparams_less['kappa'] = hparams['kappa']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
@@ -631,8 +631,13 @@ def get_model_params(hparams):
     # decoder arch params
     if model_class == 'neural-ae' or model_class == 'ae-neural' \
             or model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
-        pass
-        # TODO
+        hparams_less['n_lags'] = hparams['n_lags']
+        hparams_less['l2_reg'] = hparams['l2_reg']
+        hparams_less['model_type'] = hparams['model_type']
+        hparams_less['n_hid_layers'] = hparams['n_hid_layers']
+        if hparams['n_hid_layers'] != 0:
+            hparams_less['n_hid_units'] = hparams['n_hid_units']
+        hparams_less['activation'] = hparams['activation']
 
     return hparams_less
 

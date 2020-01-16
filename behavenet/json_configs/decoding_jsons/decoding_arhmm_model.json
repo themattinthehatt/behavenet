@@ -47,7 +47,7 @@
 
 "n_hid_layers": [0, 1, 3, 5], # type: int
 
-"n_hidden_units": [32, 64, 128], # type: int
+"n_hid_units": [32, 64, 128], # type: int
 
 "activation": "relu" # type: str, could be linear, relu, lrelu, sigmoid, tanh
 
