@@ -165,7 +165,7 @@ def get_data_generator_inputs(hparams, sess_ids):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
 
-        elif hparams['model_class'] == 'arhmm-decoding':
+        elif hparams['model_class'] == 'bayesian-decoding':
 
             # get autoencoder latents info
             ae_transform, ae_path = get_transforms_paths(

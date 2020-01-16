@@ -23,6 +23,9 @@ def main(hparams, *args):
     # print hparams to console
     _print_hparams(hparams)
 
+    if hparams['model_type'] == 'ff':
+        hparams['n_final_units'] = hparams['n_int_units']
+
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
@@ -71,7 +74,7 @@ def main(hparams, *args):
     # ####################
     # ### CREATE MODEL ###
     # ####################
-
+    print(hparams['input_size'])
     print('constructing model...', end='')
     torch.manual_seed(hparams['rng_seed_model'])
     torch_rnd_seed = torch.get_rng_state()
