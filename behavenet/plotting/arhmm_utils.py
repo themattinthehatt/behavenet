@@ -123,7 +123,7 @@ def relabel_states_by_use(states, mapping=None):
     return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
-def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
+def get_latent_arrays_by_dtype(data_generator, sess_idxs=0, data_key='ae_latents'):
     """Collect data from data generator and put into dictionary with dtypes for keys.
 
     Parameters
@@ -131,6 +131,8 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
     data_generator : :obj:`ConcatSessionsGenerator`
     sess_idxs : :obj:`int` or :obj:`list`
         concatenate train/test/val data across one or more sessions
+    data_key : :obj:`str`
+        key into data generator object; 'ae_latents' | 'labels'
 
     Returns
     -------
@@ -149,8 +151,7 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0):
         for data_type in dtypes:
             curr_idxs = dataset.batch_idxs[data_type]
             trial_idxs[data_type] += list(curr_idxs)
-            latents[data_type] += [
-                dataset[i_trial]['ae_latents'][0][:] for i_trial in curr_idxs]
+            latents[data_type] += [dataset[i_trial][data_key][0][:] for i_trial in curr_idxs]
     return latents, trial_idxs
 
 
@@ -330,7 +331,7 @@ def make_syllable_movies_wrapper(
         latents = pickle.load(f)
     trial_idxs = latents['trials'][dtype]
     # load model
-    model_file = os.path.join(hparams['expt_dir'], version, 'best_val_model.pt')
+    model_file = os.path.join(hparams['expt_dir'], 'version_%i' % version, 'best_val_model.pt')
     with open(model_file, 'rb') as f:
         hmm = pickle.load(f)
     # infer discrete states
@@ -576,8 +577,6 @@ def real_vs_sampled_wrapper(
     # load latents and states (observed and sampled)
     model_output = get_model_latents_states(
         hparams, '', sess_idx=sess_idx, return_samples=50, cond_sampling=conditional)
-    which_trials = model_output['trial_idxs'][dtype]
-    np.random.shuffle(which_trials)
 
     if output_type == 'both' or output_type == 'movie':
 
@@ -607,8 +606,9 @@ def real_vs_sampled_wrapper(
         ims_recon = np.zeros((0, n_channels * y_pix, x_pix))
         i_trial = 0
         while ims_recon.shape[0] < max_frames:
-            recon = ae_model.decoding(torch.tensor(
-                model_output['latents'][which_trials[i_trial]]), None, None).cpu().detach().numpy()
+            recon = ae_model.decoding(
+                torch.tensor(model_output['latents'][dtype][i_trial]).float(), None, None). \
+                cpu().detach().numpy()
             recon = np.concatenate([recon[:, i] for i in range(recon.shape[1])], axis=1)
             zero_frames = np.zeros((n_buffer, n_channels * y_pix, x_pix))  # add a few black frames
             ims_recon = np.concatenate((ims_recon, recon, zero_frames), axis=0)
@@ -619,7 +619,7 @@ def real_vs_sampled_wrapper(
         i_trial = 0
         while ims_recon_samp.shape[0] < max_frames:
             recon = ae_model.decoding(torch.tensor(
-                model_output['latents_gen'][which_trials[i_trial]]), None, None).cpu().detach().numpy()
+                model_output['latents_gen'][i_trial]).float(), None, None).cpu().detach().numpy()
             recon = np.concatenate([recon[:, i] for i in range(recon.shape[1])], axis=1)
             zero_frames = np.zeros((n_buffer, n_channels * y_pix, x_pix))  # add a few black frames
             ims_recon_samp = np.concatenate((ims_recon_samp, recon, zero_frames), axis=0)
@@ -629,23 +629,25 @@ def real_vs_sampled_wrapper(
             ims_recon, ims_recon_samp, conditional=conditional, save_file=save_file,
             frame_rate=frame_rate)
 
-        return None
+    if output_type == 'both' or output_type == 'plot':
 
-    elif output_type == 'both' or output_type == 'plot':
-
-        latents = model_output['latents'][which_trials[0]][:max_frames]
-        latents_samp = model_output['latents_gen'][which_trials[0]][:max_frames]
-        states = model_output['states'][which_trials[0]][:max_frames]
-        if conditional:
-            states_samp = model_output['states_gen'][which_trials[0]][:max_frames]
+        i_trial = 0
+        latents = model_output['latents'][dtype][i_trial][:max_frames]
+        states = model_output['states'][dtype][i_trial][:max_frames]
+        latents_samp = model_output['latents_gen'][i_trial][:max_frames]
+        if not conditional:
+            states_samp = model_output['states_gen'][i_trial][:max_frames]
         else:
             states_samp = []
 
         fig = plot_real_vs_sampled(
             latents, latents_samp, states, states_samp, save_file=save_file, xtick_locs=xtick_locs,
             frame_rate=frame_rate_beh, format=format)
-        return fig
 
+    if output_type == 'movie':
+        return None
+    elif output_type == 'both' or output_type == 'plot':
+        return fig
     else:
         raise ValueError('"%s" is an invalid output_type' % output_type)
 
@@ -672,13 +674,13 @@ def make_real_vs_sampled_movies(
     n_frames = ims_recon.shape[0]
 
     n_plots = 2
-    [n_channels, y_pix, x_pix] = ims_recon[0].shape
+    [y_pix, x_pix] = ims_recon[0].shape
     fig_dim_div = x_pix * n_plots / 10  # aiming for dim 1 being 10
     x_dim = x_pix * n_plots / fig_dim_div
-    y_dim = y_pix * n_channels / fig_dim_div
+    y_dim = y_pix / fig_dim_div
     fig, axes = plt.subplots(1, n_plots, figsize=(x_dim, y_dim))
 
-    for j in range(3):
+    for j in range(2):
         axes[j].set_xticks([])
         axes[j].set_yticks([])
 

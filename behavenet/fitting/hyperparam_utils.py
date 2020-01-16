@@ -4,9 +4,11 @@ from behavenet import get_user_dir
 from behavenet.fitting.ae_model_architecture_generator import draw_handcrafted_archs
 import sys
 
+
 def get_all_params(search_type='grid_search', args=None):
 
-    # Raise error if user has other command line arguments specified (as could override configs in confusing ways)
+    # Raise error if user has other command line arguments specified (as could override configs in
+    # confusing ways)
     if args is not None and len(args) != 8:
         raise ValueError('No command line arguments allowed other than config file names')
     elif len(sys.argv[1:]) != 8:
@@ -37,6 +39,7 @@ def get_all_params(search_type='grid_search', args=None):
     add_dependent_params(parser, namespace)
 
     return parser.parse_args(args)
+
 
 def add_to_parser(parser, arg_name, value):
     if isinstance(value, list):

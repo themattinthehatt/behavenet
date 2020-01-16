@@ -12,8 +12,8 @@ from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.models import AE as AE
 from behavenet.fitting.hyperparam_utils import get_all_params
+from behavenet.models import AE as AE
 
 
 def main(hparams, *args):

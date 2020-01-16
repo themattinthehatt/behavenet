@@ -60,6 +60,18 @@ The ``ssm`` package is the backend state space modeling code used by BehaveNet. 
     (behavenet) $: pip install cython
     (behavenet) $: pip install -e .
 
+PyTorch
+-------
+
+PyTorch is automatically pip installed during the BehaveNet installation process; however, if you have issues running PyTorch, first uninstall the existing package:
+
+.. code-block:: console
+
+    (behavenet) $: pip uninstall torch
+
+and reinstall following the directions `here <https://pytorch.org/get-started/locally/>`_ using the ``Pip`` package option.
+
+
 Set user paths
 ==============
 

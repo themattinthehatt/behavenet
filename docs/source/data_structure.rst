@@ -46,8 +46,10 @@ Below is a sample python script demonstrating how to create an HDF5 file with vi
         for trial in range(n_trials):
             
             # create dataset in "image" group
+            # images_np[trial] should be of shape (n_frames, n_channels, y_pix, x_pix)
             group_i.create_dataset('trial_%04i' % trial, data=images_np[trial], dtype='uint8')
 
             # create dataset in "neural" group
+            # neural_np[trial] should be of shape (n_frames, n_neurons)
             group_n.create_dataset('trial_%04i' % trial, data=neural_np[trial], dtype='float32')
 

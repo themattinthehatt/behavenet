@@ -6,8 +6,6 @@
 
 "export_predictions": false, # type: boolean
 
-"export_predictions_best": true, # type: boolean
-
 
 ##########################
 ## Training loop params ##
@@ -19,7 +17,7 @@
 
 "max_n_epochs": 500, # type: int
 
-"min_n_epochs": 1, # type: int
+"min_n_epochs": 10, # type: int
 
 "enable_early_stop": true, # type: boolean
 

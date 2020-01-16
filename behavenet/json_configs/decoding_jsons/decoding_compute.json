@@ -7,7 +7,7 @@
 
 "gpus_viz": "0;1", # type: str, help: add multiple gpus as '0;1;4' etc
 
-"device": "cuda", # type: str, help: cpu or cuda
+"device": "cpu", # type: str, help: cpu or cuda
 
 ######################
 ## Test tube params ##
@@ -17,7 +17,7 @@
 
 "tt_n_cpu_trials": 100000, # type: int
 
-"tt_n_cpu_workers": 5 # type: int
+"tt_n_cpu_workers": 3 # type: int
 
 
 }
