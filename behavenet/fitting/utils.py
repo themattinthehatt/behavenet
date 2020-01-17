@@ -365,7 +365,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             'bayesian-decoding', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
-        session_dir, _ = get_output_session_dir(hparams)
+        session_dir, _ = get_session_dir(hparams)
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
     expt_dir = os.path.join(session_dir, model_path, expt_name)

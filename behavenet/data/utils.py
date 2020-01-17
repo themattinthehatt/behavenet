@@ -390,6 +390,43 @@ def get_transforms_paths(data_type, hparams, sess_id):
     return transform, path
 
 
+def load_labels_like_latents(hparams, sess_ids, sess_idx):
+    """Load labels from hdf5 in the same dictionary format that latents are saved.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain data generator params
+    sess_ids : :obj:`list` of :obj:`dict`
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'
+    sess_idx : :obj:`int`
+        session index into data generator
+
+    Returns
+    -------
+    :obj:`dict`
+        - latents (:obj:`list` of :obj:`np.ndarray`)
+        - trials (:obj:`dict`) with keys `train`, `test`, and `val`
+
+    """
+    from behavenet.fitting.utils import build_data_generator
+
+    hparams['as_numpy'] = True
+    data_generator = build_data_generator(hparams, sess_ids, export_csv=False)
+    dtypes = data_generator._dtypes
+
+    labels = [np.array([]) for _ in range(data_generator.datasets[sess_idx].n_trials)]
+    for dtype in dtypes:
+        data_generator.reset_iterators(dtype)
+        for i in range(data_generator.n_tot_batches[dtype]):
+            data, sess = data_generator.next_batch(dtype)
+            labels[data['batch_idx'].item()] = data['labels'][0][0]
+    all_labels = {
+        'latents': labels,  # name latents to match with old analysis code
+        'trials': data_generator.datasets[sess_idx].batch_idxs}
+    return all_labels
+
+
 def get_region_list(hparams):
     """Get brain regions and their indices into neural data.
 
