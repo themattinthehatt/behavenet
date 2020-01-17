@@ -8,6 +8,7 @@ of trials, which are split into training, validation, and testing trials using t
 
 * **images**: individual frames of the behavioral video
 * **masks**: binary mask for each frame
+* **labels**: i.e. DLC labels
 * **neural activity**
 * **AE latents**
 * **AE predictions**: predictions of AE latents from neural activity
@@ -55,7 +56,7 @@ def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0
 
     Returns
     -------
-    dict
+    :obj:`dict`
         Split trial indices are stored in a dict with keys `train`, `test`, and `val`
 
     """
@@ -212,14 +213,18 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
         return self.n_trials
 
     def __getitem__(self, idx):
-        """
-        Return batch of data; if idx is None, return all data
+        """Return batch of data; if idx is None, return all data
 
-        Args:
-            idx (int or NoneType): trial index
+        Parameters
+        ----------
+        idx : :obj:`int` or :obj:`NoneType`
+            trial index to load; if :obj:`NoneType`, return all data.
 
-        Returns:
-            (dict): data sample
+        Returns
+        -------
+        :obj:`dict`
+            data sample
+
         """
 
         if idx is None and not self.as_numpy:
@@ -400,7 +405,7 @@ class SingleSessionDataset(SingleSessionDatasetBatchedLoad):
 
         Returns
         -------
-        dict
+        :obj:`dict`
             data sample
 
         """
@@ -589,7 +594,7 @@ class ConcatSessionsGenerator(object):
 
         Returns
         -------
-        tuple
+        :obj:`tuple`
             - **sample** (:obj:`dict`): data batch with keys given by :obj:`signals` input to class
             - **dataset** (:obj:`int`): dataset from which data batch is drawn
 

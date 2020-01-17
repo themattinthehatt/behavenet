@@ -12,7 +12,7 @@ def export_latents(data_generator, model, filename=None):
 
     Parameters
     ----------
-    data_genernext(model.parameters()).is_cudaator : :obj:`ConcatSessionGenerator` object
+    data_generator : :obj:`ConcatSessionGenerator` object
         data generator to use for latent creation
     model : :obj:`AE` object
         pytorch model

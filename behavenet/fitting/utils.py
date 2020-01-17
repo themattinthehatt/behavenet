@@ -509,19 +509,24 @@ def find_session_dirs(hparams):
 
 
 def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
-    """
-    Get best model version from test tube
+    """Get best model version from test tube.
 
-    Args:
-        model_path (str): test tube experiment directory containing version_%i
-            subdirectories
-        measure (str, optional): heading in csv file that is used to determine
-            which model is best
-        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
-        n_best (int, optional): top `n_best` models are returned
+    Parameters
+    ----------
+    model_path : :obj:`str`
+        test tube experiment directory containing version_%i subdirectories
+    measure : :obj:`str`, optional
+        heading in csv file that is used to determine which model is best
+    best_def : :obj:`str`, optional
+        how `measure` should be parsed; 'min' | 'max'
+    n_best : :obj:`int`, optional
+        top `n_best` models are returned
 
-    Returns:
-        (str)
+    Returns
+    -------
+    :obj:`array-like`
+        list of best models, with best first
+
     """
 
     import pickle

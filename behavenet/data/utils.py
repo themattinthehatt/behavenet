@@ -18,7 +18,7 @@ def get_data_generator_inputs(hparams, sess_ids):
 
     Returns
     -------
-    tuple
+    :obj:`tuple`
         - hparams (:obj:`dict`): updated with model-specific information like input and output size
         - signals (:obj:`list`): session-specific signals
         - transforms (:obj:`list`): session-specific transforms
@@ -237,7 +237,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
     Returns
     -------
-    tuple
+    :obj:`tuple`
         - hparams (:obj:`dict`): updated with model-specific information like input and output size
         - signals (:obj:`list`): session-specific signals
         - transforms (:obj:`list`): session-specific transforms
@@ -437,7 +437,7 @@ def get_region_list(hparams):
 
     Returns
     -------
-    dict
+    :obj:`dict`
         keys are brain regions defined in :obj:`data.hdf5` file
 
     """
