@@ -10,11 +10,11 @@ HDF is an acronym for Hierarchical Data Format, and one can think of it like a f
 
 BehaveNet models are trained on batches of data, which here are defined as one trial per batch. For datasets that do not have a trial structure (i.e. spontaneous behavior) we recommend splitting frames into arbitrarily defined "trials", the length of which should depend on the autocorrelation of the behavior (i.e. trials should not be shorter than the temporal extent of relevant behaviors). For the NP dataset in the original paper we used batch sizes of 1000 frames (~25 sec), and inserted additional gap trials between training, validation, and testing trials to minimize the possibility that good model performance was due to similarity of trials.
 
-Below is a sample python script demonstrating how to create an HDF5 file with video data and neural data. Video data is assumed to be in a numpy array of shape (n_trials, n_frames, n_channels, y_pix, x_pix) and neural data is assumed to be in a numpy array of shape (n_trials, n_frames, n_neurons).
+Below is a sample python script demonstrating how to create an HDF5 file with video data and neural data. Video data is assumed to be in a list, where each list element corresponds to a single trial, and is a numpy array of shape (n_frames, n_channels, y_pix, x_pix). Neural data is assumed to be in the same format; a corresponding list of numpy arrays of shape (n_frames, n_neurons). BehaveNet does not require all trials to be of the same length, but does require that for each trial the images and neural activity have the same number of frames. This may require you to interpolate/bin video or neural data differently than the rate at which it was acquired.
 
 **Note 1**: for large experiments having all of this data in memory might be infeasible, and more sophisticated processing will be required
 
-**Note 2**: BehaveNet does not require all trials to be of the same length, but does require that for each trial the shape of image/mask data is (n_frames, n_channels, y_pix, x_pix) (n_channels=1 for a single grayscale video) and the shape of neural data is (n_frames, n_neurons)
+**Note 2**: neural data is only required for fitting decoding models; it is still possible to fit autoencoders and ARHMMs when the HDF5 file only contains images
 
 **Note 3**: the python package ``h5py`` is required for creating the HDF5 file, and is automatically installed with the BehaveNet package.
 

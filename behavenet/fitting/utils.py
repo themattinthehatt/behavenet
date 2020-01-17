@@ -365,7 +365,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             'bayesian-decoding', '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
-        session_dir, _ = get_output_session_dir(hparams)
+        session_dir, _ = get_session_dir(hparams)
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
     expt_dir = os.path.join(session_dir, model_path, expt_name)
@@ -506,86 +506,6 @@ def find_session_dirs(hparams):
                             'lab': lab, 'expt': expt, 'animal': animal, 'session': session,
                             'multisession': None})
     return session_dirs, session_ids
-
-
-def get_best_model_version(model_path, measure='val_loss', best_def='min', n_best=1):
-    """
-    Get best model version from test tube
-
-    Args:
-        model_path (str): test tube experiment directory containing version_%i
-            subdirectories
-        measure (str, optional): heading in csv file that is used to determine
-            which model is best
-        best_def (str, optional): how `measure` should be parsed; 'min' | 'max'
-        n_best (int, optional): top `n_best` models are returned
-
-    Returns:
-        (str)
-    """
-
-    import pickle
-    import pandas as pd
-
-    # gather all versions
-    versions = get_subdirs(model_path)
-    # load csv files with model metrics (saved out from test tube)
-    metrics = []
-    for i, version in enumerate(versions):
-        # make sure training has been completed
-        with open(os.path.join(model_path, version, 'meta_tags.pkl'), 'rb') as f:
-            meta_tags = pickle.load(f)
-        if not meta_tags['training_completed']:
-            continue
-        # try:
-        #     if meta_tags['n_lags']==16 or meta_tags['n_lags']==12:
-        #         continue
-        # except:
-        #     pass
-
-        try:
-
-            # read metrics csv file
-            metric = pd.read_csv(os.path.join(model_path, version, 'metrics.csv'))
-
-            # ugly hack for now
-            if model_path.find('arhmm') > -1 and model_path.find('neural') < 0:
-                # throw error if not correct number of lags
-                import pickle
-                meta = os.path.join(model_path, version, 'meta_tags.pkl')
-                with open(meta, 'rb') as f:
-                    meta_tags = pickle.load(f)
-                    if meta_tags['n_lags'] != 1:
-                        raise Exception
-        except:
-            continue
-
-        # get validation loss of best model
-        if best_def == 'min':
-            val_loss = metric[measure].min()
-        elif best_def == 'max':
-            val_loss = metric[measure].max()
-
-        metrics.append(pd.DataFrame({'loss': val_loss, 'version': version}, index=[i]))
-    # put everything in pandas dataframe
-    metrics_df = pd.concat(metrics, sort=False)
-    # get version with smallest loss
-    
-    if n_best == 1:
-        if best_def == 'min':
-            best_versions = [metrics_df['version'][metrics_df['loss'].idxmin()]]
-        elif best_def == 'max':
-            best_versions = [metrics_df['version'][metrics_df['loss'].idxmax()]]
-    else:
-        if best_def == 'min':
-            best_versions = np.asarray(
-                metrics_df['version'][metrics_df['loss'].nsmallest(n_best, 'all').index])
-        elif best_def == 'max':
-            raise NotImplementedError
-        if best_versions.shape[0] != n_best:
-            print('More versions than specified due to same validation loss')
-        
-    return best_versions
 
 
 def experiment_exists(hparams, which_version=False):
