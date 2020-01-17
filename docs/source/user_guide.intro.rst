@@ -95,7 +95,7 @@ Beyond organizing model fits, test-tube is also useful for performing grid searc
 
 Again using the autoencoder as an example, let's say you want to fit a single AE architecture using 4 different numbers of latents, all with the same regularization value. In the model config file, you will set these values as:
 
-.. code-block:: 
+.. code-block:: JSON
 
     ...
     "n_ae_latents": [4, 8, 12, 16],
@@ -104,7 +104,7 @@ Again using the autoencoder as an example, let's say you want to fit a single AE
 
 To specify the computing resources for this job, you will next edit the compute config file, which looks like this:
 
-.. code-block::
+.. code-block:: JSON
 
     "device": "cuda", # "cpu" or "cuda"
     "gpus_viz": "0", # "add multiple gpus as e.g. "0;1;4"
@@ -119,7 +119,7 @@ To fit models using the cpu instead, set the ``device`` field to ``cpu``; then `
 
 Finally, multiple hyperparameters can be searched over simultaneously; for example, to search over both AE latents and regularization values, set these parameters in the model config file like so:
 
-.. code-block::
+.. code-block:: JSON
 
     ...
     "n_ae_latents": [4, 8, 12, 16],
