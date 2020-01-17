@@ -288,7 +288,7 @@ class ConvDecoder(nn.Module):
 
     def build_model(self):
         """Construct the model using hparams."""
-        self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents']
+        self.hparams['hidden_layer_size'] = self.hparams['n_labels']
         if self.model_type == 'conv':
             from behavenet.models.aes import ConvAEDecoder
             self.decoding = ConvAEDecoder(self.hparams)
