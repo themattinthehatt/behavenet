@@ -15,7 +15,7 @@ class Compose(object):
 
     Example
     -------
-    .. code-block::
+    .. code-block:: python
 
         >> Compose([
         >>     behavenet.data.transforms.SelectRegion('mctx', mctx_idxs),
