@@ -4,7 +4,7 @@ Data generator objects can apply these transforms to batches of data upon loadin
 """
 
 import numpy as np
-from skimage import transform
+# from skimage import transform
 
 
 class Compose(object):
@@ -110,49 +110,49 @@ class ClipNormalize(Transform):
         return str('ClipNormalize(clip_val=%f)' % self.clip_val)
 
 
-class Resize(Transform):
-    """Resize the sample images."""
-
-    def __init__(self, size=(128, 128), order=1):
-        """
-
-        Parameters
-        ----------
-        size : :obj:`int` or :obj:`tuple`
-            desired output size for each image; if type is :obj:`int`, the same value is used for
-            both height and width
-        order : :obj:`int`
-            interpolation order
-
-        """
-        assert isinstance(size, (tuple, int))
-        self.order = order
-        if isinstance(size, tuple):
-            self.x = size[0]
-            self.y = size[1]
-        else:
-            self.x = self.y = size
-
-    def __call__(self, sample):
-        """
-
-        Parameters
-        ----------
-        sample: :obj:`np.ndarray`
-            input shape is (trial, time, n_channels)
-
-        Returns
-        -------
-        :obj:`np.ndarray`
-            output shape is (trial, time, n_channels)
-
-        """
-        sh = sample.shape
-        sample = transform.resize(sample, (sh[0], sh[1], self.x, self.y), order=self.order)
-        return sample
-
-    def __repr__(self):
-        return str('Resize(size=(%i, %i))' % (self.x, self.y))
+# class Resize(Transform):
+#     """Resize the sample images."""
+#
+#     def __init__(self, size=(128, 128), order=1):
+#         """
+#
+#         Parameters
+#         ----------
+#         size : :obj:`int` or :obj:`tuple`
+#             desired output size for each image; if type is :obj:`int`, the same value is used for
+#             both height and width
+#         order : :obj:`int`
+#             interpolation order
+#
+#         """
+#         assert isinstance(size, (tuple, int))
+#         self.order = order
+#         if isinstance(size, tuple):
+#             self.x = size[0]
+#             self.y = size[1]
+#         else:
+#             self.x = self.y = size
+#
+#     def __call__(self, sample):
+#         """
+#
+#         Parameters
+#         ----------
+#         sample: :obj:`np.ndarray`
+#             input shape is (trial, time, n_channels)
+#
+#         Returns
+#         -------
+#         :obj:`np.ndarray`
+#             output shape is (trial, time, n_channels)
+#
+#         """
+#         sh = sample.shape
+#         sample = transform.resize(sample, (sh[0], sh[1], self.x, self.y), order=self.order)
+#         return sample
+#
+#     def __repr__(self):
+#         return str('Resize(size=(%i, %i))' % (self.x, self.y))
 
 
 class Threshold(Transform):
