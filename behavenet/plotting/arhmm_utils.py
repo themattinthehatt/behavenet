@@ -157,7 +157,7 @@ def get_latent_arrays_by_dtype(data_generator, sess_idxs=0, data_key='ae_latents
 
 def get_model_latents_states(
         hparams, version, sess_idx=0, return_samples=0, cond_sampling=False, dtype='test',
-        rng_seed=0):
+        dtypes=['train', 'val', 'test'], rng_seed=0):
     """Return arhmm defined in :obj:`hparams` with associated latents and states.
 
     Can also return sampled latents and states.
@@ -177,6 +177,8 @@ def get_model_latents_states(
         unconditioned samples
     dtype : :obj:`str`, optional
         trial type to use for conditonal sampling; 'train' | 'val' | 'test'
+    dtypes : :obj:`array-like`, optional
+        trial types for which to collect latents and states
     rng_seed : :obj:`int`, optional
         random number generator seed to control sampling
 
@@ -214,16 +216,21 @@ def get_model_latents_states(
     model_file = os.path.join(hparams['expt_dir'], 'version_%i' % version, 'best_val_model.pt')
     with open(model_file, 'rb') as f:
         hmm = pickle.load(f)
-    # load latents
-    _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
-    with open(latents_file, 'rb') as f:
-        all_latents = pickle.load(f)
+
+    # load latents/labels
+    if hparams['model_class'].find('labels') > -1:
+        from behavenet.data.utils import load_labels_like_latents
+        all_latents = load_labels_like_latents(hparams, sess_ids, sess_idx)
+    else:
+        _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
+        with open(latents_file, 'rb') as f:
+            all_latents = pickle.load(f)
 
     # collect inferred latents/states
     trial_idxs = {}
     latents = {}
     states = {}
-    for data_type in ['train', 'val', 'test']:
+    for data_type in dtypes:
         trial_idxs[data_type] = all_latents['trials'][data_type]
         latents[data_type] = [all_latents['latents'][i_trial] for i_trial in trial_idxs[data_type]]
         states[data_type] = [hmm.most_likely_states(x) for x in latents[data_type]]
@@ -249,7 +256,7 @@ def get_model_latents_states(
             offset = 200
             for i in range(return_samples):
                 these_states_gen, these_latents_gen = hmm.sample(
-                    latents['test'][0].shape[0] + offset)
+                    latents[dtype][0].shape[0] + offset)
                 latents_gen.append(these_latents_gen[offset:])
                 states_gen.append(these_states_gen[offset:])
     else:
@@ -325,10 +332,14 @@ def make_syllable_movies_wrapper(
     # get tt version number
     _, version = experiment_exists(hparams, which_version=True)
     print('producing syllable videos for arhmm %s' % version)
-    # load latents
-    _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
-    with open(latents_file, 'rb') as f:
-        latents = pickle.load(f)
+    # load latents/labels
+    if hparams['model_class'].find('labels') > -1:
+        from behavenet.data.utils import load_labels_like_latents
+        latents = load_labels_like_latents(hparams, sess_ids, sess_idx)
+    else:
+        _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
+        with open(latents_file, 'rb') as f:
+            latents = pickle.load(f)
     trial_idxs = latents['trials'][dtype]
     # load model
     model_file = os.path.join(hparams['expt_dir'], 'version_%i' % version, 'best_val_model.pt')
@@ -573,6 +584,13 @@ def real_vs_sampled_wrapper(
     from behavenet.data.utils import get_transforms_paths
     from behavenet.fitting.utils import get_expt_dir
     from behavenet.fitting.utils import get_session_dir
+
+    # check input - cannot create sampled movies for arhmm-labels models (no mapping from labels to
+    # frames)
+    if hparams['model_class'].find('labels') > -1:
+        if output_type == 'both' or output_type == 'movie':
+            print('warning: cannot create video with "arhmm-labels" model; producing plots')
+            output_type = 'plot'
 
     # load latents and states (observed and sampled)
     model_output = get_model_latents_states(
