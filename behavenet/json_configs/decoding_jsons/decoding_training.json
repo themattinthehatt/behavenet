@@ -4,7 +4,7 @@
 ## Commonly changed parameters ##
 #################################
 
-"export_predictions": false, # type: boolean
+"export_predictions": true, # type: boolean
 
 
 ##########################
