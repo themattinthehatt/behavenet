@@ -1,5 +1,7 @@
 # BehaveNet
 
+NOTE: This is a beta version, we will release the first stable version by early February
+
 BehaveNet is a probabilistic framework for the analysis of behavioral video and neural activity. 
 This framework provides tools for compression, segmentation, generation, and decoding of behavioral 
 videos. Please see the 
