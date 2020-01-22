@@ -55,10 +55,11 @@ The ``ssm`` package is the backend state space modeling code used by BehaveNet. 
 
 .. code-block:: console
 
-    (behavenet) $: git clone https://github.com/slinderman/ssm.git --branch behavenet-v1 --single-branch
+    (behavenet) $: git clone https://github.com/slinderman/ssm.git --branch behavenet-no-cython --single-branch
     (behavenet) $: cd ssm
     (behavenet) $: pip install cython
     (behavenet) $: pip install -e .
+
 
 PyTorch
 -------

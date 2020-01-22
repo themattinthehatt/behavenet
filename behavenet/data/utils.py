@@ -411,7 +411,9 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx):
     """
     from behavenet.fitting.utils import build_data_generator
 
+    hparams['device'] = 'cpu'
     hparams['as_numpy'] = True
+    hparams['batch_load'] = False
     data_generator = build_data_generator(hparams, sess_ids, export_csv=False)
     dtypes = data_generator._dtypes
 
