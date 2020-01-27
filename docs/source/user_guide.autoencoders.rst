@@ -16,7 +16,7 @@ To fit a single model with the default CAE BehaveNet architecture (details in pa
     "l2_reg": 0.0,
     "rng_seed_model": 0,
     "fit_sess_io_layers": false,
-    "arch_types": "default",
+    "ae_arch_json": null,
     "model_class": "ae"
     }
 
@@ -39,7 +39,7 @@ Performing a search over multiple latents is as simple as editing the ``ae_model
     "l2_reg": 0.0,
     "rng_seed_model": 0,
     "fit_sess_io_layers": false,
-    "arch_types": "default",
+    "ae_arch_json": null,
     "model_class": "ae"
     }
 

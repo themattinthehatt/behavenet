@@ -94,7 +94,7 @@ Autoencoder
 * **model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): output dimensions of AE encoder network
 * **fit_sess_io_layers** (*bool*): ``True`` to fit session-specific input and output layers; all other layers are shared across all sessions
-* **arch_types** (*str*)
+* **ae_arch_json** (*str*): ``null`` to use the default convolutional autoencoder architecture from the original behavenet paper; otherwise, a string that defines the path to a json file that defines the architecture. An example can be found `here <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`_.
 
 
 ARHMM

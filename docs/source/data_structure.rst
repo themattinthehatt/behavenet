@@ -43,7 +43,7 @@ Below is a sample python script demonstrating how to create an HDF5 file with vi
         group_n = f.create_group('neural')
 
         # create a dataset for each trial within groups
-        for trial in range(n_trials):
+        for trial in range(len(images_np)):
             
             # create dataset in "image" group
             # images_np[trial] should be of shape (n_frames, n_channels, y_pix, x_pix)
