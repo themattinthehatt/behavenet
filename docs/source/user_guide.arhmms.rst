@@ -7,5 +7,4 @@ Fitting a single ARHMM is very similar to the AE fitting procedure; first copy t
 
 .. code-block:: console
 
-    $: python behavenet/fitting/arhmm_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/arhmm_model.json --training_config ~/.behavenet/arhmm_training.json --compute_config ~/.behavenet/arhmm_compute.json
-
+    $: python behavenet/fitting/arhmm_grid_search.py --data_config /user_home/.behavenet/musall_vistrained_params.json --model_config /user_home/.behavenet/arhmm_model.json --training_config /user_home/.behavenet/arhmm_training.json --compute_config /user_home/.behavenet/arhmm_compute.json

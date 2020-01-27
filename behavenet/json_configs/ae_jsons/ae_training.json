@@ -25,7 +25,7 @@
 
 "min_n_epochs": 500, # type: int
 
-"enable_early_stop": true, # type: boolean
+"enable_early_stop": false, # type: boolean
 
 "early_stop_history": 10, # type: int
 

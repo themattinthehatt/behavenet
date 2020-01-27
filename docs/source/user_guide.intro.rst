@@ -59,7 +59,7 @@ To enter this information, launch python from the behavenet environment and type
     from behavenet import add_dataset
     add_dataset()
 
-This function will create a json file named ``[lab_id]_[expt_id]`` in the ``.behavenet`` directory in your user home directory, which you can manually update at any point using a text editor.
+This function will create a json file named ``[lab_id]_[expt_id].json`` in the ``.behavenet`` directory in your user home directory, which you can manually update at any point using a text editor.
 
 
 Organizing model fits with test-tube

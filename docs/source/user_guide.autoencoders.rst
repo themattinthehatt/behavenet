@@ -24,7 +24,7 @@ Then to fit the model, ``cd`` to the ``behavenet`` directory in the terminal and
 
 .. code-block:: console
 
-    $: python behavenet/fitting/ae_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/ae_model.json --training_config ~/.behavenet/ae_training.json --compute_config ~/.behavenet/ae_compute.json
+    $: python behavenet/fitting/ae_grid_search.py --data_config /user_home/.behavenet/musall_vistrained_params.json --model_config /user_home/.behavenet/ae_model.json --training_config /user_home/.behavenet/ae_training.json --compute_config /user_home/.behavenet/ae_compute.json
 
 where ``~/.behavenet/musall_vistrained_params.json`` can be replaced by any dataset config file created by running the ``behavenet.add_dataset()`` function (example :ref:`here <add_dataset>`).
 
