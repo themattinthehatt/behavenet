@@ -1,0 +1,62 @@
+{
+
+#######################################
+## Input (will be automatically filled)
+#######################################
+
+"n_input_channels": null, # type: int
+
+"y_pixels": null, # type: int
+
+"x_pixels": null, # type: int
+
+"ae_input_dim": [null, null, null, null], # type: list, help: [input_channels, y_pix, x_pix]
+
+
+####################
+## General params ##
+####################
+
+"ae_network_type": "strides_only", # type: str, help: strides_only | max_pooling
+
+"ae_padding_type": "same", # type: str, help: same | valid
+
+"ae_batch_norm": 0, # type: int, help: 0 = False, 1 = True
+
+"ae_batch_norm_momentum": null, # type: float
+
+"symmetric_arch": 1, # type: int, help: 0 = False, 1 = True (decoder is inverse of encoder)
+
+
+#############
+## Encoder ##
+#############
+
+"ae_encoding_n_channels": [32, 64, 256, 512], # type: list, help: one entry for each conv layer
+
+"ae_encoding_kernel_size": [5, 5, 5, 5], # type: list
+
+"ae_encoding_stride_size": [2, 2, 2, 2], # type: list
+
+"ae_encoding_layer_type": ["conv", "conv", "conv", "conv"], # type: list
+
+"n_ae_latents": null, # type: null, help: value is pulled from ae_model.json file
+
+
+#############
+## Decoder ##
+#############
+
+# values can be null if "symmetric_arch" = 1 above
+
+"ae_decoding_n_channels": [null], # type: list, help: one entry for each conv layer
+
+"ae_decoding_kernel_size": [null], # type: list
+
+"ae_decoding_stride_size": [null], # type: list
+
+"ae_decoding layer_type": [null], # type: list
+
+"ae_decoding_last_FF_layer": 0 # type: int, help: 0 = False, 1 = True
+
+}

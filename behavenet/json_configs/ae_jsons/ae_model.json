@@ -21,7 +21,7 @@
 
 "fit_sess_io_layers": false, # type: boolean
 
-"arch_types": "default", # type: str, help: this uses the default architecture from behavenet paper
+"arch_json": "behavenet/json_configs/ae_arch_default.json", # type: str, help: this uses the default architecture from behavenet paper
 
 
 #################
