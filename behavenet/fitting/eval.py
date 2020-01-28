@@ -1,7 +1,6 @@
 """Utility functions for evaluating model fits."""
 
 import numpy as np
-from behavenet.fitting.utils import get_best_model_and_data
 
 
 def export_latents(data_generator, model, filename=None):
@@ -223,55 +222,6 @@ def export_predictions(data_generator, model, filename=None):
         predictions_dict = {'predictions': predictions[sess], 'trials': dataset.batch_idxs}
         with open(filename, 'wb') as f:
             pickle.dump(predictions_dict, f)
-
-
-def export_latents_best(hparams, filename=None, export_all=False):
-    """Export predictions for the best decoding model in a test tube experiment.
-
-    Predictions are saved in the corresponding model directory.
-
-    Parameters
-    ----------
-    hparams : :obj:`dict`
-        needs to contain enough information to specify an autoencoder
-    filename : :obj:`str` or :obj:`NoneType`, optional
-        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
-    export_all : :obj:`bool`, optional
-        :obj:`True` to export latents for train, val, test, and gap trials
-
-    """
-    from behavenet.models import AE
-    if export_all:
-        data_kwargs = dict(trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
-    else:
-        data_kwargs = {}
-    model, data_generator = get_best_model_and_data(hparams, AE, data_kwargs=data_kwargs)
-    export_latents(data_generator, model, filename=filename)
-
-
-def export_predictions_best(hparams, filename=None, export_all=False):
-    """Export predictions for the best decoding model in a test tube experiment.
-
-    Predictions are saved in the corresponding model directory.
-
-    Parameters
-    ----------
-    hparams : :obj:`dict`
-        needs to contain enough information to specify an autoencoder
-    filename : :obj:`str` or :obj:`NoneType`, optional
-        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
-    export_all : :obj:`bool`, optional
-        :obj:`True` to export latents for train, val, test, and gap trials
-
-    """
-
-    from behavenet.models import Decoder
-    if export_all:
-        data_kwargs = dict(trial_splits=dict(train_tr=1, val_tr=0, test_tr=0, gap_tr=0))
-    else:
-        data_kwargs = {}
-    model, data_generator = get_best_model_and_data(hparams, Decoder, data_kwargs=data_kwargs)
-    export_predictions(data_generator, model, filename=filename)
 
 
 def get_reconstruction(model, inputs, dataset=None, return_latents=False):

@@ -104,7 +104,3 @@ if __name__ == '__main__':
             main,
             nb_trials=hyperparams.tt_n_cpu_trials,
             nb_workers=hyperparams.tt_n_cpu_workers)
-
-    if hyperparams.export_latents_best:
-        print('Exporting latents from current best model in experiment')
-        export_latents_best(vars(hyperparams))
