@@ -48,6 +48,7 @@ All models:
 * **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be ``lab``, ``expt``, ``animal``, ``session``.
 * **export_train_plots** (*bool*): ``True`` to automatically export training/validation loss as a function of epoch upon completion of training [AEs and ARHMMs only]
 * **export_latents** (*bool*): ``True`` to automatically export train/val/test autoencoder latents using best model upon completion of training [analogous parameters **export_states** and **export_predictions** exist for arhmms and decoders, respectively)
+* **rng_seed_train** (*int*): control randomness in batching data
 
 Pytorch models (all but 'arhmm' and 'bayesian-decoding'):
 

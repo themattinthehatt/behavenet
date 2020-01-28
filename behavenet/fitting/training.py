@@ -576,6 +576,13 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     else:
         early_stop = None
 
+    if hparams.get('rng_seed_train', None) is None:
+        rng_train = np.random.randint(0, 10000)
+    else:
+        rng_train = int(hparams['rng_seed_train'])
+    torch.manual_seed(rng_train)
+    np.random.seed(rng_train)
+
     i_epoch = 0
     for i_epoch in range(hparams['max_n_epochs'] + 1):
         # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
@@ -595,8 +602,8 @@ def fit(hparams, model, data_generator, exp, method='ae'):
             print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
 
         # control how data is batched to that models can be restarted from a particular epoch
-        torch.manual_seed(i_epoch)  # order of trials within sessions
-        np.random.seed(i_epoch)  # order of sessions
+        torch.manual_seed(rng_train + i_epoch)  # order of trials within sessions
+        np.random.seed(rng_train + i_epoch)  # order of sessions
 
         loss.reset_metrics('train')
         data_generator.reset_iterators('train')

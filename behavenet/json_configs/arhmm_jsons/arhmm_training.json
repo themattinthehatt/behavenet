@@ -16,6 +16,8 @@
 
 "n_iters": 20, # type: int
 
+"rng_seed_train": null, # type: int
+
 
 ###########################
 ## Data generator params ##

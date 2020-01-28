@@ -23,6 +23,8 @@
 
 "early_stop_history": 10, # type: int
 
+"rng_seed_train": null, # type: int
+
 
 ###########################
 ## Data generator params ##

@@ -4,7 +4,6 @@ import numpy as np
 import random
 import torch
 
-from behavenet.fitting.eval import export_latents_best
 from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.training import fit
 from behavenet.fitting.utils import _clean_tt_dir
