@@ -218,8 +218,14 @@ class AELoss(FitMethod):
 
         if self.model.hparams['model_class'] == 'cond-ae':
             labels = data['labels'][0]
+            if self.model.hparams['conditional_encoder']:
+                # continuous labels transformed into 2d one-hot array as input to encoder
+                labels_2d = data['labels_sc'][0]
+            else:
+                labels_2d = None
         else:
             labels = None
+            labels_2d = None
 
         chunk_size = 200
         batch_size = y.shape[0]
@@ -231,8 +237,11 @@ class AELoss(FitMethod):
             for chunk in range(n_chunks):
                 idx_beg = chunk * chunk_size
                 idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                y_in = y[idx_beg:idx_end]
+                labels_in = labels[idx_beg:idx_end] if labels is not None else None
+                labels_2d_in = labels_2d[idx_beg:idx_end] if labels_2d is not None else None
                 y_mu, _ = self.model(
-                    y[idx_beg:idx_end], dataset=dataset, labels=labels[idx_beg:idx_end])
+                    y_in, dataset=dataset, labels=labels_in, labels_2d=labels_2d_in)
                 if masks is not None:
                     loss = torch.mean(((y[idx_beg:idx_end] - y_mu) ** 2) * masks[idx_beg:idx_end])
                 else:
@@ -243,7 +252,7 @@ class AELoss(FitMethod):
                 loss_val += loss.item() * (idx_end - idx_beg)
             loss_val /= y.shape[0]
         else:
-            y_mu, _ = self.model(y, dataset=dataset, labels=labels)
+            y_mu, _ = self.model(y, dataset=dataset, labels=labels, labels_2d=labels_2d)
             # define loss
             if masks is not None:
                 loss = torch.mean(((y - y_mu)**2) * masks)
@@ -660,6 +669,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     np.random.seed(rng_train)
 
     i_epoch = 0
+    best_model_saved = False
     for i_epoch in range(hparams['max_n_epochs'] + 1):
         # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
         # through `max_n_epochs` training epochs
@@ -725,6 +735,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     filepath = os.path.join(
                         hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
                     torch.save(model.state_dict(), filepath)
+                    best_model_saved = True
 
                     model.hparams = None
                     best_val_model = copy.deepcopy(model)
@@ -769,6 +780,17 @@ def fit(hparams, model, data_generator, exp, method='ae'):
             early_stop.on_val_check(i_epoch, loss.get_loss('val'))
             if early_stop.should_stop:
                 break
+
+    # save out last model as best model if no best model saved
+    if not best_model_saved:
+        filepath = os.path.join(
+            hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
+        torch.save(model.state_dict(), filepath)
+
+        model.hparams = None
+        best_val_model = copy.deepcopy(model)
+        model.hparams = hparams
+        best_val_model.hparams = hparams
 
     # save out last model
     if hparams.get('save_last_model', False):

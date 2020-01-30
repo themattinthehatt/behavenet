@@ -148,11 +148,11 @@ class ClipNormalize(Transform):
 #
 #         """
 #         sh = sample.shape
-#         sample = transform.resize(sample, (sh[0], sh[1], self.x, self.y), order=self.order)
+#         sample = transform.resize(sample, (sh[0], sh[1], self.y, self.x), order=self.order)
 #         return sample
 #
 #     def __repr__(self):
-#         return str('Resize(size=(%i, %i))' % (self.x, self.y))
+#         return str('Resize(size=(%i, %i))' % (self.y, self.x))
 
 
 class Threshold(Transform):
@@ -260,6 +260,60 @@ class MakeOneHot(Transform):
 
     def __repr__(self):
         return 'MakeOneHot()'
+
+
+class MakeOneHot2D(Transform):
+    """Turn an array of continuous values into an array of one-hot 2D arrays.
+
+    Assumes that there are an even number of values in the input array, and that the first half
+    are x values and the second half are y values.
+
+    For example, if y_pixels=128 and x_pixels=128 (inputs to constructor), and the input array is
+    [64, 34, 56, 102], the output array is of shape (2, 128, 128) where all values are zero except:
+    output[0, 56, 64] = 1
+    output[1, 102, 34] = 1
+
+    """
+
+    def __init__(self, y_pixels, x_pixels):
+        """
+
+        Parameters
+        ----------
+        y_pixels : :obj:`int`
+            y_pixels of output 2D array
+        x_pixels : :obj:`int`
+            x_pixels of output 2D array
+
+        """
+        self.y_pixels = y_pixels
+        self.x_pixels = x_pixels
+
+    def __call__(self, sample):
+        """Assumes that x-values are first half, y-values are second half.
+
+        Parameters
+        ----------
+        sample: :obj:`np.ndarray`
+            input shape is (time, n_labels * 2)
+
+        Returns
+        -------
+        :obj:`np.ndarray`
+            output shape is (time, n_labels, y_pix, x_pix)
+
+        """
+        time, n_labels_ = sample.shape
+        n_labels = int(n_labels_ / 2)
+        labels_2d = np.zeros((time, n_labels, self.y_pixels, self.x_pixels))
+        x_vals = np.round(sample[:, :n_labels]).astype(np.int)
+        y_vals = np.round(sample[:, n_labels:]).astype(np.int)
+        for l in range(n_labels):
+            labels_2d[np.arange(time), l, y_vals[:, l], x_vals[:, l]] = 1
+        return labels_2d
+
+    def __repr__(self):
+        return str('MakeOneHot2D(y_pixels=%i, x_pixels=%i)' % (self.y_pixels, self.x_pixels))
 
 
 class BlockShuffle(Transform):

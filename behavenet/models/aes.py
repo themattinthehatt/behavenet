@@ -125,7 +125,13 @@ class ConvAEEncoder(nn.Module):
     def _get_conv2d_args(self, layer, global_layer):
 
         if layer == 0:
-            in_channels = self.hparams['ae_input_dim'][0]
+            if self.hparams['model_class'] == 'cond-ae' and self.hparams['conditional_encoder']:
+                # labels will be appended to input if using conditional autoencoder with
+                # conditional encoder flag
+                n_labels = int(self.hparams['n_labels'] / 2)  # 'n_labels' key includes x/y coords
+            else:
+                n_labels = 0
+            in_channels = self.hparams['ae_input_dim'][0] + n_labels
         else:
             in_channels = self.hparams['ae_encoding_n_channels'][layer - 1]
 
@@ -800,17 +806,21 @@ class ConditionalAE(AE):
         self.encoding = ConvAEEncoder(self.hparams)
         self.decoding = ConvAEDecoder(self.hparams)
 
-    def forward(self, x, dataset=None, labels=None):
+    def forward(self, x, dataset=None, labels=None, labels_2d=None):
         """Process input data.
 
         Parameters
         ----------
         x : :obj:`torch.Tensor` object
-            input data
+            input data of shape (batch, n_channels, y_pix, x_pix)
         dataset : :obj:`int`
             used with session-specific io layers
         labels : :obj:`torch.Tensor` object
-            labels corresponding to input data
+            continuous labels corresponding to input data, of shape (batch, n_labels)
+        labels_2d: :obj:`torch.Tensor` object
+            one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
+            for a given frame, each channel corresponds to a label and is all zeros with a single
+            value of one in the proper x/y position
 
         Returns
         -------
@@ -819,6 +829,9 @@ class ConditionalAE(AE):
             - x (:obj:`torch.Tensor`): hidden representation of shape (n_frames, n_latents)
 
         """
+        if labels_2d is not None:
+            # append label information to input
+            x = torch.cat((x, labels_2d), dim=1)
         x, pool_idx, outsize = self.encoding(x, dataset=dataset)
         z = torch.cat((x, labels), dim=1)
         y = self.decoding(z, pool_idx, outsize, dataset=dataset)

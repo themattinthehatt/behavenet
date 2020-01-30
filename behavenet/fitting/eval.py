@@ -43,6 +43,11 @@ def export_latents(data_generator, model, filename=None):
             # process batch, perhaps in chunks if full batch is too large to fit on gpu
             chunk_size = 200
             y = data['images'][0]
+            if model.hparams['model_class'] == 'cond-ae' and \
+                    model.hparams.get('conditional_encoder', False):
+                labels_2d = data['labels_sc'][0]
+            else:
+                labels_2d = None
             batch_size = y.shape[0]
             if batch_size > chunk_size:
                 latents[sess][data['batch_idx'].item()] = np.full(
@@ -55,11 +60,13 @@ def export_latents(data_generator, model, filename=None):
                     # max_lags
                     idx_beg = chunk * chunk_size
                     idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                    curr_latents, _, _ = model.encoding(y[idx_beg:idx_end], dataset=sess)
+                    y_in = y[idx_beg:idx_end]
+                    labels_2d_in = labels_2d[idx_beg:idx_end] if labels_2d is not None else None
+                    curr_latents, _, _ = model.encoding(y_in, dataset=sess, labels_2d=labels_2d_in)
                     latents[sess][data['batch_idx'].item()][idx_beg:idx_end, :] = \
                         curr_latents.cpu().detach().numpy()
             else:
-                curr_latents, _, _ = model.encoding(y, dataset=sess)
+                curr_latents, _, _ = model.encoding(y, dataset=sess, labels_2d=labels_2d)
                 latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
 
     # save latents separately for each dataset
@@ -224,7 +231,8 @@ def export_predictions(data_generator, model, filename=None):
             pickle.dump(predictions_dict, f)
 
 
-def get_reconstruction(model, inputs, dataset=None, return_latents=False):
+def get_reconstruction(
+        model, inputs, dataset=None, return_latents=False, labels=None, labels_2d=None):
     """Reconstruct an image from either image or latent inputs.
 
     Parameters
@@ -240,6 +248,8 @@ def get_reconstruction(model, inputs, dataset=None, return_latents=False):
         if :obj:`True` return tuple of (recon, latents)
     labels : :obj:`torch.Tensor` object or :obj:`NoneType`, optional
         label tensor of shape (batch, n_labels)
+    labels_2d : :obj:`torch.Tensor` object or :obj:`NoneType`, optional
+        label tensor of shape (batch, n_labels, y_pix, x_pix)
 
     Returns
     -------
@@ -259,7 +269,7 @@ def get_reconstruction(model, inputs, dataset=None, return_latents=False):
         input_type = 'images'
 
     if input_type == 'images':
-        ims_recon, latents = model(inputs, dataset=dataset, labels=labels)
+        ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
     else:
         # TODO: how to incorporate maxpool layers for decoding only?
         if model.hparams['model_class'] == 'cond-ae':

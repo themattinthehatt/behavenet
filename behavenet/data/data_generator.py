@@ -261,7 +261,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     else:
                         sample[signal] = f[signal][str('trial_%04i' % idx)][()].astype(dtype)
 
-            elif signal == 'neural' or signal == 'labels':
+            elif signal == 'neural' or signal == 'labels' or signal == 'labels_sc':
                 dtype = 'float32'
                 with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
                     if idx is None:

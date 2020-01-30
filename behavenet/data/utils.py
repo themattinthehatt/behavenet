@@ -67,6 +67,11 @@ def get_data_generator_inputs(hparams, sess_ids):
                 signals.append('masks')
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
+            if hparams.get('conditional_encoder', False):
+                from behavenet.data.transforms import MakeOneHot2D
+                signals.append('labels_sc')
+                transforms.append(MakeOneHot2D(hparams['y_pixels'], hparams['x_pixels']))
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
 
         elif hparams['model_class'] == 'ae_latents':
 

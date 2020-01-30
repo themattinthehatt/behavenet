@@ -601,6 +601,8 @@ def get_model_params(hparams):
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['l2_reg'] = hparams['l2_reg']
+        if model_class == 'cond-ae':
+            hparams_less['conditional_encoder'] = hparams.get('conditional_encoder', False)
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']

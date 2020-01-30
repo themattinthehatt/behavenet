@@ -76,6 +76,8 @@ def main(hparams, *args):
     # ### TRAIN MODEL ###
     # ###################
 
+    print(model)
+
     fit(hparams, model, data_generator, exp, method='ae')
 
     # export training plots
