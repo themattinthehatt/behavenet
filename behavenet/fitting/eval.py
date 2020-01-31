@@ -22,6 +22,7 @@ def export_latents(data_generator, model, filename=None):
 
     import pickle
     import os
+    import torch
 
     model.eval()
 
@@ -60,13 +61,19 @@ def export_latents(data_generator, model, filename=None):
                     # max_lags
                     idx_beg = chunk * chunk_size
                     idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-                    y_in = y[idx_beg:idx_end]
-                    labels_2d_in = labels_2d[idx_beg:idx_end] if labels_2d is not None else None
-                    curr_latents, _, _ = model.encoding(y_in, dataset=sess, labels_2d=labels_2d_in)
+                    if labels_2d is not None:
+                        y_in = torch.cat((y[idx_beg:idx_end], labels_2d[idx_beg:idx_end]), dim=1)
+                    else:
+                        y_in = y[idx_beg:idx_end]
+                    curr_latents, _, _ = model.encoding(y_in, dataset=sess)
                     latents[sess][data['batch_idx'].item()][idx_beg:idx_end, :] = \
                         curr_latents.cpu().detach().numpy()
             else:
-                curr_latents, _, _ = model.encoding(y, dataset=sess, labels_2d=labels_2d)
+                if labels_2d is not None:
+                    y_in = torch.cat((y, labels_2d), dim=1)
+                else:
+                    y_in = y
+                curr_latents, _, _ = model.encoding(y_in, dataset=sess)
                 latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
 
     # save latents separately for each dataset
@@ -259,6 +266,8 @@ def get_reconstruction(
     """
     import torch
 
+    model.eval()
+    
     if not isinstance(inputs, torch.Tensor):
         inputs = torch.Tensor(inputs)
 

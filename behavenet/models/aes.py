@@ -125,7 +125,8 @@ class ConvAEEncoder(nn.Module):
     def _get_conv2d_args(self, layer, global_layer):
 
         if layer == 0:
-            if self.hparams['model_class'] == 'cond-ae' and self.hparams['conditional_encoder']:
+            if self.hparams['model_class'] == 'cond-ae' and \
+                    self.hparams.get('conditional_encoder', False):
                 # labels will be appended to input if using conditional autoencoder with
                 # conditional encoder flag
                 n_labels = int(self.hparams['n_labels'] / 2)  # 'n_labels' key includes x/y coords

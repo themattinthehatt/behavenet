@@ -236,6 +236,12 @@ def get_data_generator_inputs(hparams, sess_ids):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
 
+        elif hparams['model_class'] == 'labels' or hparams['model_class'] == 'labels_sc':
+
+            signals = [hparams['model_class']]
+            transforms = [None]
+            paths = [os.path.join(data_dir, 'data.hdf5')]
+
         else:
             raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
 
@@ -418,7 +424,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
     return transform, path
 
 
-def load_labels_like_latents(hparams, sess_ids, sess_idx):
+def load_labels_like_latents(hparams, sess_ids, sess_idx, data_key='labels'):
     """Load labels from hdf5 in the same dictionary format that latents are saved.
 
     Parameters
@@ -429,6 +435,8 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx):
         each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'
     sess_idx : :obj:`int`
         session index into data generator
+    data_key : :obj:`str`, optional
+        key to index hdf5 file (name of hdf5 group)
 
     Returns
     -------
@@ -437,12 +445,16 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx):
         - trials (:obj:`dict`) with keys `train`, `test`, and `val`
 
     """
+    import copy
     from behavenet.fitting.utils import build_data_generator
 
-    hparams['device'] = 'cpu'
-    hparams['as_numpy'] = True
-    hparams['batch_load'] = False
-    data_generator = build_data_generator(hparams, sess_ids, export_csv=False)
+    hparams_new = copy.deepcopy(hparams)
+    hparams_new['model_class'] = data_key
+    hparams_new['device'] = 'cpu'
+    hparams_new['as_numpy'] = True
+    hparams_new['batch_load'] = False
+
+    data_generator = build_data_generator(hparams_new, sess_ids, export_csv=False)
     dtypes = data_generator._dtypes
 
     labels = [np.array([]) for _ in range(data_generator.datasets[sess_idx].n_trials)]
@@ -450,7 +462,7 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx):
         data_generator.reset_iterators(dtype)
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
-            labels[data['batch_idx'].item()] = data['labels'][0][0]
+            labels[data['batch_idx'].item()] = data[data_key][0][0]
     all_labels = {
         'latents': labels,  # name latents to match with old analysis code
         'trials': data_generator.datasets[sess_idx].batch_idxs}

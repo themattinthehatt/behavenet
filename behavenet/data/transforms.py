@@ -306,8 +306,17 @@ class MakeOneHot2D(Transform):
         time, n_labels_ = sample.shape
         n_labels = int(n_labels_ / 2)
         labels_2d = np.zeros((time, n_labels, self.y_pixels, self.x_pixels))
-        x_vals = np.round(sample[:, :n_labels]).astype(np.int)
-        y_vals = np.round(sample[:, n_labels:]).astype(np.int)
+
+        x_vals = sample[:, :n_labels]
+        x_vals[x_vals > self.x_pixels] = self.x_pixels - 1
+        x_vals[x_vals < 0] = 0
+        x_vals = np.round(x_vals).astype(np.int)
+
+        y_vals = sample[:, n_labels:]
+        y_vals[y_vals > self.y_pixels] = self.y_pixels - 1
+        y_vals[y_vals < 0] = 0
+        y_vals = np.round(y_vals).astype(np.int)
+
         for l in range(n_labels):
             labels_2d[np.arange(time), l, y_vals[:, l], x_vals[:, l]] = 1
         return labels_2d
