@@ -18,6 +18,11 @@ def export_latents(data_generator, model, filename=None):
     filename : :obj:`str` or :obj:`NoneType`, optional
         absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
 
+    Returns
+    -------
+    :obj:`list`
+        list of latent filenames
+
     """
 
     import pickle
@@ -77,6 +82,7 @@ def export_latents(data_generator, model, filename=None):
                 latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
 
     # save latents separately for each dataset
+    filenames = []
     for sess, dataset in enumerate(data_generator.datasets):
         if filename is None:
             # get save name which includes lab/expt/animal/session
@@ -89,6 +95,8 @@ def export_latents(data_generator, model, filename=None):
         latents_dict = {'latents': latents[sess], 'trials': dataset.batch_idxs}
         with open(filename, 'wb') as f:
             pickle.dump(latents_dict, f)
+        filenames.append(filename)
+    return filenames
 
 
 def export_states(hparams, data_generator, model, filename=None):
