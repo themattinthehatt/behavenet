@@ -8,6 +8,9 @@ from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_session_dir
 from behavenet.fitting.utils import get_subdirs
 
+# to ignore imports for sphix-autoapidoc
+__all__ = ['get_r2s_by_trial', 'get_best_models', 'get_r2s_across_trials']
+
 
 def _get_dataset_str(hparams):
     return os.path.join(hparams['expt'], hparams['animal'], hparams['session'])

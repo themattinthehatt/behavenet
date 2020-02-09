@@ -16,3 +16,4 @@ scratch.py
 docs/_build
 docs/_static
 docs/_templates
+docs/api

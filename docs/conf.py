@@ -29,14 +29,21 @@ author = 'Batty et al'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
+    'sphinx_automodapi.automodapi'
 ]
 
 # mock imports; torch is too heavy
 autodoc_mock_imports = [
+    'commentjson',
+    'h5py',
+    'matplotlib',
+    'numpy',
+    'requests',
     'ssm',
     'test_tube',
     'torch',
@@ -65,12 +72,14 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+autosummary_generate = True
+
 
 def skip(app, what, name, obj, skip, options):
     if name == "__init__":
         return False
     return skip
 
+
 def setup(app):
     app.connect("autodoc-skip-member", skip)
-

@@ -95,23 +95,28 @@ Beyond organizing model fits, test-tube is also useful for performing grid searc
 
 Again using the autoencoder as an example, let's say you want to fit a single AE architecture using 4 different numbers of latents, all with the same regularization value. In the model config file, you will set these values as:
 
-.. code-block:: JSON
+.. code-block:: json
 
+    {
     ...
     "n_ae_latents": [4, 8, 12, 16],
     "l2_reg": 0.0,
     ...
+    }
 
 To specify the computing resources for this job, you will next edit the compute config file, which looks like this:
 
-.. code-block:: JSON
+.. code-block:: json
 
+    {
+    ...
     "device": "cuda", # "cpu" or "cuda"
     "gpus_viz": "0", # "add multiple gpus as e.g. "0;1;4"
     "tt_n_gpu_trials": 1000,
     "tt_n_cpu_trials": 1000,
     "tt_n_cpu_workers": 5,
     ...
+    }
 
 With the ``device`` field set to ``cuda``, test-tube will use gpus to run this job. The ``gpus_viz`` field can further specify which subset of gpus to use. The ``tt_n_gpu_trials`` defines the maximum number of jobs to run. If this number is larger than the total number of hyperparameter configurations, all configurations are fit; if this number is smaller than the total number (say if ``"tt_n_gpu_trials": 2`` in this example) then this number of configurations is randomly sampled from all possible choices.
 
@@ -119,12 +124,14 @@ To fit models using the cpu instead, set the ``device`` field to ``cpu``; then `
 
 Finally, multiple hyperparameters can be searched over simultaneously; for example, to search over both AE latents and regularization values, set these parameters in the model config file like so:
 
-.. code-block:: JSON
+.. code-block:: json
 
+    {
     ...
     "n_ae_latents": [4, 8, 12, 16],
     "l2_reg": [1e-5, 1e-4, 1e-3],
     ...
+    }
 
 This job would then fit a total of 4 latent values x 3 regularization values = 12 models.
 

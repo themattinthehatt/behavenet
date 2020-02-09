@@ -15,6 +15,9 @@ from behavenet.fitting.eval import export_predictions
 # TODO: save models at prespecified intervals (check ae recon as a func of epoch w/o retraining)
 # TODO: fix early stopping (at least for AEs)
 
+# to ignore imports for sphix-autoapidoc
+__all__ = ['FitMethod', 'AELoss', 'NLLLoss', 'EarlyStopping', 'fit']
+
 
 class FitMethod(object):
     """Base method for defining model losses and tracking loss metrics.

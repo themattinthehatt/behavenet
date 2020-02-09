@@ -180,7 +180,7 @@ class Threshold(Transform):
         sample: :obj:`np.ndarray`
             input shape is (trial, time, n_channels)
 
-         Returns
+        Returns
         -------
         :obj:`np.ndarray`
             output shape is (trial, time, n_channels)
