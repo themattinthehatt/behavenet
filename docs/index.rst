@@ -18,6 +18,18 @@ BehaveNet is a probabilistic framework for the analysis of behavioral video and 
    source/data_structure
    source/glossary
 
+BehaveNet API
+-------------
+
+.. toctree::
+   :maxdepth: 1
+
+   modules/behavenet.data
+   modules/behavenet.fitting
+   modules/behavenet.models
+   modules/behavenet.plotting
+
+
 Indices and tables
 ------------------
 

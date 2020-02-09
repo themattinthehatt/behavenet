@@ -5,6 +5,14 @@ import pickle
 import numpy as np
 from behavenet.data.utils import get_data_generator_inputs
 
+# to ignore imports for sphix-autoapidoc
+__all__ = [
+    'get_subdirs', 'get_session_dir', 'get_expt_dir', 'read_session_info_from_csv',
+    'export_session_info_to_csv', 'contains_session', 'find_session_dirs', 'experiment_exists',
+    'get_model_params', 'export_hparams', 'get_lab_example', 'get_region_dir',
+    'create_tt_experiment', 'build_data_generator', 'get_best_model_version',
+    'get_best_model_and_data']
+
 
 def get_subdirs(path):
     """Get all first-level subdirectories in a given path (no recursion).

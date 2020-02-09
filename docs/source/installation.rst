@@ -73,6 +73,19 @@ PyTorch is automatically pip installed during the BehaveNet installation process
 and reinstall following the directions `here <https://pytorch.org/get-started/locally/>`_ using the ``Pip`` package option.
 
 
+ffmpeg
+------
+
+The BehaveNet package uses the ffmpeg backend to produce movies. ffmpeg is 
+automatically installed on many systems, and is not automatically installed with 
+BehaveNet. If you are trying to make movies and run into issues with ffmpeg,
+install using the conda package manager:
+
+.. code-block:: console
+    
+    (behavenet) $: conda install -c conda-forge ffmpeg
+
+
 Set user paths
 ==============
 

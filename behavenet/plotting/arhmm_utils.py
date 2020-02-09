@@ -12,6 +12,15 @@ from matplotlib.animation import FFMpegWriter
 from behavenet import make_dir_if_not_exists
 from behavenet.models import AE as AE
 
+# to ignore imports for sphix-autoapidoc
+__all__ = [
+    'get_discrete_chunks', 'get_state_durations', 'relabel_states_by_use',
+    'get_latent_arrays_by_dtype', 'get_model_latents_states',
+    'make_syllable_movies_wrapper', 'make_syllable_movies',
+    'real_vs_sampled_wrapper', 'make_real_vs_sampled_movies', 'plot_real_vs_sampled',
+    'plot_states_overlaid_with_latents', 'plot_state_transition_matrix', 'plot_dynamics_matrices',
+    'plot_obs_biases', 'plot_obs_covariance_matrices']
+
 
 def get_discrete_chunks(states, include_edges=True):
     """Find occurences of each discrete state.

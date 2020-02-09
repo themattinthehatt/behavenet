@@ -31,6 +31,13 @@ from torch.utils import data
 from torch.utils.data import SubsetRandomSampler
 
 
+__all__ = [
+    'split_trials',
+    'SingleSessionDatasetBatchedLoad',
+    'SingleSessionDataset',
+    'ConcatSessionsGenerator']
+
+
 def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0):
     """Split trials into train/val/test blocks.
 

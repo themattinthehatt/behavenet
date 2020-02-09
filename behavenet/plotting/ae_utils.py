@@ -11,6 +11,12 @@ from behavenet import make_dir_if_not_exists
 from behavenet.fitting.utils import get_best_model_and_data
 from behavenet.fitting.eval import get_reconstruction
 
+# to ignore imports for sphix-autoapidoc
+__all__ = [
+    'make_ae_reconstruction_movie_wrapper', 'make_ae_reconstruction_movie',
+    'make_neural_reconstruction_movie_wrapper', 'make_neural_reconstruction_movie',
+    'plot_neural_reconstruction_traces_wrapper', 'plot_neural_reconstruction_traces']
+
 
 def make_ae_reconstruction_movie_wrapper(
         hparams, save_file, trial=None, sess_idx=0, version='best', include_linear=False,
