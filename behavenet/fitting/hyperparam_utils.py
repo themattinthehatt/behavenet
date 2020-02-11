@@ -81,15 +81,15 @@ def add_dependent_params(parser, namespace):
         # parse "subsample_idxs_names" arg to determine which index keys to fit; the code below
         # currently supports 'all' (all idx keys) or a single string (single idx key)
         if namespace.subsample_method != 'none':
-            if namespace.subsample_idxs_names == 'all':
+            if namespace.subsample_idxs_dataset == 'all':
                 from behavenet.data.utils import get_region_list
                 idx_list = get_region_list(namespace)
                 parser.opt_list(
                     '--subsample_idxs_name', options=idx_list, tunable=True)
-            elif isinstance(namespace.subsample_idxs_names, str):
+            elif isinstance(namespace.subsample_idxs_dataset, str):
                 parser.add_argument(
-                    '--subsample_idxs_name', default=namespace.subsample_idxs_names)
+                    '--subsample_idxs_name', default=namespace.subsample_idxs_dataset)
             else:
                 raise ValueError(
-                    '%s is an invalid data type for "subsample_idxs_names" key in data json; ' +
-                    'must be a string ("all" or "{idx_name}")' % namespace.subsample_idxs_names)
+                    '%s is an invalid data type for "subsample_idxs_dataset" key in data json; ' +
+                    'must be a string ("all" or "{name}")' % namespace.subsample_idxs_dataset)

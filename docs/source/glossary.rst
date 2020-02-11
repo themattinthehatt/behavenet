@@ -18,11 +18,21 @@ Data
 * **n_input_channels** (*str*): number of colors channel/camera views in behavioral video
 * **y_pixels** (*int*): number of behavioral video pixels in y dimension
 * **x_pixels** (*int*): number of behavioral video pixels in x dimension
-* **use_output_mask** (*bool*): `True`` to apply frame-wise output masks (must be a key ``masks`` in data hdf5 file)
+* **use_output_mask** (*bool*): `True`` to apply frame-wise output masks (must be a key ``masks`` in data HDF5 file)
 * **neural_bin_size** (*float*): bin size of neural/video data (ms)
 * **neural_type** (*str*): 'spikes' | 'ca'
 * **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
 
+For encoders/decoders, additional information can be supplied to control which subsets of neurons are used for encoding/decoding. See the :ref:`data structure documentation<data_structure_subsets>` for detailed instructions on how to incorporate this information into your HDF5 data file. The following options must be added to the data json file (an example can be found `here <https://github.com/ebatty/behavenet/blob/master/behavenet/json_configs/decoding_jsons/decoding_data.json>`__):
+
+* **subsample_idxs_group_0** (*str*): name of the top-level HDF5 group that contains index groups
+* **subsample_idxs_group_1** (*str*): name of the second-level HDF5 group that contains index datasets
+* **subsample_idxs_dataset** (*str*): use "all" to have test tube loop over each index dataset in ``subsample_idxs_group_0/subsample_idxs_group_1``, or specify a single user-defined index dataset as a string
+* **subsample_method** (*str*): determines how different index datasets are subsampled
+
+    * 'none': no subsampling; all neural data is used for encoding/decoding
+    * 'single': for the index dataset specified by 'subsample_idxs_dataset', use *just* these indices for decoding
+    * 'loo': leave-one-out; for the index dataset specified by 'subsample_idxs_dataset', use all *except* this dataset for decoding
 
 Computational resources
 =======================
@@ -95,7 +105,7 @@ Autoencoder
 * **model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): output dimensions of AE encoder network
 * **fit_sess_io_layers** (*bool*): ``True`` to fit session-specific input and output layers; all other layers are shared across all sessions
-* **ae_arch_json** (*str*): ``null`` to use the default convolutional autoencoder architecture from the original behavenet paper; otherwise, a string that defines the path to a json file that defines the architecture. An example can be found `here <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`_.
+* **ae_arch_json** (*str*): ``null`` to use the default convolutional autoencoder architecture from the original behavenet paper; otherwise, a string that defines the path to a json file that defines the architecture. An example can be found `here <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`__.
 
 
 ARHMM
@@ -131,12 +141,6 @@ For both continuous and discrete decoders:
 * **n_max_lags** (*int*): maximum number of lags the user thinks they may search over; the first ``n_max_lags`` and final ``n_max_lags`` time points of each batch are not used in the calculation of metrics to make models with differing numbers of lags directly comparable
 * **activation** (*str*): activation function of hidden layers; activation function of final layer is automatically chosen based on decoder/data type; 'linear' | 'relu' | 'lrelu' | 'sigmoid' | 'tanh'
 * **export_predictions** (*bool*): ``True`` to automatically export train/val/test predictions using best model upon completion of training
-* **reg_list** (*str*):  
-* **subsample_regions** (*str*): determines how neural regions are subsampled
-
-    * 'none': no subsampling
-    * 'single': for each region in 'reg_list', use *just* this region for decoding
-    * 'loo': leave-one-out; for each region in 'reg_list', use all *except* this region for decoding
 
 
 For the continuous decoder:

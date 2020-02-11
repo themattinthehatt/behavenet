@@ -649,8 +649,8 @@ def get_model_params(hparams):
         hparams_less['subsample_method'] = hparams['subsample_method']
         if hparams_less['subsample_method'] != 'none':
             hparams_less['subsample_idxs_name'] = hparams['subsample_idxs_name']
-            hparams_less['subsample_idxs_group'] = hparams['subsample_idxs_group']
-            hparams_less['subsample_idxs_dataset'] = hparams['subsample_idxs_dataset']
+            hparams_less['subsample_idxs_group_0'] = hparams['subsample_idxs_group_0']
+            hparams_less['subsample_idxs_group_1'] = hparams['subsample_idxs_group_1']
 
     return hparams_less
 

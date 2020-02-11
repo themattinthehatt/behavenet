@@ -284,7 +284,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
                         idxs.append(idxs_val)
                 idxs = np.concatenate(idxs)
             else:
-                raise ValueError('"%s" is an invalid region sampling option' % sampling)
+                raise ValueError('"%s" is an invalid index sampling option' % sampling)
             transforms_.append(SelectIdxs(idxs, str('%s-%s' % (idxs_name, sampling))))
 
         # filter neural data by activity
@@ -429,13 +429,17 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx):
     return all_labels
 
 
-def get_region_list(hparams, group='regions', dataset='indxs'):
+def get_region_list(hparams, group_0='regions', group_1='indxs'):
     """Get brain regions and their indices into neural data.
 
     Parameters
     ----------
     hparams : :obj:`dict` or :obj:`namespace` object
         required keys: 'data_dir', 'lab', 'expt', 'animal', 'session'
+    group_0 : :obj:`str`, optional
+        top-level HDF5 group that contains second-level groups of neural indices
+    group_1 : :obj:`str`, optional
+        second-level HDF5 group that contains datasets of neural indices
 
     Returns
     -------
@@ -449,8 +453,8 @@ def get_region_list(hparams, group='regions', dataset='indxs'):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
-    group = hparams.get('subsample_idxs_group', group)
-    dataset = hparams.get('subsample_idxs_dataset', dataset)
+    group_0 = hparams.get('subsample_idxs_group_0', group_0)
+    group_1 = hparams.get('subsample_idxs_group_1', group_1)
 
     data_file = os.path.join(
         hparams['data_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
@@ -458,19 +462,19 @@ def get_region_list(hparams, group='regions', dataset='indxs'):
 
     with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
 
-        hdf5_groups = list(f)
-        if group not in hdf5_groups:
+        hdf5_groups_0 = list(f)
+        if group_0 not in hdf5_groups_0:
             raise ValueError('"{}" is not a group in {}; must choose from {}'.format(
-                group, data_file, hdf5_groups))
+                group_0, data_file, hdf5_groups_0))
 
-        idx_types = list(f[group])
-        if len(idx_types) == 0:
-            raise ValueError('No index datasets found in "%s" group of %s' % (data_file, group))
-        if dataset not in idx_types:
-            raise ValueError('"{}" is not a dataset in {} group; must choose from {}'.format(
-                dataset, group, idx_types))
+        hdf5_groups_1 = list(f[group_0])
+        if len(hdf5_groups_1) == 0:
+            raise ValueError('No index groups found in "%s" group of %s' % (group_0, data_file))
+        if group_1 not in hdf5_groups_1:
+            raise ValueError('"{}" is not a group in {} group; must choose from {}'.format(
+                group_1, group_0, hdf5_groups_1))
 
-        idx_keys = list(f[group][dataset])
-        idxs = {idx: np.ravel(f[group][dataset][idx][()]) for idx in idx_keys}
+        idx_keys = list(f[group_0][group_1])
+        idxs = {idx: np.ravel(f[group_0][group_1][idx][()]) for idx in idx_keys}
 
     return idxs
