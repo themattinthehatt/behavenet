@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 from behavenet.data.utils import get_data_generator_inputs
 
-# to ignore imports for sphix-autoapidoc
+# to ignore imports for sphinx-autoapidoc
 __all__ = [
     'get_subdirs', 'get_session_dir', 'get_expt_dir', 'read_session_info_from_csv',
     'export_session_info_to_csv', 'contains_session', 'find_session_dirs', 'experiment_exists',
@@ -646,6 +646,11 @@ def get_model_params(hparams):
         if hparams['n_hid_layers'] != 0:
             hparams_less['n_hid_units'] = hparams['n_hid_units']
         hparams_less['activation'] = hparams['activation']
+        hparams_less['subsample_method'] = hparams['subsample_method']
+        if hparams_less['subsample_method'] != 'none':
+            hparams_less['subsample_idxs_name'] = hparams['subsample_idxs_name']
+            hparams_less['subsample_idxs_group'] = hparams['subsample_idxs_group']
+            hparams_less['subsample_idxs_dataset'] = hparams['subsample_idxs_dataset']
 
     return hparams_less
 
@@ -721,14 +726,14 @@ def get_region_dir(hparams):
         region directory name
 
     """
-    if hparams.get('subsample_regions', 'none') == 'none':
+    if hparams.get('subsample_method', 'none') == 'none':
         region_dir = 'all'
-    elif hparams['subsample_regions'] == 'single':
-        region_dir = str('%s-single' % hparams['region'])
-    elif hparams['subsample_regions'] == 'loo':
-        region_dir = str('%s-loo' % hparams['region'])
+    elif hparams['subsample_method'] == 'single':
+        region_dir = str('%s-single' % hparams['subsample_idxs_name'])
+    elif hparams['subsample_method'] == 'loo':
+        region_dir = str('%s-loo' % hparams['subsample_idxs_name'])
     else:
-        raise ValueError('"%s" is an invalid regioin sampling type' % hparams['subsample_regions'])
+        raise ValueError('"%s" is an invalid sampling type' % hparams['subsample_method'])
     return region_dir
 
 
