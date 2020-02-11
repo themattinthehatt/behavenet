@@ -53,3 +53,77 @@ Below is a sample python script demonstrating how to create an HDF5 file with vi
             # neural_np[trial] should be of shape (n_frames, n_neurons)
             group_n.create_dataset('trial_%04i' % trial, data=neural_np[trial], dtype='float32')
 
+.. _data_structure_subsets:
+
+Identifying subsets of neurons
+==============================
+
+It is possible that the neural data used for encoding and decoding models will have natural partitions - for example, neurons belonging to different brain regions or cell types. In this case you may be interested in, say, decoding behavior from each brain region individually, as well as all together. BehaveNet provides this capability through the addition of another HDF5 group. This group can have any name, but for illustration purposes we will use the name "regions" (this name will be later be provided in the updated data json file).
+
+The "regions" group contains a second level of (again user-defined) groups, which will define different index groupings. As a concrete example, let's say we have neural data with 100 neurons:
+
+* indices 00-24 are neurons in left auditory cortex
+* indices 25-49 are neurons in right auditory cortex
+* indices 50-74 are neurons in left visual cortex
+* indices 75-99 are neurons in right visual cortex
+
+We will define this "grouping" of indices in a python dict:
+
+.. code-block:: python
+
+    neural_idxs_lr = {
+        'AUD_L': np.arange(0, 25),
+        'AUD_R': np.arange(25, 50),
+        'VIS_L': np.arange(50, 75),
+        'VIS_R': np.arange(75, 100)
+    }
+
+We can also define another "grouping" of indices that ignores hemisphere information:
+
+.. code-block:: python 
+
+    neural_idxs = {
+        'AUD': np.arange(0, 50),
+        'VIS': np.arange(50, 100)
+    }
+
+We can then store these indices in the data HDF5 by modifying the above script:
+
+.. code-block:: python
+
+    ...
+
+    # create "neural" HDF5 group
+    group_n = f.create_group('neural')
+
+    # create "regions" HDF5 group
+    group_r0 = f.create_group('regions')
+
+    # create "idxs_lr" HDF5 group inside the "regions" group
+    group_r1a = group_r0.create_group('idxs_lr')
+    # insert the index info into datasets inside the regions/idxs_lr group
+    for region_name, region_idxs in neural_idxs_lr.items():
+        group_r1a.create_dataset(region_name, data=region_idxs)
+
+    # create "idxs" HDF5 group inside the "regions" group
+    group_r1b = group_r0.create_group('idxs')
+    # insert the index info into datasets inside the regions/idxs group
+    for region_name, region_idxs in neural_idxs.items():
+        group_r1b.create_dataset(region_name, data=region_idxs)
+    
+    # create a dataset for each trial within groups
+    for trial in range(len(images_np)):
+    
+    ...
+
+This HDF5 file will now have the following addtional datasets:
+
+* regions/idxs_lr/AUD_L
+* regions/idxs_lr/AUD_R
+* regions/idxs_lr/VIS_L
+* regions/idxs_lr/VIS_R
+* regions/idxs/AUD
+* regions/idxs/VIS
+
+Just as the top-level group (here named "regions") can have an arbitrary name (later specified in the data json file), the second-level groups (here named "idxs_lr" and "idxs") can also have arbitrary names, and there can be any number of them, as long as the datasets within them contain valid indices into the neural data. The specific set of indices used for any analyses will be specified in the data json file. See the :ref:`decoding documentation<decoding_with_subsets>` for an example of how to decode behavior using specified subsets of neurons.
+
