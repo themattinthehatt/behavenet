@@ -36,13 +36,15 @@
 
 "neural_type": "ca", # type: str, help: spikes or ca
 
-"reg_list": "none",
-
-"subsample_regions": "none",
-
-"region": "all",
-
 "neural_thresh": 1.0,
+
+"subsample_method": "none", # type: str, help: none or single or loo
+
+"subsample_idxs_names": "all",  # type: str, help: all or user-defined index name
+
+"subsample_idxs_group": "regions",  # type: str, help: name of top level index hdf5 group
+
+"subsample_idxs_dataset": "indxs_consolidate",  # type: str, help: name of secondary index group
 
 
 #################

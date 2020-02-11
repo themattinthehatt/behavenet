@@ -303,23 +303,23 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
         transforms_ = []
 
-        # filter neural data by region
-        if hparams.get('subsample_regions', 'none') != 'none':
-            # get region and indices
-            sampling = hparams['subsample_regions']
-            region_name = hparams['region']
-            regions = get_region_list(hparams)
+        # filter neural data by indices (regions, cell types, etc)
+        if hparams.get('subsample_method', 'none') != 'none':
+            # get indices
+            sampling = hparams['subsample_method']
+            idxs_name = hparams['subsample_idxs_name']
+            idxs_dict = get_region_list(hparams)
             if sampling == 'single':
-                idxs = regions[region_name]
+                idxs = idxs_dict[idxs_name]
             elif sampling == 'loo':
                 idxs = []
-                for reg_name, reg_idxs in regions.items():
-                    if reg_name != region_name:
-                        idxs.append(reg_idxs)
+                for idxs_key, idxs_val in idxs_dict.items():
+                    if idxs_key != idxs_name:
+                        idxs.append(idxs_val)
                 idxs = np.concatenate(idxs)
             else:
                 raise ValueError('"%s" is an invalid region sampling option' % sampling)
-            transforms_.append(SelectIdxs(idxs, str('%s-%s' % (region_name, sampling))))
+            transforms_.append(SelectIdxs(idxs, str('%s-%s' % (idxs_name, sampling))))
 
         # filter neural data by activity
         if hparams['neural_type'] == 'spikes':
@@ -469,7 +469,7 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx, data_key='labels'):
     return all_labels
 
 
-def get_region_list(hparams):
+def get_region_list(hparams, group='regions', dataset='indxs'):
     """Get brain regions and their indices into neural data.
 
     Parameters
@@ -480,7 +480,8 @@ def get_region_list(hparams):
     Returns
     -------
     :obj:`dict`
-        keys are brain regions defined in :obj:`data.hdf5` file
+        keys are groups of indices defined in :obj:`data.hdf5` file (for example all indices
+        associated with a single brain region)
 
     """
     import h5py
@@ -488,23 +489,28 @@ def get_region_list(hparams):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
+    group = hparams.get('subsample_idxs_group', group)
+    dataset = hparams.get('subsample_idxs_dataset', dataset)
+
     data_file = os.path.join(
-        hparams['data_dir'], hparams['lab'], hparams['expt'],
-        hparams['animal'], hparams['session'], 'data.hdf5')
+        hparams['data_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
+        hparams['session'], 'data.hdf5')
 
     with h5py.File(data_file, 'r', libver='latest', swmr=True) as f:
-        idx_types = list(f['regions'])
-        if 'indxs_consolidate' in idx_types:
-            regions = list(f['regions']['indxs_consolidate'].keys())
-            idxs = {reg: np.ravel(f['regions']['indxs_consolidate'][reg][()]) for
-                     reg in regions}
-        elif 'indxs_consolidate_lr' in idx_types:
-            regions = list(f['regions']['indxs_consolidate_lr'].keys())
-            idxs = {reg: np.ravel(f['regions']['indxs_consolidate_lr'][reg][()])
-                     for reg in regions}
-        else:
-            regions = list(f['regions']['indxs'])
-            idxs = {reg: np.ravel(f['regions']['indxs'][reg][()])
-                     for reg in regions}
+
+        hdf5_groups = list(f)
+        if group not in hdf5_groups:
+            raise ValueError('"{}" is not a group in {}; must choose from {}'.format(
+                group, data_file, hdf5_groups))
+
+        idx_types = list(f[group])
+        if len(idx_types) == 0:
+            raise ValueError('No index datasets found in "%s" group of %s' % (data_file, group))
+        if dataset not in idx_types:
+            raise ValueError('"{}" is not a dataset in {} group; must choose from {}'.format(
+                dataset, group, idx_types))
+
+        idx_keys = list(f[group][dataset])
+        idxs = {idx: np.ravel(f[group][dataset][idx][()]) for idx in idx_keys}
 
     return idxs

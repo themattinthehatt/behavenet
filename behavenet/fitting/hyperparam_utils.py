@@ -75,3 +75,21 @@ def add_dependent_params(parser, namespace):
                 * arch_dict['ae_encoding_x_dim'][-1]
                 * arch_dict['ae_encoding_y_dim'][-1]) < max_latents:
             raise ValueError('Bottleneck smaller than number of latents')
+
+    elif namespace.model_class.find('neural') > -1:
+
+        # parse "subsample_idxs_names" arg to determine which index keys to fit; the code below
+        # currently supports 'all' (all idx keys) or a single string (single idx key)
+        if namespace.subsample_method != 'none':
+            if namespace.subsample_idxs_names == 'all':
+                from behavenet.data.utils import get_region_list
+                idx_list = get_region_list(namespace)
+                parser.opt_list(
+                    '--subsample_idxs_name', options=idx_list, tunable=True)
+            elif isinstance(namespace.subsample_idxs_names, str):
+                parser.add_argument(
+                    '--subsample_idxs_name', default=namespace.subsample_idxs_names)
+            else:
+                raise ValueError(
+                    '%s is an invalid data type for "subsample_idxs_names" key in data json; ' +
+                    'must be a string ("all" or "{idx_name}")' % namespace.subsample_idxs_names)
