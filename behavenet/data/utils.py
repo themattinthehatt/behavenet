@@ -272,10 +272,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
     Returns
     -------
     :obj:`tuple`
-        - hparams (:obj:`dict`): updated with model-specific information like input and output size
-        - signals (:obj:`list`): session-specific signals
-        - transforms (:obj:`list`): session-specific transforms
-        - paths (:obj:`list`): session-specific paths
+        - transform (:obj:`behavenet.data.transforms.Transform` object): session-specific transform
+        - path (:obj:`str`): session-specific path
 
     """
 
@@ -341,16 +339,16 @@ def get_transforms_paths(data_type, hparams, sess_id):
             transform = Compose(transforms_)
 
     elif data_type == 'ae_latents' or data_type == 'latents':
-        ae_dir = get_expt_dir(
-            hparams, model_class='ae',
-            expt_name=hparams['ae_experiment_name'],
-            model_type=hparams['ae_model_type'])
 
         transform = None
 
         if 'ae_latents_file' in hparams:
             path = hparams['ae_latents_file']
         else:
+            ae_dir = get_expt_dir(
+                hparams, model_class='ae',
+                expt_name=hparams['ae_experiment_name'],
+                model_type=hparams['ae_model_type'])
             if 'ae_version' in hparams and isinstance(hparams['ae_version'], int):
                 ae_version = str('version_%i' % hparams['ae_version'])
             else:
@@ -360,17 +358,16 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
     elif data_type == 'arhmm_states' or data_type == 'states':
 
-        arhmm_dir = get_expt_dir(
-            hparams, model_class='arhmm', expt_name=hparams['arhmm_experiment_name'])
-
         if hparams.get('shuffle_rng_seed') is not None:
             transform = BlockShuffle(hparams['shuffle_rng_seed'])
         else:
             transform = None
 
-        if 'arhmm_state_file' in hparams:
-            path = hparams['arhmm_state_file']
+        if 'arhmm_states_file' in hparams:
+            path = hparams['arhmm_states_file']
         else:
+            arhmm_dir = get_expt_dir(
+                hparams, model_class='arhmm', expt_name=hparams['arhmm_experiment_name'])
             if 'arhmm_version' in hparams and isinstance(hparams['arhmm_version'], int):
                 arhmm_version = str('version_%i' % hparams['arhmm_version'])
             else:
@@ -381,15 +378,15 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
     elif data_type == 'neural_ae_predictions' or data_type == 'ae_predictions':
 
-        neural_ae_dir = get_expt_dir(
-            hparams, model_class='neural-ae',
-            expt_name=hparams['neural_ae_experiment_name'],
-            model_type=hparams['neural_ae_model_type'])
-
         transform = None
+
         if 'ae_predictions_file' in hparams:
             path = hparams['ae_predictions_file']
         else:
+            neural_ae_dir = get_expt_dir(
+                hparams, model_class='neural-ae',
+                expt_name=hparams['neural_ae_experiment_name'],
+                model_type=hparams['neural_ae_model_type'])
             if 'neural_ae_version' in hparams and isinstance(hparams['neural_ae_version'], int):
                 neural_ae_version = str('version_%i' % hparams['neural_ae_version'])
             else:
@@ -400,15 +397,15 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
     elif data_type == 'neural_arhmm_predictions' or data_type == 'arhmm_predictions':
 
-        neural_arhmm_dir = get_expt_dir(
-            hparams, model_class='neural-arhmm',
-            expt_name=hparams['neural_arhmm_experiment_name'],
-            model_type=hparams['neural_arhmm_model_type'])
-
         transform = None
+
         if 'arhmm_predictions_file' in hparams:
             path = hparams['arhmm_predictions_file']
         else:
+            neural_arhmm_dir = get_expt_dir(
+                hparams, model_class='neural-arhmm',
+                expt_name=hparams['neural_arhmm_experiment_name'],
+                model_type=hparams['neural_arhmm_model_type'])
             if 'neural_arhmm_version' in hparams and \
                     isinstance(hparams['neural_arhmm_version'], int):
                 neural_arhmm_version = str('version_%i' % hparams['neural_arhmm_version'])

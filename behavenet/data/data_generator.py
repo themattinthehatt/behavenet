@@ -74,6 +74,11 @@ def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0
     tr_per_block = train_tr + gap_tr + val_tr + gap_tr + test_tr + gap_tr
 
     n_blocks = int(np.floor(n_trials / tr_per_block))
+    if n_blocks == 0:
+        raise ValueError(
+            'Not enough trials (n=%i) for the train/test/val/gap values %i/%i/%i/%i' %
+            (n_trials, train_tr, val_tr, test_tr, gap_tr))
+
     leftover_trials = n_trials - tr_per_block * n_blocks
     if leftover_trials > 0:
         offset = np.random.randint(0, high=leftover_trials)

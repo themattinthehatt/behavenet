@@ -18,7 +18,7 @@ class Compose(object):
     .. code-block:: python
 
         >> Compose([
-        >>     behavenet.data.transforms.SelectRegion('mctx', mctx_idxs),
+        >>     behavenet.data.transforms.SelectIdxs(idxs),
         >>     behavenet.data.transforms.Threshold(threshold=1.0, bin_size=25),
         >> ])
 
@@ -55,29 +55,10 @@ class Transform(object):
         raise NotImplementedError
 
 
-class GetMask(Transform):
-    """Mask data using a static threshold."""
-
-    def __init__(self, ll_thresh, depth_thresh):
-        self.ll_thresh = ll_thresh
-        self.depth_thresh = depth_thresh
-
-    def __call__(self, signal1, signal2):
-        # tranform the signal
-        signal1 = signal1 < self.ll_thresh  # ll < ll thresh
-        signal2 = signal2 > self.depth_thresh  # depth > depth thresh
-        # mask = ll < ll thresh || depth > depth thresh
-        signal = ((signal1.astype('int') + signal2.astype('int')) < 2).astype('int')
-        return signal
-
-    def __repr__(self):
-        return str('GetMask(ll_thresh=%f, depth_thresh=%f)' % (self.ll_thresh, self.depth_thresh))
-
-
 class ClipNormalize(Transform):
     """Clip upper level of signal and divide by clip value."""
 
-    def __init__(self, clip_val=100):
+    def __init__(self, clip_val):
         """
 
         Parameters
@@ -87,7 +68,8 @@ class ClipNormalize(Transform):
             signal maximum is 1
 
         """
-        assert clip_val != 0
+        if clip_val <= 0:
+            raise ValueError('clip value must be positive')
         self.clip_val = clip_val
 
     def __call__(self, signal):
@@ -169,6 +151,11 @@ class Threshold(Transform):
             bin size of neural activity in ms
 
         """
+        if bin_size <= 0:
+            raise ValueError('bin size must be positive')
+        if threshold < 0:
+            raise ValueError('threshold must be non-negative')
+
         self.threshold = threshold
         self.bin_size = bin_size
 
@@ -308,12 +295,12 @@ class MakeOneHot2D(Transform):
         labels_2d = np.zeros((time, n_labels, self.y_pixels, self.x_pixels))
 
         x_vals = sample[:, :n_labels]
-        x_vals[x_vals > self.x_pixels] = self.x_pixels - 1
+        x_vals[x_vals > self.x_pixels - 1] = self.x_pixels - 1
         x_vals[x_vals < 0] = 0
         x_vals = np.round(x_vals).astype(np.int)
 
         y_vals = sample[:, n_labels:]
-        y_vals[y_vals > self.y_pixels] = self.y_pixels - 1
+        y_vals[y_vals > self.y_pixels - 1] = self.y_pixels - 1
         y_vals[y_vals < 0] = 0
         y_vals = np.round(y_vals).astype(np.int)
 
