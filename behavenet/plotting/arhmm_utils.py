@@ -14,8 +14,7 @@ from behavenet.models import AE as AE
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
-    'get_discrete_chunks', 'get_state_durations', 'relabel_states_by_use',
-    'get_latent_arrays_by_dtype', 'get_model_latents_states',
+    'get_discrete_chunks', 'get_state_durations', 'get_latent_arrays_by_dtype', 'get_model_latents_states',
     'make_syllable_movies_wrapper', 'make_syllable_movies',
     'real_vs_sampled_wrapper', 'make_real_vs_sampled_movies', 'plot_real_vs_sampled',
     'plot_states_overlaid_with_latents', 'plot_state_transition_matrix', 'plot_dynamics_matrices',
@@ -47,21 +46,19 @@ def get_discrete_chunks(states, include_edges=True):
 
         # pad either side so we get start and end chunks
         chunk = np.pad(chunk, (1, 1), mode='constant', constant_values=-1)
-        # don't add 1 because of start padding, this is now indice in original unpadded data
+        # don't add 1 because of start padding, this is now index in original unpadded data
         split_indices = np.where(np.ediff1d(chunk) != 0)[0]
         # last index will be 1 higher that it should be due to padding
-        split_indices[-1] -= 1
+        # split_indices[-1] -= 1
 
         for i in range(len(split_indices)-1):
             # get which state this chunk was (+1 because data is still padded)
             which_state = chunk[split_indices[i]+1]
             if not include_edges:
-                if split_indices[i] != 0 and split_indices[i+1] != (len(chunk)-2-1):
-                    indexing_list[which_state].append(
-                        [i_chunk, split_indices[i], split_indices[i+1]])
+                if split_indices[i] != 0 and split_indices[i+1] != (len(chunk)-2):
+                    indexing_list[which_state].append([i_chunk, split_indices[i], split_indices[i+1]])
             else:
-                indexing_list[which_state].append(
-                    [i_chunk, split_indices[i], split_indices[i + 1]])
+                indexing_list[which_state].append([i_chunk, split_indices[i], split_indices[i + 1]])
 
     # convert lists to numpy arrays
     indexing_list = [np.asarray(indexing_list[i_state]) for i_state in range(max_state + 1)]
@@ -93,43 +90,6 @@ def get_state_durations(latents, hmm):
         if len(state_indices[i_state]) > 0:
             durations = np.append(durations, np.diff(state_indices[i_state][:, 1:3], 1))
     return durations
-
-
-def relabel_states_by_use(states, mapping=None):
-    """Relabel discrete states according to mapping or length of time spent in each.
-
-    Parameters
-    ----------
-    states : :obj:`list` of :obj:`np.ndarray`
-        list of trials; each trial is numpy array containing discrete state for each frame
-    mapping : :obj:`array-like`, optional
-        format is mapping[old_state] = new_state; for example if using training length of times
-        mapping on validation data
-
-    Returns
-    -------
-    :obj:`tuple`
-        - relabeled_states (:obj:`list`): same data structure but with states relabeled by use
-        - mapping (:obj:`dict`): orig labels to new labels; mapping[old_state] = new_state frame
-        - counts (:obj:`list`): updated frame counts for relabeled states
-
-    """
-    frame_counts = []
-    if mapping is None:
-        # Get number of frames for each state
-        max_state = max([max(x) for x in states])  # Get maximum state
-        bin_edges = np.arange(-.5, max_state + .7)
-        frame_counts = np.zeros((max_state + 1))
-        for chunk in states:
-            these_counts, _ = np.histogram(chunk, bin_edges)
-            frame_counts += these_counts
-        # define mapping
-        mapping = np.asarray(scipy.stats.rankdata(-frame_counts,method='ordinal')-1)
-    # remap states
-    relabeled_states = [[]]*len(states)
-    for i, chunk in enumerate(states):
-        relabeled_states[i] = mapping[chunk]
-    return relabeled_states, mapping, np.sort(frame_counts)[::-1]
 
 
 def get_latent_arrays_by_dtype(data_generator, sess_idxs=0, data_key='ae_latents'):
@@ -218,8 +178,7 @@ def get_model_latents_states(
     else:
         _, version = experiment_exists(hparams, which_version=True)
     if version is None:
-        raise FileNotFoundError(
-            'Could not find the specified model version in %s' % hparams['expt_dir'])
+        raise FileNotFoundError('Could not find the specified model version in %s' % hparams['expt_dir'])
 
     # load model
     model_file = os.path.join(hparams['expt_dir'], 'version_%i' % version, 'best_val_model.pt')
