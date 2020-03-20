@@ -41,8 +41,7 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         # get neural signals/transforms/path
         if hparams['model_class'].find('neural') > -1:
-            neural_transform, neural_path = get_transforms_paths(
-                'neural', hparams, sess_id=sess_id)
+            neural_transform, neural_path = get_transforms_paths('neural', hparams, sess_id=sess_id)
         else:
             neural_transform = None
             neural_path = None
@@ -123,8 +122,7 @@ def get_data_generator_inputs(hparams, sess_ids):
             hparams['output_size'] = hparams['n_arhmm_states']
             hparams['noise_dist'] = 'categorical'
 
-            arhmm_transform, arhmm_path = get_transforms_paths(
-                'arhmm_states', hparams, sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states', hparams, sess_id=sess_id)
 
             signals = ['neural', 'arhmm_states']
             transforms = [neural_transform, arhmm_transform]
@@ -143,8 +141,7 @@ def get_data_generator_inputs(hparams, sess_ids):
             elif hparams['neural_type'] == 'spikes':
                 hparams['noise_dist'] = 'poisson'
 
-            arhmm_transform, arhmm_path = get_transforms_paths(
-                'arhmm_states', hparams, sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states', hparams, sess_id=sess_id)
 
             signals = ['neural', 'arhmm_states']
             transforms = [neural_transform, arhmm_transform]
@@ -183,20 +180,16 @@ def get_data_generator_inputs(hparams, sess_ids):
         elif hparams['model_class'] == 'bayesian-decoding':
 
             # get autoencoder latents info
-            ae_transform, ae_path = get_transforms_paths(
-                'ae_latents', hparams, sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
 
             # get arhmm states info
-            arhmm_transform, arhmm_path = get_transforms_paths(
-                'arhmm_states', hparams, sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states', hparams, sess_id=sess_id)
 
             # get neural-ae info
-            neural_ae_transform, neural_ae_path = get_transforms_paths(
-                'neural_ae_predictions', hparams, None)
+            neural_ae_transform, neural_ae_path = get_transforms_paths('neural_ae_predictions', hparams, None)
 
             # get neural-arhmm info
-            neural_arhmm_transform, neural_arhmm_path = get_transforms_paths(
-                'neural_arhmm_predictions', hparams, None)
+            neural_arhmm_transform, neural_arhmm_path = get_transforms_paths('neural_arhmm_predictions', hparams, None)
 
             # put it all together
             signals = [

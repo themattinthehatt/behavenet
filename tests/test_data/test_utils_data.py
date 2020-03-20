@@ -18,7 +18,9 @@ def test_get_data_generator_inputs():
         {'lab': hparams['lab'], 'expt': hparams['expt'], 'animal': hparams['animal'],
          'session': hparams['session']}]
 
+    # -----------------
     # ae
+    # -----------------
     hparams['model_class'] = 'ae'
     hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
     assert signals[0] == ['images']
@@ -33,27 +35,242 @@ def test_get_data_generator_inputs():
     assert paths[0] == [hdf5_path, hdf5_path]
     hparams['use_output_mask'] = False
 
+    # -----------------
     # cond-ae
+    # -----------------
+    hparams['model_class'] = 'cond-ae'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['images', 'labels']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
 
+    hparams['model_class'] = 'cond-ae'
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['images', 'labels', 'masks']
+    assert transforms[0] == [None, None, None]
+    assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
+    hparams['use_output_mask'] = False
+
+    hparams['model_class'] = 'cond-ae'
+    hparams['conditional_encoder'] = True
+    hparams['y_pixels'] = 2
+    hparams['x_pixels'] = 2
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['images', 'labels', 'labels_sc']
+    assert transforms[0][0] is None
+    assert transforms[0][1] is None
+    assert transforms[0][2].__repr__().find('MakeOneHot2D') > -1
+    assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
+    hparams['conditional_encoder'] = False
+
+    # -----------------
     # ae_latents
+    # -----------------
+    hparams['model_class'] = 'ae_latents'
+    hparams['session_dir'] = session_dir
+    hparams['ae_model_type'] = 'conv'
+    hparams['n_ae_latents'] = 8
+    hparams['ae_experiment_name'] = 'tt_expt_ae'
+    hparams['ae_version'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents']
+    # transforms and paths tested by test_get_transforms_paths
 
+    # -----------------
     # neural-ae
+    # -----------------
+    hparams['model_class'] = 'neural-ae'
+    hparams['model_type'] = 'linear'
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['neural', 'ae_latents']
+    assert hparams_['input_signal'] == 'neural'
+    assert hparams_['output_signal'] == 'ae_latents'
+    assert hparams_['output_size'] == hparams['n_ae_latents']
+    assert hparams_['noise_dist'] == 'gaussian'
 
+    hparams['model_type'] = 'linear-mv'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert hparams_['noise_dist'] == 'gaussian-full'
+
+    # -----------------
     # ae-neural
+    # -----------------
+    hparams['model_class'] = 'ae-neural'
+    hparams['model_type'] = 'linear'
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['neural', 'ae_latents']
+    assert hparams_['input_signal'] == 'ae_latents'
+    assert hparams_['output_signal'] == 'neural'
+    assert hparams_['output_size'] is None
+    assert hparams_['noise_dist'] == 'poisson'
 
-    # neural-arhmm
+    hparams['model_type'] = 'linear'
+    hparams['neural_type'] = 'ca'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert hparams_['noise_dist'] == 'gaussian'
 
-    # arhmm-neural
+    hparams['model_type'] = 'linear-mv'
+    hparams['neural_type'] = 'ca'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert hparams_['noise_dist'] == 'gaussian-full'
 
+    # -----------------
     # arhmm
+    # -----------------
+    hparams['model_class'] = 'arhmm'
+    hparams['session_dir'] = session_dir
+    hparams['ae_model_type'] = 'conv'
+    hparams['n_ae_latents'] = 8
+    hparams['ae_experiment_name'] = 'tt_expt_ae'
+    hparams['ae_version'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents']
+    # transforms and paths tested by test_get_transforms_paths
 
+    hparams['load_videos'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents', 'images']
+    hparams['load_videos'] = False
+
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents', 'masks']
+    hparams['use_output_mask'] = False
+
+    # -----------------
     # arhmm-labels
+    # -----------------
+    hparams['model_class'] = 'arhmm-labels'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['labels']
+    assert transforms[0] == [None]
+    assert paths[0] == [hdf5_path]
 
+    hparams['load_videos'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['labels', 'images']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
+    hparams['load_videos'] = False
+
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['labels', 'masks']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
+    hparams['use_output_mask'] = False
+
+    # -----------------
+    # neural-arhmm
+    # -----------------
+    hparams['model_class'] = 'neural-arhmm'
+    hparams['model_type'] = 'linear'
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams['n_arhmm_states'] = 2
+    hparams['kappa'] = 0
+    hparams['noise_type'] = 'gaussian'
+    hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
+    hparams['arhmm_version'] = 1
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['neural', 'arhmm_states']
+    assert hparams_['input_signal'] == 'neural'
+    assert hparams_['output_signal'] == 'arhmm_states'
+    assert hparams_['output_size'] == hparams['n_arhmm_states']
+    assert hparams_['noise_dist'] == 'categorical'
+
+    # -----------------
+    # arhmm-neural
+    # -----------------
+    hparams['model_class'] = 'arhmm-neural'
+    hparams['model_type'] = 'linear'
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams['n_arhmm_states'] = 2
+    hparams['kappa'] = 0
+    hparams['noise_type'] = 'gaussian'
+    hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
+    hparams['arhmm_version'] = 1
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['neural', 'arhmm_states']
+    assert hparams_['input_signal'] == 'arhmm_states'
+    assert hparams_['output_signal'] == 'neural'
+    assert hparams_['output_size'] is None
+    assert hparams_['noise_dist'] == 'poisson'
+
+    hparams['model_type'] = 'linear'
+    hparams['neural_type'] = 'ca'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert hparams_['noise_dist'] == 'gaussian'
+
+    hparams['model_type'] = 'linear-mv'
+    hparams['neural_type'] = 'ca'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert hparams_['noise_dist'] == 'gaussian-full'
+
+    # -----------------
     # bayesian-decoding
+    # -----------------
+    hparams['model_class'] = 'bayesian-decoding'
+    hparams['neural_ae_experiment_name'] = 'tt_expt_ae_decoder'
+    hparams['neural_ae_model_type'] = 'linear'
+    hparams['neural_ae_version'] = 0
+    hparams['neural_arhmm_experiment_name'] = 'tt_expt_arhmm_decoder'
+    hparams['neural_arhmm_model_type'] = 'linear'
+    hparams['neural_arhmm_version'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states']
 
+    hparams['load_videos'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states', 'images']
+    hparams['load_videos'] = False
+
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states', 'masks']
+    hparams['use_output_mask'] = False
+
+    # -----------------
     # labels-images
+    # -----------------
+    hparams['model_class'] = 'labels-images'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['images', 'labels']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
+    assert hparams_['input_signal'] == 'labels'
+    assert hparams_['output_signal'] == 'images'
 
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['images', 'labels', 'masks']
+    hparams['use_output_mask'] = False
+
+    # -----------------
     # labels
+    # -----------------
+    hparams['model_class'] = 'labels'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['labels']
+    assert transforms[0] == [None]
+    assert paths[0] == [hdf5_path]
+
+    # -----------------
+    # other
+    # -----------------
+    hparams['model_class'] = 'test'
+    with pytest.raises(ValueError):
+        utils.get_data_generator_inputs(hparams, sess_ids)
 
 
 def test_get_transforms_paths():
@@ -68,10 +285,9 @@ def test_get_transforms_paths():
     sess_id_str = str('%s_%s_%s_%s_' % (
         hparams['lab'], hparams['expt'], hparams['animal'], hparams['session']))
 
-    # -----------
+    # ------------------------
     # neural data
-    # -----------
-
+    # ------------------------
     # spikes, no thresholding
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 0
@@ -108,10 +324,9 @@ def test_get_transforms_paths():
 
     # TODO: test subsampling methods
 
-    # ----------
+    # ------------------------
     # ae latents
-    # ----------
-
+    # ------------------------
     hparams['session_dir'] = session_dir
     hparams['ae_model_type'] = 'conv'
     hparams['n_ae_latents'] = 8
@@ -138,10 +353,9 @@ def test_get_transforms_paths():
 
     # TODO: use get_best_model_version()
 
-    # ------------
+    # ------------------------
     # arhmm states
-    # ------------
-
+    # ------------------------
     hparams['n_ae_latents'] = 8
     hparams['n_arhmm_states'] = 2
     hparams['kappa'] = 0
@@ -177,10 +391,9 @@ def test_get_transforms_paths():
 
     # TODO: use get_best_model_version()
 
-    # ---------------------
+    # ------------------------
     # neural ae predictions
-    # ---------------------
-
+    # ------------------------
     hparams['n_ae_latents'] = 8
     hparams['neural_ae_model_type'] = 'linear'
     hparams['neural_ae_experiment_name'] = 'tt_expt_ae_decoder'
@@ -210,7 +423,6 @@ def test_get_transforms_paths():
     # ------------------------
     # neural arhmm predictions
     # ------------------------
-
     hparams['n_ae_latents'] = 8
     hparams['n_arhmm_states'] = 10
     hparams['kappa'] = 0
@@ -241,10 +453,9 @@ def test_get_transforms_paths():
 
     # TODO: use get_best_model_version()
 
-    # -----
+    # ------------------------
     # other
-    # -----
-
+    # ------------------------
     with pytest.raises(ValueError):
         utils.get_transforms_paths('invalid', hparams, sess_id=None)
 
