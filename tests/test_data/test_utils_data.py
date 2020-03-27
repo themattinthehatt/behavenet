@@ -276,14 +276,14 @@ def test_get_data_generator_inputs():
 def test_get_transforms_paths():
 
     hparams = {
-        'data_dir': 'ddir', 'results_dir': 'rdir',
-        'lab': 'lab', 'expt': 'expt', 'animal': 'animal', 'session': 'session'}
+        'data_dir': 'ddir', 'results_dir': 'rdir', 'lab': 'lab', 'expt': 'expt',
+        'animal': 'animal', 'session': 'session'}
     session_dir = os.path.join(
         hparams['data_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
         hparams['session'])
     hdf5_path = os.path.join(session_dir, 'data.hdf5')
-    sess_id_str = str('%s_%s_%s_%s_' % (
-        hparams['lab'], hparams['expt'], hparams['animal'], hparams['session']))
+    sess_id_str = str(
+        '%s_%s_%s_%s_' % (hparams['lab'], hparams['expt'], hparams['animal'], hparams['session']))
 
     # ------------------------
     # neural data

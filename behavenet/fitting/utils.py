@@ -31,9 +31,12 @@ def get_subdirs(path):
     if not os.path.exists(path):
         raise ValueError('%s is not a path' % path)
     try:
-        return next(os.walk(path))[1]
+        s = next(os.walk(path))[1]
     except StopIteration:
         raise StopIteration('%s does not contain any subdirectories' % path)
+    if len(s) == 0:
+        raise StopIteration('%s does not contain any subdirectories' % path)
+    return s
 
 
 def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
@@ -371,7 +374,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     elif model_class == 'bayesian-decoding':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
-            'bayesian-decoding', '%02i_latents' % hparams['n_ae_latents'],
+            model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
             '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
         session_dir = hparams['session_dir']
@@ -487,8 +490,7 @@ def find_session_dirs(hparams):
                     'multisession': int(expt[-2:])})
             continue
         else:
-            animals = get_subdirs(os.path.join(
-                hparams['save_dir'], lab, expt))
+            animals = get_subdirs(os.path.join(hparams['save_dir'], lab, expt))
         for animal in animals:
             if animal[:5] == 'multi':
                 session_dir = os.path.join(hparams['save_dir'], lab, expt, animal)
@@ -499,11 +501,9 @@ def find_session_dirs(hparams):
                         'multisession': int(animal[-2:])})
                 continue
             else:
-                sessions = get_subdirs(os.path.join(
-                    hparams['save_dir'], lab, expt, animal))
+                sessions = get_subdirs(os.path.join(hparams['save_dir'], lab, expt, animal))
             for session in sessions:
-                session_dir = os.path.join(
-                    hparams['save_dir'], lab, expt, animal, session)
+                session_dir = os.path.join(hparams['save_dir'], lab, expt, animal, session)
                 if session[:5] == 'multi':
                     if contains_session(session_dir, ids):
                         session_dirs.append(session_dir)

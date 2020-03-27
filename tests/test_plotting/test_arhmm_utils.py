@@ -23,6 +23,7 @@ def test_get_discrete_chunks():
     assert np.all(chunks[3] == np.array([]))
     assert np.all(chunks[4] == np.array([[1, 3, 5]]))
 
+
 def test_get_state_durations():
 
     # construct mock HMM class that passes argument through function `most_likely_states`
