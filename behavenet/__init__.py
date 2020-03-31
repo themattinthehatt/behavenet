@@ -13,7 +13,7 @@ def get_user_dir(type):
     Parameters
     ----------
     type : :obj:`str`
-        'data' | 'save' | 'fig's
+        'data' | 'save' | 'figs'
 
     Returns
     -------

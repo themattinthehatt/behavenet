@@ -1,11 +1,10 @@
 import os
 import pytest
-import numpy as np
 from behavenet.fitting import utils
 
 
-# helper function to easily compare lists of dicts whose values are strings
 def dict2str(dictionary):
+    """Helper function to easily compare lists of dicts whose values are strings."""
     s = ''
     for k, v in dictionary.items():
         s += str(v)
@@ -16,7 +15,7 @@ class TestClass:
 
     @pytest.fixture(autouse=True)
     def test_init(self, tmpdir):
-        """Build temp directory structure for io functions.
+        """Build temp directory structure for testing io functions.
 
         tmpdir
         ├── multisession-06

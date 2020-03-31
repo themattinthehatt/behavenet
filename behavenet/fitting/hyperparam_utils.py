@@ -1,4 +1,5 @@
 import commentjson
+import numpy as np
 from test_tube import HyperOptArgumentParser
 from behavenet import get_user_dir
 from behavenet.fitting.ae_model_architecture_generator import load_handcrafted_arch
@@ -59,7 +60,7 @@ def add_dependent_params(parser, namespace):
         max_latents = 64
         parser.add_argument('--max_latents', default=max_latents)
 
-        if namespace.n_ae_latents > max_latents:
+        if np.any(np.array(namespace.n_ae_latents) > max_latents):
             raise ValueError('Number of latents higher than max latents')
 
         arch_dict = load_handcrafted_arch(
@@ -91,5 +92,8 @@ def add_dependent_params(parser, namespace):
                     '--subsample_idxs_name', default=namespace.subsample_idxs_dataset)
             else:
                 raise ValueError(
-                    '%s is an invalid data type for "subsample_idxs_dataset" key in data json; ' +
-                    'must be a string ("all" or "{name}")' % namespace.subsample_idxs_dataset)
+                    '%s is an invalid data type for "subsample_idxs_dataset" key in data json; ' %
+                    type(namespace.subsample_idxs_dataset) +
+                    'must be a string ("all" or "name")')
+    else:
+        pass

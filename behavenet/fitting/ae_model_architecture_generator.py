@@ -41,6 +41,9 @@ def draw_archs(
         if check_memory:
             copied_arch = copy.deepcopy(new_arch)
             copied_arch['model_class'] = 'ae'
+            copied_arch['n_input_channels'] = input_dim[0]
+            copied_arch['y_pixels'] = input_dim[1]
+            copied_arch['x_pixels'] = input_dim[2]
             model = AE(copied_arch)
             mem_size = estimate_model_footprint(model, tuple([batch_size] + input_dim))
             mem_size_gb = mem_size / 1e9
@@ -70,7 +73,7 @@ def get_possible_arch(input_dim, n_ae_latents, arch_seed=0):
     Parameters
     ----------
     input_dim : :obj:`array-like`
-        dimensions of batch with shape (time, n_channels, y_pix, x_pix)
+        dimensions of batch with shape (n_channels, y_pix, x_pix)
     n_ae_latents : :obj:`int`
         number of autoencoder latents
     arch_seed : :obj:`int`, optional
@@ -230,8 +233,8 @@ def get_encoding_conv_block(arch, opts):
 
                 arch['ae_encoding_n_channels'].append(n_channels)
                 arch['ae_encoding_kernel_size'].append(kernel_size)
-                arch['ae_encoding_stride_size'].append(
-                    kernel_size)  # for max pool layers have stride as kernel size
+                # for max pool layers have stride as kernel size
+                arch['ae_encoding_stride_size'].append(kernel_size)
                 arch['ae_encoding_x_padding'].append((x_before_pad, x_after_pad))
                 arch['ae_encoding_y_padding'].append((y_before_pad, y_after_pad))
                 arch['ae_encoding_x_dim'].append(output_dim_x)
@@ -254,9 +257,8 @@ def get_encoding_conv_block(arch, opts):
         last_dims = arch['ae_encoding_n_channels'][-1] * arch['ae_encoding_y_dim'][-1] * \
                     arch['ae_encoding_x_dim'][-1]
         smallest_pix = min(arch['ae_encoding_y_dim'][-1], arch['ae_encoding_x_dim'][-1])
-        stop_this_layer = np.random.choice(
-            [0, 1],
-            p=[1 - opts['prob_stopping'][global_layer], opts['prob_stopping'][global_layer]])
+        p = opts['prob_stopping'][global_layer]
+        stop_this_layer = np.random.choice([0, 1], p=[1 - p, p])
 
         if stop_this_layer:
             break
@@ -537,7 +539,7 @@ def get_handcrafted_dims(arch, symmetric=True):
     if symmetric:
         arch = get_decoding_conv_block(arch)
     else:
-        # If any unpooling layers, can't do this way as have to match up max pooling and unpooling
+        # if any unpooling layers, can't do this way as have to match up max pooling and unpooling
         # layer
         if arch['ae_network_type'] == 'max_pooling' or \
                 np.sum(np.asarray(arch['ae_decoding_layer_type']) == 'unpool'):
@@ -558,30 +560,39 @@ def get_handcrafted_dims(arch, symmetric=True):
                 input_dim_y = arch['ae_decoding_y_dim'][i_layer-1]
                 input_dim_x = arch['ae_decoding_x_dim'][i_layer-1]
 
+            # TODO: not correct
             if arch['ae_padding_type'] == 'valid':
                 before_pad = 0
                 after_pad = 0
             elif arch['ae_padding_type'] == 'same':
+                # output_dim_x, x_before_pad, y_before_pad = calculate_output_dim(
+                #     input_dim_x, kernel_size, stride_size, 'same', 'conv')
+
                 output_dim_x = input_dim_x * stride_size - stride_size + 1
-                output_dim_y = input_dim_y * stride_size - stride_size + 1
                 total_padding_needed_x = max(
                     0, (input_dim_x - 1) * stride_size + kernel_size - output_dim_x)
+                x_before_pad = total_padding_needed_x // 2
+                x_after_pad = total_padding_needed_x - x_before_pad
+
+                output_dim_y = input_dim_y * stride_size - stride_size + 1
                 total_padding_needed_y = max(
                     0, (input_dim_y - 1) * stride_size + kernel_size - output_dim_y)
-                x_before_pad = total_padding_needed_x // 2
                 y_before_pad = total_padding_needed_y // 2
-                x_after_pad = total_padding_needed_x - x_before_pad
                 y_after_pad = total_padding_needed_x - y_before_pad
+
                 arch['ae_decoding_x_dim'].append(output_dim_x)
                 arch['ae_decoding_y_dim'].append(output_dim_y)
                 arch['ae_decoding_x_padding'].append((x_before_pad, x_after_pad))
                 arch['ae_decoding_y_padding'].append((y_before_pad, y_after_pad))
+            else:
+                raise NotImplementedError
+
     return arch
 
 
 def load_handcrafted_arch(
         input_dim, n_ae_latents, ae_arch_json, batch_size=None, check_memory=True,
-        mem_limit_gb=False):
+        mem_limit_gb=10):
     """Load handcrafted autoencoder architecture from a json file.
 
     Parameters
@@ -636,6 +647,9 @@ def load_handcrafted_arch(
     if check_memory:
         copied_arch = copy.deepcopy(arch_dict)
         copied_arch['model_class'] = 'ae'
+        copied_arch['n_input_channels'] = input_dim[0]
+        copied_arch['y_pixels'] = input_dim[1]
+        copied_arch['x_pixels'] = input_dim[2]
         model = AE(copied_arch)
         mem_size = estimate_model_footprint(model, tuple([batch_size] + input_dim))
         mem_size_gb = mem_size / 1e9

@@ -21,7 +21,7 @@
 
 "fit_sess_io_layers": false, # type: boolean
 
-"arch_json": null, # type: str, help: null to use architecture from behavenet paper; path to json file for user-defined architectures; see example json in behavenet/fitting/json_configs/ae_jsons/ae_arch_default.json
+"ae_arch_json": null, # type: str, help: null to use architecture from behavenet paper; path to json file for user-defined architectures; see example json in behavenet/fitting/json_configs/ae_jsons/ae_arch_default.json
 
 
 #################
