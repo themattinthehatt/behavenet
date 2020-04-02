@@ -6,7 +6,7 @@
 
 "experiment_name": "state_number_search", # type: str
 
-"n_arhmm_states": [2, 4], # type: int
+"n_arhmm_states": [2, 4, 8, 12], # type: int
 
 "rng_seed_model": 0, # type: int, help: control model initialization
 
