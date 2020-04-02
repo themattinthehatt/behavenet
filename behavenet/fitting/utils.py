@@ -541,6 +541,12 @@ def experiment_exists(hparams, which_version=False):
 
     import pickle
 
+    # fill out path info if not present
+    if 'expt_dir' not in hparams:
+        if 'session_dir' not in hparams:
+            hparams['session_dir'], _ = get_session_dir(hparams)
+        hparams['expt_dir'] = get_expt_dir(hparams)
+
     try:
         tt_versions = get_subdirs(hparams['expt_dir'])
     except StopIteration:
@@ -708,8 +714,8 @@ def get_lab_example(hparams, lab, expt):
 
     """
     import json
-    from behavenet import _get_params_dir
-    params_file = os.path.join(_get_params_dir(), str('%s_%s_params.json' % (lab, expt)))
+    from behavenet import get_params_dir
+    params_file = os.path.join(get_params_dir(), str('%s_%s_params.json' % (lab, expt)))
     with open(params_file, 'r') as f:
         dparams = json.load(f)
     hparams.update(dparams)

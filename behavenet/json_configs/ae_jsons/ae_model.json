@@ -4,7 +4,7 @@
 ## Commonly changed params ##
 #############################
 
-"experiment_name": "latent_search", # type: str
+"experiment_name": "ae-example", # type: str
 
 "model_type": "conv", # type: str, help: conv or linear
 
