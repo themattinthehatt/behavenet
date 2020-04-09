@@ -88,14 +88,17 @@ def export_latents(data_generator, model, filename=None):
             # get save name which includes lab/expt/animal/session
             sess_id = str('%s_%s_%s_%s_latents.pkl' % (
                 dataset.lab, dataset.expt, dataset.animal, dataset.session))
-            filename = os.path.join(
+            filename_save = os.path.join(
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
+        else:
+            filename_save = filename
         # save out array in pickle file
-        print('saving latents %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename))
+        print(
+            'saving latents %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename_save))
         latents_dict = {'latents': latents[sess], 'trials': dataset.batch_idxs}
-        with open(filename, 'wb') as f:
+        with open(filename_save, 'wb') as f:
             pickle.dump(latents_dict, f)
-        filenames.append(filename)
+        filenames.append(filename_save)
     return filenames
 
 
@@ -115,6 +118,11 @@ def export_states(hparams, data_generator, model, filename=None):
         ssm model
     filename : :obj:`str` or :obj:`NoneType`, optional
         absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+
+    Returns
+    -------
+    :obj:`list`
+        list of state filenames
 
     """
 
@@ -145,18 +153,23 @@ def export_states(hparams, data_generator, model, filename=None):
             states[sess][data['batch_idx'].item()] = curr_states
 
     # save states separately for each dataset
+    filenames = []
     for sess, dataset in enumerate(data_generator.datasets):
         if filename is None:
             # get save name which includes lab/expt/animal/session
             sess_id = str('%s_%s_%s_%s_states.pkl' % (
                 dataset.lab, dataset.expt, dataset.animal, dataset.session))
-            filename = os.path.join(
+            filename_save = os.path.join(
                 hparams['expt_dir'], 'version_%i' % hparams['version'], sess_id)
+        else:
+            filename_save = filename
         # save out array in pickle file
-        print('saving states %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename))
+        print('saving states %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename_save))
         states_dict = {'states': states[sess], 'trials': dataset.batch_idxs}
-        with open(filename, 'wb') as f:
+        with open(filename_save, 'wb') as f:
             pickle.dump(states_dict, f)
+        filenames.append(filename_save)
+    return filenames
 
 
 def export_predictions(data_generator, model, filename=None):
@@ -176,6 +189,11 @@ def export_predictions(data_generator, model, filename=None):
         pytorch model
     filename : :obj:`str` or :obj:`NoneType`, optional
         absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
+
+    Returns
+    -------
+    :obj:`list`
+        list of prediction filenames
 
     """
 
@@ -231,19 +249,25 @@ def export_predictions(data_generator, model, filename=None):
                     outputs[max_lags:-max_lags].cpu().detach().numpy()
 
     # save latents separately for each dataset
+    filenames = []
     for sess, dataset in enumerate(data_generator.datasets):
         if filename is None:
             # get save name which includes lab/expt/animal/session
             sess_id = str('%s_%s_%s_%s_predictions.pkl' % (
                 dataset.lab, dataset.expt, dataset.animal, dataset.session))
-
-            filename = os.path.join(
+            filename_save = os.path.join(
                 model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
+        else:
+            filename_save = filename
         # save out array in pickle file
-        print('saving latents %i of %i to %s' % (sess + 1, data_generator.n_datasets, filename))
+        print(
+            'saving predictions %i of %i to %s' %
+            (sess + 1, data_generator.n_datasets, filename_save))
         predictions_dict = {'predictions': predictions[sess], 'trials': dataset.batch_idxs}
-        with open(filename, 'wb') as f:
+        with open(filename_save, 'wb') as f:
             pickle.dump(predictions_dict, f)
+        filenames.append(filename_save)
+    return filenames
 
 
 def get_reconstruction(

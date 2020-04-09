@@ -50,12 +50,20 @@ def get_model_config_files(model, json_dir):
     return base_config_files
 
 
-def define_new_config_values(model):
+def define_new_config_values(model, session=0):
 
     # data vals
-    train_frac = 0.1
+    train_frac = 0.05
     trial_splits = '10;1;1;5'
     gpu_id = 0
+    if session == 0:
+        session = '10-Oct-2017'
+    elif session == 1:
+        session = '12-Oct-2017'
+    elif session == 'all':
+        session = 'all'
+    else:
+        raise NotImplementedError
 
     # ae vals
     ae_expt_name = 'ae-expt'
@@ -162,6 +170,7 @@ def define_new_config_values(model):
                 'tt_n_cpu_workers': 2}}
     else:
         raise NotImplementedError
+    new_values['data']['session'] = session
     return new_values
 
 
@@ -275,20 +284,20 @@ def main(args):
     # -------------------------------------------
     # fit models
     # -------------------------------------------
-    model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm']
-    model_files = ['ae', 'arhmm', 'decoder', 'decoder']
-    # model_classes = ['ae']
-    # model_files = ['ae']
-    for model_class, model_file in zip(model_classes, model_files):
+    model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae', 'ae']
+    model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae', 'ae']
+    sessions = [0, 0, 0, 0, 1, 'all']
+    for model_class, model_file, session in zip(model_classes, model_files, sessions):
         # modify example jsons
         base_config_files = get_model_config_files(model_class, json_dir)
-        new_values = define_new_config_values(model_class)
+        new_values = define_new_config_values(model_class, session)
         config_dicts, new_config_files = update_config_files(
             base_config_files, new_values, args.save_dir)
         # fit model
         fit_model(model_file, fitting_dir, new_config_files)
         # check model
-        print_strs[model_class] = check_model(config_dicts, args.save_dir)
+        model_key = '%s-%s' % (model_class, str(session))
+        print_strs[model_key] = check_model(config_dicts, args.save_dir)
 
     # -------------------------------------------
     # clean up

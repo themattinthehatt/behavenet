@@ -371,6 +371,8 @@ class TestClass:
         assert sess_dir == sess_dir_
         assert sorted(sess_single) == sorted(sess_single_)
 
+        # TODO: return correct single session if multisession returns single
+
         # ------------------------------------------------------------
         #  use 'all' to define level, no existing multisession
         # ------------------------------------------------------------

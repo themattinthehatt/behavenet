@@ -216,6 +216,10 @@ def get_session_dir(hparams, path_type='save'):
             sessions_single = _get_single_sessions(
                 os.path.join(base_dir, lab, expt, animal), depth=1, curr_depth=0)
             session_dir_base = os.path.join(base_dir, lab, expt, animal)
+            print()
+            print(sessions_single)
+            print()
+            print(session_dir_base)
         else:
             multisession_paths = []
             sessions_single = [{
