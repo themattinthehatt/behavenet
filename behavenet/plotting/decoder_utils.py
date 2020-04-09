@@ -44,7 +44,8 @@ def get_r2s_by_trial(hparams, model_types):
         hparams['region'] = region
         for model_type in model_types:
 
-            hparams['session_dir'], _ = get_session_dir(hparams)
+            hparams['session_dir'], _ = get_session_dir(
+                hparams, session_source=hparams.get('all_source', 'save'))
             expt_dir = get_expt_dir(
                 hparams,
                 model_type=model_type,

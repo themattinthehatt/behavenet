@@ -23,7 +23,7 @@ CVIOLET = '\33[35m'
 """
 TODO:
     - how to print traceback when testtube fails?
-    - multisessions
+    - arhmm multisessions
     - other models (ae/arhmm-neural, arhmm w/ labels, labels->images decoder
 """
 
@@ -65,6 +65,9 @@ def define_new_config_values(model, session=0):
     else:
         raise NotImplementedError
 
+    # data vals
+    data_dict = {'session': session, 'all_source': 'data'}
+
     # ae vals
     ae_expt_name = 'ae-expt'
     ae_model_type = 'conv'
@@ -79,7 +82,7 @@ def define_new_config_values(model, session=0):
 
     if model == 'ae':
         new_values = {
-            'data': {},
+            'data': data_dict,
             'model': {
                 'experiment_name': ae_expt_name,
                 'model_type': ae_model_type,
@@ -97,7 +100,7 @@ def define_new_config_values(model, session=0):
                 'gpus_viz': str(gpu_id)}}
     elif model == 'arhmm':
         new_values = {
-            'data': {},
+            'data': data_dict,
             'model': {
                 'experiment_name': arhmm_expt_name,
                 'n_arhmm_states': n_arhmm_states,
@@ -118,7 +121,7 @@ def define_new_config_values(model, session=0):
                 'tt_n_cpu_workers': 2}}
     elif model == 'neural-ae':
         new_values = {
-            'data': {},
+            'data': data_dict,
             'model': {
                 'n_lags': 4,
                 'n_max_lags': 8,
@@ -142,7 +145,7 @@ def define_new_config_values(model, session=0):
                 'tt_n_cpu_workers': 2}}
     elif model == 'neural-arhmm':
         new_values = {
-            'data': {},
+            'data': data_dict,
             'model': {
                 'n_lags': 2,
                 'n_max_lags': 8,
@@ -170,7 +173,7 @@ def define_new_config_values(model, session=0):
                 'tt_n_cpu_workers': 2}}
     else:
         raise NotImplementedError
-    new_values['data']['session'] = session
+
     return new_values
 
 
@@ -232,11 +235,12 @@ def fit_model(model, fitting_dir, config_files):
     return result_str
 
 
-def check_model(config_dicts, save_dir):
+def check_model(config_dicts, dirs):
     hparams = {
         **config_dicts['data'], **config_dicts['model'], **config_dicts['training'],
         **config_dicts['compute']}
-    hparams['save_dir'] = save_dir
+    hparams['save_dir'] = dirs.save_dir
+    hparams['data_dir'] = dirs.data_dir
     # pick out single model if multiple were fit with test tube
     for key, val in hparams.items():
         if isinstance(val, list):
@@ -284,9 +288,9 @@ def main(args):
     # -------------------------------------------
     # fit models
     # -------------------------------------------
-    model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae', 'ae']
-    model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae', 'ae']
-    sessions = [0, 0, 0, 0, 1, 'all']
+    model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae']
+    model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae']
+    sessions = [0, 0, 0, 0, 'all']
     for model_class, model_file, session in zip(model_classes, model_files, sessions):
         # modify example jsons
         base_config_files = get_model_config_files(model_class, json_dir)
@@ -296,8 +300,11 @@ def main(args):
         # fit model
         fit_model(model_file, fitting_dir, new_config_files)
         # check model
-        model_key = '%s-%s' % (model_class, str(session))
-        print_strs[model_key] = check_model(config_dicts, args.save_dir)
+        if session == 'all':
+            model_key = '%s-multisession' % model_class
+        else:
+            model_key = model_class
+        print_strs[model_key] = check_model(config_dicts, args)
 
     # -------------------------------------------
     # clean up

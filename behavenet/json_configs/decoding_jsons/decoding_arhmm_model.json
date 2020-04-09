@@ -14,6 +14,7 @@
 
 "rng_seed_model": 0, # type: int, help: control model initialization
 
+
 ######################   
 ## ARHMM parameters ##
 ######################

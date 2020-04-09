@@ -14,6 +14,10 @@
 
 "session": "10-Oct-2017", # type: str
 
+"sessions_csv": "", # type: str, help: specify multiple sessions
+
+"all_source": "save", # type: str, help: "save" or "data"
+
 
 #############################
 ## Behavioral video params ##

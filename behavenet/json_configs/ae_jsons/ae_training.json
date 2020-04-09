@@ -8,8 +8,6 @@
 
 "export_latents": true, # type: boolean
 
-"sessions_csv": "", # type: str, help: specify multiple sessions
-
 
 ##########################
 ## Training loop params ##

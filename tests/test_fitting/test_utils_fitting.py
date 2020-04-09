@@ -227,6 +227,11 @@ class TestClass:
             os.path.join(animal1_subdir, 'multisession-03'),
             os.path.join(animal1_subdir, 'multisession-04')]
 
+        # no multisessions
+        paths = utils._get_multisession_paths(
+            self.tmpdir, lab='lab1', expt='expt0', animal='animal0')
+        assert len(paths) == 0
+
     def test_get_single_sessions(self):
 
         sess_ret = utils._get_single_sessions(self.tmpdir, depth=4, curr_depth=0)
@@ -251,7 +256,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             hparams['session'])
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         assert sess_dir == sess_dir_
         assert sess_single == [self.sess_ids[i] for i in self.l0e0a1_idxs]
 
@@ -263,7 +268,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             'multisession-%02i' % self.l0e0a0_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         assert sess_dir == sess_dir_
         assert sess_single == [self.sess_ids[i] for i in self.l0e0a0_idxs]
 
@@ -274,7 +279,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'],
             'multisession-%02i' % self.l0e0_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         assert sess_dir == sess_dir_
         assert sess_single == [self.sess_ids[i] for i in self.l0e0_idxs]
 
@@ -283,14 +288,14 @@ class TestClass:
         hparams['sessions_csv'] = self.l0_csv
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], 'multisession-%02i' % self.l0_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         assert sess_dir == sess_dir_
         assert sess_single == [self.sess_ids[i] for i in self.l0_idxs]
 
         # multiple sessions from multiple labs
         hparams['sessions_csv'] = self.l_csv
         with pytest.raises(NotImplementedError):
-            utils.get_session_dir(hparams, path_type='save')
+            utils.get_session_dir(hparams, session_source='save')
 
         # ------------------------------------------------------------
         # use 'all' in hparams instead of csv file
@@ -300,14 +305,14 @@ class TestClass:
         # all labs
         hparams['lab'] = 'all'
         with pytest.raises(NotImplementedError):
-            utils.get_session_dir(hparams, path_type='save')
+            utils.get_session_dir(hparams, session_source='save')
 
         # all experiments
         hparams['lab'] = 'lab0'
         hparams['expt'] = 'all'
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], 'multisession-%02i' % self.l0_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         sess_single = [dict2str(d) for d in sess_single]
         sess_single_ = [dict2str(self.sess_ids[i]) for i in self.l0_idxs]
         assert sess_dir == sess_dir_
@@ -320,7 +325,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'],
             'multisession-%02i' % self.l0e0_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         sess_single = [dict2str(d) for d in sess_single]
         sess_single_ = [dict2str(self.sess_ids[i]) for i in self.l0e0_idxs]
         assert sess_dir == sess_dir_
@@ -334,7 +339,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             'multisession-%02i' % self.l0e0a0_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         sess_single = [dict2str(d) for d in sess_single]
         sess_single_ = [dict2str(self.sess_ids[i]) for i in self.l0e0a0_idxs]
         assert sess_dir == sess_dir_
@@ -348,7 +353,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             hparams['session'])
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         sess_single = [dict2str(d) for d in sess_single]
         sess_single_ = [dict2str(self.sess_ids[i]) for i in self.l0e0a0s0_idxs]
         assert sess_dir == sess_dir_
@@ -365,7 +370,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             'multisession-%02i' % self.l0e0a0m1_id)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         sess_single = [dict2str(d) for d in sess_single]
         sess_single_ = [dict2str(self.sess_ids[i]) for i in self.l0e0a0m1_idxs]
         assert sess_dir == sess_dir_
@@ -384,7 +389,7 @@ class TestClass:
         sess_dir_ = os.path.join(
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             'multisession-%02i' % 0)
-        sess_dir, sess_single = utils.get_session_dir(hparams, path_type='save')
+        sess_dir, sess_single = utils.get_session_dir(hparams, session_source='save')
         sess_single = [dict2str(d) for d in sess_single]
         sess_single_ = [dict2str(self.sess_ids[i]) for i in self.l1e0a0_idxs]
         assert sess_dir == sess_dir_
@@ -393,9 +398,9 @@ class TestClass:
         # ------------------------------------------------------------
         # other
         # ------------------------------------------------------------
-        # bad 'path_type'
+        # bad 'session_source'
         with pytest.raises(ValueError):
-            utils.get_session_dir(hparams, path_type='test')
+            utils.get_session_dir(hparams, session_source='test')
 
     def test_get_expt_dir(self):
 

@@ -15,6 +15,8 @@ Data
 * **expt** (*str*): experiment id
 * **animal** (*str*): animal id
 * **session** (*str*): session id
+* **sessions_csv** (*str*): path to csv file that contains a list of sessions to use for model fitting. The 4 column headers in the csv should be ``lab``, ``expt``, ``animal``, ``session``. If this is not an empty string, it supercedes the information provided in the ``lab``, ``expt``, ``animal``, and ``session`` fields above.
+* **all_source** (*str*): one of the ``expt``, ``animal``, or ``session`` fields can optionally be set to the string ``"all"``. For example, if ``expt`` is ``"all"``, then for the specified ``lab`` all sessions from all experiments/animals are collected and fit with the same model. If ``animal`` is ``"all"``, then for the specified ``lab`` and ``expt`` all sessions are collected. The field ``all_source`` tells the code where to look for the corresponding sessions: ``"data"`` will search for all sessions in ``data_dir``; ``"save"`` will search for all sessions in ``save_dir``, and as such will only find the sessions that have been previously used to fit models.
 * **n_input_channels** (*str*): number of colors channel/camera views in behavioral video
 * **y_pixels** (*int*): number of behavioral video pixels in y dimension
 * **x_pixels** (*int*): number of behavioral video pixels in x dimension
@@ -55,7 +57,6 @@ All models:
 * **rng_seed_data** (*int*): control randomness when splitting data into train, val, and test trials
 * **train_frac** (*float*): if ``0 < train_frac < 1.0``, defines the *fraction* of assigned training trials to actually use; if ``train_frac > 1.0``, defines the *number* of assigned training trials to actually use (rounded to the nearest integer)
 * **trial_splits** (*str*): determines number of train/val/test/gap trials; entered as `8;1;1;0`, for example. See :func:`behavenet.data.data_generator.split_trials` for how these values are used.
-* **sessions_csv** (*str*): list of sessions to use for model fitting in csv file. The 4 column headers should be ``lab``, ``expt``, ``animal``, ``session``.
 * **export_train_plots** (*bool*): ``True`` to automatically export training/validation loss as a function of epoch upon completion of training [AEs and ARHMMs only]
 * **export_latents** (*bool*): ``True`` to automatically export train/val/test autoencoder latents using best model upon completion of training [analogous parameters **export_states** and **export_predictions** exist for arhmms and decoders, respectively)
 * **rng_seed_train** (*int*): control randomness in batching data

@@ -9,6 +9,7 @@
 
 "device": "cpu", # type: str, help: cpu or cuda
 
+
 ######################
 ## Test tube params ##
 ######################

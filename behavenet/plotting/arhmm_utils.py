@@ -168,7 +168,8 @@ def get_model_latents_states(
     from behavenet.fitting.utils import get_expt_dir
     from behavenet.fitting.utils import get_session_dir
 
-    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_session_dir(
+        hparams, session_source=hparams.get('all_source', 'save'))
     hparams['expt_dir'] = get_expt_dir(hparams)
 
     # get version/model
@@ -284,7 +285,8 @@ def make_syllable_movies_wrapper(
     from behavenet.fitting.utils import get_session_dir
 
     # load images, latents, and states
-    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['session_dir'], sess_ids = get_session_dir(
+        hparams, session_source=hparams.get('all_source', 'save'))
     hparams['expt_dir'] = get_expt_dir(hparams)
     hparams['load_videos'] = True
     hparams, signals, transforms, paths = get_data_generator_inputs(hparams, sess_ids)
@@ -572,7 +574,8 @@ def real_vs_sampled_wrapper(
             ae_arch = pickle.load(
                 open(os.path.join(hparams['ae_model_path'], 'meta_tags.pkl'), 'rb'))
         else:
-            hparams['session_dir'], sess_ids = get_session_dir(hparams)
+            hparams['session_dir'], sess_ids = get_session_dir(
+                hparams, session_source=hparams.get('all_source', 'save'))
             hparams['expt_dir'] = get_expt_dir(hparams)
             _, latents_file = get_transforms_paths('ae_latents', hparams, sess_ids[sess_idx])
             ae_model_file = os.path.join(os.path.dirname(latents_file), 'best_val_model.pt')
