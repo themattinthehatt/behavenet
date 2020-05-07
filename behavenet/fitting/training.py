@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from sklearn.metrics import r2_score, accuracy_score
 from behavenet.fitting.eval import export_latents
+from behavenet.fitting.eval import export_latents_msp
 from behavenet.fitting.eval import export_predictions
 
 # TODO: use epoch number as rng seed so that batches are served in a controllable way?
@@ -15,7 +16,8 @@ from behavenet.fitting.eval import export_predictions
 # TODO: save models at prespecified intervals (check ae recon as a func of epoch w/o retraining)
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['FitMethod', 'AELoss', 'NLLLoss', 'EarlyStopping', 'fit']
+__all__ = [
+    'FitMethod', 'AELoss', 'ConvDecoderLoss', 'AEMSPLoss', 'NLLLoss', 'EarlyStopping', 'fit']
 
 
 class FitMethod(object):
@@ -340,6 +342,118 @@ class ConvDecoderLoss(AELoss):
         self.metrics['curr']['batches'] = 1
 
 
+class AEMSPLoss(FitMethod):
+    """MSE + MSP loss for non-variational autoencoders."""
+
+    def __init__(self, model, n_datasets=1):
+        metric_strs = ['batches', 'loss', 'loss_mse', 'loss_msp']
+        super().__init__(model, metric_strs, n_datasets=n_datasets)
+
+    def calc_loss(self, data, dataset=0, **kwargs):
+        """Calculate MSE loss for autoencoder with additional matrix subspace projection loss.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'images', 'labels', and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+
+        """
+
+        if self.model.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
+        y = data['images'][0]
+
+        if 'masks' in data:
+            masks = data['masks'][0]
+        else:
+            masks = None
+
+        labels = data['labels'][0]
+        if self.model.hparams['conditional_encoder']:
+            # continuous labels transformed into 2d one-hot array as input to encoder
+            labels_2d = data['labels_sc'][0]
+        else:
+            labels_2d = None
+
+        chunk_size = 200
+        batch_size = y.shape[0]
+
+        if batch_size > chunk_size:
+            # split into chunks
+            n_chunks = int(np.ceil(batch_size / chunk_size))
+            loss_val = 0
+            loss_mse_val = 0
+            loss_msp_val = 0
+            for chunk in range(n_chunks):
+
+                # push data through model
+                idx_beg = chunk * chunk_size
+                idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                y_in = y[idx_beg:idx_end]
+                labels_in = labels[idx_beg:idx_end] if labels is not None else None
+                labels_2d_in = labels_2d[idx_beg:idx_end] if labels_2d is not None else None
+
+                y_mu, z, labels_pred = self.model(y_in, dataset=dataset, labels_2d=labels_2d_in)
+
+                # mse loss
+                if masks is not None:
+                    loss_mse = torch.mean(((y_in - y_mu) ** 2) * masks[idx_beg:idx_end])
+                else:
+                    loss_mse = torch.mean((y_in - y_mu) ** 2)
+
+                # msp loss
+                loss_msp = torch.mean((labels_in - labels_pred) ** 2) + torch.mean(
+                    (z - torch.matmul(labels_pred, self.model.projection.weight)) ** 2)
+                # ^NOTE: transpose on projection weights implicitly performed due to layer def
+
+                # combine
+                loss = loss_mse + self.model.hparams['msp_weight'] * loss_msp
+
+                # compute gradients
+                loss.backward()
+
+                # get loss value (weighted by batch size)
+                loss_val += loss.item() * (idx_end - idx_beg)
+                loss_mse_val += loss_mse.item() * (idx_end - idx_beg)
+                loss_msp_val += loss_msp.item() * (idx_end - idx_beg)
+
+            loss_val /= y.shape[0]
+            loss_mse_val /= y.shape[0]
+            loss_msp_val /= y.shape[0]
+        else:
+            y_mu, z, labels_pred = self.model(y, dataset=dataset, labels_2d=labels_2d)
+            # mse loss
+            if masks is not None:
+                loss_mse = torch.mean(((y - y_mu) ** 2) * masks)
+            else:
+                loss_mse = torch.mean((y - y_mu) ** 2)
+            # msp loss
+            loss_msp = torch.mean((labels - labels_pred) ** 2) + torch.mean(
+                    (z - torch.matmul(labels_pred, self.model.projection.weight)) ** 2)
+            # ^NOTE: transpose on projection weights implicitly performed due to layer def
+            # combine
+            loss = loss_mse + self.model.hparams['msp_weight'] * loss_msp
+            # compute gradients
+            loss.backward()
+            # get loss value
+            loss_val = loss.item()
+            loss_mse_val = loss_mse.item()
+            loss_msp_val = loss_msp.item()
+
+        # store current metrics
+        self.metrics['curr']['loss'] = loss_val
+        self.metrics['curr']['loss_mse'] = loss_mse_val
+        self.metrics['curr']['loss_msp'] = loss_msp_val
+        self.metrics['curr']['batches'] = 1
+
+
 class NLLLoss(FitMethod):
     """Negative log-likelihood loss for supervised models (en/decoders)."""
 
@@ -637,13 +751,15 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     exp : :obj:`test_tube.Experiment` object
         for logging training progress
     method : :obj:`str`
-        specifies the type of loss - 'ae' | 'nll'
+        specifies the type of loss - 'ae' | 'ae-msp' | 'nll' | 'conv-decoder'
 
     """
 
     # check inputs
     if method == 'ae':
         loss = AELoss(model, n_datasets=data_generator.n_datasets)
+    elif method == 'ae-msp':
+        loss = AEMSPLoss(model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
         loss = NLLLoss(model, n_datasets=data_generator.n_datasets)
     elif method == 'conv-decoder':
@@ -820,6 +936,8 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     # compute test loss
     if method == 'ae':
         test_loss = AELoss(best_val_model, n_datasets=data_generator.n_datasets)
+    elif method == 'ae-msp':
+        test_loss = AEMSPLoss(best_val_model, n_datasets=data_generator.n_datasets)
     elif method == 'nll':
         test_loss = NLLLoss(best_val_model, n_datasets=data_generator.n_datasets)
     elif method == 'conv-decoder':
@@ -851,6 +969,9 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     if method == 'ae' and hparams['export_latents']:
         print('exporting latents')
         export_latents(data_generator, best_val_model)
+    elif method == 'cond-ae-msp' and hparams['export_latents']:
+        print('exporting latents')
+        export_latents_msp(data_generator, best_val_model)
     elif method == 'nll' and hparams['export_predictions']:
         print('exporting predictions')
         export_predictions(data_generator, best_val_model)

@@ -57,7 +57,11 @@ def add_to_parser(parser, arg_name, value):
 
 
 def add_dependent_params(parser, namespace):
-    if namespace.model_class == 'ae' or namespace.model_class == 'cond-ae' \
+    """Add params that are derived from json arguments."""
+
+    if namespace.model_class == 'ae' \
+            or namespace.model_class == 'cond-ae' \
+            or namespace.model_class == 'cond-ae-msp' \
             or namespace.model_class == 'labels-images':
 
         max_latents = 64

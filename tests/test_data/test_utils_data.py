@@ -36,7 +36,7 @@ def test_get_data_generator_inputs():
     hparams['use_output_mask'] = False
 
     # -----------------
-    # cond-ae
+    # cond-ae [-msp]
     # -----------------
     hparams['model_class'] = 'cond-ae'
     hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
@@ -63,6 +63,12 @@ def test_get_data_generator_inputs():
     assert transforms[0][2].__repr__().find('MakeOneHot2D') > -1
     assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
     hparams['conditional_encoder'] = False
+
+    hparams['model_class'] = 'cond-ae-msp'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    assert signals[0] == ['images', 'labels']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
 
     # -----------------
     # ae_latents

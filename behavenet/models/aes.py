@@ -112,14 +112,10 @@ class ConvAEEncoder(nn.Module):
         self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
         # If VAE model, have additional ff layer to latent variances
-        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
-            pass
-        elif self.hparams['model_class'] == 'vae':
+        if self.hparams['model_class'] == 'vae':
             raise NotImplementedError
             # self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
             # self.softplus = nn.Softplus()
-        else:
-            raise ValueError('Not valid model type')
 
     def _get_conv2d_args(self, layer, global_layer):
 
@@ -209,13 +205,10 @@ class ConvAEEncoder(nn.Module):
 
         # Reshape for ff layer
         x = x.view(x.size(0), -1)
-
-        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
-            return self.FF(x), pool_idx, target_output_size
-        elif self.hparams['model_class'] == 'vae':
-            return NotImplementedError
+        if self.hparams['model_class'] == 'vae':
+            raise NotImplementedError
         else:
-            raise ValueError('"%s" is not a valid model class' % self.hparams['model_class'])
+            return self.FF(x), pool_idx, target_output_size
 
     def freeze(self):
         """Prevent updates to encoder parameters."""
@@ -367,14 +360,8 @@ class ConvAEDecoder(nn.Module):
             self.decoder.add_module(
                 str('sigmoid%i' % global_layer_num), nn.Sigmoid())
 
-        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
-            pass
-        elif self.hparams['model_class'] == 'vae':
+        if self.hparams['model_class'] == 'vae':
             raise NotImplementedError
-        elif self.hparams['model_class'] == 'labels-images':
-            pass
-        else:
-            raise ValueError('Not valid model type')
 
     def _get_convtranspose2d_args(self, layer, global_layer):
 
@@ -503,14 +490,10 @@ class ConvAEDecoder(nn.Module):
             else:
                 x = layer(x)
 
-        if self.hparams['model_class'] == 'ae' or self.hparams['model_class'] == 'cond-ae':
-            return x
-        elif self.hparams['model_class'] == 'vae':
+        if self.hparams['model_class'] == 'vae':
             raise NotImplementedError
-        elif self.hparams['model_class'] == 'labels-images':
-            return x
         else:
-            raise ValueError('"%s" is not a valid model class' % self.hparams['model_class'])
+            return x
 
     def freeze(self):
         """Prevent updates to decoder parameters."""
@@ -669,7 +652,7 @@ class LinearAEDecoder(nn.Module):
 
 
 class AE(nn.Module):
-    """Main autoencoder class.
+    """Base autoencoder class.
 
     This class can construct both linear and convolutional autoencoders. The linear autoencoder
     utilizes a single hidden layer, dense feedforward layers (i.e. not convolutional), and the
@@ -780,13 +763,11 @@ class ConditionalAE(AE):
 
     This class constructs conditional convolutional autoencoders. At the latent layer an additional
     set of variables, saved under the 'labels' key in the hdf5 data file, are concatenated with the
-    latents before being reshaped into a 2D array for decoding. Note that standard implementations
-    of conditional convolutional autoencoders also include the labels as input to the encoder,
-    which does not occur here.
+    latents before being reshaped into a 2D array for decoding.
     """
 
     def __init__(self, hparams):
-        """See constructor documentation of AE for hparams details
+        """See constructor documentation of AE for hparams details.
 
         Parameters
         ----------
@@ -851,3 +832,97 @@ class CustomDataParallel(nn.DataParallel):
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.module, name)
+
+
+class AEMSP(AE):
+    """Autoencoder class with matrix subspace projection for disentangling the latent space.
+
+    This class constructs an autoencoder whose latent space is forced to learn a subspace that
+    reconstructs a set of supervised labels; this subspace should be orthogonal to another subspace
+    that does not contain information about the labels. These labels are saved under the 'labels'
+    key in the hdf5 data file. For more information see:
+    Li et al 2019, Latent Space Factorisation and Manipulation via Matrix Subspace Projection
+    https://arxiv.org/pdf/1907.12385.pdf
+    """
+
+    def __init__(self, hparams):
+        """See constructor documentation of AE for hparams details.
+
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            in addition to the standard keys, must also contain :obj:`n_labels` and
+            :obj:`msp_weight`
+
+        """
+        if hparams['model_type'] == 'linear':
+            raise NotImplementedError
+        if hparams['n_ae_latents'] < hparams['n_labels']:
+            raise ValueError('AEMSP model must contain at least as many latents as labels')
+        self.projection = None
+        super(AEMSP, self).__init__(hparams)
+
+    def build_model(self):
+        """Construct the model using hparams.
+
+        The AEMSP is initialized when :obj:`model_class='cond-ae-msp`, and currently only supports
+        :obj:`model_type='conv` (i.e. no linear)
+        """
+        self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents']
+        self.encoding = ConvAEEncoder(self.hparams)
+        self.decoding = ConvAEDecoder(self.hparams)
+        self.projection = nn.Linear(self.hparams['n_ae_latents'], self.hparams['n_labels'])
+
+    def forward(self, x, dataset=None, labels_2d=None):
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data of shape (batch, n_channels, y_pix, x_pix)
+        dataset : :obj:`int`
+            used with session-specific io layers
+        labels_2d: :obj:`torch.Tensor` object
+            one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
+            for a given frame, each channel corresponds to a label and is all zeros with a single
+            value of one in the proper x/y position
+
+        Returns
+        -------
+        :obj:`tuple`
+            - x_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - z (:obj:`torch.Tensor`): hidden representation of shape (n_frames, n_latents)
+            - y (:obj:`torch.Tensor`): predicted labels of shape (n_frames, n_labels)
+
+        """
+        if labels_2d is not None:
+            # append label information to input
+            x = torch.cat((x, labels_2d), dim=1)
+        z, pool_idx, outsize = self.encoding(x, dataset=dataset)
+        y = self.projection(z)
+        x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
+        return x_hat, z, y
+
+    def create_orthogonal_matrix(self):
+        """Use the learned M matrix to construct a full rank orthogonal matrix U
+
+        Returns
+        -------
+
+        """
+        pass
+
+    def sample(self, x, dataset=None, labels=None):
+        """Generate output given an input x and arbitrary labels.
+
+        Parameters
+        ----------
+        x
+        dataset
+        labels
+
+        Returns
+        -------
+
+        """
+        pass

@@ -326,7 +326,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         expt_name = hparams['experiment_name']
 
     # get results dir
-    if model_class == 'ae' or model_class == 'cond-ae':
+    if model_class == 'ae' or model_class == 'cond-ae' or model_class == 'cond-ae-msp':
         model_path = os.path.join(
             model_class, model_type, '%02i_latents' % hparams['n_ae_latents'])
         if hparams.get('ae_multisession', None) is not None:
@@ -623,12 +623,13 @@ def get_model_params(hparams):
         'model_type': hparams['model_type'],
     }
 
-    if model_class == 'ae' or model_class == 'vae' or model_class == 'cond-ae':
+    if model_class == 'ae' or model_class == 'vae' or model_class == 'cond-ae' or \
+            model_class == 'cond-ae-msp':
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['l2_reg'] = hparams['l2_reg']
-        if model_class == 'cond-ae':
+        if model_class == 'cond-ae' or model_class == 'cond-ae-msp':
             hparams_less['conditional_encoder'] = hparams.get('conditional_encoder', False)
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']

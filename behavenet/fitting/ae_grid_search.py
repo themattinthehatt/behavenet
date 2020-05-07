@@ -57,11 +57,19 @@ def main(hparams, *args):
     hparams['n_datasets'] = len(sess_ids)
     if hparams['model_class'] == 'ae' or hparams['model_class'] == 'vae':
         model = AE(hparams)
+        fit_method = 'ae'
     elif hparams['model_class'] == 'cond-ae':
         data, _ = data_generator.next_batch('train')
         sh = data['labels'].shape
         hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
         model = ConditionalAE(hparams)
+        fit_method = 'ae'
+    elif hparams['model_class'] == 'cond-ae-msp':
+        data, _ = data_generator.next_batch('train')
+        sh = data['labels'].shape
+        hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+        model = AEMSP(hparams)
+        fit_method = 'ae-msp'
     else:
         raise NotImplementedError(
             'The model class "%s" is not currently implemented' % hparams['model_class'])
@@ -89,7 +97,7 @@ def main(hparams, *args):
 
     print(model)
 
-    fit(hparams, model, data_generator, exp, method='ae')
+    fit(hparams, model, data_generator, exp, method=fit_method)
 
     # export training plots
     if hparams['export_train_plots']:

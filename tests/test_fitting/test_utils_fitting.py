@@ -447,7 +447,7 @@ class TestClass:
         hparams['save_dir'] = 'sdir'
 
         # -------------------------
-        # cond-ae
+        # cond-ae [-msp]
         # -------------------------
         hparams['model_class'] = 'cond-ae'
         hparams['model_type'] = 'conv'
@@ -457,6 +457,15 @@ class TestClass:
             session_dir, hparams['model_class'], hparams['model_type'],
             '%02i_latents' % hparams['n_ae_latents'], hparams['experiment_name'])
 
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        hparams['model_class'] = 'cond-ae-msp'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], hparams['model_type'],
+            '%02i_latents' % hparams['n_ae_latents'], hparams['experiment_name'])
         expt_dir = utils.get_expt_dir(
             hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
             expt_name=hparams['experiment_name'])
@@ -731,6 +740,18 @@ class TestClass:
         # cond-ae
         model_hparams = {
             'model_class': 'cond-ae',
+            'model_type': 'conv',
+            'n_ae_latents': 5,
+            'fit_sess_io_layers': False,
+            'learning_rate': 1e-4,
+            'l2_reg': 1e-2,
+            'conditional_encoder': False}
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        # cond-ae-msp
+        model_hparams = {
+            'model_class': 'cond-ae-msp',
             'model_type': 'conv',
             'n_ae_latents': 5,
             'fit_sess_io_layers': False,

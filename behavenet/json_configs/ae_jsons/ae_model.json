@@ -30,4 +30,8 @@
 
 "model_class": "ae" # type: str
 
+"conditional_encoder": false, # type: str
+
+"msp_weight": null # type: float, help: weight on matrix subspace projection loss
+
 }
