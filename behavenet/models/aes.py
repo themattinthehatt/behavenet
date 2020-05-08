@@ -757,6 +757,10 @@ class AE(nn.Module):
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y, x
 
+    def save(self, filepath):
+        """Save model parameters."""
+        torch.save(self.state_dict(), filepath)
+
 
 class ConditionalAE(AE):
     """Conditional autoencoder class.
@@ -843,6 +847,9 @@ class AEMSP(AE):
     key in the hdf5 data file. For more information see:
     Li et al 2019, Latent Space Factorisation and Manipulation via Matrix Subspace Projection
     https://arxiv.org/pdf/1907.12385.pdf
+
+    Note: the data in the hdf5 group `labels` should be mean/median centered, as no bias is learned
+    in the transformation from the original latent space to the predicted labels.
     """
 
     def __init__(self, hparams):
@@ -859,7 +866,17 @@ class AEMSP(AE):
             raise NotImplementedError
         if hparams['n_ae_latents'] < hparams['n_labels']:
             raise ValueError('AEMSP model must contain at least as many latents as labels')
+
+        self.n_latents = hparams['n_ae_latents']
+        self.n_labels = hparams['n_labels']
+
+        # linear projection from latents to labels
         self.projection = None
+
+        # (inverse) linear projection from transformed latent space to original latent space; this
+        # is used when manipulating latent/label space
+        self.U = None
+
         super(AEMSP, self).__init__(hparams)
 
     def build_model(self):
@@ -871,7 +888,7 @@ class AEMSP(AE):
         self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents']
         self.encoding = ConvAEEncoder(self.hparams)
         self.decoding = ConvAEDecoder(self.hparams)
-        self.projection = nn.Linear(self.hparams['n_ae_latents'], self.hparams['n_labels'])
+        self.projection = nn.Linear(self.n_latents, self.n_labels, bias=False)
 
     def forward(self, x, dataset=None, labels_2d=None):
         """Process input data.
@@ -903,26 +920,99 @@ class AEMSP(AE):
         x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return x_hat, z, y
 
+    def save(self, filepath):
+        """Save model parameters."""
+        self.create_orthogonal_matrix()
+        torch.save(self.state_dict(), filepath)
+
     def create_orthogonal_matrix(self):
-        """Use the learned M matrix to construct a full rank orthogonal matrix U
+        """Use the learned projection matrix to construct a full rank orthogonal matrix."""
+        from scipy.linalg import null_space
 
-        Returns
-        -------
+        # find nullspace of linear projection layer
+        M = self.projection.weight.data.detach().cpu().numpy()  # M shape: [n_labels, n_latents]
+        N = null_space(M)  # N shape: [n_latents, n_latents - n_labels]
+        U = np.concatenate([M, N.T], axis=0)
 
-        """
-        pass
+        # create new torch tensor with full matrix
+        self.U = nn.Linear(self.n_latents, self.n_latents, bias=False)
+        with torch.no_grad():
+            self.U.weight = nn.Parameter(torch.from_numpy(U).float(), requires_grad=False)
+        self.U.to(self.hparams['device'])
 
-    def sample(self, x, dataset=None, labels=None):
-        """Generate output given an input x and arbitrary labels.
+    def sample(self, x=None, dataset=None, latents=None, labels=None, labels_2d=None):
+        """Generate output given an input x and arbitrary labels and/or latents.
+
+        How output image is generated:
+        * if latents is not None and labels is not None, these are concatenated, tranformed to the
+          original latent space, and pushed through the decoder
+        * if latents is not None and labels is None, the input x is pushed through the encoder to
+          produce the latents, these are transformed with the projection layer, and the resulting
+          latents (n_latents - n_labels dimensions) are replaced with the user-defined latents.
+          This vector (labels + latents) is then transformed back into the original latent space,
+          and pushed through the decoder.
+        * if latents is None and labels is not None, the input x is pushed through the encoder to
+          produce the latents, these are transformed with the projection layer, and the resulting
+          labels (n_labels dimensions) are replaced with the user-defined labels. This vector
+          (latents + labels) is then transformed back into the original latent space, and pushed
+          through the decoder.
 
         Parameters
         ----------
-        x
-        dataset
-        labels
+        x : :obj:`torch.Tensor` object
+            input data of shape (batch, n_channels, y_pix, x_pix)
+        dataset : :obj:`int`
+            used with session-specific io layers
+        latents  : :obj:`np.ndarray` object
+            transformed latents of shape (batch, n_latents - n_labels)
+        labels : :obj:`np.ndarray` object
+            continuous labels corresponding to input data, of shape (batch, n_labels)
+        labels_2d : :obj:`torch.Tensor` object
+            one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
+            for a given frame, each channel corresponds to a label and is all zeros with a single
+            value of one in the proper x/y position
+
 
         Returns
         -------
+        :obj:`torch.Tensor`
+            output of shape (n_frames, n_channels, y_pix, x_pix)
 
         """
-        pass
+
+        if latents is None or labels is None:
+            # push input image through encoder
+            if labels_2d is not None:
+                x_in = torch.cat((x, labels_2d), dim=1)
+            else:
+                x_in = x
+            latents_og, pool_idx, outsize = self.encoding(x_in, dataset=dataset)
+            # transform with complete orthogonal matrix U
+            latents_tr = self.U(latents_og).cpu().detach().numpy()
+        else:
+            # user-defined labels AND latents
+            if latents is not None:
+                batch_size = latents.shape[0]
+            else:
+                batch_size = labels.shape[0]
+            # initialize outputs
+            latents_tr = np.full(shape=(batch_size, self.n_latents), fill_value=np.nan)
+
+        if labels is not None:
+            # replace labels produced by input with user-defined labels
+            latents_tr[:, :self.n_labels] = labels
+
+        if latents is not None:
+            # replace latents produced by input with user-defined latents
+            latents_tr[:, self.n_labels:] = latents
+
+        latents_tr_tensor = torch.from_numpy(latents_tr).float()
+
+        # invert (tranform) back to original latent space space
+        latents_tensor = torch.matmul(latents_tr_tensor, self.U.weight)
+        # ^NOTE: transpose on projection weights implicitly performed due to layer def
+
+        # push through decoder
+        x_hat = self.decoding(latents_tensor, None, None, dataset=dataset)
+
+        return x_hat

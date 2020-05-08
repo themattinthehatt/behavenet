@@ -28,6 +28,7 @@ def export_latents(data_generator, model, filename=None):
     import pickle
     import os
     import torch
+    from behavenet.models import AEMSP
 
     model.eval()
 
@@ -72,6 +73,9 @@ def export_latents(data_generator, model, filename=None):
                     else:
                         y_in = y[idx_beg:idx_end]
                     curr_latents, _, _ = model.encoding(y_in, dataset=sess)
+                    if isinstance(model, AEMSP):
+                        # push latents through linear transformation
+                        curr_latents = model.U(curr_latents)
                     latents[sess][data['batch_idx'].item()][idx_beg:idx_end, :] = \
                         curr_latents.cpu().detach().numpy()
             else:
@@ -80,6 +84,9 @@ def export_latents(data_generator, model, filename=None):
                 else:
                     y_in = y
                 curr_latents, _, _ = model.encoding(y_in, dataset=sess)
+                if isinstance(model, AEMSP):
+                    # push latents through linear transformation
+                    curr_latents = model.U(curr_latents)
                 latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
 
     # save latents separately for each dataset
@@ -101,107 +108,6 @@ def export_latents(data_generator, model, filename=None):
             pickle.dump(latents_dict, f)
         filenames.append(filename_save)
     return filenames
-
-
-def export_latents_msp(data_generator, model, filename=None):
-    """Export predicted latents using an already initialized data_generator and model.
-
-    Latents are saved based on the model's hparams dict unless another file is provided. The
-    default filename is `[lab_id]_[expt_id]_[animal_id]_[session_id]_latents.pkl`.
-
-    Parameters
-    ----------
-    data_generator : :obj:`ConcatSessionGenerator` object
-        data generator to use for latent creation
-    model : :obj:`AE` object
-        pytorch model
-    filename : :obj:`str` or :obj:`NoneType`, optional
-        absolute path to save latents; if :obj:`NoneType`, latents are stored in model directory
-
-    Returns
-    -------
-    :obj:`list`
-        list of latent filenames
-
-    """
-
-    # import pickle
-    # import os
-    # import torch
-    #
-    # model.eval()
-    #
-    # # initialize container for latents
-    # latents = [[] for _ in range(data_generator.n_datasets)]
-    # for sess, dataset in enumerate(data_generator.datasets):
-    #     latents[sess] = [np.array([]) for _ in range(dataset.n_trials)]
-    #
-    # # partially fill container (gap trials will be included as nans)
-    # dtypes = ['train', 'val', 'test']
-    # for dtype in dtypes:
-    #     data_generator.reset_iterators(dtype)
-    #     for i in range(data_generator.n_tot_batches[dtype]):
-    #         data, sess = data_generator.next_batch(dtype)
-    #
-    #         if next(model.parameters()).is_cuda:
-    #             data = {key: val.to('cuda') for key, val in data.items()}
-    #
-    #         # process batch, perhaps in chunks if full batch is too large to fit on gpu
-    #         chunk_size = 200
-    #         y = data['images'][0]
-    #         if (model.hparams['model_class'] == 'cond-ae' or
-    #                 model.hparams['model_class'] == 'cond-ae-msp') and \
-    #                 model.hparams.get('conditional_encoder', False):
-    #             labels_2d = data['labels_sc'][0]
-    #         else:
-    #             labels_2d = None
-    #         batch_size = y.shape[0]
-    #         if batch_size > chunk_size:
-    #             latents[sess][data['batch_idx'].item()] = np.full(
-    #                 shape=(data['images'].shape[1], model.hparams['n_ae_latents']),
-    #                 fill_value=np.nan)
-    #             # split into chunks
-    #             n_chunks = int(np.ceil(batch_size / chunk_size))
-    #             for chunk in range(n_chunks):
-    #                 # take chunks of size chunk_size, plus overlap due to
-    #                 # max_lags
-    #                 idx_beg = chunk * chunk_size
-    #                 idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
-    #                 if labels_2d is not None:
-    #                     y_in = torch.cat((y[idx_beg:idx_end], labels_2d[idx_beg:idx_end]), dim=1)
-    #                 else:
-    #                     y_in = y[idx_beg:idx_end]
-    #                 curr_latents, _, _ = model.encoding(y_in, dataset=sess)
-    #                 latents[sess][data['batch_idx'].item()][idx_beg:idx_end, :] = \
-    #                     curr_latents.cpu().detach().numpy()
-    #         else:
-    #             if labels_2d is not None:
-    #                 y_in = torch.cat((y, labels_2d), dim=1)
-    #             else:
-    #                 y_in = y
-    #             curr_latents, _, _ = model.encoding(y_in, dataset=sess)
-    #             latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
-    #
-    # # save latents separately for each dataset
-    # filenames = []
-    # for sess, dataset in enumerate(data_generator.datasets):
-    #     if filename is None:
-    #         # get save name which includes lab/expt/animal/session
-    #         sess_id = str('%s_%s_%s_%s_latents.pkl' % (
-    #             dataset.lab, dataset.expt, dataset.animal, dataset.session))
-    #         filename_save = os.path.join(
-    #             model.hparams['expt_dir'], 'version_%i' % model.version, sess_id)
-    #     else:
-    #         filename_save = filename
-    #     # save out array in pickle file
-    #     print(
-    #         'saving latents %i of %i:\n%s' % (sess + 1, data_generator.n_datasets, filename_save))
-    #     latents_dict = {'latents': latents[sess], 'trials': dataset.batch_idxs}
-    #     with open(filename_save, 'wb') as f:
-    #         pickle.dump(latents_dict, f)
-    #     filenames.append(filename_save)
-    # return filenames
-    pass
 
 
 def export_states(hparams, data_generator, model, filename=None):

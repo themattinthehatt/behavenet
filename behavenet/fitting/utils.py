@@ -631,6 +631,8 @@ def get_model_params(hparams):
         hparams_less['l2_reg'] = hparams['l2_reg']
         if model_class == 'cond-ae' or model_class == 'cond-ae-msp':
             hparams_less['conditional_encoder'] = hparams.get('conditional_encoder', False)
+        if model_class == 'cond-ae-msp':
+            hparams_less['msp_weight'] = hparams['msp_weight']
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']

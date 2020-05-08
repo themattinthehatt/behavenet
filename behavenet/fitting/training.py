@@ -8,7 +8,6 @@ import torch
 from torch import nn
 from sklearn.metrics import r2_score, accuracy_score
 from behavenet.fitting.eval import export_latents
-from behavenet.fitting.eval import export_latents_msp
 from behavenet.fitting.eval import export_predictions
 
 # TODO: use epoch number as rng seed so that batches are served in a controllable way?
@@ -346,7 +345,7 @@ class AEMSPLoss(FitMethod):
     """MSE + MSP loss for non-variational autoencoders."""
 
     def __init__(self, model, n_datasets=1):
-        metric_strs = ['batches', 'loss', 'loss_mse', 'loss_msp']
+        metric_strs = ['batches', 'loss', 'loss_mse', 'loss_msp', 'labels_r2']
         super().__init__(model, metric_strs, n_datasets=n_datasets)
 
     def calc_loss(self, data, dataset=0, **kwargs):
@@ -427,6 +426,7 @@ class AEMSPLoss(FitMethod):
             loss_val /= y.shape[0]
             loss_mse_val /= y.shape[0]
             loss_msp_val /= y.shape[0]
+            r2 = np.nan  # TODO
         else:
             y_mu, z, labels_pred = self.model(y, dataset=dataset, labels_2d=labels_2d)
             # mse loss
@@ -447,11 +447,89 @@ class AEMSPLoss(FitMethod):
             loss_mse_val = loss_mse.item()
             loss_msp_val = loss_msp.item()
 
+            # use variance-weighted r2s to ignore small-variance latents
+            r2 = r2_score(
+                labels.cpu().detach().numpy(),
+                labels_pred.cpu().detach().numpy(),
+                multioutput='variance_weighted')
+
         # store current metrics
         self.metrics['curr']['loss'] = loss_val
         self.metrics['curr']['loss_mse'] = loss_mse_val
         self.metrics['curr']['loss_msp'] = loss_msp_val
+        self.metrics['curr']['labels_r2'] = r2
         self.metrics['curr']['batches'] = 1
+
+    def create_metric_row(
+            self, dtype, epoch, batch, dataset, trial, best_epoch=None, by_dataset=False,
+            *args, **kwargs):
+        """Export metrics and other data (e.g. epoch) for logging train progress.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            'train' | 'val' | 'test'
+        epoch : :obj:`int`
+            current training epoch
+        batch : :obj:`int`
+            current training batch
+        dataset : :obj:`int`
+            dataset id for current batch
+        trial : :obj:`int` or :obj:`NoneType`
+            trial id within the current dataset
+        best_epoch : :obj:`int`, optional
+            best current training epoch
+        by_dataset : :obj:`bool`, optional
+            :obj:`True` to return metrics for a specific dataset, :obj:`False` to return metrics
+            aggregated over multiple datasets
+
+        Returns
+        -------
+        :obj:`dict`
+            aggregated metrics for current epoch/batch
+
+        """
+
+        norm = self.metrics[dtype]['batches']
+        loss = self.metrics[dtype]['loss'] / norm
+        loss_mse = self.metrics[dtype]['loss_mse'] / norm
+        loss_msp = self.metrics[dtype]['loss_msp'] / norm
+        labels_r2 = self.metrics[dtype]['labels_r2'] / norm
+        if dtype == 'train':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'tr_loss': loss,
+                'tr_loss_mse': loss_mse,
+                'tr_loss_msp': loss_msp,
+                'tr_r2': labels_r2}
+        elif dtype == 'val':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'val_loss': loss,
+                'val_loss_mse': loss_mse,
+                'val_loss_msp': loss_msp,
+                'val_r2': labels_r2,
+                'best_val_epoch': best_epoch}
+        elif dtype == 'test':
+            metric_row = {
+                'epoch': epoch,
+                'batch': batch,
+                'dataset': dataset,
+                'trial': trial,
+                'test_loss': loss,
+                'test_loss_mse': loss_mse,
+                'test_loss_msp': loss_msp,
+                'test_r2': labels_r2}
+        else:
+            raise ValueError("%s is an invalid data type" % dtype)
+
+        return metric_row
 
 
 class NLLLoss(FitMethod):
@@ -966,12 +1044,9 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     exp.save()
 
     # export latents
-    if method == 'ae' and hparams['export_latents']:
+    if (method == 'ae' or method == 'ae-msp') and hparams['export_latents']:
         print('exporting latents')
         export_latents(data_generator, best_val_model)
-    elif method == 'cond-ae-msp' and hparams['export_latents']:
-        print('exporting latents')
-        export_latents_msp(data_generator, best_val_model)
     elif method == 'nll' and hparams['export_predictions']:
         print('exporting predictions')
         export_predictions(data_generator, best_val_model)

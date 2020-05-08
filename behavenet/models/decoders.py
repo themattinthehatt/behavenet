@@ -40,6 +40,10 @@ class Decoder(nn.Module):
         """Process input data."""
         return self.model(x)
 
+    def save(self, filepath):
+        """Save model parameters."""
+        torch.save(self.state_dict(), filepath)
+
 
 class NN(nn.Module):
     """Feedforward neural network model."""
@@ -324,3 +328,7 @@ class ConvDecoder(nn.Module):
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y
+
+    def save(self, filepath):
+        """Save model parameters."""
+        torch.save(self.state_dict(), filepath)
