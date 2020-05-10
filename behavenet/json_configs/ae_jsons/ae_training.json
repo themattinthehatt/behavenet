@@ -8,6 +8,7 @@
 
 "export_latents": true, # type: boolean
 
+"pretrained_weights_path": null,
 
 ##########################
 ## Training loop params ##

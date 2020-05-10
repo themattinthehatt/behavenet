@@ -11,6 +11,7 @@ from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import load_pretrained_ae
 from behavenet.fitting.hyperparam_utils import get_all_params
 from behavenet.models import AE, ConditionalAE
 
@@ -63,6 +64,10 @@ def main(hparams, *args):
         raise NotImplementedError(
             'The model class "%s" is not currently implemented' % hparams['model_class'])
     model.to(hparams['device'])
+
+    ## Load pretrained weights if specified
+    model = load_pretrained_ae(model, hparams)
+
     model.version = exp.version
     torch_rnd_seed = torch.get_rng_state()
     hparams['training_rnd_seed'] = torch_rnd_seed
