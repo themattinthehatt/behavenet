@@ -10,6 +10,11 @@ from behavenet.fitting.utils import get_best_model_version
 from behavenet.fitting.utils import get_lab_example
 from behavenet.fitting.utils import read_session_info_from_csv
 
+# to ignore imports for sphix-autoapidoc
+__all__ = ['load_metrics_csv_as_df']
+
+# TODO: use load_metrics_csv_as_df in example notebooks
+
 
 def concat(ims, axis=1):
     """Concatenate two channels along x or y direction (useful for data with multiple views).

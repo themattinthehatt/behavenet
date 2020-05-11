@@ -551,7 +551,8 @@ def plot_neural_reconstruction_traces_wrapper(
 
 
 def plot_neural_reconstruction_traces(
-        traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png'):
+        traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png',
+        scale=0.5, max_traces=8):
     """Plot ae latents and their neural reconstructions.
 
     Parameters
@@ -568,6 +569,10 @@ def plot_neural_reconstruction_traces(
         frame rate of behavorial video; to properly relabel xticks
     format : :obj:`str`, optional
         any accepted matplotlib save format, e.g. 'png' | 'pdf' | 'jpeg'
+    scale : :obj:`int`, optional
+        scale magnitude of traces
+    max_traces : :obj:`int`, optional
+        maximum number of traces to plot, for easier visualization
 
     Returns
     -------
@@ -584,13 +589,13 @@ def plot_neural_reconstruction_traces(
     sns.set_context('poster')
 
     means = np.mean(traces_ae, axis=0)
-    std = np.std(traces_ae) * 2  # scale for better visualization
+    std = np.std(traces_ae) / scale  # scale for better visualization
 
     traces_ae_sc = (traces_ae - means) / std
     traces_neural_sc = (traces_neural - means) / std
 
-    traces_ae_sc = traces_ae_sc[:, :8]
-    traces_neural_sc = traces_neural_sc[:, :8]
+    traces_ae_sc = traces_ae_sc[:, :max_traces]
+    traces_neural_sc = traces_neural_sc[:, :max_traces]
 
     fig = plt.figure(figsize=(12, 8))
     plt.plot(traces_neural_sc + np.arange(traces_neural_sc.shape[1]), linewidth=3)

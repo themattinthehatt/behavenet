@@ -889,6 +889,9 @@ class AEMSP(AE):
         self.encoding = ConvAEEncoder(self.hparams)
         self.decoding = ConvAEDecoder(self.hparams)
         self.projection = nn.Linear(self.n_latents, self.n_labels, bias=False)
+        # construct U here so that it is in model state dict, but will be overwritten later
+        with torch.no_grad():
+            self.U = nn.Linear(self.n_latents, self.n_latents, bias=False)
 
     def forward(self, x, dataset=None, labels_2d=None):
         """Process input data.
@@ -897,9 +900,9 @@ class AEMSP(AE):
         ----------
         x : :obj:`torch.Tensor` object
             input data of shape (batch, n_channels, y_pix, x_pix)
-        dataset : :obj:`int`
+        dataset : :obj:`int`, optional
             used with session-specific io layers
-        labels_2d: :obj:`torch.Tensor` object
+        labels_2d: :obj:`torch.Tensor` object, optional
             one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
             for a given frame, each channel corresponds to a label and is all zeros with a single
             value of one in the proper x/y position
@@ -935,10 +938,43 @@ class AEMSP(AE):
         U = np.concatenate([M, N.T], axis=0)
 
         # create new torch tensor with full matrix
-        self.U = nn.Linear(self.n_latents, self.n_latents, bias=False)
+        # self.U = nn.Linear(self.n_latents, self.n_latents, bias=False)
         with torch.no_grad():
             self.U.weight = nn.Parameter(torch.from_numpy(U).float(), requires_grad=False)
         self.U.to(self.hparams['device'])
+
+    def get_transformed_latents(self, x, dataset=None, labels_2d=None, as_numpy=True):
+        """Return latents after they have been transformed using the orthogonal matrix U.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data of shape (batch, n_channels, y_pix, x_pix)
+        dataset : :obj:`int`, optional
+            used with session-specific io layers
+        labels_2d : :obj:`torch.Tensor` object, optional
+            one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
+            for a given frame, each channel corresponds to a label and is all zeros with a single
+            value of one in the proper x/y position
+        as_numpy : :obj:`bool`, optional
+            True to return as numpy array, False to return as torch Tensor
+
+        Returns
+        -------
+        :obj:`np.ndarray` object
+
+        """
+        if labels_2d is not None:
+            x_in = torch.cat((x, labels_2d), dim=1)
+        else:
+            x_in = x
+        latents_og, pool_idx, outsize = self.encoding(x_in, dataset=dataset)
+        # transform with complete orthogonal matrix U
+        latents_tr = self.U(latents_og)
+        if as_numpy:
+            return latents_tr.cpu().detach().numpy()
+        else:
+            return latents_tr
 
     def sample(self, x=None, dataset=None, latents=None, labels=None, labels_2d=None):
         """Generate output given an input x and arbitrary labels and/or latents.
@@ -959,15 +995,15 @@ class AEMSP(AE):
 
         Parameters
         ----------
-        x : :obj:`torch.Tensor` object
+        x : :obj:`torch.Tensor` object, optional
             input data of shape (batch, n_channels, y_pix, x_pix)
-        dataset : :obj:`int`
+        dataset : :obj:`int`, optional
             used with session-specific io layers
-        latents  : :obj:`np.ndarray` object
+        latents  : :obj:`np.ndarray` object, optional
             transformed latents of shape (batch, n_latents - n_labels)
-        labels : :obj:`np.ndarray` object
+        labels : :obj:`np.ndarray` object, optional
             continuous labels corresponding to input data, of shape (batch, n_labels)
-        labels_2d : :obj:`torch.Tensor` object
+        labels_2d : :obj:`torch.Tensor` object, optional
             one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
             for a given frame, each channel corresponds to a label and is all zeros with a single
             value of one in the proper x/y position
@@ -982,13 +1018,7 @@ class AEMSP(AE):
 
         if latents is None or labels is None:
             # push input image through encoder
-            if labels_2d is not None:
-                x_in = torch.cat((x, labels_2d), dim=1)
-            else:
-                x_in = x
-            latents_og, pool_idx, outsize = self.encoding(x_in, dataset=dataset)
-            # transform with complete orthogonal matrix U
-            latents_tr = self.U(latents_og).cpu().detach().numpy()
+            latents_tr = self.get_transformed_latents(x, dataset, labels_2d)
         else:
             # user-defined labels AND latents
             if latents is not None:
