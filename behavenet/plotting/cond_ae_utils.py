@@ -8,31 +8,7 @@ import torch
 from behavenet import make_dir_if_not_exists
 from behavenet.data.utils import load_labels_like_latents
 from behavenet.fitting.eval import get_reconstruction
-
-
-def compute_range(values_list, min_p=5, max_p=95):
-    """Compute min and max of a list of numbers using percentiles.
-
-    Parameters
-    ----------
-    values_list : :obj:`list`
-        list of scalars
-    min_p : :obj:`int`
-        defines lower end of range; percentile in [0, 100]
-    max_p : :obj:`int`
-        defines upper end of range; percentile in [0, 100]
-
-    Returns
-    -------
-    :obj:`dict`
-        lower ['min'] and upper ['max'] range of input
-
-    """
-    values = np.vstack(values_list)
-    ranges = {
-        'min': np.percentile(values, min_p, axis=0),
-        'max': np.percentile(values, max_p, axis=0)}
-    return ranges
+from behavenet.fitting.utils import get_session_dir
 
 
 def get_crop(im, y_0, y_ext, x_0, x_ext):
@@ -68,107 +44,6 @@ def get_crop(im, y_0, y_ext, x_0, x_ext):
     im_tmp = np.zeros((y_pix, x_pix))
     im_tmp[:y_pix_, :x_pix_] = im_crop
     return im_tmp
-
-
-def get_labels_2d_for_trial(hparams, sess_ids, trial_idx, sess_idx=0, dtype='test', data_gen=None):
-    """Return framespace [scaled] labels for a given trial.
-
-    Parameters
-    ----------
-    hparams
-    sess_ids
-    trial_idx
-    sess_idx
-    dtype
-    data_gen
-
-    Returns
-    -------
-
-    """
-    if data_gen is None:
-        from behavenet.fitting.utils import build_data_generator
-        hparams_new = copy.deepcopy(hparams)
-        hparams_new['device'] = 'cpu'
-        hparams_new['as_numpy'] = False
-        hparams_new['batch_load'] = True
-        data_gen = build_data_generator(hparams_new, sess_ids, export_csv=False)
-
-    trial = data_gen.datasets[sess_idx].batch_idxs[dtype][trial_idx]
-    batch = data_gen.datasets[sess_idx][trial]
-    labels_2d_pt = batch['labels_sc']
-    labels_2d_np = labels_2d_pt.cpu().detach().numpy()
-
-    return labels_2d_pt, labels_2d_np
-
-
-def get_model_input(
-        data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=100,
-        compute_latents=False, dtype='test'):
-    """Return images, latents, and labels for a given trial.
-
-    Parameters
-    ----------
-    data_generator : :obj:`ConcatSessionsGenerator`
-    hparams : :obj:`dict`
-    model : pytorch model
-    trial : :obj:`int`
-        actual trial number
-    trial_idx : :obj:`int`
-        index into trials of type `dtype`
-    sess_idx : :obj:`int`
-    max_frames : :obj:`int`
-    compute_latents : :obj:`bool`
-    dtype : :obj:`str`
-
-    Returns
-    -------
-    :obj:`tuple`
-        - ims_pt
-        - ims_np
-        - latents_np
-        - labels_pt
-        - labels_2d_pt
-        - labels_2d_np
-
-    """
-
-    if (trial_idx is not None) and (trial is not None):
-        raise ValueError('only one of "trial" or "trial_idx" can be specified')
-
-    # get test trial
-    if trial_idx is not None:
-        trial = data_generator.datasets[sess_idx].batch_idxs[dtype][trial_idx]
-    batch = data_generator.datasets[sess_idx][trial]
-    ims_pt = batch['images'][:max_frames]
-    ims_np = ims_pt.cpu().detach().numpy()
-
-    # continuous labels
-    if hparams['model_class'] == 'ae':
-        labels_pt = None
-        labels_np = None
-    elif hparams['model_class'] == 'cond-ae' or hparams['model_class'] == 'labels-images':
-        labels_pt = batch['labels'][:max_frames]
-        labels_np = labels_pt.cpu().detach().numpy()
-    else:
-        raise NotImplementedError
-
-    # one hot labels
-    if hparams['model_class'] == 'cond-ae' and hparams['conditional_encoder']:
-        labels_2d_pt = batch['labels_sc'][:max_frames]
-        labels_2d_np = labels_2d_pt.cpu().detach().numpy()
-    else:
-        labels_2d_pt = None
-        labels_2d_np = None
-
-    # latents
-    if compute_latents:
-        _, latents_np = get_reconstruction(
-            model, ims_pt, labels=labels_pt, labels_2d=labels_2d_pt, return_latents=True)
-    else:
-        latents_np = None
-
-    return ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np
 
 
 def get_input_range(
@@ -222,6 +97,154 @@ def get_input_range(
         raise NotImplementedError
     input_range = compute_range(inputs, min_p=min_p, max_p=max_p)
     return input_range
+
+
+def compute_range(values_list, min_p=5, max_p=95):
+    """Compute min and max of a list of numbers using percentiles.
+
+    Parameters
+    ----------
+    values_list : :obj:`list`
+        list of np.ndarrays; min/max calculated over axis 0
+    min_p : :obj:`int`
+        defines lower end of range; percentile in [0, 100]
+    max_p : :obj:`int`
+        defines upper end of range; percentile in [0, 100]
+
+    Returns
+    -------
+    :obj:`dict`
+        lower ['min'] and upper ['max'] range of input
+
+    """
+    if np.any([len(arr) == 0 for arr in values_list]):
+        values_ = []
+        for arr in values_list:
+            if len(arr) != 0:
+                values_.append(arr)
+        values = np.vstack(values_)
+    else:
+        values = np.vstack(values_list)
+    ranges = {
+        'min': np.percentile(values, min_p, axis=0),
+        'max': np.percentile(values, max_p, axis=0)}
+    return ranges
+
+
+def get_labels_2d_for_trial(
+        hparams, sess_ids, trial=None, trial_idx=None, sess_idx=0, dtype='test', data_gen=None):
+    """Return framespace [scaled] labels for a given trial.
+
+    Parameters
+    ----------
+    hparams
+    sess_ids
+    trial
+    trial_idx
+    sess_idx
+    dtype
+    data_gen
+
+    Returns
+    -------
+
+    """
+
+    if (trial_idx is not None) and (trial is not None):
+        raise ValueError('only one of "trial" or "trial_idx" can be specified')
+
+    if data_gen is None:
+        from behavenet.fitting.utils import build_data_generator
+        hparams_new = copy.deepcopy(hparams)
+        hparams_new['conditional_encoder'] = True  # ensure scaled labels are returned
+        hparams_new['device'] = 'cpu'
+        hparams_new['as_numpy'] = False
+        hparams_new['batch_load'] = True
+        data_gen = build_data_generator(hparams_new, sess_ids, export_csv=False)
+
+    # get trial
+    if trial is None:
+        trial = data_gen.datasets[sess_idx].batch_idxs[dtype][trial_idx]
+    batch = data_gen.datasets[sess_idx][trial]
+    labels_2d_pt = batch['labels_sc']
+    labels_2d_np = labels_2d_pt.cpu().detach().numpy()
+
+    return labels_2d_pt, labels_2d_np
+
+
+def get_model_input(
+        data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=100,
+        compute_latents=False, dtype='test'):
+    """Return images, latents, and labels for a given trial.
+
+    Parameters
+    ----------
+    data_generator : :obj:`ConcatSessionsGenerator`
+    hparams : :obj:`dict`
+    model : pytorch model
+    trial : :obj:`int`
+        actual trial number
+    trial_idx : :obj:`int`
+        index into trials of type `dtype`
+    sess_idx : :obj:`int`
+    max_frames : :obj:`int`
+    compute_latents : :obj:`bool`
+    dtype : :obj:`str`
+
+    Returns
+    -------
+    :obj:`tuple`
+        - ims_pt
+        - ims_np
+        - latents_np
+        - labels_pt
+        - labels_2d_pt
+        - labels_2d_np
+
+    """
+
+    if (trial_idx is not None) and (trial is not None):
+        raise ValueError('only one of "trial" or "trial_idx" can be specified')
+
+    # get trial
+    if trial is None:
+        trial = data_generator.datasets[sess_idx].batch_idxs[dtype][trial_idx]
+    batch = data_generator.datasets[sess_idx][trial]
+    ims_pt = batch['images'][:max_frames]
+    ims_np = ims_pt.cpu().detach().numpy()
+
+    # continuous labels
+    if hparams['model_class'] == 'ae':
+        labels_pt = None
+        labels_np = None
+    elif hparams['model_class'] == 'cond-ae' \
+            or hparams['model_class'] == 'cond-ae-msp' \
+            or hparams['model_class'] == 'labels-images':
+        labels_pt = batch['labels'][:max_frames]
+        labels_np = labels_pt.cpu().detach().numpy()
+    else:
+        raise NotImplementedError
+
+    # one hot labels
+    if hparams['conditional_encoder']:
+        labels_2d_pt = batch['labels_sc'][:max_frames]
+        labels_2d_np = labels_2d_pt.cpu().detach().numpy()
+    else:
+        hparams['session_dir'], sess_ids = get_session_dir(hparams)
+        labels_2d_pt, labels_2d_np = get_labels_2d_for_trial(hparams, sess_ids, trial=trial)
+
+    # latents
+    if compute_latents:
+        if hparams['model_class'] == 'cond-ae-msp':
+            latents_np = model.get_transformed_latents(
+                ims_pt, dataset=sess_idx, labels_2d=labels_2d_pt, as_numpy=True)
+        else:
+            _, latents_np = get_reconstruction(
+                model, ims_pt, labels=labels_pt, labels_2d=labels_2d_pt, return_latents=True)
+    else:
+        latents_np = None
+
+    return ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np
 
 
 def interpolate_2d(
@@ -293,32 +316,33 @@ def interpolate_2d(
                 latents[0, input_idxs[0]] = inputs_0[i0]
                 latents[0, input_idxs[1]] = inputs_1[i1]
 
-                # get labels
-                if model.hparams['model_class'] == 'ae':
-                    labels = None
-                elif model.hparams['model_class'] == 'cond-ae':
-                    labels = torch.from_numpy(labels_0).float()
-                else:
-                    raise NotImplementedError
-
                 # get scaled labels (for markers)
                 if labels_sc_0 is not None:
                     tmp = np.copy(labels_sc_0)
                     t, y, x = np.where(tmp[0] == 1)
                     labels_sc = np.hstack([x, y])[None, :]
 
-                # get reconstruction
-                im_tmp = get_reconstruction(
-                    model,
-                    torch.from_numpy(latents).float(),
-                    labels=labels)
+                if model.hparams['model_class'] == 'cond-ae-msp':
+                    # get reconstruction
+                    im_tmp = get_reconstruction(
+                        model,
+                        torch.from_numpy(latents).float(),
+                        apply_inverse_transform=True)
+                else:
+                    # get labels
+                    if model.hparams['model_class'] == 'ae':
+                        labels = None
+                    elif model.hparams['model_class'] == 'cond-ae':
+                        labels = torch.from_numpy(labels_0).float()
+                    else:
+                        raise NotImplementedError
+                    # get reconstruction
+                    im_tmp = get_reconstruction(
+                        model,
+                        torch.from_numpy(latents).float(),
+                        labels=labels)
 
             elif interp_type == 'labels':
-
-                # get (new) labels
-                labels = np.copy(labels_0)
-                labels[0, input_idxs[0]] = inputs_0[i0]
-                labels[0, input_idxs[1]] = inputs_1[i1]
 
                 # get (new) scaled labels
                 tmp = np.copy(labels_sc_0)
@@ -326,14 +350,26 @@ def interpolate_2d(
                 labels_sc = np.hstack([x, y])[None, :]
                 labels_sc[0, input_idxs[0]] = inputs_0_sc[i0]
                 labels_sc[0, input_idxs[1]] = inputs_1_sc[i1]
+                labels_2d = torch.from_numpy(one_hot_2d(labels_sc)).float()
 
-                # get reconstruction
-                im_tmp = get_reconstruction(
-                    model,
-                    ims_0,
-                    labels=torch.from_numpy(labels).float(),
-                    labels_2d=torch.from_numpy(one_hot_2d(labels_sc)).float())
-
+                if model.hparams['model_class'] == 'cond-ae-msp':
+                    # change latents that correspond to desired labels
+                    latents = np.copy(latents_0)
+                    latents[0, input_idxs[0]] = inputs_0[i0]
+                    latents[0, input_idxs[1]] = inputs_1[i1]
+                    # get reconstruction
+                    im_tmp = get_reconstruction(model, latents, apply_inverse_transform=True)
+                else:
+                    # get (new) labels
+                    labels = np.copy(labels_0)
+                    labels[0, input_idxs[0]] = inputs_0[i0]
+                    labels[0, input_idxs[1]] = inputs_1[i1]
+                    # get reconstruction
+                    im_tmp = get_reconstruction(
+                        model,
+                        ims_0,
+                        labels=torch.from_numpy(labels).float(),
+                        labels_2d=labels_2d)
             else:
                 raise NotImplementedError
 

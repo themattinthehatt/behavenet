@@ -13,7 +13,7 @@ from behavenet.fitting.utils import read_session_info_from_csv
 # to ignore imports for sphix-autoapidoc
 __all__ = ['load_metrics_csv_as_df']
 
-# TODO: use load_metrics_csv_as_df in example notebooks
+# TODO: use load_metrics_csv_as_df in ae example notebook
 
 
 def concat(ims, axis=1):

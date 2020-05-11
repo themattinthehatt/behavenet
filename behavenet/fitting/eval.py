@@ -279,7 +279,8 @@ def export_predictions(data_generator, model, filename=None):
 
 
 def get_reconstruction(
-        model, inputs, dataset=None, return_latents=False, labels=None, labels_2d=None):
+        model, inputs, dataset=None, return_latents=False, labels=None, labels_2d=None,
+        apply_inverse_transform=True):
     """Reconstruct an image from either image or latent inputs.
 
     Parameters
@@ -297,6 +298,9 @@ def get_reconstruction(
         label tensor of shape (batch, n_labels)
     labels_2d : :obj:`torch.Tensor` object or :obj:`NoneType`, optional
         label tensor of shape (batch, n_labels, y_pix, x_pix)
+    apply_inverse_transform : :obj:`bool`
+        if inputs are latents (and model class is 'cond-ae-msp'), apply inverse transform to put in
+        original latent space
 
     Returns
     -------
@@ -319,11 +323,12 @@ def get_reconstruction(
 
     if input_type == 'images':
         ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
-    else:
+    else:  # input is latents
         # TODO: how to incorporate maxpool layers for decoding only?
-        if model.hparams['model_class'] == 'cond-ae' or \
-                model.hparams['model_class'] == 'cond-ae-msp':
+        if model.hparams['model_class'] == 'cond-ae':
             inputs = torch.cat((inputs, labels), dim=1)
+        elif model.hparams['model_class'] == 'cond-ae-msp' and apply_inverse_transform:
+            inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
         ims_recon = model.decoding(inputs, None, None, dataset=None)
         latents = inputs
     ims_recon = ims_recon.cpu().detach().numpy()
