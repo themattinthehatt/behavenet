@@ -4,6 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 
+from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_session_dir
 from behavenet.fitting.utils import get_best_model_version
@@ -34,7 +35,7 @@ def concat(ims, axis=1):
     return np.concatenate([ims[0, :, :], ims[1, :, :]], axis=axis)
 
 
-def load_metrics_csv_as_df(hparams, lab, expt, metrics_list):
+def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, find_best=True):
     """Load metrics csv file and return as a pandas dataframe for easy plotting.
 
     Parameters
@@ -47,6 +48,9 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list):
         for `get_lab_example`
     metrics_list : :obj:`list`
         names of metrics to pull from csv; do not prepend with 'tr', 'val', or 'test
+    find_best : :obj:`bool`
+        True to find best model in tt expt, False to find model with hyperparams defined in
+        `hparams`
 
     Returns
     -------
@@ -60,8 +64,11 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list):
     hparams['expt_dir'] = get_expt_dir(hparams)
 
     # find metrics csv file
-    versions = get_best_model_version(hparams['expt_dir'])
-    version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % versions[0])
+    if find_best:
+        version = get_best_model_version(hparams['expt_dir'])[0]
+    else:
+        _, version = experiment_exists(hparams, which_version=True)
+    version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % version)
     metric_file = os.path.join(version_dir, 'metrics.csv')
     metrics = pd.read_csv(metric_file)
 

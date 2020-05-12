@@ -174,7 +174,7 @@ def get_labels_2d_for_trial(
 
 def get_model_input(
         data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=100,
-        compute_latents=False, dtype='test'):
+        compute_latents=False, compute_2d_labels=True, dtype='test'):
     """Return images, latents, and labels for a given trial.
 
     Parameters
@@ -189,6 +189,7 @@ def get_model_input(
     sess_idx : :obj:`int`
     max_frames : :obj:`int`
     compute_latents : :obj:`bool`
+    compute_2d_labels : :obj:`bool`
     dtype : :obj:`str`
 
     Returns
@@ -230,8 +231,11 @@ def get_model_input(
         labels_2d_pt = batch['labels_sc'][:max_frames]
         labels_2d_np = labels_2d_pt.cpu().detach().numpy()
     else:
-        hparams['session_dir'], sess_ids = get_session_dir(hparams)
-        labels_2d_pt, labels_2d_np = get_labels_2d_for_trial(hparams, sess_ids, trial=trial)
+        if compute_2d_labels:
+            hparams['session_dir'], sess_ids = get_session_dir(hparams)
+            labels_2d_pt, labels_2d_np = get_labels_2d_for_trial(hparams, sess_ids, trial=trial)
+        else:
+            labels_2d_pt, labels_2d_np = None, None
 
     # latents
     if compute_latents:

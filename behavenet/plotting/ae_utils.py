@@ -13,9 +13,93 @@ from behavenet.fitting.eval import get_reconstruction
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
+    'make_reconstruction_movie',
     'make_ae_reconstruction_movie_wrapper', 'make_ae_reconstruction_movie',
     'make_neural_reconstruction_movie_wrapper', 'make_neural_reconstruction_movie',
     'plot_neural_reconstruction_traces_wrapper', 'plot_neural_reconstruction_traces']
+
+
+def make_reconstruction_movie(
+        ims, titles=None, n_rows=0, n_cols=0, save_file=None, frame_rate=15):
+    """Produce movie with original video and reconstructed videos.
+
+    `ims` and `titles` are corresponding lists; this data is plotted using a linear index, i.e. if
+    n_rows = 2 and n_cols = 3 the image stack in ims[2] will be in the first row, second column;
+    the image stack in ims[4] will be in the second row, first column. If ims[i] is empty, that
+    grid location will be skipped.
+
+    # TODO: use this in make_ae_reconstruction_movie_wrapper
+
+    Parameters
+    ----------
+    ims : :obj:`list` of :obj:`np.ndarray`
+        each list element is of shape (n_frames, n_channels, y_pix, x_pix)
+    titles : :obj:`list` of :obj:`str`, optional
+        title for each panel
+    n_rows : :obj:`int`
+        number of rows in video grid layout
+    n_cols : :obj:`int`
+        number of columns in video grid layout
+    save_file : :obj:`str`, optional
+        full save file (path and filename)
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+
+    """
+
+    n_frames, n_channels, y_pix, x_pix = ims[0].shape
+    scale_ = 5
+    fig_width = scale_ * n_cols * n_channels / 2
+    fig_height = y_pix / x_pix * scale_ * n_rows / 2
+    fig = plt.figure(figsize=(fig_width, fig_height), dpi=100)
+
+    gs = GridSpec(n_rows, n_cols, figure=fig)
+    axs = []
+    for i in range(n_rows):
+        for j in range(n_cols):
+            axs.append(fig.add_subplot(gs[i, j]))
+    for ax in axs:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    fontsize = 12
+    titles = ['' for _ in range(n_cols * n_rows)] if titles is None else titles
+    for i, ax in enumerate(axs):
+        ax.set_title(titles[i], fontsize=fontsize)
+
+    default_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
+
+    # ims is a list of lists, each row is a list of artists to draw in the current frame; here we
+    # are just animating one artist, the image, in each frame
+    ims_ani = []
+    for i in range(ims[0].shape[0]):
+
+        ims_curr = []
+
+        for ax_i, ax in enumerate(axs):
+            if ims[ax_i] is not None:
+                ims_tmp = ims[ax_i][i, 0] if n_channels == 1 else concat(ims[ax_i][i])
+                im = ax.imshow(ims_tmp, **default_kwargs)
+                [s.set_visible(False) for s in ax.spines.values()]
+                ims_curr.append(im)
+
+        ims_ani.append(ims_curr)
+
+    plt.tight_layout(pad=0)
+
+    ani = animation.ArtistAnimation(fig, ims_ani, blit=True, repeat_delay=1000)
+    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        if save_file[-3:] != 'mp4':
+            save_file += '.mp4'
+        print('saving video to %s...' % save_file, end='')
+        ani.save(save_file, writer=writer)
+        # if save_file[-3:] != 'gif':
+        #     save_file += '.gif'
+        # ani.save(save_file, writer='imagemagick', fps=15)
+        print('done')
 
 
 def make_ae_reconstruction_movie_wrapper(

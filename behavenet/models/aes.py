@@ -793,7 +793,7 @@ class ConditionalAE(AE):
         self.encoding = ConvAEEncoder(self.hparams)
         self.decoding = ConvAEDecoder(self.hparams)
 
-    def forward(self, x, dataset=None, labels=None, labels_2d=None):
+    def forward(self, x, dataset=None, labels=None, labels_2d=None, **kwargs):
         """Process input data.
 
         Parameters
@@ -893,7 +893,7 @@ class AEMSP(AE):
         with torch.no_grad():
             self.U = nn.Linear(self.n_latents, self.n_latents, bias=False)
 
-    def forward(self, x, dataset=None, labels_2d=None):
+    def forward(self, x, dataset=None, labels_2d=None, **kwargs):
         """Process input data.
 
         Parameters

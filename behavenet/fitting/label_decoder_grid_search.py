@@ -12,6 +12,7 @@ from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
+from behavenet.fitting.utils import load_pretrained_ae
 from behavenet.models import ConvDecoder
 
 
@@ -54,6 +55,10 @@ def main(hparams, *args):
     hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
     model = ConvDecoder(hparams)
     model.to(hparams['device'])
+
+    # Load pretrained weights if specified
+    # model = load_pretrained_ae(model, hparams)
+
     model.version = exp.version
     torch_rnd_seed = torch.get_rng_state()
     hparams['training_rnd_seed'] = torch_rnd_seed
