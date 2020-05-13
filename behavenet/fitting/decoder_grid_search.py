@@ -74,13 +74,13 @@ def main(hparams, *args):
     print(hparams['input_size'])
     print('constructing model...', end='')
     torch.manual_seed(hparams['rng_seed_model'])
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['model_build_rnd_seed'] = torch_rnd_seed
+    torch_rng_seed = torch.get_rng_state()
+    hparams['model_build_rng_seed'] = torch_rng_seed
     model = Decoder(hparams)
     model.to(hparams['device'])
     model.version = exp.version
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['training_rnd_seed'] = torch_rnd_seed
+    torch_rng_seed = torch.get_rng_state()
+    hparams['training_rng_seed'] = torch_rng_seed
 
     # save out hparams as csv and dict for easy reloading
     hparams['training_completed'] = False

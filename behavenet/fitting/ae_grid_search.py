@@ -52,8 +52,8 @@ def main(hparams, *args):
 
     print('constructing model...', end='')
     torch.manual_seed(hparams['rng_seed_model'])
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['model_build_rnd_seed'] = torch_rnd_seed
+    torch_rng_seed = torch.get_rng_state()
+    hparams['model_build_rng_seed'] = torch_rng_seed
     hparams['n_datasets'] = len(sess_ids)
     if hparams['model_class'] == 'ae' or hparams['model_class'] == 'vae':
         model = AE(hparams)
@@ -83,8 +83,8 @@ def main(hparams, *args):
         model = CustomDataParallel(model)
 
     model.version = exp.version
-    torch_rnd_seed = torch.get_rng_state()
-    hparams['training_rnd_seed'] = torch_rnd_seed
+    torch_rng_seed = torch.get_rng_state()
+    hparams['training_rng_seed'] = torch_rng_seed
 
     # save out hparams as csv and dict
     hparams['training_completed'] = False

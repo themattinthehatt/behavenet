@@ -55,17 +55,25 @@ def make_reconstruction_movie(
 
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
+    ax_count = 0
     for i in range(n_rows):
         for j in range(n_cols):
-            axs.append(fig.add_subplot(gs[i, j]))
-    for ax in axs:
+            if ax_count < len(ims):
+                axs.append(fig.add_subplot(gs[i, j]))
+                ax_count += 1
+            else:
+                break
+    for ax_i, ax in enumerate(axs):
         ax.set_xticks([])
         ax.set_yticks([])
+        if len(ims[ax_i]) == 0:
+            ax.set_axis_off()
 
     fontsize = 12
     titles = ['' for _ in range(n_cols * n_rows)] if titles is None else titles
-    for i, ax in enumerate(axs):
-        ax.set_title(titles[i], fontsize=fontsize)
+    for ax_i, ax in enumerate(axs):
+        if len(ims[ax_i]) != 0:
+            ax.set_title(titles[ax_i], fontsize=fontsize)
 
     default_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
 
@@ -77,7 +85,7 @@ def make_reconstruction_movie(
         ims_curr = []
 
         for ax_i, ax in enumerate(axs):
-            if ims[ax_i] is not None:
+            if len(ims[ax_i]) != 0:
                 ims_tmp = ims[ax_i][i, 0] if n_channels == 1 else concat(ims[ax_i][i])
                 im = ax.imshow(ims_tmp, **default_kwargs)
                 [s.set_visible(False) for s in ax.spines.values()]
@@ -205,7 +213,7 @@ def make_ae_reconstruction_movie(
     scale_ = 5
     fig_width = scale_ * n_cols * n_channels / 2
     fig_height = y_pix / x_pix * scale_ * n_rows / 2
-    fig = plt.figure(figsize=(fig_width, fig_height + offset),dpi=100)
+    fig = plt.figure(figsize=(fig_width, fig_height + offset), dpi=100)
 
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
