@@ -78,6 +78,7 @@ def get_input_range(
             hparams['expt_dir'], 'version_%i' % version, latent_file)
         if not os.path.exists(filename):
             from behavenet.fitting.eval import export_latents
+            print('latents file not found at %s' % filename)
             print('exporting latents...', end='')
             filenames = export_latents(data_gen, model)
             filename = filenames[0]

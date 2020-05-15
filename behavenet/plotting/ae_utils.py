@@ -47,7 +47,10 @@ def make_reconstruction_movie(
 
     """
 
-    n_frames, n_channels, y_pix, x_pix = ims[0].shape
+    for im in ims:
+        if len(im) != 0:
+            n_frames, n_channels, y_pix, x_pix = im.shape
+            break
     scale_ = 5
     fig_width = scale_ * n_cols * n_channels / 2
     fig_height = y_pix / x_pix * scale_ * n_rows / 2
@@ -80,7 +83,7 @@ def make_reconstruction_movie(
     # ims is a list of lists, each row is a list of artists to draw in the current frame; here we
     # are just animating one artist, the image, in each frame
     ims_ani = []
-    for i in range(ims[0].shape[0]):
+    for i in range(n_frames):
 
         ims_curr = []
 
@@ -644,7 +647,7 @@ def plot_neural_reconstruction_traces_wrapper(
 
 def plot_neural_reconstruction_traces(
         traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png',
-        scale=0.5, max_traces=8):
+        scale=0.5, max_traces=8, add_r2=True):
     """Plot ae latents and their neural reconstructions.
 
     Parameters
@@ -665,6 +668,8 @@ def plot_neural_reconstruction_traces(
         scale magnitude of traces
     max_traces : :obj:`int`, optional
         maximum number of traces to plot, for easier visualization
+    add_r2 : :obj:`bool`, optional
+        print R2 value on plot
 
     Returns
     -------
@@ -707,6 +712,15 @@ def plot_neural_reconstruction_traces(
     plt.legend(
         [orig_line, tuple(dls)], ['Original latents', 'Predicted latents'],
         loc='lower right', frameon=True, framealpha=0.7, edgecolor=[1, 1, 1])
+
+    # add r2 info if desired
+    if add_r2:
+        from sklearn.metrics import r2_score
+        r2 = r2_score(traces_ae, traces_neural, multioutput='variance_weighted')
+        plt.text(
+            0.05, 0.06, '$R^2$=%1.3f' % r2, horizontalalignment='left', verticalalignment='bottom',
+            transform=plt.gca().transAxes,
+            bbox=dict(facecolor='white', alpha=0.7, edgecolor=[1, 1, 1]))
 
     if xtick_locs is not None and frame_rate is not None:
         plt.xticks(xtick_locs, (np.asarray(xtick_locs) / frame_rate).astype('int'))
