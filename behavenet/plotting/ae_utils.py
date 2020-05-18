@@ -13,22 +13,19 @@ from behavenet.fitting.eval import get_reconstruction
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
-    'make_reconstruction_movie',
-    'make_ae_reconstruction_movie_wrapper', 'make_ae_reconstruction_movie',
+    'make_ae_reconstruction_movie_wrapper', 'make_reconstruction_movie',
     'make_neural_reconstruction_movie_wrapper', 'make_neural_reconstruction_movie',
     'plot_neural_reconstruction_traces_wrapper', 'plot_neural_reconstruction_traces']
 
 
 def make_reconstruction_movie(
-        ims, titles=None, n_rows=0, n_cols=0, save_file=None, frame_rate=15):
+        ims, titles=None, n_rows=0, n_cols=0, save_file=None, frame_rate=15, dpi=100):
     """Produce movie with original video and reconstructed videos.
 
     `ims` and `titles` are corresponding lists; this data is plotted using a linear index, i.e. if
     n_rows = 2 and n_cols = 3 the image stack in ims[2] will be in the first row, second column;
     the image stack in ims[4] will be in the second row, first column. If ims[i] is empty, that
     grid location will be skipped.
-
-    # TODO: use this in make_ae_reconstruction_movie_wrapper
 
     Parameters
     ----------
@@ -44,6 +41,8 @@ def make_reconstruction_movie(
         full save file (path and filename)
     frame_rate : :obj:`float`, optional
         frame rate of saved movie
+    dpi : :obj:`int`, optional
+        dpi of movie figure; controls resolution of titles
 
     """
 
@@ -54,7 +53,8 @@ def make_reconstruction_movie(
     scale_ = 5
     fig_width = scale_ * n_cols * n_channels / 2
     fig_height = y_pix / x_pix * scale_ * n_rows / 2
-    fig = plt.figure(figsize=(fig_width, fig_height), dpi=100)
+    offset = 0.5 if n_rows == 1 else 0
+    fig = plt.figure(figsize=(fig_width, fig_height + offset), dpi=dpi)
 
     gs = GridSpec(n_rows, n_cols, figure=fig)
     axs = []
@@ -157,7 +157,8 @@ def make_ae_reconstruction_movie_wrapper(
         hparams_lin['model_type'] = 'linear'
         if 'lin_experiment_name' in hparams:
             hparams_lin['experiment_name'] = hparams['lin_experiment_name']
-        model_lin, _ = get_best_model_and_data(hparams_lin, Model, load_data=False)
+        model_lin, _ = get_best_model_and_data(
+            hparams_lin, Model, load_data=False, version=version)
     else:
         model_lin = None
 
@@ -182,130 +183,25 @@ def make_ae_reconstruction_movie_wrapper(
     if hparams.get('use_output_mask', False):
         ims_orig_pt *= batch['masks'][:max_frames]
 
-    make_ae_reconstruction_movie(
-        ims_orig=ims_orig_pt.cpu().detach().numpy(),
-        ims_recon_ae=ims_recon_ae,
-        ims_recon_lin=ims_recon_lin,
-        save_file=save_file,
+    ims_orig = ims_orig_pt.cpu().detach().numpy()
+    ims = [ims_orig, ims_recon_ae, 0.5 + (ims_orig - ims_recon_ae)]
+    titles = ['Original', 'Conv AE reconstructed', 'Conv AE residual']
+    if include_linear:
+        ims.append([])
+        ims.append(ims_recon_lin)
+        ims.append(0.5 + (ims_orig - ims_recon_lin))
+        titles.append('')
+        titles.append('Linear AE reconstructed')
+        titles.append('Linear AE residual')
+        n_rows = 2
+        n_cols = 3
+    else:
+        n_rows = 1
+        n_cols = 3
+
+    make_reconstruction_movie(
+        ims=ims, titles=titles, n_rows=n_rows, n_cols=n_cols, save_file=save_file,
         frame_rate=frame_rate)
-
-
-def make_ae_reconstruction_movie(
-        ims_orig, ims_recon_ae, ims_recon_lin=None, save_file=None, frame_rate=15):
-    """Produce movie with original video, reconstructed video, and residual.
-
-    Parameters
-    ----------
-    ims_orig : :obj:`np.ndarray`
-        shape (n_frames, n_channels, y_pix, x_pix)
-    ims_recon_ae : :obj:`np.ndarray`
-        shape (n_frames, n_channels, y_pix, x_pix)
-    ims_recon_lin : :obj:`np.ndarray`, optional
-        shape (n_frames, n_channels, y_pix, x_pix)
-    save_file : :obj:`str`, optional
-        full save file (path and filename)
-    frame_rate : :obj:`float`, optional
-        frame rate of saved movie
-
-    """
-
-    n_frames, n_channels, y_pix, x_pix = ims_orig.shape
-    n_cols = 1 if ims_recon_lin is None else 2
-    n_rows = 3
-    offset = 1  # 0 if ims_recon_lin is None else 1
-    scale_ = 5
-    fig_width = scale_ * n_cols * n_channels / 2
-    fig_height = y_pix / x_pix * scale_ * n_rows / 2
-    fig = plt.figure(figsize=(fig_width, fig_height + offset), dpi=100)
-
-    gs = GridSpec(n_rows, n_cols, figure=fig)
-    axs = []
-    if ims_recon_lin is not None:
-        axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-        axs.append(fig.add_subplot(gs[1, 0]))  # 1: ae reconstructed frames
-        axs.append(fig.add_subplot(gs[1, 1]))  # 2: ae residuals
-        axs.append(fig.add_subplot(gs[2, 0]))  # 3: linear reconstructed frames
-        axs.append(fig.add_subplot(gs[2, 1]))  # 4: linear residuals
-    else:
-        axs.append(fig.add_subplot(gs[0, 0]))  # 0: original frames
-        axs.append(fig.add_subplot(gs[1, 0]))  # 1: ae reconstructed frames
-        axs.append(fig.add_subplot(gs[2, 0]))  # 2: ae residuals
-    for ax in fig.axes:
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-    fontsize = 12
-    axs[0].set_title('Original', fontsize=fontsize)
-    axs[1].set_title('Conv AE reconstructed', fontsize=fontsize)
-    axs[2].set_title('Conv AE residual', fontsize=fontsize)
-    if ims_recon_lin is not None:
-        axs[3].set_title('Linear AE reconstructed', fontsize=fontsize)
-        axs[4].set_title('Linear AE residual', fontsize=fontsize)
-
-    ims_res_ae = ims_orig - ims_recon_ae
-    if ims_recon_lin is not None:
-        ims_res_lin = ims_orig - ims_recon_lin
-    else:
-        ims_res_lin = None
-
-    default_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
-
-    # ims is a list of lists, each row is a list of artists to draw in the current frame; here we
-    # are just animating one artist, the image, in each frame
-    ims = []
-    for i in range(ims_orig.shape[0]):
-
-        ims_curr = []
-
-        # original video
-        ims_tmp = ims_orig[i, 0] if n_channels == 1 else concat(ims_orig[i])
-        im = axs[0].imshow(ims_tmp, **default_kwargs)
-        [s.set_visible(False) for s in axs[0].spines.values()]
-        ims_curr.append(im)
-
-        # ae reconstructed video
-        ims_tmp = ims_recon_ae[i, 0] if n_channels == 1 else concat(ims_recon_ae[i])
-        im = axs[1].imshow(ims_tmp, **default_kwargs)
-        [s.set_visible(False) for s in axs[1].spines.values()]
-        ims_curr.append(im)
-
-        # ae residual video
-        ims_tmp = ims_res_ae[i, 0] if n_channels == 1 else concat(ims_res_ae[i])
-        im = axs[2].imshow(0.5 + ims_tmp, **default_kwargs)
-        [s.set_visible(False) for s in axs[2].spines.values()]
-        ims_curr.append(im)
-
-        if ims_recon_lin is not None:
-
-            # linear reconstructed video
-            ims_tmp = ims_recon_lin[i, 0] if n_channels == 1 else concat(ims_recon_lin[i])
-            im = axs[3].imshow(ims_tmp, **default_kwargs)
-            [s.set_visible(False) for s in axs[3].spines.values()]
-            ims_curr.append(im)
-
-            # linear residual video
-            ims_tmp = ims_res_lin[i, 0] if n_channels == 1 else concat(ims_res_lin[i])
-            im = axs[4].imshow(0.5 + ims_tmp, **default_kwargs)
-            [s.set_visible(False) for s in axs[4].spines.values()]
-            ims_curr.append(im)
-
-        ims.append(ims_curr)
-
-    plt.tight_layout(pad=0)
-
-    ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
-    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
-
-    if save_file is not None:
-        make_dir_if_not_exists(save_file)
-        if save_file[-3:] != 'mp4':
-            save_file += '.mp4'
-        print('saving video to %s...' % save_file, end='')
-        ani.save(save_file, writer=writer)
-        # if save_file[-3:] != 'gif':
-        #     save_file += '.gif'
-        # ani.save(save_file, writer='imagemagick', fps=15)
-        print('done')
 
 
 def make_neural_reconstruction_movie_wrapper(

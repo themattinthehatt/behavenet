@@ -255,7 +255,7 @@ def get_model_input(
 def interpolate_2d(
         interp_type, model, ims_0, latents_0, labels_0, labels_sc_0, mins, maxes, input_idxs,
         n_frames, crop_type=None, mins_sc=None, maxes_sc=None, crop_kwargs=None,
-        marker_idxs=None):
+        marker_idxs=None, ch=0):
     """
 
     Parameters
@@ -280,6 +280,8 @@ def interpolate_2d(
         indicate which indices of ``labels_sc_0'' should be used for the marker when
         interp_type='latent' (otherwise the chosen marker defined by ``input_idxs''
         is used)
+    ch : :obj:`int`, optional
+        specify which channel of input images to return (can only be one)
 
     Returns
     -------
@@ -378,7 +380,7 @@ def interpolate_2d(
             else:
                 raise NotImplementedError
 
-            ims_tmp.append(np.copy(im_tmp[0, 0]))
+            ims_tmp.append(np.copy(im_tmp[0, ch]))
 
             if crop_type:
                 x_min_tmp = crop_kwargs['x_0'] - crop_kwargs['x_ext']
