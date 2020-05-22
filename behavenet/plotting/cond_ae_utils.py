@@ -175,7 +175,7 @@ def get_labels_2d_for_trial(
 
 def get_model_input(
         data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=100,
-        compute_latents=False, compute_2d_labels=True, dtype='test'):
+        compute_latents=False, compute_2d_labels=True, compute_scaled_labels=False, dtype='test'):
     """Return images, latents, and labels for a given trial.
 
     Parameters
@@ -191,6 +191,10 @@ def get_model_input(
     max_frames : :obj:`int`
     compute_latents : :obj:`bool`
     compute_2d_labels : :obj:`bool`
+    compute_scaled_labels : :obj:`bool`
+        ignored if `compute_2d_labels` is `True`; if `compute_scaled_labels=True`, return scaled
+        labels as shape (batch, n_labels) rather than 2d labels as shape
+        (batch, n_labels, y_pix, x_pix).
     dtype : :obj:`str`
 
     Returns
@@ -235,6 +239,12 @@ def get_model_input(
         if compute_2d_labels:
             hparams['session_dir'], sess_ids = get_session_dir(hparams)
             labels_2d_pt, labels_2d_np = get_labels_2d_for_trial(hparams, sess_ids, trial=trial)
+        elif compute_scaled_labels:
+            labels_2d_pt = None
+            import h5py
+            hdf5_file = data_generator.datasets[sess_idx].paths['labels']
+            with h5py.File(hdf5_file, 'r', libver='latest', swmr=True) as f:
+                labels_2d_np = f['labels_sc'][str('trial_%04i' % trial)][()].astype('float32')
         else:
             labels_2d_pt, labels_2d_np = None, None
 
@@ -325,9 +335,14 @@ def interpolate_2d(
 
                 # get scaled labels (for markers)
                 if labels_sc_0 is not None:
-                    tmp = np.copy(labels_sc_0)
-                    t, y, x = np.where(tmp[0] == 1)
-                    labels_sc = np.hstack([x, y])[None, :]
+                    if len(labels_sc_0.shape) == 3:
+                        # 2d scaled labels
+                        tmp = np.copy(labels_sc_0)
+                        t, y, x = np.where(tmp[0] == 1)
+                        labels_sc = np.hstack([x, y])[None, :]
+                    else:
+                        # 1d scaled labels
+                        labels_sc = np.copy(labels_sc_0)
 
                 if model.hparams['model_class'] == 'cond-ae-msp':
                     # get reconstruction
@@ -352,12 +367,20 @@ def interpolate_2d(
             elif interp_type == 'labels':
 
                 # get (new) scaled labels
-                tmp = np.copy(labels_sc_0)
-                t, y, x = np.where(tmp[0] == 1)
-                labels_sc = np.hstack([x, y])[None, :]
-                labels_sc[0, input_idxs[0]] = inputs_0_sc[i0]
-                labels_sc[0, input_idxs[1]] = inputs_1_sc[i1]
-                labels_2d = torch.from_numpy(one_hot_2d(labels_sc)).float()
+                if len(labels_sc_0.shape) == 3:
+                    # 2d scaled labels
+                    tmp = np.copy(labels_sc_0)
+                    t, y, x = np.where(tmp[0] == 1)
+                    labels_sc = np.hstack([x, y])[None, :]
+                    labels_sc[0, input_idxs[0]] = inputs_0_sc[i0]
+                    labels_sc[0, input_idxs[1]] = inputs_1_sc[i1]
+                    labels_2d = torch.from_numpy(one_hot_2d(labels_sc)).float()
+                else:
+                    # 1d scaled labels
+                    labels_sc = np.copy(labels_sc_0)
+                    labels_sc[0, input_idxs[0]] = inputs_0_sc[i0]
+                    labels_sc[0, input_idxs[1]] = inputs_1_sc[i1]
+                    labels_2d = None
 
                 if model.hparams['model_class'] == 'cond-ae-msp':
                     # change latents that correspond to desired labels
