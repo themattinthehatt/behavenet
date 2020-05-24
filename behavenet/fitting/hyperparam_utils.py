@@ -11,7 +11,7 @@ def get_all_params(search_type='grid_search', args=None):
     # Raise error if user has other command line arguments specified (as could override configs in confusing ways)
     if args is not None and len(args) != 8:
         raise ValueError('No command line arguments allowed other than config file names')
-    elif len(sys.argv[1:]) != 8:
+    elif args is None and len(sys.argv[1:]) != 8:
         raise ValueError('No command line arguments allowed other than config file names')
 
     # Create parser
