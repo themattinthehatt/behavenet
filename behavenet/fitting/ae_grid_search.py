@@ -3,6 +3,8 @@ import time
 import numpy as np
 import random
 import torch
+import torch.nn as nn
+import math
 
 from behavenet.fitting.eval import export_train_plots
 from behavenet.fitting.training import fit
@@ -13,7 +15,7 @@ from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import load_pretrained_ae
 from behavenet.fitting.hyperparam_utils import get_all_params
-from behavenet.models import AE, ConditionalAE
+from behavenet.models import AE, ConditionalAE, CustomDataParallel
 
 
 def main(hparams, *args):
@@ -68,6 +70,10 @@ def main(hparams, *args):
     ## Load pretrained weights if specified
     model = load_pretrained_ae(model, hparams)
 
+    # Parallelize over gpus if desired
+    if hparams['n_parallel_gpus'] > 1:
+        model = CustomDataParallel(model)
+
     model.version = exp.version
     torch_rnd_seed = torch.get_rng_state()
     hparams['training_rnd_seed'] = torch_rnd_seed
@@ -112,7 +118,13 @@ if __name__ == '__main__':
             hyperparams.device = 'cuda'
 
         gpu_ids = hyperparams.gpus_viz.split(';')
-        hyperparams.optimize_parallel_gpu(main, gpu_ids=gpu_ids)
+        # Set up gpu ids for parallel gpus
+        parallel_gpu_ids = []
+        for instance in range(math.ceil(len(gpu_ids) / hyperparams.n_parallel_gpus)):
+            parallel_gpu_ids.append(
+                ','.join(gpu_ids[instance * hyperparams.n_parallel_gpus:(instance + 1) * hyperparams.n_parallel_gpus]))
+
+        hyperparams.optimize_parallel_gpu(main, gpu_ids=parallel_gpu_ids)
 
     elif hyperparams.device == 'cpu':
         hyperparams.optimize_parallel_cpu(

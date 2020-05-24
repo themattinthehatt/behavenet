@@ -737,7 +737,10 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     best_val_loss = loss.get_loss('val')
                     filepath = os.path.join(
                         hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
-                    torch.save(model.state_dict(), filepath)
+                    if hparams['n_parallel_gpus'] > 1:
+                        torch.save(model.module.state_dict(), filepath)
+                    else:
+                        torch.save(model.state_dict(), filepath)
                     best_model_saved = True
 
                     model.hparams = None
@@ -788,7 +791,10 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     if not best_model_saved:
         filepath = os.path.join(
             hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
-        torch.save(model.state_dict(), filepath)
+        if hparams['n_parallel_gpus'] > 1:
+            torch.save(model.module.state_dict(), filepath)
+        else:
+            torch.save(model.state_dict(), filepath)
 
         model.hparams = None
         best_val_model = copy.deepcopy(model)
@@ -798,7 +804,10 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     # save out last model
     if hparams.get('save_last_model', False):
         filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'last_model.pt')
-        torch.save(model.state_dict(), filepath)
+        if hparams['n_parallel_gpus'] > 1:
+            torch.save(model.module.state_dict(), filepath)
+        else:
+            torch.save(model.state_dict(), filepath)
 
     # compute test loss
     if method == 'ae':

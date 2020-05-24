@@ -228,7 +228,6 @@ class ConvAEEncoder(nn.Module):
         for param in self.parameters():
             param.requires_grad = True
 
-
 class ConvAEDecoder(nn.Module):
     """Convolutional decoder."""
 
@@ -837,3 +836,11 @@ class ConditionalAE(AE):
         z = torch.cat((x, labels), dim=1)
         y = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return y, x
+
+class CustomDataParallel(nn.DataParallel):
+    # from https://github.com/pytorch/tutorials/issues/836
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
