@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-
+import pickle
 
 def get_data_generator_inputs(hparams, sess_ids):
     """Helper function for generating signals, transforms and paths.
@@ -244,6 +244,15 @@ def get_data_generator_inputs(hparams, sess_ids):
 
     return hparams, signals_list, transforms_list, paths_list
 
+def check_same_training_split(model_path, hparams):
+    import_params_file = os.path.dirname(model_path) + '/meta_tags.pkl'
+    import_params = pickle.load(open(import_params_file, 'rb'))
+
+    if import_params['rng_seed_data'] != hparams['rng_seed_data']:
+        raise ValueError('Different data random seed from existing models')
+
+    if import_params['trial_splits'] != hparams['trial_splits']:
+        raise ValueError('Different trial split from existing models')
 
 def get_transforms_paths(data_type, hparams, sess_id):
     """Helper function for generating session-specific transforms and paths.
@@ -410,6 +419,9 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
     else:
         raise ValueError('"%s" is an invalid data_type' % data_type)
+
+    # Check training data split is the same
+    check_same_training_split(path, hparams)
 
     return transform, path
 
