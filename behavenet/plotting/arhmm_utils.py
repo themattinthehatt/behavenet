@@ -175,7 +175,7 @@ def get_model_latents_states(
     # get version/model
     if version == 'best':
         version = get_best_model_version(
-            hparams['expt_dir'], measure='val_loss', best_def='max')[0]
+            hparams['expt_dir'], measure='val_loss', best_def='min')[0]
     else:
         _, version = experiment_exists(hparams, which_version=True)
     if version is None:

@@ -137,15 +137,15 @@ def main(hparams):
             hmm.fit(latents['train'], method='em', num_iters=1, initialize=False)
 
         # export aggregated metrics on train/val data
-        tr_ll = hmm.log_likelihood(latents['train']) / n_datapoints['train']
-        val_ll = hmm.log_likelihood(latents['val']) / n_datapoints['val']
+        tr_ll = -hmm.log_likelihood(latents['train']) / n_datapoints['train']
+        val_ll = -hmm.log_likelihood(latents['val']) / n_datapoints['val']
         exp.log({
             'epoch': epoch, 'dataset': -1, 'tr_loss': tr_ll, 'val_loss': val_ll, 'trial': -1})
 
         # export individual session metrics on train/val data
         for d in range(data_generator.n_datasets):
-            tr_ll = hmm.log_likelihood(latents_sess[d]['train']) / n_datapoints_sess['train'][d]
-            val_ll = hmm.log_likelihood(latents_sess[d]['val']) / n_datapoints_sess['val'][d]
+            tr_ll = -hmm.log_likelihood(latents_sess[d]['train']) / n_datapoints_sess['train'][d]
+            val_ll = -hmm.log_likelihood(latents_sess[d]['val']) / n_datapoints_sess['val'][d]
             exp.log({
                 'epoch': epoch, 'dataset': d, 'tr_loss': tr_ll, 'val_loss': val_ll, 'trial': -1})
 
@@ -153,7 +153,7 @@ def main(hparams):
     for d in range(n_datasets):
         for i, b in enumerate(trial_idxs_sess[d]['test']):
             n = latents_sess[d]['test'][i].size
-            test_ll = hmm.log_likelihood(latents_sess[d]['test'][i]) / n
+            test_ll = -hmm.log_likelihood(latents_sess[d]['test'][i]) / n
             exp.log({'epoch': epoch, 'dataset': d, 'test_loss': test_ll, 'trial': b})
     exp.save()
 
