@@ -26,7 +26,7 @@ def main(hparams, *args):
 
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
-        hparams = {**hparams, **hparams['architecture_params']}
+        hparams = {**hparams['architecture_params'], **hparams}
 
     if hparams['model_type'] == 'conv' and hparams['n_ae_latents'] > hparams['max_latents']:
         raise ValueError('Number of latents higher than max latents, architecture will not work')

@@ -8,8 +8,7 @@ import sys
 
 def get_all_params(search_type='grid_search', args=None):
 
-    # Raise error if user has other command line arguments specified (as could override configs in
-    # confusing ways)
+    # Raise error if user has other command line arguments specified (as could override configs in confusing ways)
     if args is not None and len(args) != 8:
         raise ValueError('No command line arguments allowed other than config file names')
     elif len(sys.argv[1:]) != 8:
@@ -59,9 +58,6 @@ def add_dependent_params(parser, namespace):
 
         max_latents = 64
         parser.add_argument('--max_latents', default=max_latents)
-
-        if np.any(np.array(namespace.n_ae_latents) > max_latents):
-            raise ValueError('Number of latents higher than max latents')
 
         arch_dict = load_handcrafted_arch(
             [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
