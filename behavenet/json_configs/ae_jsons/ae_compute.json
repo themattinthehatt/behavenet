@@ -6,6 +6,8 @@
 
 "gpus_viz": "0;1;2", # type: str, help: add multiple gpus as '0;1;4' etc
 
+"n_parallel_gpus": 1, # type: int, help: number of gpus to use for one model
+  
 "device": "cuda", # type: str, help: cpu or cuda
 
 
