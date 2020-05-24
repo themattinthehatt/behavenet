@@ -365,7 +365,7 @@ def get_transforms_paths(data_type, hparams, sess_id):
                 arhmm_version = str('version_%i' % hparams['arhmm_version'])
             else:
                 arhmm_version = 'version_%i' % get_best_model_version(
-                    arhmm_dir, 'val_loss', best_def='max')[0]
+                    arhmm_dir, 'val_loss', best_def='min')[0]
             arhmm_states = str('%sstates.pkl' % sess_id_str)
             path = os.path.join(arhmm_dir, arhmm_version, arhmm_states)
 
