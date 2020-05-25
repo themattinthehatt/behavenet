@@ -40,6 +40,7 @@ Computational resources
 =======================
 
 * **device** (*str*): where to fit pytorch models; 'cpu' | 'cuda'
+* **n_parallel_gpus** (*int*): number of gpus to use per model, currently only implemented for AEs 
 * **tt_n_gpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on gpus
 * **tt_n_cpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on cpus
 * **tt_n_cpu_workers** (*int*): total number of cpu cores to use with test-tube for hyperparameter searching
