@@ -42,4 +42,6 @@ Performing a search over multiple latents is as simple as editing the ``ae_model
     "ae_arch_json": null,
     "model_class": "ae"
     }
+    
+Training an AE can be slow: you can speed up the training by parallelizing over multiple gpus. To do this, just specify ``n_parallel_gpus`` to be the number of gpus you wish to use per model. The code will split up the gpus specified in ``gpus_viz`` into groups of size n_parallel_gpus (or less if there are leftover gpus) and run the models accordingly. 
 
