@@ -39,13 +39,19 @@ For encoders/decoders, additional information can be supplied to control which s
 Computational resources
 =======================
 
-* **gpus_viz** (*str*): which gpus are visible to test-tube; multiple gpus are identified as e.g. '0;1;4'
 * **device** (*str*): where to fit pytorch models; 'cpu' | 'cuda'
 * **tt_n_gpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on gpus
 * **tt_n_cpu_trials** (*int*): total number of hyperparameter combinations to fit with test-tube on cpus
 * **tt_n_cpu_workers** (*int*): total number of cpu cores to use with test-tube for hyperparameter searching
 * **mem_limit_gb** (*float*): maximum size of gpu memory; used to filter out randomly generated CAEs that are too large
 
+If using machine without slurm:
+* **gpus_viz** (*str*): which gpus are visible to test-tube; multiple gpus are identified as e.g. '0;1;4'
+
+If using slurm:
+* **slurm** (*bool*): true if using slurm, false otherwise
+* **slurm_log_path** (*str*): directory in which to save slurm outputs (.err/.out files)
+* **slurm_param_file** (*str*): file name of the .sh file with slurm params for job submission
 
 Training
 ========
