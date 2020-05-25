@@ -17,6 +17,6 @@ Steps
     #SBATCH --mail-user=email@gmail.com   # Where to send mail	
     #SBATCH --time=00:05:00               # Time limit hrs:min:sec
 
-2) Add slurm hyperparameters (as specified in Hyperparameter glossary) to compute.json
+2) Add slurm hyperparameters (as specified in Hyperparameter glossary) to your compute.json 
 
 3) Run the python script as specified throughout these docs and BehaveNet/test-tube will take care of the rest!
