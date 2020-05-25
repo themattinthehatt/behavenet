@@ -46,9 +46,11 @@ Computational resources
 * **mem_limit_gb** (*float*): maximum size of gpu memory; used to filter out randomly generated CAEs that are too large
 
 If using machine without slurm:
+
 * **gpus_viz** (*str*): which gpus are visible to test-tube; multiple gpus are identified as e.g. '0;1;4'
 
 If using slurm:
+
 * **slurm** (*bool*): true if using slurm, false otherwise
 * **slurm_log_path** (*str*): directory in which to save slurm outputs (.err/.out files)
 * **slurm_param_file** (*str*): file name of the .sh file with slurm params for job submission
