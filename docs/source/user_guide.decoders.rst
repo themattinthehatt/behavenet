@@ -9,6 +9,7 @@ The architecture options consist of a linear model or feedforward neural network
 To begin fitting decoding models, copy the example json files ``decoding_ae_model.json``, ``decoding_arhmm_model.json``, ``decoding_compute.json``, and ``decoding_training.json`` into your ``.behavenet`` directory. ``cd`` to the ``behavenet`` directory in the terminal, and run:
 
 Decoding ARHMM states:
+
 .. code-block:: console
 
     $: python behavenet/fitting/decoding_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/decoding_arhmm_model.json --training_config ~/.behavenet/decoding_training.json --compute_config ~/.behavenet/decoding_compute.json
@@ -16,6 +17,7 @@ Decoding ARHMM states:
 or
 
 Decoding AE states:
+
 .. code-block:: console
 
     $: python behavenet/fitting/decoding_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/decoding_ae_model.json --training_config ~/.behavenet/decoding_training.json --compute_config ~/.behavenet/decoding_compute.json
