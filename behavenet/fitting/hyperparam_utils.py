@@ -1,9 +1,13 @@
 import commentjson
+import datetime
 import numpy as np
 from test_tube import HyperOptArgumentParser
+from test_tube.hpc import SlurmCluster, AbstractCluster
 from behavenet import get_user_dir
 from behavenet.fitting.ae_model_architecture_generator import load_handcrafted_arch
 import sys
+import os
+from subprocess import call
 
 
 def get_all_params(search_type='grid_search', args=None):
@@ -93,3 +97,52 @@ def add_dependent_params(parser, namespace):
                     'must be a string ("all" or "name")')
     else:
         pass
+
+class CustomSlurmCluster(SlurmCluster):
+
+    def __init__(self, master_slurm_file, *args, **kwargs):
+        super(CustomSlurmCluster, self).__init__(*args, **kwargs)
+
+        self.master_slurm_file = master_slurm_file
+
+    def schedule_experiment(self, trial_params, exp_i):
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d__%H-%M-%S")
+        timestamp = 'trial_{}_{}'.format(exp_i, timestamp)
+
+        # generate command
+        slurm_cmd_script_path = os.path.join(self.slurm_files_log_path, '{}_slurm_cmd.sh'.format(timestamp))
+        #slurm_cmd = self._SlurmCluster__build_slurm_command(trial_params, slurm_cmd_script_path, timestamp, exp_i, self.on_gpu)
+        run_cmd = self.__get_run_command(trial_params, slurm_cmd_script_path, timestamp, exp_i, self.on_gpu)
+        sbatch_params = open(self.master_slurm_file,'r').read()
+        slurm_cmd = sbatch_params+run_cmd
+        self._SlurmCluster__save_slurm_cmd(slurm_cmd, slurm_cmd_script_path)
+
+        # run script to launch job
+        print('\nlaunching exp...')
+        result = call('{} {}'.format(AbstractCluster.RUN_CMD, slurm_cmd_script_path), shell=True)
+        if result == 0:
+            print('launched exp ', slurm_cmd_script_path)
+        else:
+            print('launch failed...')
+
+    def __get_run_command(self, trial, slurm_cmd_script_path, timestamp, exp_i, on_gpu):
+        trial_args = self._SlurmCluster__get_hopt_params(trial)
+        trial_args = '{} --{} {} --{} {}'.format(trial_args,
+                                                 HyperOptArgumentParser.SLURM_CMD_PATH,
+                                                 slurm_cmd_script_path,
+                                                 HyperOptArgumentParser.SLURM_EXP_CMD,
+                                                 exp_i)
+
+        cmd = 'srun {} {} {}'.format(self.python_cmd, self.script_name, trial_args)
+        return cmd
+
+def get_slurm_params(hyperparams):
+
+    cluster = CustomSlurmCluster(
+        hyperparam_optimizer=hyperparams,
+        log_path=hyperparams.log_path,
+        python_cmd='python3',
+        master_slurm_file=hyperparams.master_slurm_file,
+    )
+
+    return cluster

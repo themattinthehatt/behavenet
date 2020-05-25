@@ -7,7 +7,7 @@ import pickle
 
 from behavenet.fitting.eval import export_states
 from behavenet.fitting.eval import export_train_plots
-from behavenet.fitting.hyperparam_utils import get_all_params
+from behavenet.fitting.hyperparam_utils import get_all_params, get_slurm_params
 from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
@@ -198,15 +198,29 @@ if __name__ == '__main__':
 
     hyperparams = get_all_params('grid_search')
 
-    if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
-        if hyperparams.device == 'gpu':
-            hyperparams.device = 'cuda'
+    if 'slurm' in hyperparams and hyperparams.slurm:
 
-        gpu_ids = hyperparams.gpus_viz.split(';')
-        hyperparams.optimize_parallel_gpu(main, gpu_ids=gpu_ids)
+        cluster = get_slurm_params(hyperparams)
 
-    elif hyperparams.device == 'cpu':
-        hyperparams.optimize_parallel_cpu(
-            main,
-            nb_trials=hyperparams.tt_n_cpu_trials,
-            nb_workers=hyperparams.tt_n_cpu_workers)
+        if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
+
+            cluster.optimize_parallel_cluster_gpu(main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name, job_display_name=None)
+
+        elif hyperparams.device == 'cpu':
+
+            cluster.optimize_parallel_cluster_cpu(main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name,
+                                                  job_display_name=None)
+
+    else:
+        if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
+            if hyperparams.device == 'gpu':
+                hyperparams.device = 'cuda'
+
+            gpu_ids = hyperparams.gpus_viz.split(';')
+            hyperparams.optimize_parallel_gpu(main, gpu_ids=gpu_ids)
+
+        elif hyperparams.device == 'cpu':
+            hyperparams.optimize_parallel_cpu(
+                main,
+                nb_trials=hyperparams.tt_n_cpu_trials,
+                nb_workers=hyperparams.tt_n_cpu_workers)

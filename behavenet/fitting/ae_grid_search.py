@@ -14,7 +14,7 @@ from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import load_pretrained_ae
-from behavenet.fitting.hyperparam_utils import get_all_params
+from behavenet.fitting.hyperparam_utils import get_all_params, get_slurm_params
 from behavenet.models import AE, ConditionalAE, CustomDataParallel
 
 
@@ -113,21 +113,38 @@ if __name__ == '__main__':
 
     hyperparams = get_all_params('grid_search')
 
-    if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
-        if hyperparams.device == 'gpu':
-            hyperparams.device = 'cuda'
+    if 'slurm' in hyperparams and hyperparams.slurm:
 
-        gpu_ids = hyperparams.gpus_viz.split(';')
-        # Set up gpu ids for parallel gpus
-        parallel_gpu_ids = []
-        for instance in range(math.ceil(len(gpu_ids) / hyperparams.n_parallel_gpus)):
-            parallel_gpu_ids.append(
-                ','.join(gpu_ids[instance * hyperparams.n_parallel_gpus:(instance + 1) * hyperparams.n_parallel_gpus]))
+        cluster = get_slurm_params(hyperparams)
 
-        hyperparams.optimize_parallel_gpu(main, gpu_ids=parallel_gpu_ids)
+        if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
 
-    elif hyperparams.device == 'cpu':
-        hyperparams.optimize_parallel_cpu(
-            main,
-            nb_trials=hyperparams.tt_n_cpu_trials,
-            nb_workers=hyperparams.tt_n_cpu_workers)
+            cluster.optimize_parallel_cluster_gpu(main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name, job_display_name=None)
+
+        elif hyperparams.device == 'cpu':
+
+            cluster.optimize_parallel_cluster_cpu(main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name,
+                                                  job_display_name=None)
+
+    else:
+
+        if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
+            if hyperparams.device == 'gpu':
+                hyperparams.device = 'cuda'
+
+            gpu_ids = hyperparams.gpus_viz.split(';')
+            # Set up gpu ids for parallel gpus
+            parallel_gpu_ids = []
+            for instance in range(math.ceil(len(gpu_ids) / hyperparams.n_parallel_gpus)):
+                parallel_gpu_ids.append(
+                    ','.join(gpu_ids[instance * hyperparams.n_parallel_gpus:(instance + 1) * hyperparams.n_parallel_gpus]))
+
+            hyperparams.optimize_parallel_gpu(main, gpu_ids=parallel_gpu_ids)
+
+        elif hyperparams.device == 'cpu':
+            hyperparams.optimize_parallel_cpu(
+                main,
+                nb_trials=hyperparams.tt_n_cpu_trials,
+                nb_workers=hyperparams.tt_n_cpu_workers)
+
+
