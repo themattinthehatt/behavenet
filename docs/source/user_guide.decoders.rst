@@ -1,7 +1,27 @@
 Decoders
 ========
 
-Coming soon!
+The next step of the BehaveNet pipeline uses the neural activity to decode (or reconstruct) aspects of behavior. In particular, you may decode either the AE latents or the ARHMM states on a frame-by-frame basis given the surrounding window of neural activity. 
+
+The architecture options consist of a linear model or feedforward neural network: exact architecture parameters such as number of layers in the neural network can be specified in ``decoding_ae_model.json`` or ``decoding_arhmm_model.json``. The size of the window of neural activity used to reconstruct each frame of AE latents or ARHMM states is set by ``n_lags``: the neural activity from ``t-n_lags:t+n_lags`` will be used to predict the latents or states at time ``t``. 
+
+
+To begin fitting decoding models, copy the example json files ``decoding_ae_model.json``, ``decoding_arhmm_model.json``, ``decoding_compute.json``, and ``decoding_training.json`` into your ``.behavenet`` directory. ``cd`` to the ``behavenet`` directory in the terminal, and run:
+
+Decoding ARHMM states:
+.. code-block:: console
+
+    $: python behavenet/fitting/decoding_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/decoding_arhmm_model.json --training_config ~/.behavenet/decoding_training.json --compute_config ~/.behavenet/decoding_compute.json
+    
+or
+
+Decoding AE states:
+.. code-block:: console
+
+    $: python behavenet/fitting/decoding_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/decoding_ae_model.json --training_config ~/.behavenet/decoding_training.json --compute_config ~/.behavenet/decoding_compute.json
+
+
+
 
 
 .. _decoding_with_subsets:
