@@ -13,7 +13,6 @@ from behavenet.fitting.eval import export_predictions
 # TODO: use epoch number as rng seed so that batches are served in a controllable way?
 # TODO: make it easy to finish training if unexpectedly stopped
 # TODO: save models at prespecified intervals (check ae recon as a func of epoch w/o retraining)
-# TODO: fix early stopping (at least for AEs)
 
 # to ignore imports for sphix-autoapidoc
 __all__ = ['FitMethod', 'AELoss', 'NLLLoss', 'EarlyStopping', 'fit']

@@ -118,7 +118,6 @@ def main(hparams):
     # ####################
 
     # TODO: move fitting into own function
-    # TODO: adopt early stopping strategy from ssm
     # precompute normalizers
     n_datapoints = {}
     n_datapoints_sess = {}
