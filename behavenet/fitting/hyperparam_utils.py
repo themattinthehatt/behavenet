@@ -140,9 +140,9 @@ def get_slurm_params(hyperparams):
 
     cluster = CustomSlurmCluster(
         hyperparam_optimizer=hyperparams,
-        log_path=hyperparams.log_path,
+        log_path=hyperparams.slurm_log_path,
         python_cmd='python3',
-        master_slurm_file=hyperparams.master_slurm_file,
+        master_slurm_file=hyperparams.slurm_param_file,
     )
 
     return cluster
