@@ -25,7 +25,7 @@
   
 #"slurm_log_path": "", # path for slurm logs
   
-#"master_slurm_file": "", # filename of .sh with slurm info
+#"slurm_param_file": "", # filename of .sh with slurm info
   
 ######################
 ## Test tube params ##
