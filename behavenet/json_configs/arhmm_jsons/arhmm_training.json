@@ -18,6 +18,8 @@
 
 "rng_seed_train": null, # type: int
 
+"arhmm_es_tol": 0, # type: float
+
 
 ###########################
 ## Data generator params ##

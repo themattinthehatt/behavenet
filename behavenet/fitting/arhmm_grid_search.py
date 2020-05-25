@@ -128,6 +128,8 @@ def main(hparams):
         for d in range(n_datasets):
             n_datapoints_sess[dtype][d] = np.vstack(latents_sess[d][dtype]).size
 
+    val_ll_prev = np.inf
+    tolerance = hparams.get('arhmm_es_tol', 0)
     for epoch in range(hparams['n_iters'] + 1):
         # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
         # through `n_iters` training epochs
@@ -148,6 +150,11 @@ def main(hparams):
             val_ll = -hmm.log_likelihood(latents_sess[d]['val']) / n_datapoints_sess['val'][d]
             exp.log({
                 'epoch': epoch, 'dataset': d, 'tr_loss': tr_ll, 'val_loss': val_ll, 'trial': -1})
+
+        # check for convergence
+        if epoch > 0 and np.abs((val_ll - val_ll_prev) / val_ll) < tolerance:
+            print('relative change less than tolerance=%1.2f; training terminating!' % tolerance)
+        val_ll_prev = val_ll
 
     # export individual session metrics on test data
     for d in range(n_datasets):

@@ -82,6 +82,7 @@ Pytorch models (all but 'arhmm' and 'bayesian-decoding'):
 ARHMM:
 
 * **n_iters** (*int*): number of EM iterations (currently no early stopping)
+* **arhmm_es_tol** (*float*): relative tolerance for early stopping; training terminates if the absolute value of the difference between the previous log likelihood (ll) and current ll, divided by the current ll, is less than this value
 
 
 Models
