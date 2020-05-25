@@ -530,25 +530,32 @@ class NLLLoss(FitMethod):
 
 
 class EarlyStopping(object):
-    """Stop training when a monitored quantity has stopped improving."""
+    """Stop training when a monitored quantity has stopped improving.
 
-    def __init__(self, history=10, min_epochs=10):
+    Adapted from: https://github.com/Bjarten/early-stopping-pytorch/blob/master/pytorchtools.py
+    """
+
+    def __init__(self, patience=10, min_epochs=10, delta=0):
         """
 
         Parameters
         ----------
-        history : :obj:`int`
+        patience : :obj:`int`, optional
             number of previous checks to average over when checking for increase in loss
-        min_epochs : :obj:`int`
+        min_epochs : :obj:`int`, optional
             minimum number of epochs for training
+        delta : :obj:`float`, optional
+            minimum change in monitored quantity to qualify as an improvement
 
         """
 
-        self.history = history
+        self.patience = patience
         self.min_epochs = min_epochs
+        self.delta = delta
 
         # keep track of `history` most recent losses
-        self.prev_losses = np.full(self.history, fill_value=np.nan)
+        # self.prev_losses = np.full(self.history, fill_value=np.nan)
+        self.counter = 0
         self.best_epoch = 0
         self.best_loss = np.inf
         self.stopped_epoch = 0
@@ -569,19 +576,21 @@ class EarlyStopping(object):
 
         """
 
-        prev_mean = np.nanmean(self.prev_losses)
-        self.prev_losses = np.roll(self.prev_losses, 1)
-        self.prev_losses[0] = curr_loss
-        curr_mean = np.nanmean(self.prev_losses)
+        # prev_mean = np.nanmean(self.prev_losses)
+        # self.prev_losses = np.roll(self.prev_losses, 1)
+        # self.prev_losses[0] = curr_loss
+        # curr_mean = np.nanmean(self.prev_losses)
 
         # update best loss and epoch that it happened at
-        if curr_loss < self.best_loss:
+        if curr_loss < self.best_loss - self.delta:
             self.best_loss = curr_loss
             self.best_epoch = epoch
+            self.counter = 0
+        else:
+            self.counter += 1
 
         # check if smoothed loss is starting to increase; exit training if so
-        if epoch > max(self.min_epochs, self.history) \
-                and curr_mean >= prev_mean:
+        if epoch > self.min_epochs and self.counter >= self.patience:
             print('\n== early stopping criteria met; exiting train loop ==')
             print('training epochs: %d' % epoch)
             print('end cost: %04f' % curr_loss)
@@ -660,7 +669,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     # early stopping set-up
     if hparams['enable_early_stop']:
         early_stop = EarlyStopping(
-            history=hparams['early_stop_history'], min_epochs=hparams['min_n_epochs'])
+            patience=hparams['early_stop_history'], min_epochs=hparams['min_n_epochs'])
     else:
         early_stop = None
 
