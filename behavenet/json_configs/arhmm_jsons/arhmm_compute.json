@@ -8,7 +8,16 @@
 
 "device": "cpu", # type: str, help: cpu or cuda
 
-
+###########
+## SLURM ##
+###########
+  
+#"slurm": true, # true if using slurm, false otherwise
+  
+#"log_path": "", # path for slurm logs
+  
+#"master_slurm_file": "", # filename of .sh with slurm info
+  
 ######################
 ## Test tube params ##
 ######################
