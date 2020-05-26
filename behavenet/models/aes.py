@@ -839,8 +839,13 @@ class ConditionalAE(AE):
         y = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return y, x
 
+
 class CustomDataParallel(nn.DataParallel):
-    # from https://github.com/pytorch/tutorials/issues/836
+    """Wrapper class for multi-gpu training.
+
+    from https://github.com/pytorch/tutorials/issues/836
+    """
+
     def __getattr__(self, name):
         try:
             return super().__getattr__(name)
