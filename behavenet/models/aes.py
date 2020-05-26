@@ -41,7 +41,6 @@ class ConvAEEncoder(nn.Module):
             format_str += str('    {:02d}: {}\n'.format(i, module))
             i += 1
         # final ff layer
-        i += 1
         format_str += str('    {:02d}: {}\n'.format(i, self.FF))
         return format_str
 
@@ -228,6 +227,7 @@ class ConvAEEncoder(nn.Module):
         for param in self.parameters():
             param.requires_grad = True
 
+
 class ConvAEDecoder(nn.Module):
     """Convolutional decoder."""
 
@@ -260,8 +260,10 @@ class ConvAEDecoder(nn.Module):
     def __str__(self):
         """Pretty print decoder architecture."""
         format_str = 'Decoder architecture:\n'
+        # initial ff layer
+        format_str += str('    {:02d}: {}\n'.format(0, self.FF))
         for i, module in enumerate(self.decoder):
-            format_str += str('    {:02d}: {}\n'.format(i, module))
+            format_str += str('    {:02d}: {}\n'.format(i + 1, module))
         return format_str
 
     def build_model(self):
