@@ -335,7 +335,7 @@ def interpolate_2d(
 
                 # get scaled labels (for markers)
                 if labels_sc_0 is not None:
-                    if len(labels_sc_0.shape) == 3:
+                    if len(labels_sc_0.shape) == 4:
                         # 2d scaled labels
                         tmp = np.copy(labels_sc_0)
                         t, y, x = np.where(tmp[0] == 1)
@@ -367,7 +367,7 @@ def interpolate_2d(
             elif interp_type == 'labels':
 
                 # get (new) scaled labels
-                if len(labels_sc_0.shape) == 3:
+                if len(labels_sc_0.shape) == 4:
                     # 2d scaled labels
                     tmp = np.copy(labels_sc_0)
                     t, y, x = np.where(tmp[0] == 1)
