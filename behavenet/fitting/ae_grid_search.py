@@ -75,7 +75,7 @@ def main(hparams, *args):
             'The model class "%s" is not currently implemented' % hparams['model_class'])
     model.to(hparams['device'])
 
-    ## Load pretrained weights if specified
+    # load pretrained weights if specified
     model = load_pretrained_ae(model, hparams)
 
     # Parallelize over gpus if desired
