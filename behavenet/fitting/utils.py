@@ -932,6 +932,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
     Model : :obj:`behavenet.models` object
         model type
     load_data : :obj:`bool`, optional
+        if `False` then data generator is not returned
     version : :obj:`str` or :obj:`int`, optional
         can be 'best' to load best model
     data_kwargs : :obj:`dict`, optional

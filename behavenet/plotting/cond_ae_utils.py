@@ -56,13 +56,22 @@ def get_input_range(
     input_type : :obj:`str`
         'latents' | 'labels' | 'labels_sc'
     hparams : :obj:`dict`
-    sess_ids : :obj:`list`
-    sess_idx : :obj:`int`
-    model : :obj:`AE` object
-    data_gen : :obj:`ConcatSessionGenerator` object
-    version
-    min_p : :obj:`int`
-    max_p : :obj:`int`
+        needs to contain enough information to specify an autoencoder
+    sess_ids : :obj:`list`, optional
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'; for loading
+        labels and labels_sc
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    model : :obj:`AE` object, optional
+        for generating latents if latent file does not exist
+    data_gen : :obj:`ConcatSessionGenerator` object, optional
+        for generating latents if latent file does not exist
+    version : :obj:`int`, optional
+        specify AE version for loading latents
+    min_p : :obj:`int`, optional
+        defines lower end of range; percentile in [0, 100]
+    max_p : :obj:`int`, optional
+        defines upper end of range; percentile in [0, 100]
 
     Returns
     -------
@@ -106,7 +115,7 @@ def compute_range(values_list, min_p=5, max_p=95):
     Parameters
     ----------
     values_list : :obj:`list`
-        list of np.ndarrays; min/max calculated over axis 0
+        list of np.ndarrays; min/max calculated over axis 0 once all lists are vertically stacked
     min_p : :obj:`int`
         defines lower end of range; percentile in [0, 100]
     max_p : :obj:`int`
@@ -134,20 +143,32 @@ def compute_range(values_list, min_p=5, max_p=95):
 
 def get_labels_2d_for_trial(
         hparams, sess_ids, trial=None, trial_idx=None, sess_idx=0, dtype='test', data_gen=None):
-    """Return framespace [scaled] labels for a given trial.
+    """Return scaled labels (in pixel space) for a given trial.
 
     Parameters
     ----------
-    hparams
-    sess_ids
-    trial
-    trial_idx
-    sess_idx
-    dtype
-    data_gen
+    hparams : :obj:`dict`
+        needs to contain enough information to build a data generator
+    sess_ids : :obj:`list` of :obj:`dict`
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'
+    trial : :obj:`int`, optional
+        trial index into all possible trials (train, val, test); one of `trial` or `trial_idx`
+        must be specified; `trial` takes precedence over `trial_idx`
+    trial_idx : :obj:`int`, optional
+        trial index into trial type defined by `dtype`; one of `trial` or `trial_idx` must be
+        specified; `trial` takes precedence over `trial_idx`
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    dtype : :obj:`str`, optional
+        data type that is indexed by `trial_idx`; 'train' | 'val' | 'test'
+    data_gen : :obj:`ConcatSessionGenerator` object, optional
+        for generating labels
 
     Returns
     -------
+    :obj:`tuple`
+        - labels_2d_pt (:obj:`torch.Tensor`) of shape (batch, n_labels, y_pix, x_pix)
+        - labels_2d_np (:obj:`np.ndarray`) of shape (batch, n_labels, y_pix, x_pix)
 
     """
 
@@ -180,32 +201,42 @@ def get_model_input(
 
     Parameters
     ----------
-    data_generator : :obj:`ConcatSessionsGenerator`
+    data_generator: :obj:`ConcatSessionGenerator`
+        for generating model input
     hparams : :obj:`dict`
-    model : pytorch model
-    trial : :obj:`int`
-        actual trial number
-    trial_idx : :obj:`int`
-        index into trials of type `dtype`
-    sess_idx : :obj:`int`
-    max_frames : :obj:`int`
-    compute_latents : :obj:`bool`
-    compute_2d_labels : :obj:`bool`
-    compute_scaled_labels : :obj:`bool`
+        needs to contain enough information to specify both a model and the associated data
+    model : :obj:`behavenet.models` object
+        model type
+    trial : :obj:`int`, optional
+        trial index into all possible trials (train, val, test); one of `trial` or `trial_idx`
+        must be specified; `trial` takes precedence over `trial_idx`
+    trial_idx : :obj:`int`, optional
+        trial index into trial type defined by `dtype`; one of `trial` or `trial_idx` must be
+        specified; `trial` takes precedence over `trial_idx`
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    max_frames : :obj:`int`, optional
+        maximum size of batch to return
+    compute_latents : :obj:`bool`, optional
+        `True` to return latents
+    compute_2d_labels : :obj:`bool`, optional
+        `True` to return 2d label tensors of shape (batch, n_labels, y_pix, x_pix)
+    compute_scaled_labels : :obj:`bool`, optional
         ignored if `compute_2d_labels` is `True`; if `compute_scaled_labels=True`, return scaled
         labels as shape (batch, n_labels) rather than 2d labels as shape
         (batch, n_labels, y_pix, x_pix).
-    dtype : :obj:`str`
+    dtype : :obj:`str`, optional
+        data type that is indexed by `trial_idx`; 'train' | 'val' | 'test'
 
     Returns
     -------
     :obj:`tuple`
-        - ims_pt
-        - ims_np
-        - latents_np
-        - labels_pt
-        - labels_2d_pt
-        - labels_2d_np
+        - ims_pt (:obj:`torch.Tensor`) of shape (max_frames, n_channels, y_pix, x_pix)
+        - ims_np (:obj:`np.ndarray`) of shape (max_frames, n_channels, y_pix, x_pix)
+        - latents_np (:obj:`np.ndarray`) of shape (max_frames, n_latents)
+        - labels_pt (:obj:`torch.Tensor`) of shape (max_frames, n_labels)
+        - labels_2d_pt (:obj:`torch.Tensor`) of shape (max_frames, n_labels, y_pix, x_pix)
+        - labels_2d_np (:obj:`np.ndarray`) of shape (max_frames, n_labels, y_pix, x_pix)
 
     """
 
@@ -266,35 +297,59 @@ def interpolate_2d(
         interp_type, model, ims_0, latents_0, labels_0, labels_sc_0, mins, maxes, input_idxs,
         n_frames, crop_type=None, mins_sc=None, maxes_sc=None, crop_kwargs=None,
         marker_idxs=None, ch=0):
-    """
+    """Return reconstructed images created by interpolating through latent/label space.
 
     Parameters
     ----------
-    interp_type
-    model
-    ims_0
-    latents_0
-    labels_0
-    labels_sc_0
-    mins
-    maxes
-    input_idxs
-        must be y first, then x for proper marker recording
-    n_frames
-    crop_type
-        currently only implements 'fixed'
-    mins_sc
-    maxes_sc
-    crop_kwargs
-    marker_idxs
-        indicate which indices of ``labels_sc_0'' should be used for the marker when
-        interp_type='latent' (otherwise the chosen marker defined by ``input_idxs''
-        is used)
+    interp_type : :obj:`str`
+        'latents' | 'labels'
+    model : :obj:`behavenet.models` object
+        autoencoder model
+    ims_0 : :obj:`np.ndarray`
+        base images for interpolating labels, of shape (1, n_channels, y_pix, x_pix)
+    latents_0 : :obj:`np.ndarray`
+        base latents of shape (1, n_latents); only two of these dimensions will be changed if
+        `interp_type='latents'`
+    labels_0 : :obj:`np.ndarray`
+        base labels of shape (1, n_labels)
+    labels_sc_0 : :obj:`np.ndarray`
+        base scaled labels in pixel space of shape (1, n_labels, y_pix, x_pix)
+    mins : :obj:`list`
+        minimum values of labels/latents, one for each interpolated dim (2 values)
+    maxes : :obj:`list`
+        maximum values of labels/latents, one for each interpolated dim (2 values)
+    input_idxs : :obj:`list`
+        indices of labels/latents that will be interpolated; for labels, must be y first, then x
+        for proper marker recording
+    n_frames : :obj:`int`
+        number of interpolation points between mins and maxes (inclusive)
+    crop_type : :obj:`str` or :obj:`NoneType`, optional
+        currently only implements 'fixed'; if not None, cropped images are returned, and returned
+        labels are also cropped so that they can be plotted on top of the cropped images; if None,
+        returned cropped images are empty and labels are relative to original image size
+    mins_sc : :obj:`list`, optional
+        min values of scaled labels that correspond to min values of labels when using conditional
+        encoders
+    maxes_sc : :obj:`list`, optional
+        max values of scaled labels that correspond to max values of labels when using conditional
+        encoders
+    crop_kwargs : :obj:`dict`, optional
+        define center and extent of crop if `crop_type='fixed'`; keys are 'x_0', 'x_ext', 'y_0',
+        'y_ext'
+    marker_idxs : :obj:`list`, optional
+        indices of `labels_sc_0` that will be interpolated; note that this is analogous but
+        different from `input_idxs`, since the 2d tensor `labels_sc_0` has half as many label
+        dimensions as `latents_0` and `labels_0`
     ch : :obj:`int`, optional
-        specify which channel of input images to return (can only be one)
+        specify which channel of input images to return (can only be a single value)
 
     Returns
     -------
+    :obj:`tuple`
+        - ims_list (:obj:`list` of :obj:`list` of :obj:`np.ndarray`) interpolated images
+        - labels_list (:obj:`list` of :obj:`list` of :obj:`np.ndarray`) interpolated labels
+        - ims_crop_list (:obj:`list` of :obj:`list` of :obj:`np.ndarray`) interpolated , cropped
+          images
 
     """
 
@@ -440,18 +495,21 @@ def interpolate_2d(
 def plot_2d_frame_array(
         ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=(15, 15),
         save_file=None):
-    """
+    """Plot list of list of interpolated images output by :func:`interpolate_2d()` in a 2d grid.
 
     Parameters
     ----------
-    ims_list : :obj:`list` of :obj:`list
-        each inner list element holds an np.array of shape (y_pix, x_pix)
+    ims_list : :obj:`list` of :obj:`list`
+        each inner list element holds an np.ndarray of shape (y_pix, x_pix)
     markers : :obj:`list` of :obj:`list` or NoneType, optional
-        each inner list element holds an array-like object with values (y_pix, x_pix);
-        if None, markers are not plotted on top of frames
+        each inner list element holds an array-like object with values (y_pix, x_pix); if None,
+        markers are not plotted on top of frames
     im_kwargs : :obj:`dict` or NoneType, optional
+        kwargs for `matplotlib.pyplot.imshow()` function (vmin, vmax, cmap, etc)
     marker_kwargs : :obj:`dict` or NoneType, optional
+        kwargs for `matplotlib.pyplot.plot()` function (markersize, markeredgewidth, etc)
     figsize : :obj:`tuple`
+        (width, height) in inches
     save_file : :obj:`str` or NoneType, optional
         figure saved if not None
 

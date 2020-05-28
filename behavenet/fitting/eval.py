@@ -50,8 +50,7 @@ def export_latents(data_generator, model, filename=None):
             # process batch, perhaps in chunks if full batch is too large to fit on gpu
             chunk_size = 200
             y = data['images'][0]
-            if (model.hparams['model_class'] == 'cond-ae' or
-                    model.hparams['model_class'] == 'cond-ae-msp') and \
+            if model.hparams['model_class'] == 'cond-ae' and \
                     model.hparams.get('conditional_encoder', False):
                 labels_2d = data['labels_sc'][0]
             else:
@@ -323,7 +322,7 @@ def get_reconstruction(
 
     if input_type == 'images':
         if model.hparams['model_class'] == 'cond-ae-msp':
-            ims_recon, latents, _ = model(inputs, dataset=dataset, labels_2d=labels_2d)
+            ims_recon, latents, _ = model(inputs, dataset=dataset)
         else:
             ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
     else:  # input is latents
