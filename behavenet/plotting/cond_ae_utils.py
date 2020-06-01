@@ -287,8 +287,7 @@ def get_model_input(
     # latents
     if compute_latents:
         if hparams['model_class'] == 'cond-ae-msp':
-            latents_np = model.get_transformed_latents(
-                ims_pt, dataset=sess_idx, labels_2d=labels_2d_pt, as_numpy=True)
+            latents_np = model.get_transformed_latents(ims_pt, dataset=sess_idx, as_numpy=True)
         else:
             _, latents_np = get_reconstruction(
                 model, ims_pt, labels=labels_pt, labels_2d=labels_2d_pt, return_latents=True)
