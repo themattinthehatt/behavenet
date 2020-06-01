@@ -1,8 +1,8 @@
 
-Slurm Job Submission
+Slurm job submission
 ====================
 
-Using Behavenet with Slurm is simple: given the slurm submission information in a premade .sh file, test-tube will automatically submit all of the jobs for a given grid search with those slurm settings (see :ref:`Grid searching with test tube<user_guide.intro>` with test-tube for more details).
+Using Behavenet with Slurm is simple: given the slurm submission information in a premade .sh file, test-tube will automatically submit all of the jobs for a given grid search with those slurm settings (see :ref:`Grid searching with test tube<grid_search_tt>` for more details).
 
 Steps
 ------

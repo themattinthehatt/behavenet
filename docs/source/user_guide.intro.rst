@@ -88,6 +88,8 @@ and if you set ``export_train_plots`` to ``True`` in the training config file, y
 * **loss_validation.png**: same as above using validation data
 
 
+.. _grid_search_tt:
+
 Grid searching with test-tube
 -----------------------------
 
