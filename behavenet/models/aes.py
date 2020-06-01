@@ -825,19 +825,6 @@ class ConditionalAE(AE):
         return y, x
 
 
-class CustomDataParallel(nn.DataParallel):
-    """Wrapper class for multi-gpu training.
-
-    from https://github.com/pytorch/tutorials/issues/836
-    """
-
-    def __getattr__(self, name):
-        try:
-            return super().__getattr__(name)
-        except AttributeError:
-            return getattr(self.module, name)
-
-
 class AEMSP(AE):
     """Autoencoder class with matrix subspace projection for disentangling the latent space.
 
