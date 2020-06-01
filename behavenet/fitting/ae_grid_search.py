@@ -16,6 +16,8 @@ from behavenet.fitting.utils import export_hparams
 from behavenet.fitting.utils import load_pretrained_ae
 from behavenet.fitting.hyperparam_utils import get_all_params, get_slurm_params
 from behavenet.models import AE, ConditionalAE, CustomDataParallel
+from behavenet.fitting.hyperparam_utils import get_all_params
+from behavenet.models import AE, ConditionalAE, AEMSP, CustomDataParallel
 
 
 def main(hparams, *args):
