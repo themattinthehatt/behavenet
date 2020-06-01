@@ -10,6 +10,11 @@ from behavenet.data.utils import load_labels_like_latents
 from behavenet.fitting.eval import get_reconstruction
 from behavenet.fitting.utils import get_session_dir
 
+# to ignore imports for sphix-autoapidoc
+__all__ = [
+    'get_crop', 'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
+    'interpolate_2d', 'plot_2d_frame_array']
+
 
 def get_crop(im, y_0, y_ext, x_0, x_ext):
     """Get crop of image, filling in borders with zeros.
