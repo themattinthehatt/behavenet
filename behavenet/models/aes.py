@@ -1006,6 +1006,7 @@ class AEMSP(AE):
         """Generate output given an input x and arbitrary labels and/or latents.
 
         How output image is generated:
+
         * if latents is not None and labels is not None, these are concatenated, tranformed to the
           original latent space, and pushed through the decoder
         * if latents is not None and labels is None, the input x is pushed through the encoder to

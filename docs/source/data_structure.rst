@@ -4,6 +4,9 @@
 BehaveNet data structure
 ########################
 
+Introduction
+============
+
 In order to quickly and easily fit many models, BehaveNet uses a standardized data structure. "Raw" experimental data such as behavioral videos and (processed) neural data are stored in the `HDF5 file format <https://support.hdfgroup.org/HDF5/whatishdf5.html>`_. This file format can accomodate large and complex datasets, and is easy to work with thanks to a high-level `python API <https://www.h5py.org/>`_.
 
 HDF is an acronym for Hierarchical Data Format, and one can think of it like a full directory structure inside of a single file. HDF5 "groups" are analogous to directories, while HDF5 "datasets" are analogous to files. The BehaveNet code uses up to 3 HDF5 groups: ``images``, ``masks`` (for masking images), and ``neural``. Each of these HDF5 groups contains multiple HDF5 datasets - one for each experimental trial. These datasets should have names that follow the pattern ``trial_%04i`` - datasets with more than 10000 trials are not currently supported with this naming convention.
@@ -126,4 +129,16 @@ This HDF5 file will now have the following addtional datasets:
 * regions/idxs/VIS
 
 Just as the top-level group (here named "regions") can have an arbitrary name (later specified in the data json file), the second-level groups (here named "idxs_lr" and "idxs") can also have arbitrary names, and there can be any number of them, as long as the datasets within them contain valid indices into the neural data. The specific set of indices used for any analyses will be specified in the data json file. See the :ref:`decoding documentation<decoding_with_subsets>` for an example of how to decode behavior using specified subsets of neurons.
+
+
+Including labels for conditional autoencoders
+=============================================
+
+In order to fit :ref:`conditional autoencoder models<conditional_aes>`, you will need to include additional information about labels in the HDF5 file. These labels can be outputs from pose estimation software, or other behavior-related signals such as pupil diameter or lick times. These labels should be stored in an HDF5 group named ``labels``. As before, the ``labels`` group contains multiple HDF5 datasets - one for each experimental trial. These datasets should also follow the pattern ``trial_%04i``, and match the image data in the corresponding image dataset ``images/trial_%04i``.
+
+Note that, when using pose estimation software, each marker has an x- and y-coordinate, so tracking four body parts will result in an 8-dimensional set of labels.
+
+.. note::
+    
+    The matrix subspace projection model implemented in BehaveNet learns a linear mapping from the original latent space to the predicted labels that **does not contain a bias term**. Therefore you should center each label before adding them to the HDF5 file. Additionally, normalizing each label by its standard deviation can make searching across msp weights less dependent on the size of the input image.
 
