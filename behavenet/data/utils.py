@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 
 
-def get_data_generator_inputs(hparams, sess_ids):
+def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
     """Helper function for generating signals, transforms and paths.
 
     Parameters
@@ -16,6 +16,8 @@ def get_data_generator_inputs(hparams, sess_ids):
         parameters
     sess_ids : :obj:`list` of :obj:`dict`
         each list entry is a session-specific dict with keys 'lab', 'expt', 'animal', 'session'
+    check_splits : :obj:`bool`, optional
+        check data splits and data rng seed between hparams and loaded model outputs (e.g. latents)
 
     Returns
     -------
@@ -42,7 +44,8 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         # get neural signals/transforms/path
         if hparams['model_class'].find('neural') > -1:
-            neural_transform, neural_path = get_transforms_paths('neural', hparams, sess_id=sess_id)
+            neural_transform, neural_path = get_transforms_paths(
+                'neural', hparams, sess_id=sess_id, check_splits=check_splits)
         else:
             neural_transform = None
             neural_path = None
@@ -75,7 +78,8 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         elif hparams['model_class'] == 'ae_latents':
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents', hparams, sess_id=sess_id, check_splits=check_splits)
 
             signals = ['ae_latents']
             transforms = [ae_transform]
@@ -91,7 +95,8 @@ def get_data_generator_inputs(hparams, sess_ids):
             else:
                 hparams['noise_dist'] = 'gaussian'
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents', hparams, sess_id=sess_id, check_splits=check_splits)
 
             signals = ['neural', 'ae_latents']
             transforms = [neural_transform, ae_transform]
@@ -110,7 +115,8 @@ def get_data_generator_inputs(hparams, sess_ids):
             elif hparams['neural_type'] == 'spikes':
                 hparams['noise_dist'] = 'poisson'
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents', hparams, sess_id=sess_id, check_splits=check_splits)
 
             signals = ['neural', 'ae_latents']
             transforms = [neural_transform, ae_transform]
@@ -123,7 +129,8 @@ def get_data_generator_inputs(hparams, sess_ids):
             hparams['output_size'] = hparams['n_arhmm_states']
             hparams['noise_dist'] = 'categorical'
 
-            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states', hparams, sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths(
+                'arhmm_states', hparams, sess_id=sess_id, check_splits=check_splits)
 
             signals = ['neural', 'arhmm_states']
             transforms = [neural_transform, arhmm_transform]
@@ -142,7 +149,8 @@ def get_data_generator_inputs(hparams, sess_ids):
             elif hparams['neural_type'] == 'spikes':
                 hparams['noise_dist'] = 'poisson'
 
-            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states', hparams, sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths(
+                'arhmm_states', hparams, sess_id=sess_id, check_splits=check_splits)
 
             signals = ['neural', 'arhmm_states']
             transforms = [neural_transform, arhmm_transform]
@@ -150,7 +158,8 @@ def get_data_generator_inputs(hparams, sess_ids):
 
         elif hparams['model_class'] == 'arhmm' or hparams['model_class'] == 'hmm':
 
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents', hparams, sess_id=sess_id, check_splits=check_splits)
 
             signals = ['ae_latents']
             transforms = [ae_transform]
@@ -181,16 +190,20 @@ def get_data_generator_inputs(hparams, sess_ids):
         elif hparams['model_class'] == 'bayesian-decoding':
 
             # get autoencoder latents info
-            ae_transform, ae_path = get_transforms_paths('ae_latents', hparams, sess_id=sess_id)
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents', hparams, sess_id=sess_id, check_splits=check_splits)
 
             # get arhmm states info
-            arhmm_transform, arhmm_path = get_transforms_paths('arhmm_states', hparams, sess_id=sess_id)
+            arhmm_transform, arhmm_path = get_transforms_paths(
+                'arhmm_states', hparams, sess_id=sess_id, check_splits=check_splits)
 
             # get neural-ae info
-            neural_ae_transform, neural_ae_path = get_transforms_paths('neural_ae_predictions', hparams, None)
+            neural_ae_transform, neural_ae_path = get_transforms_paths(
+                'neural_ae_predictions', hparams, None, check_splits=check_splits)
 
             # get neural-arhmm info
-            neural_arhmm_transform, neural_arhmm_path = get_transforms_paths('neural_arhmm_predictions', hparams, None)
+            neural_arhmm_transform, neural_arhmm_path = get_transforms_paths(
+                'neural_arhmm_predictions', hparams, None, check_splits=check_splits)
 
             # put it all together
             signals = [
@@ -259,7 +272,7 @@ def check_same_training_split(model_path, hparams):
         raise ValueError('Different trial split from existing models')
 
 
-def get_transforms_paths(data_type, hparams, sess_id):
+def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
     """Helper function for generating session-specific transforms and paths.
 
     Parameters
@@ -275,6 +288,8 @@ def get_transforms_paths(data_type, hparams, sess_id):
         - required keys for :obj:`data_type=neural_arhmm_predictions`: 'neural_arhmm_experiment_name', 'neural_arhmm_model_type', 'neural_arhmm_version' or 'arhmm_predictions_file', plus keys for neural and arhmm_states data types.
     sess_id : :obj:`dict`
         each list entry is a session-specific dict with keys 'lab', 'expt', 'animal', 'session'
+    check_splits : :obj:`bool`, optional
+        check data splits and data rng seed between hparams and loaded model outputs (e.g. latents)
 
     Returns
     -------
@@ -299,8 +314,6 @@ def get_transforms_paths(data_type, hparams, sess_id):
 
     sess_id_str = str('%s_%s_%s_%s_' % (
         sess_id['lab'], sess_id['expt'], sess_id['animal'], sess_id['session']))
-
-    check_splits = True  # check data splits/data rng seed between hparams and loaded model
 
     if data_type == 'neural':
 

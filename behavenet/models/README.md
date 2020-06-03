@@ -28,8 +28,8 @@ Testing
     * update `get_model_config_files()`
     * update `define_new_config_values()`
 *  run tests
-    * unit tests: from behavenet test directory run `pytest`
-    * integration test: from behavenet test directory run `python integration.py`
+    * unit tests: from behavenet parent directory run `pytest`
+    * integration test: from behavenet parent directory run `python tests/integration.py`
     
     
 Documentation

@@ -12,7 +12,8 @@ from subprocess import call
 
 def get_all_params(search_type='grid_search', args=None):
 
-    # Raise error if user has other command line arguments specified (as could override configs in confusing ways)
+    # Raise error if user has other command line arguments specified (as could override configs in
+    # confusing ways)
     if args is not None and len(args) != 8:
         raise ValueError('No command line arguments allowed other than config file names')
     elif args is None and len(sys.argv[1:]) != 8:
@@ -78,7 +79,7 @@ def add_dependent_params(parser, namespace):
 
         if (arch_dict['ae_encoding_n_channels'][-1]
                 * arch_dict['ae_encoding_x_dim'][-1]
-                * arch_dict['ae_encoding_y_dim'][-1]) < max_latents:
+                * arch_dict['ae_encoding_y_dim'][-1]) < namespace.n_ae_latents:
             raise ValueError('Bottleneck smaller than number of latents')
 
     elif namespace.model_class.find('neural') > -1:
@@ -102,6 +103,7 @@ def add_dependent_params(parser, namespace):
     else:
         pass
 
+
 class CustomSlurmCluster(SlurmCluster):
 
     def __init__(self, master_slurm_file, *args, **kwargs):
@@ -114,9 +116,10 @@ class CustomSlurmCluster(SlurmCluster):
         timestamp = 'trial_{}_{}'.format(exp_i, timestamp)
 
         # generate command
-        slurm_cmd_script_path = os.path.join(self.slurm_files_log_path, '{}_slurm_cmd.sh'.format(timestamp))
-        #slurm_cmd = self._SlurmCluster__build_slurm_command(trial_params, slurm_cmd_script_path, timestamp, exp_i, self.on_gpu)
-        run_cmd = self.__get_run_command(trial_params, slurm_cmd_script_path, timestamp, exp_i, self.on_gpu)
+        slurm_cmd_script_path = os.path.join(
+            self.slurm_files_log_path, '{}_slurm_cmd.sh'.format(timestamp))
+        run_cmd = self.__get_run_command(
+            trial_params, slurm_cmd_script_path, timestamp, exp_i, self.on_gpu)
         sbatch_params = open(self.master_slurm_file,'r').read()
         slurm_cmd = sbatch_params+run_cmd
         self._SlurmCluster__save_slurm_cmd(slurm_cmd, slurm_cmd_script_path)
@@ -139,6 +142,7 @@ class CustomSlurmCluster(SlurmCluster):
 
         cmd = 'srun {} {} {}'.format(self.python_cmd, self.script_name, trial_args)
         return cmd
+
 
 def get_slurm_params(hyperparams):
 

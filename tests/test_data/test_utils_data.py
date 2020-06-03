@@ -22,14 +22,16 @@ def test_get_data_generator_inputs():
     # ae
     # -----------------
     hparams['model_class'] = 'ae'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images']
     assert transforms[0] == [None]
     assert paths[0] == [hdf5_path]
 
     hparams['model_class'] = 'ae'
     hparams['use_output_mask'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'masks']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
@@ -39,14 +41,16 @@ def test_get_data_generator_inputs():
     # cond-ae [-msp]
     # -----------------
     hparams['model_class'] = 'cond-ae'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
 
     hparams['model_class'] = 'cond-ae'
     hparams['use_output_mask'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels', 'masks']
     assert transforms[0] == [None, None, None]
     assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
@@ -56,7 +60,8 @@ def test_get_data_generator_inputs():
     hparams['conditional_encoder'] = True
     hparams['y_pixels'] = 2
     hparams['x_pixels'] = 2
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels', 'labels_sc']
     assert transforms[0][0] is None
     assert transforms[0][1] is None
@@ -65,7 +70,8 @@ def test_get_data_generator_inputs():
     hparams['conditional_encoder'] = False
 
     hparams['model_class'] = 'cond-ae-msp'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
@@ -79,7 +85,8 @@ def test_get_data_generator_inputs():
     hparams['n_ae_latents'] = 8
     hparams['ae_experiment_name'] = 'tt_expt_ae'
     hparams['ae_version'] = 0
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['ae_latents']
     # transforms and paths tested by test_get_transforms_paths
 
@@ -91,7 +98,8 @@ def test_get_data_generator_inputs():
     hparams['session_dir'] = session_dir
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 0
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['neural', 'ae_latents']
     assert hparams_['input_signal'] == 'neural'
     assert hparams_['output_signal'] == 'ae_latents'
@@ -99,7 +107,8 @@ def test_get_data_generator_inputs():
     assert hparams_['noise_dist'] == 'gaussian'
 
     hparams['model_type'] = 'linear-mv'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert hparams_['noise_dist'] == 'gaussian-full'
 
     # -----------------
@@ -110,7 +119,8 @@ def test_get_data_generator_inputs():
     hparams['session_dir'] = session_dir
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 0
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['neural', 'ae_latents']
     assert hparams_['input_signal'] == 'ae_latents'
     assert hparams_['output_signal'] == 'neural'
@@ -119,12 +129,14 @@ def test_get_data_generator_inputs():
 
     hparams['model_type'] = 'linear'
     hparams['neural_type'] = 'ca'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert hparams_['noise_dist'] == 'gaussian'
 
     hparams['model_type'] = 'linear-mv'
     hparams['neural_type'] = 'ca'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert hparams_['noise_dist'] == 'gaussian-full'
 
     # -----------------
@@ -136,17 +148,20 @@ def test_get_data_generator_inputs():
     hparams['n_ae_latents'] = 8
     hparams['ae_experiment_name'] = 'tt_expt_ae'
     hparams['ae_version'] = 0
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['ae_latents']
     # transforms and paths tested by test_get_transforms_paths
 
     hparams['load_videos'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['ae_latents', 'images']
     hparams['load_videos'] = False
 
     hparams['use_output_mask'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['ae_latents', 'masks']
     hparams['use_output_mask'] = False
 
@@ -154,20 +169,23 @@ def test_get_data_generator_inputs():
     # arhmm-labels
     # -----------------
     hparams['model_class'] = 'arhmm-labels'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['labels']
     assert transforms[0] == [None]
     assert paths[0] == [hdf5_path]
 
     hparams['load_videos'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['labels', 'images']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
     hparams['load_videos'] = False
 
     hparams['use_output_mask'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['labels', 'masks']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
@@ -186,7 +204,8 @@ def test_get_data_generator_inputs():
     hparams['noise_type'] = 'gaussian'
     hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
     hparams['arhmm_version'] = 1
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['neural', 'arhmm_states']
     assert hparams_['input_signal'] == 'neural'
     assert hparams_['output_signal'] == 'arhmm_states'
@@ -206,7 +225,8 @@ def test_get_data_generator_inputs():
     hparams['noise_type'] = 'gaussian'
     hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
     hparams['arhmm_version'] = 1
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['neural', 'arhmm_states']
     assert hparams_['input_signal'] == 'arhmm_states'
     assert hparams_['output_signal'] == 'neural'
@@ -215,12 +235,14 @@ def test_get_data_generator_inputs():
 
     hparams['model_type'] = 'linear'
     hparams['neural_type'] = 'ca'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert hparams_['noise_dist'] == 'gaussian'
 
     hparams['model_type'] = 'linear-mv'
     hparams['neural_type'] = 'ca'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert hparams_['noise_dist'] == 'gaussian-full'
 
     # -----------------
@@ -233,24 +255,30 @@ def test_get_data_generator_inputs():
     hparams['neural_arhmm_experiment_name'] = 'tt_expt_arhmm_decoder'
     hparams['neural_arhmm_model_type'] = 'linear'
     hparams['neural_arhmm_version'] = 0
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states']
 
     hparams['load_videos'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
-    assert signals[0] == ['ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states', 'images']
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == [
+        'ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states', 'images']
     hparams['load_videos'] = False
 
     hparams['use_output_mask'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
-    assert signals[0] == ['ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states', 'masks']
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == [
+        'ae_latents', 'ae_predictions', 'arhmm_predictions', 'arhmm_states', 'masks']
     hparams['use_output_mask'] = False
 
     # -----------------
     # labels-images
     # -----------------
     hparams['model_class'] = 'labels-images'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
@@ -258,7 +286,8 @@ def test_get_data_generator_inputs():
     assert hparams_['output_signal'] == 'images'
 
     hparams['use_output_mask'] = True
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels', 'masks']
     hparams['use_output_mask'] = False
 
@@ -266,7 +295,8 @@ def test_get_data_generator_inputs():
     # labels
     # -----------------
     hparams['model_class'] = 'labels'
-    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(hparams, sess_ids)
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
     assert signals[0] == ['labels']
     assert transforms[0] == [None]
     assert paths[0] == [hdf5_path]
@@ -276,7 +306,7 @@ def test_get_data_generator_inputs():
     # -----------------
     hparams['model_class'] = 'test'
     with pytest.raises(ValueError):
-        utils.get_data_generator_inputs(hparams, sess_ids)
+        utils.get_data_generator_inputs(hparams, sess_ids, check_splits=False)
 
 
 def test_get_transforms_paths():
@@ -297,7 +327,8 @@ def test_get_transforms_paths():
     # spikes, no thresholding
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 0
-    transform, path = utils.get_transforms_paths('neural', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural', hparams, sess_id=None, check_splits=False)
     assert path == hdf5_path
     assert transform is None
 
@@ -305,28 +336,31 @@ def test_get_transforms_paths():
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 1
     hparams['neural_bin_size'] = 1
-    transform, path = utils.get_transforms_paths('neural', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural', hparams, sess_id=None, check_splits=False)
     assert path == hdf5_path
     assert transform.__repr__().find('Threshold') > -1
 
     # calcium, no zscoring
     hparams['neural_type'] = 'ca'
     hparams['model_type'] = 'ae-neural'
-    transform, path = utils.get_transforms_paths('neural', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural', hparams, sess_id=None, check_splits=False)
     assert path == hdf5_path
     assert transform is None
 
     # calcium, zscoring
     hparams['neural_type'] = 'ca'
     hparams['model_type'] = 'neural-ae'
-    transform, path = utils.get_transforms_paths('neural', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural', hparams, sess_id=None, check_splits=False)
     assert path == hdf5_path
     assert transform.__repr__().find('ZScore') > -1
 
     # raise exception for incorrect neural type
     hparams['neural_type'] = 'wf'
     with pytest.raises(ValueError):
-        utils.get_transforms_paths('neural', hparams, sess_id=None)
+        utils.get_transforms_paths('neural', hparams, sess_id=None, check_splits=False)
 
     # TODO: test subsampling methods
 
@@ -346,13 +380,15 @@ def test_get_transforms_paths():
 
     # user-defined latent path
     hparams['ae_latents_file'] = 'path/to/latents'
-    transform, path = utils.get_transforms_paths('ae_latents', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'ae_latents', hparams, sess_id=None, check_splits=False)
     assert path == hparams['ae_latents_file']
     assert transform is None
     hparams.pop('ae_latents_file')
 
     # build pathname from hparams
-    transform, path = utils.get_transforms_paths('ae_latents', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'ae_latents', hparams, sess_id=None, check_splits=False)
     assert path == os.path.join(
         ae_path, 'version_%i' % hparams['ae_version'], '%slatents.pkl' % sess_id_str)
     assert transform is None
@@ -377,20 +413,23 @@ def test_get_transforms_paths():
 
     # user-defined state path
     hparams['arhmm_states_file'] = 'path/to/states'
-    transform, path = utils.get_transforms_paths('arhmm_states', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'arhmm_states', hparams, sess_id=None, check_splits=False)
     assert path == hparams['arhmm_states_file']
     assert transform is None
     hparams.pop('arhmm_states_file')
 
     # build pathname from hparams
-    transform, path = utils.get_transforms_paths('arhmm_states', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'arhmm_states', hparams, sess_id=None, check_splits=False)
     assert path == os.path.join(
         arhmm_path, 'version_%i' % hparams['arhmm_version'], '%sstates.pkl' % sess_id_str)
     assert transform is None
 
     # include shuffle transform
     hparams['shuffle_rng_seed'] = 0
-    transform, path = utils.get_transforms_paths('arhmm_states', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'arhmm_states', hparams, sess_id=None, check_splits=False)
     assert path == os.path.join(
         arhmm_path, 'version_%i' % hparams['arhmm_version'], '%sstates.pkl' % sess_id_str)
     assert transform.__repr__().find('BlockShuffle') > -1
@@ -412,13 +451,15 @@ def test_get_transforms_paths():
 
     # user-defined predictions path
     hparams['ae_predictions_file'] = 'path/to/predictions'
-    transform, path = utils.get_transforms_paths('neural_ae_predictions', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural_ae_predictions', hparams, sess_id=None, check_splits=False)
     assert path == hparams['ae_predictions_file']
     assert transform is None
     hparams.pop('ae_predictions_file')
 
     # build pathname from hparams
-    transform, path = utils.get_transforms_paths('neural_ae_predictions', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural_ae_predictions', hparams, sess_id=None, check_splits=False)
     assert path == os.path.join(
         ae_pred_path, 'version_%i' % hparams['neural_ae_version'],
         '%spredictions.pkl' % sess_id_str)
@@ -445,13 +486,15 @@ def test_get_transforms_paths():
 
     # user-defined predictions path
     hparams['arhmm_predictions_file'] = 'path/to/predictions'
-    transform, path = utils.get_transforms_paths('neural_arhmm_predictions', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural_arhmm_predictions', hparams, sess_id=None, check_splits=False)
     assert path == hparams['arhmm_predictions_file']
     assert transform is None
     hparams.pop('arhmm_predictions_file')
 
     # build pathname from hparams
-    transform, path = utils.get_transforms_paths('neural_arhmm_predictions', hparams, sess_id=None)
+    transform, path = utils.get_transforms_paths(
+        'neural_arhmm_predictions', hparams, sess_id=None, check_splits=False)
     assert path == os.path.join(
         arhmm_pred_path, 'version_%i' % hparams['neural_arhmm_version'],
         '%spredictions.pkl' % sess_id_str)
@@ -463,7 +506,7 @@ def test_get_transforms_paths():
     # other
     # ------------------------
     with pytest.raises(ValueError):
-        utils.get_transforms_paths('invalid', hparams, sess_id=None)
+        utils.get_transforms_paths('invalid', hparams, sess_id=None, check_splits=False)
 
 
 def test_load_labels_like_latents():

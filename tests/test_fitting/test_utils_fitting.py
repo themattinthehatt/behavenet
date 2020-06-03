@@ -55,7 +55,6 @@ class TestClass:
 
         """
 
-
         self.tmpdir = tmpdir
 
         # build tmp directory structure
@@ -757,6 +756,7 @@ class TestClass:
             'fit_sess_io_layers': False,
             'learning_rate': 1e-4,
             'l2_reg': 1e-2,
+            'msp_weight': 1e-5,
             'conditional_encoder': False}
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
