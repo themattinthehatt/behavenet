@@ -23,10 +23,13 @@ Model-related code
 Testing
 ---
 
-* add new model to integration script
+* add new model to integration script `tests/integration.py`
+    * add to `model_classes`, `model_files`, and `sessions` lists in `main()` 
+    * update `get_model_config_files()`
+    * update `define_new_config_values()`
 *  run tests
-    * unit tests:
-    * integration test:
+    * unit tests: from behavenet test directory run `pytest`
+    * integration test: from behavenet test directory run `python integration.py`
     
     
 Documentation

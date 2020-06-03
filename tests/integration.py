@@ -1,6 +1,5 @@
 import argparse
 import commentjson
-import copy
 import h5py
 import json
 import numpy as np
@@ -8,7 +7,6 @@ import os
 import shutil
 import subprocess
 import time
-from behavenet import get_params_dir
 from behavenet.fitting.utils import experiment_exists
 
 
@@ -35,6 +33,13 @@ DATA_DICT = {
     'neural_type': 'ca',
     'approx_batch_size': 200
 }
+TEMP_DATA = {
+    'n_batches': 22,
+    'batch_lens': [20, 100],  # [min, max] of random uniform int
+    'n_labels': 8,
+    'n_neurons': 25
+}
+SESSIONS = ['sess-0', 'sess-1']
 
 """
 TODO:
@@ -47,15 +52,7 @@ TODO:
 def make_tmp_data(data_dir):
     """Make hdf5 file with images, labels, and neural activity."""
 
-    # data params
-    n_batches = 22
-    batch_lens = [20, 100]  # min, max
-    n_labels = 8
-    n_neurons = 25
-
-    sessions = ['sess-0', 'sess-1']
-
-    for session in sessions:
+    for session in SESSIONS:
 
         hdf5_file = os.path.join(
             data_dir, DATA_DICT['lab'], DATA_DICT['expt'], DATA_DICT['animal'], session,
@@ -80,9 +77,10 @@ def make_tmp_data(data_dir):
             group_ri.create_dataset('region-1', data=10 + np.arange(15))
 
             # create a dataset for each trial within groups
-            for i in range(n_batches):
+            for i in range(TEMP_DATA['n_batches']):
 
-                batch_len = np.random.randint(batch_lens[0], batch_lens[1])
+                batch_len = np.random.randint(
+                    TEMP_DATA['batch_lens'][0], TEMP_DATA['batch_lens'][1])
 
                 # image data
                 image_size = (
@@ -92,16 +90,18 @@ def make_tmp_data(data_dir):
                 group_i.create_dataset('trial_%04i' % i, data=batch_i, dtype='uint8')
 
                 # neural data
-                batch_n = np.random.randn(batch_len, n_neurons)
+                batch_n = np.random.randn(batch_len, TEMP_DATA['n_neurons'])
                 group_n.create_dataset('trial_%04i' % i, data=batch_n, dtype='float32')
 
                 # label data
-                batch_l = np.random.randn(batch_len, n_labels)
+                batch_l = np.random.randn(batch_len, TEMP_DATA['n_labels'])
                 group_l.create_dataset('trial_%04i' % i, data=batch_l, dtype='float32')
 
 
 def get_model_config_files(model, json_dir):
-    if model == 'ae' or model == 'arhmm':
+    if model == 'ae' or model == 'arhmm' or model == 'cond-ae-msp':
+        if model == 'cond-ae-msp':
+            model = 'ae'
         model_json_dir = os.path.join(json_dir, '%s_jsons' % model)
         base_config_files = {
             'data': os.path.join(json_dir, 'data_default.json'),
@@ -154,6 +154,25 @@ def define_new_config_values(model, session='sess-0'):
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
                 'l2_reg': 0.0},
+            'training': {
+                'export_train_plots': False,
+                'export_latents': True,
+                'min_n_epochs': 1,
+                'max_n_epochs': 1,
+                'enable_early_stop': False,
+                'train_frac': train_frac,
+                'trial_splits': trial_splits},
+            'compute': {
+                'gpus_viz': str(gpu_id)}}
+    elif model == 'cond-ae-msp':
+        new_values = {
+            'data': data_dict,
+            'model': {
+                'experiment_name': ae_expt_name,
+                'model_type': ae_model_type,
+                'n_ae_latents': n_ae_latents + TEMP_DATA['n_labels'],
+                'l2_reg': 0.0,
+                'msp_weight': 1e-5},
             'training': {
                 'export_train_plots': False,
                 'export_latents': True,
@@ -363,9 +382,9 @@ def main(args):
     # -------------------------------------------
     # fit models
     # -------------------------------------------
-    model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae']
-    model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae']
-    sessions = ['sess-0', 'sess-0', 'sess-0', 'sess-0', 'all']
+    model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae', 'cond-ae-msp']
+    model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae', 'ae']  # %s_grid_search
+    sessions = [SESSIONS[0], SESSIONS[0], SESSIONS[0], SESSIONS[0], 'all', SESSIONS[0]]
     for model_class, model_file, session in zip(model_classes, model_files, sessions):
         # modify example jsons
         base_config_files = get_model_config_files(model_class, json_dir)
