@@ -1,7 +1,9 @@
 import argparse
 import commentjson
 import copy
+import h5py
 import json
+import numpy as np
 import os
 import shutil
 import subprocess
@@ -20,12 +22,82 @@ CYELLOW = '\33[33m'
 CBLUE = '\33[34m'
 CVIOLET = '\33[35m'
 
+DATA_DICT = {
+    'lab': 'lab',
+    'expt': 'expt',
+    'animal': 'animal',
+    'all_source': 'data',
+    'n_input_channels': 1,
+    'y_pixels': 64,
+    'x_pixels': 48,
+    'use_output_mask': False,
+    'neural_bin_size': 25,
+    'neural_type': 'ca',
+    'approx_batch_size': 200
+}
+
 """
 TODO:
     - how to print traceback when testtube fails?
     - arhmm multisessions
     - other models (ae/arhmm-neural, arhmm w/ labels, labels->images decoder
 """
+
+
+def make_tmp_data(data_dir):
+    """Make hdf5 file with images, labels, and neural activity."""
+
+    # data params
+    n_batches = 22
+    batch_lens = [20, 100]  # min, max
+    n_labels = 8
+    n_neurons = 25
+
+    sessions = ['sess-0', 'sess-1']
+
+    for session in sessions:
+
+        hdf5_file = os.path.join(
+            data_dir, DATA_DICT['lab'], DATA_DICT['expt'], DATA_DICT['animal'], session,
+            'data.hdf5')
+        os.makedirs(os.path.dirname(hdf5_file))
+
+        with h5py.File(hdf5_file, 'w', libver='latest', swmr=True) as f:
+
+            f.swmr_mode = True  # single write multi-read
+
+            # create image group
+            group_i = f.create_group('images')
+            # create neural data group
+            group_n = f.create_group('neural')
+            # create labels group
+            group_l = f.create_group('labels')
+            # createregion indices group
+            group_r = f.create_group('regions')
+            # add region indices data
+            group_ri = group_r.create_group('indxs')
+            group_ri.create_dataset('region-0', data=np.arange(10))
+            group_ri.create_dataset('region-1', data=10 + np.arange(15))
+
+            # create a dataset for each trial within groups
+            for i in range(n_batches):
+
+                batch_len = np.random.randint(batch_lens[0], batch_lens[1])
+
+                # image data
+                image_size = (
+                    batch_len, DATA_DICT['n_input_channels'], DATA_DICT['y_pixels'],
+                    DATA_DICT['x_pixels'])
+                batch_i = np.random.randint(0, 255, size=image_size)
+                group_i.create_dataset('trial_%04i' % i, data=batch_i, dtype='uint8')
+
+                # neural data
+                batch_n = np.random.randn(batch_len, n_neurons)
+                group_n.create_dataset('trial_%04i' % i, data=batch_n, dtype='float32')
+
+                # label data
+                batch_l = np.random.randn(batch_len, n_labels)
+                group_l.create_dataset('trial_%04i' % i, data=batch_l, dtype='float32')
 
 
 def get_model_config_files(model, json_dir):
@@ -50,30 +122,24 @@ def get_model_config_files(model, json_dir):
     return base_config_files
 
 
-def define_new_config_values(model, session=0):
+def define_new_config_values(model, session='sess-0'):
 
     # data vals
-    train_frac = 0.05
-    trial_splits = '10;1;1;5'
+    data_dict = {'session': session, 'all_source': 'data', **DATA_DICT}
+
+    # training vals
+    train_frac = 0.5
+    trial_splits = '8;1;1;1'
+
+    # compute vals
     gpu_id = 0
-    if session == 0:
-        session = '10-Oct-2017'
-    elif session == 1:
-        session = '12-Oct-2017'
-    elif session == 'all':
-        session = 'all'
-    else:
-        raise NotImplementedError
 
-    # data vals
-    data_dict = {'session': session, 'all_source': 'data'}
-
-    # ae vals
+    # model vals: ae
     ae_expt_name = 'ae-expt'
     ae_model_type = 'conv'
     n_ae_latents = 6
 
-    # arhmm vals
+    # model vals: arhmm
     arhmm_expt_name = 'arhmm-expt'
     n_arhmm_states = [2, 4]
     n_arhmm_lags = 1
@@ -267,16 +333,25 @@ def main(args):
     # setup
     # -------------------------------------------
 
-    # create temp dir to store outputs
+    # create temp dir to store data
+    if os.path.exists(args.data_dir):
+        args.data_dir += '_tmp_data'
+    os.mkdir(args.data_dir)
+
+    # make temp data
+    print('creating temp data...', end='')
+    make_tmp_data(args.data_dir)
+    print('done')
+
+    # create temp dir to store results
     if os.path.exists(args.save_dir):
-        args.save_dir += '_tmp'
+        args.save_dir += '_tmp_save'
     os.mkdir(args.save_dir)
 
-    # update directories to include new temp dir
+    # update directories to include new temp dirs
     dirs_file = os.path.join(get_params_dir(), 'directories.json')
     dirs_old = json.load(open(dirs_file, 'r'))
-    dirs_new = copy.deepcopy(dirs_old)
-    dirs_new['save_dir'] = args.save_dir
+    dirs_new = {'data_dir': args.data_dir, 'save_dir': args.save_dir}
     json.dump(dirs_new, open(dirs_file, 'w'))
 
     json_dir = os.path.join(os.getcwd(), 'behavenet', 'json_configs')
@@ -290,7 +365,7 @@ def main(args):
     # -------------------------------------------
     model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae']
     model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae']
-    sessions = [0, 0, 0, 0, 'all']
+    sessions = ['sess-0', 'sess-0', 'sess-0', 'sess-0', 'all']
     for model_class, model_file, session in zip(model_classes, model_files, sessions):
         # modify example jsons
         base_config_files = get_model_config_files(model_class, json_dir)
@@ -298,6 +373,10 @@ def main(args):
         config_dicts, new_config_files = update_config_files(
             base_config_files, new_values, args.save_dir)
         # fit model
+        print('\n\n---------------------------------------------------')
+        print('model: %s' % model_class)
+        print('session: %s' % session)
+        print('---------------------------------------------------\n\n')
         fit_model(model_file, fitting_dir, new_config_files)
         # check model
         if session == 'all':
@@ -312,7 +391,8 @@ def main(args):
     # restore old directories
     json.dump(dirs_old, open(dirs_file, 'w'))
 
-    # remove temp dir
+    # remove temp dirs
+    shutil.rmtree(args.data_dir)
     shutil.rmtree(args.save_dir)
 
     # -------------------------------------------
@@ -328,18 +408,15 @@ def main(args):
 
 if __name__ == '__main__':
 
-    from behavenet import get_user_dir
+    from behavenet import get_params_dir
 
-    # data directory default
-    data_default = get_user_dir('data')
-
-    # save directory default (will be deleted at end of test)
-    save_default = os.path.join(get_user_dir('save'), 'tmp_int_test')
+    # temp data/results directory
+    dir_default = get_params_dir()
 
     # parse command line args and send to main test function
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', default=data_default, type=str)
-    parser.add_argument('--save_dir', default=save_default, type=str)
+    parser.add_argument('--data_dir', default=dir_default, type=str)
+    parser.add_argument('--save_dir', default=dir_default, type=str)
     parser.add_argument('--gpu_id', default=0, type=int)
     namespace, _ = parser.parse_known_args()
     main(namespace)

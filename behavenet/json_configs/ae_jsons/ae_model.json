@@ -28,7 +28,7 @@
 ## Misc params ##
 #################
 
-"model_class": "ae" # type: str
+"model_class": "ae", # type: str
 
 "conditional_encoder": false, # type: str
 

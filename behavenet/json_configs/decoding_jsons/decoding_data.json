@@ -1,0 +1,60 @@
+{
+
+## All these params will likely need to be updated for new users/data!
+
+###############################
+## Data specification params ##
+###############################
+
+"lab": "musall", # type: str
+
+"expt": "vistrained", # type: str
+
+"animal": "mSM30", # type: str
+
+"session": "10-Oct-2017", # type: str
+
+"sessions_csv": "", # type: str, help: specify multiple sessions
+
+"all_source": "save", # type: str, help: "save" or "data"
+
+
+#############################
+## Behavioral video params ##
+#############################
+
+"n_input_channels": 2, # type: int,  help: number of channels in behavioral video
+
+"y_pixels": 128, # type: int, help: number of pixels in y dimension
+
+"x_pixels": 128, # type: int, help: number of pixels in x dimension
+
+"use_output_mask": false, # type: boolean
+
+
+########################
+## Neural data params ##
+########################
+
+"neural_bin_size": null, # help: milliseconds
+
+"neural_type": "ca", # type: str, help: spikes or ca
+
+"neural_thresh": 1.0,
+
+"subsample_idxs_group_0": null,
+
+"subsample_idxs_group_1": null,
+
+"subsample_idxs_dataset": null,
+
+"subsample_method": "none",
+
+
+#################
+## Misc params ##
+#################
+
+"approx_batch_size": 200 # type: int, help: approximate batch size for memory calculation
+
+}
