@@ -31,13 +31,13 @@ def test_get_all_params():
 
     # correct args, substituted into sys.argv
     data_config = os.path.join(
-        os.getcwd(), 'behavenet/json_configs/data_default.json')
+        os.getcwd(), 'configs', 'data_default.json')
     model_config = os.path.join(
-        os.getcwd(), 'behavenet/json_configs/arhmm_jsons/arhmm_model.json')
+        os.getcwd(), 'configs', 'arhmm_jsons', 'arhmm_model.json')
     training_config = os.path.join(
-        os.getcwd(), 'behavenet/json_configs/arhmm_jsons/arhmm_training.json')
+        os.getcwd(), 'configs', 'arhmm_jsons', 'arhmm_training.json')
     compute_config = os.path.join(
-            os.getcwd(), 'behavenet/json_configs/arhmm_jsons/arhmm_compute.json')
+            os.getcwd(), 'configs', 'arhmm_jsons', 'arhmm_compute.json')
     args = [
         '--data_config', data_config,
         '--model_config', model_config,

@@ -429,7 +429,7 @@ def test_load_handcrafted_arch():
 
     # load arch from json
     ae_arch_json = os.path.join(
-        os.getcwd(), 'behavenet', 'json_configs', 'ae_jsons', 'ae_arch_2.json')
+        os.getcwd(), 'configs', 'ae_jsons', 'ae_arch_2.json')
     arch = utils.load_handcrafted_arch(input_dim, n_ae_latents, ae_arch_json, check_memory=False)
     assert arch['n_input_channels'] == input_dim[0]
     assert arch['y_pixels'] == input_dim[1]
@@ -440,7 +440,7 @@ def test_load_handcrafted_arch():
 
     # use default arch when json does not exist
     ae_arch_json = os.path.join(
-        os.getcwd(), 'behavenet', 'json_configs', 'ae_jsons', 'ae_arch_3.json')
+        os.getcwd(), 'configs', 'ae_jsons', 'ae_arch_3.json')
     arch = utils.load_handcrafted_arch(input_dim, n_ae_latents, ae_arch_json, check_memory=False)
     assert arch['n_input_channels'] == input_dim[0]
     assert arch['y_pixels'] == input_dim[1]

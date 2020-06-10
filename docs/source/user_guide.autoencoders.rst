@@ -3,7 +3,7 @@ Autoencoders
 
 BehaveNet uses convolutional autoencoders to perform nonlinear dimensionality reduction on behavioral videos. The steps below demonstrate how to fit these models on an arbitrary dataset.
 
-Within the behavenet package there is a directory named ``behavenet/fitting/json_configs``, which contains example config files. First copy the following config files to the ``.behavenet`` directory that was automatically created in your home directory: ``ae_compute.json``, ``ae_model.json``, and ``ae_training.json``. You can then update the hyperparameters in these files in a text editor.
+Within the behavenet package there is a directory named ``configs``, which contains example config files. First copy the following config files to the ``.behavenet`` directory that was automatically created in your home directory: ``ae_compute.json``, ``ae_model.json``, and ``ae_training.json``. You can then update the hyperparameters in these files in a text editor.
 
 To fit a single model with the default CAE BehaveNet architecture (details in paper), edit the ``ae_model.json`` file to look like the following:
 

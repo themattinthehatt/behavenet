@@ -21,7 +21,7 @@ Users interact with BehaveNet using a command line interface, so all model fitti
 * **training_config** - learning rate, number of epochs, etc.
 * **compute_config** - gpu vs cpu, gpu ids, etc.
 
-Example configuration files can be found `here <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`_.
+Example configuration files can be found `here <https://github.com/ebatty/behavenet/tree/master/configs>`_.
 
 For example, the command line call to fit an autoencoder would be (using the default json files):
 
@@ -29,7 +29,7 @@ For example, the command line call to fit an autoencoder would be (using the def
     
     $: cd /behavenet/code/directory/
     $: cd behavenet
-    $: python fitting/ae_grid_search.py --data_config ./json_configs/data_default.json --model_config ./json_configs/ae_model.json --training_config ./json_configs/ae_training.json --compute_config ./json_configs/ae_compute.json
+    $: python fitting/ae_grid_search.py --data_config ../configs/data_default.json --model_config ../configs/ae_model.json --training_config ../configs/ae_training.json --compute_config ../configs/ae_compute.json
 
 We recommend that you copy the default config files in the behavenet repo into a separate directory on your local machine and make edits there. For more information on the different hyperparameters, see the :ref:`hyperparameters glossary<glossary>`.
 

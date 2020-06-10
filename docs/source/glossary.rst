@@ -4,7 +4,7 @@
 Hyperparameter glossary
 #######################
 
-The BehaveNet code requires a diverse array of hyperparameters (hparams) to specify details about the data, computational resources, training algorithms, and the models themselves. This glossary contains a brief description for each of the hparams options. See the `example json files <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`_ for reasonable hparams defaults.
+The BehaveNet code requires a diverse array of hyperparameters (hparams) to specify details about the data, computational resources, training algorithms, and the models themselves. This glossary contains a brief description for each of the hparams options. See the `example json files <https://github.com/ebatty/behavenet/tree/master/configs>`_ for reasonable hparams defaults.
 
 Data
 ====
@@ -25,7 +25,7 @@ Data
 * **neural_type** (*str*): 'spikes' | 'ca'
 * **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
 
-For encoders/decoders, additional information can be supplied to control which subsets of neurons are used for encoding/decoding. See the :ref:`data structure documentation<data_structure_subsets>` for detailed instructions on how to incorporate this information into your HDF5 data file. The following options must be added to the data json file (an example can be found `here <https://github.com/ebatty/behavenet/blob/master/behavenet/json_configs/decoding_jsons/decoding_data.json>`__):
+For encoders/decoders, additional information can be supplied to control which subsets of neurons are used for encoding/decoding. See the :ref:`data structure documentation<data_structure_subsets>` for detailed instructions on how to incorporate this information into your HDF5 data file. The following options must be added to the data json file (an example can be found `here <https://github.com/ebatty/behavenet/blob/master/configs/decoding_jsons/decoding_data.json>`__):
 
 * **subsample_idxs_group_0** (*str*): name of the top-level HDF5 group that contains index groups
 * **subsample_idxs_group_1** (*str*): name of the second-level HDF5 group that contains index datasets
@@ -118,7 +118,7 @@ Autoencoder
 * **model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): output dimensions of AE encoder network
 * **fit_sess_io_layers** (*bool*): ``True`` to fit session-specific input and output layers; all other layers are shared across all sessions
-* **ae_arch_json** (*str*): ``null`` to use the default convolutional autoencoder architecture from the original behavenet paper; otherwise, a string that defines the path to a json file that defines the architecture. An example can be found `here <https://github.com/ebatty/behavenet/tree/master/behavenet/json_configs>`__.
+* **ae_arch_json** (*str*): ``null`` to use the default convolutional autoencoder architecture from the original behavenet paper; otherwise, a string that defines the path to a json file that defines the architecture. An example can be found `here <https://github.com/ebatty/behavenet/tree/master/configs>`__.
 
 Conditional autoencoders
 ------------------------
