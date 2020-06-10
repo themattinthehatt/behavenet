@@ -50,6 +50,10 @@ class BaseModel(nn.Module):
         """Save model parameters."""
         save(self.state_dict(), filepath)
 
+    def get_parameters(self):
+        """Get all model parameters that have gradient updates turned on."""
+        return filter(lambda p: p.requires_grad, self.parameters())
+
 
 class CustomDataParallel(nn.DataParallel):
     """Wrapper class for multi-gpu training.

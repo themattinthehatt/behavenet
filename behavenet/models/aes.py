@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as functional
+import behavenet.fitting.losses as losses
 from behavenet.models.base import BaseModule, BaseModel
 
 
@@ -718,8 +719,56 @@ class AE(BaseModel):
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y, x
 
-    def loss(self):
-        raise NotImplementedError
+    def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
+        """Calculate MSE loss for autoencoder.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'images' and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+        accumulate_grad : :obj:`bool`, optional
+            accumulate gradient for training step
+        chunk_size : :obj:`int`, optional
+            batch is split into chunks of this size to keep memory requirements low
+
+        """
+
+        if self.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
+        y = data['images'][0]
+
+        if 'masks' in data:
+            masks = data['masks'][0]
+        else:
+            masks = None
+
+        batch_size = y.shape[0]
+        n_chunks = int(np.ceil(batch_size / chunk_size))
+
+        loss_val = 0
+        for chunk in range(n_chunks):
+            idx_beg = chunk * chunk_size
+            idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+            y_in = y[idx_beg:idx_end]
+            y_mu, _ = self.forward(y_in, dataset=dataset)
+            if masks is not None:
+                loss = losses.masked_mse(y_in, y_mu, masks[idx_beg:idx_end])
+            else:
+                loss = losses.mse(y_in, y_mu)
+            if accumulate_grad:
+                loss.backward()
+            # get loss value (weighted by batch size)
+            loss_val += loss.item() * (idx_end - idx_beg)
+        loss_val /= y.shape[0]
+
+        return {'loss': loss_val}
 
 
 class ConditionalAE(AE):
