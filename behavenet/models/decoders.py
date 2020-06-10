@@ -2,9 +2,10 @@
 
 import torch
 from torch import nn
+from behavenet.models.base import BaseModule, BaseModel
 
 
-class Decoder(nn.Module):
+class Decoder(BaseModel):
     """General wrapper class for encoding/decoding models."""
 
     def __init__(self, hparams):
@@ -25,27 +26,31 @@ class Decoder(nn.Module):
         """
         super().__init__()
         self.hparams = hparams
-        if hparams['model_type'] == 'ff' or hparams['model_type'] == 'ff-mv':
-            self.model = NN(hparams)
-        elif hparams['model_type'] == 'lstm':
-            self.model = LSTM(hparams)
-        else:
-            raise ValueError('"%s" is not a valid model type' % hparams['model_type'])
+        self.build_model()
 
     def __str__(self):
         """Pretty print model architecture."""
         return self.model.__str__()
 
+    def build_model(self):
+        """Construct the model using hparams."""
+
+        if self.hparams['model_type'] == 'ff' or self.hparams['model_type'] == 'ff-mv':
+            self.model = NN(self.hparams)
+        elif self.hparams['model_type'] == 'lstm':
+            self.model = LSTM(self.hparams)
+        else:
+            raise ValueError('"%s" is not a valid model type' % self.hparams['model_type'])
+
     def forward(self, x):
         """Process input data."""
         return self.model(x)
 
-    def save(self, filepath):
-        """Save model parameters."""
-        torch.save(self.state_dict(), filepath)
+    def loss(self):
+        raise NotImplementedError
 
 
-class NN(nn.Module):
+class NN(BaseModule):
     """Feedforward neural network model."""
 
     def __init__(self, hparams):
@@ -219,18 +224,8 @@ class NN(nn.Module):
 
         return x, y
 
-    def freeze(self):
-        """Prevent updates to decoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = False
 
-    def unfreeze(self):
-        """Force updates to decoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = True
-
-
-class LSTM(nn.Module):
+class LSTM(BaseModule):
     """LSTM neural network model.
 
     Note
@@ -244,7 +239,7 @@ class LSTM(nn.Module):
         raise NotImplementedError
 
 
-class ConvDecoder(nn.Module):
+class ConvDecoder(BaseModule):
     """Decode images from predictors with a convolutional decoder."""
 
     def __init__(self, hparams):
@@ -328,7 +323,3 @@ class ConvDecoder(nn.Module):
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y
-
-    def save(self, filepath):
-        """Save model parameters."""
-        torch.save(self.state_dict(), filepath)

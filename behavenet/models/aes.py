@@ -4,9 +4,10 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as functional
+from behavenet.models.base import BaseModule, BaseModel
 
 
-class ConvAEEncoder(nn.Module):
+class ConvAEEncoder(BaseModule):
     """Convolutional encoder."""
 
     def __init__(self, hparams):
@@ -28,7 +29,7 @@ class ConvAEEncoder(nn.Module):
             - 'ae_encoding_layer_type' (:obj:`list`)
 
         """
-        super(ConvAEEncoder, self).__init__()
+        super().__init__()
         self.hparams = hparams
         self.encoder = None
         self.build_model()
@@ -210,18 +211,8 @@ class ConvAEEncoder(nn.Module):
         else:
             return self.FF(x), pool_idx, target_output_size
 
-    def freeze(self):
-        """Prevent updates to encoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = False
 
-    def unfreeze(self):
-        """Force updates to encoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = True
-
-
-class ConvAEDecoder(nn.Module):
+class ConvAEDecoder(BaseModule):
     """Convolutional decoder."""
 
     def __init__(self, hparams):
@@ -245,7 +236,7 @@ class ConvAEDecoder(nn.Module):
             - 'ae_decoding_last_FF_layer' (:obj:`bool`)
 
         """
-        super(ConvAEDecoder, self).__init__()
+        super().__init__()
         self.hparams = hparams
         self.decoder = None
         self.build_model()
@@ -495,18 +486,8 @@ class ConvAEDecoder(nn.Module):
         else:
             return x
 
-    def freeze(self):
-        """Prevent updates to decoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = False
 
-    def unfreeze(self):
-        """Force updates to decoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = True
-
-
-class LinearAEEncoder(nn.Module):
+class LinearAEEncoder(BaseModule):
     """Linear encoder."""
 
     def __init__(self, n_latents, input_size):
@@ -561,18 +542,8 @@ class LinearAEEncoder(nn.Module):
         x = x.view(x.size(0), -1)
         return self.encoder(x), None, None
 
-    def freeze(self):
-        """Prevent updates to encoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = False
 
-    def unfreeze(self):
-        """Force updates to encoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = True
-
-
-class LinearAEDecoder(nn.Module):
+class LinearAEDecoder(BaseModule):
     """Linear decoder."""
 
     def __init__(self, n_latents, output_size, encoder=None):
@@ -640,18 +611,8 @@ class LinearAEDecoder(nn.Module):
         x = x.view(x.size(0), *self.output_size)
         return x
 
-    def freeze(self):
-        """Prevent updates to decoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = False
 
-    def unfreeze(self):
-        """Force updates to decoder parameters."""
-        for param in self.parameters():
-            param.requires_grad = True
-
-
-class AE(nn.Module):
+class AE(BaseModel):
     """Base autoencoder class.
 
     This class can construct both linear and convolutional autoencoders. The linear autoencoder
@@ -695,7 +656,7 @@ class AE(nn.Module):
             - 'ae_decoding_last_FF_layer' (:obj:`bool`)
 
         """
-        super(AE, self).__init__()
+        super().__init__()
         self.hparams = hparams
         self.model_type = self.hparams['model_type']
         self.img_size = (
@@ -757,9 +718,8 @@ class AE(nn.Module):
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y, x
 
-    def save(self, filepath):
-        """Save model parameters."""
-        torch.save(self.state_dict(), filepath)
+    def loss(self):
+        raise NotImplementedError
 
 
 class ConditionalAE(AE):
@@ -781,7 +741,7 @@ class ConditionalAE(AE):
         """
         if hparams['model_type'] == 'linear':
             raise NotImplementedError
-        super(ConditionalAE, self).__init__(hparams)
+        super().__init__(hparams)
 
     def build_model(self):
         """Construct the model using hparams.
@@ -824,6 +784,9 @@ class ConditionalAE(AE):
         y = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return y, x
 
+    def loss(self):
+        raise NotImplementedError
+
 
 class AEMSP(AE):
     """Autoencoder class with matrix subspace projection for disentangling the latent space.
@@ -864,7 +827,7 @@ class AEMSP(AE):
         # is used when manipulating latent/label space
         self.U = None
 
-        super(AEMSP, self).__init__(hparams)
+        super().__init__(hparams)
 
     def build_model(self):
         """Construct the model using hparams.
@@ -903,10 +866,13 @@ class AEMSP(AE):
         x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return x_hat, z, y
 
+    def loss(self):
+        raise NotImplementedError
+
     def save(self, filepath):
         """Save model parameters."""
         self.create_orthogonal_matrix()
-        torch.save(self.state_dict(), filepath)
+        super().save(filepath)
 
     def create_orthogonal_matrix(self):
         """Use the learned projection matrix to construct a full rank orthogonal matrix."""
@@ -1059,16 +1025,3 @@ class AEMSP(AE):
         x_hat = self.decoding(latents_tensor, None, None, dataset=dataset)
 
         return x_hat
-
-
-class CustomDataParallel(nn.DataParallel):
-    """Wrapper class for multi-gpu training.
-    
-    from https://github.com/pytorch/tutorials/issues/836
-    """
-
-    def __getattr__(self, name):
-        try:
-            return super().__getattr__(name)
-        except AttributeError:
-            return getattr(self.module, name)

@@ -872,24 +872,15 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     torch.manual_seed(rng_train)
     np.random.seed(rng_train)
 
+    expt_dir = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version)
+
     i_epoch = 0
     best_model_saved = False
     for i_epoch in range(hparams['max_n_epochs'] + 1):
         # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
         # through `max_n_epochs` training epochs
 
-        if hparams['max_n_epochs'] < 10:
-            print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
-        elif hparams['max_n_epochs'] < 100:
-            print('epoch %02i/%02i' % (i_epoch, hparams['max_n_epochs']))
-        elif hparams['max_n_epochs'] < 1000:
-            print('epoch %03i/%03i' % (i_epoch, hparams['max_n_epochs']))
-        elif hparams['max_n_epochs'] < 10000:
-            print('epoch %04i/%04i' % (i_epoch, hparams['max_n_epochs']))
-        elif hparams['max_n_epochs'] < 100000:
-            print('epoch %05i/%05i' % (i_epoch, hparams['max_n_epochs']))
-        else:
-            print('epoch %i/%i' % (i_epoch, hparams['max_n_epochs']))
+        print_epoch(i_epoch, hparams['max_n_epochs'])
 
         # control how data is batched to that models can be restarted from a particular epoch
         torch.manual_seed(rng_train + i_epoch)  # order of trials within sessions
@@ -936,12 +927,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                 # save best val model
                 if loss.get_loss('val') < best_val_loss:
                     best_val_loss = loss.get_loss('val')
-                    filepath = os.path.join(
-                        hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
-                    if 'n_parallel_gpus' in hparams and hparams['n_parallel_gpus'] > 1:
-                        torch.save(model.module.state_dict(), filepath)
-                    else:
-                        torch.save(model.state_dict(), filepath)
+                    model.save(os.path.join(expt_dir, 'best_val_model.pt'))
                     best_model_saved = True
 
                     model.hparams = None
@@ -990,12 +976,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
     # save out last model as best model if no best model saved
     if not best_model_saved:
-        filepath = os.path.join(
-            hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
-        if 'n_parallel_gpus' in hparams and hparams['n_parallel_gpus'] > 1:
-            torch.save(model.module.state_dict(), filepath)
-        else:
-            torch.save(model.state_dict(), filepath)
+        model.save(os.path.join(expt_dir, 'best_val_model.pt'))
 
         model.hparams = None
         best_val_model = copy.deepcopy(model)
@@ -1004,11 +985,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
     # save out last model
     if hparams.get('save_last_model', False):
-        filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'last_model.pt')
-        if 'n_parallel_gpus' in hparams and hparams['n_parallel_gpus'] > 1:
-            torch.save(model.module.state_dict(), filepath)
-        else:
-            torch.save(model.state_dict(), filepath)
+        model.save(os.path.join(expt_dir, 'last_model.pt'))
 
     # compute test loss
     if method == 'ae':
@@ -1051,3 +1028,19 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         export_predictions(data_generator, best_val_model)
     elif method == 'conv-decoder' and hparams['export_predictions']:
         print('warning! exporting predictions not currently implemented for convolutional decoder')
+
+
+def print_epoch(curr, total):
+    """Pretty print epoch number."""
+    if total < 10:
+        print('epoch %i/%i' % (curr, total))
+    elif total < 100:
+        print('epoch %02i/%02i' % (curr, total))
+    elif total < 1000:
+        print('epoch %03i/%03i' % (curr, total))
+    elif total < 10000:
+        print('epoch %04i/%04i' % (curr, total))
+    elif total < 100000:
+        print('epoch %05i/%05i' % (curr, total))
+    else:
+        print('epoch %i/%i' % (curr, total))
