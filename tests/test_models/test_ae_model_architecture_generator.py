@@ -1,7 +1,7 @@
 import os
 import pytest
 import numpy as np
-import behavenet.fitting.ae_model_architecture_generator as utils
+import behavenet.models.ae_model_architecture_generator as utils
 
 
 def test_draw_archs():

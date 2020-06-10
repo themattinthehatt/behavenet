@@ -1,13 +1,12 @@
 import commentjson
 import datetime
-import numpy as np
-from test_tube import HyperOptArgumentParser
-from test_tube.hpc import SlurmCluster, AbstractCluster
-from behavenet import get_user_dir
-from behavenet.fitting.ae_model_architecture_generator import load_handcrafted_arch
 import sys
 import os
 from subprocess import call
+from test_tube import HyperOptArgumentParser
+from test_tube.hpc import SlurmCluster, AbstractCluster
+from behavenet import get_user_dir
+from behavenet.models.ae_model_architecture_generator import load_handcrafted_arch
 
 
 def get_all_params(search_type='grid_search', args=None):

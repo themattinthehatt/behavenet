@@ -373,7 +373,7 @@ def main(args):
     dirs_new = {'data_dir': args.data_dir, 'save_dir': args.save_dir}
     json.dump(dirs_new, open(dirs_file, 'w'))
 
-    json_dir = os.path.join(os.getcwd(), 'behavenet', 'json_configs')
+    json_dir = os.path.join(os.getcwd(), 'configs')
     fitting_dir = os.path.join(os.getcwd(), 'behavenet', 'fitting')
 
     # store results of tests
