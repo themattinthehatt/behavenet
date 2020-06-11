@@ -5,9 +5,6 @@ import os
 import numpy as np
 from tqdm import tqdm
 import torch
-from torch import nn
-from behavenet.fitting.eval import export_latents
-from behavenet.fitting.eval import export_predictions
 
 # TODO: make it easy to finish training if unexpectedly stopped
 # TODO: save models at prespecified intervals (check ae recon as a func of epoch w/o retraining)
@@ -48,16 +45,54 @@ class Logger(object):
                 for dtype in dtype_strs:
                     self.metrics_by_dataset[dataset][dtype] = {}
 
-    def get_loss(self, dtype):
-        """Return loss aggregated over all datasets.
+    def reset_metrics(self, dtype):
+        """Reset all metrics.
 
         Parameters
         ----------
         dtype : :obj:`str`
-            datatype to calculate loss for (e.g. 'train', 'val', 'test')
+            datatype to reset metrics for (e.g. 'train', 'val', 'test')
 
         """
-        return self.metrics[dtype]['loss'] / self.metrics[dtype]['batches']
+        # reset aggregate metrics
+        for key in self.metrics[dtype].keys():
+            self.metrics[dtype][key] = 0
+        # reset separated metrics
+        for m in self.metrics_by_dataset:
+            for key in m[dtype].keys():
+                m[dtype][key] = 0
+
+    def update_metrics(self, dtype, loss_dict, dataset=None):
+        """Update metrics for a specific dtype/dataset.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            dataset type to update metrics for (e.g. 'train', 'val', 'test')
+        loss_dict : :obj:`dict`
+            key-value pairs correspond to all quantities that should be logged throughout training;
+            dictionary returned by `loss` attribute of BehaveNet models
+        dataset : :obj:`int` or :obj:`NoneType`, optional
+            if :obj:`NoneType`, updates the aggregated metrics; if :obj:`int`, updates the
+            associated dataset/session
+
+        """
+        metrics = {**loss_dict, 'batches': 1}  # append `batches` to loss_dict
+
+        for key, val in metrics.items():
+
+            # define metric for the first time if necessary
+            if key not in self.metrics[dtype]:
+                self.metrics[dtype][key] = 0
+
+            # update aggregate methods
+            self.metrics[dtype][key] += val
+
+            # update separated metrics
+            if dataset is not None and self.n_datasets > 1:
+                if key not in self.metrics_by_dataset[dataset][dtype]:
+                    self.metrics_by_dataset[dataset][dtype][key] = 0
+                self.metrics_by_dataset[dataset][dtype][key] += val
 
     def create_metric_row(
             self, dtype, epoch, batch, dataset, trial, best_epoch=None, by_dataset=False):
@@ -123,54 +158,16 @@ class Logger(object):
 
         return metric_row
 
-    def reset_metrics(self, dtype):
-        """Reset all metrics.
+    def get_loss(self, dtype):
+        """Return loss aggregated over all datasets.
 
         Parameters
         ----------
         dtype : :obj:`str`
-            datatype to reset metrics for (e.g. 'train', 'val', 'test')
+            datatype to calculate loss for (e.g. 'train', 'val', 'test')
 
         """
-        # reset aggregate metrics
-        for key in self.metrics[dtype].keys():
-            self.metrics[dtype][key] = 0
-        # reset separated metrics
-        for m in self.metrics_by_dataset:
-            for key in m[dtype].keys():
-                m[dtype][key] = 0
-
-    def update_metrics(self, dtype, loss_dict, dataset=None):
-        """Update metrics for a specific dtype/dataset.
-
-        Parameters
-        ----------
-        dtype : :obj:`str`
-            dataset type to update metrics for (e.g. 'train', 'val', 'test')
-        loss_dict : :obj:`dict`
-            key-value pairs correspond to all quantities that should be logged throughout training;
-            dictionary returned by `loss` attribute of BehaveNet models
-        dataset : :obj:`int` or :obj:`NoneType`, optional
-            if :obj:`NoneType`, updates the aggregated metrics; if :obj:`int`, updates the
-            associated dataset/session
-
-        """
-        metrics = {**loss_dict, 'batches': 1}  # append `batches` to loss_dict
-
-        for key, val in metrics.items():
-
-            # define metric for the first time if necessary
-            if key not in self.metrics[dtype]:
-                self.metrics[dtype][key] = 0
-
-            # update aggregate methods
-            self.metrics[dtype][key] += val
-
-            # update separated metrics
-            if dataset is not None and self.n_datasets > 1:
-                if key not in self.metrics_by_dataset[dataset][dtype]:
-                    self.metrics_by_dataset[dataset][dtype][key] = 0
-                self.metrics_by_dataset[dataset][dtype][key] += val
+        return self.metrics[dtype]['loss'] / self.metrics[dtype]['batches']
 
 
 class EarlyStopping(object):
@@ -450,9 +447,11 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     # export latents
     if method == 'ae' and hparams['export_latents']:
         print('exporting latents')
+        from behavenet.fitting.eval import export_latents
         export_latents(data_generator, best_val_model)
     elif method == 'nll' and hparams['export_predictions']:
         print('exporting predictions')
+        from behavenet.fitting.eval import export_predictions
         export_predictions(data_generator, best_val_model)
     elif method == 'conv-decoder' and hparams['export_predictions']:
         print('warning! exporting predictions not currently implemented for convolutional decoder')

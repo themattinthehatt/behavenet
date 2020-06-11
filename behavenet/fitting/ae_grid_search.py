@@ -6,15 +6,16 @@ import torch
 import math
 
 from behavenet.fitting.eval import export_train_plots
+from behavenet.fitting.hyperparam_utils import get_all_params
+from behavenet.fitting.hyperparam_utils import get_slurm_params
 from behavenet.fitting.training import fit
 from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.fitting.utils import load_pretrained_ae
-from behavenet.fitting.hyperparam_utils import get_all_params, get_slurm_params
 from behavenet.models import AE, ConditionalAE, AEMSP, CustomDataParallel
+from behavenet.models.aes import load_pretrained_ae
 
 
 def main(hparams, *args):
@@ -122,13 +123,14 @@ if __name__ == '__main__':
         cluster = get_slurm_params(hyperparams)
 
         if hyperparams.device == 'cuda' or hyperparams.device == 'gpu':
-
-            cluster.optimize_parallel_cluster_gpu(main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name, job_display_name=None)
+            cluster.optimize_parallel_cluster_gpu(
+                main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name,
+                job_display_name=None)
 
         elif hyperparams.device == 'cpu':
-
-            cluster.optimize_parallel_cluster_cpu(main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name,
-                                                  job_display_name=None)
+            cluster.optimize_parallel_cluster_cpu(
+                main, hyperparams.tt_n_cpu_trials, hyperparams.experiment_name,
+                job_display_name=None)
 
     else:
 
@@ -140,8 +142,9 @@ if __name__ == '__main__':
             # Set up gpu ids for parallel gpus
             parallel_gpu_ids = []
             for instance in range(math.ceil(len(gpu_ids) / hyperparams.n_parallel_gpus)):
-                parallel_gpu_ids.append(
-                    ','.join(gpu_ids[instance * hyperparams.n_parallel_gpus:(instance + 1) * hyperparams.n_parallel_gpus]))
+                idx_beg = instance * hyperparams.n_parallel_gpus
+                idx_end = (instance + 1) * hyperparams.n_parallel_gpus
+                parallel_gpu_ids.append(','.join(gpu_ids[idx_beg:idx_end]))
 
             hyperparams.optimize_parallel_gpu(main, gpu_ids=parallel_gpu_ids)
 

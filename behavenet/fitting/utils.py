@@ -3,7 +3,6 @@
 import os
 import pickle
 import numpy as np
-import torch
 from behavenet.data.utils import get_data_generator_inputs
 
 # to ignore imports for sphinx-autoapidoc
@@ -1053,33 +1052,3 @@ def _print_hparams(hparams):
         for key in config_json.keys():
             print('    {}: {}'.format(key, hparams[key]))
     print('')
-
-
-def load_pretrained_ae(model, hparams):
-
-    if hparams['model_type'] == 'conv' \
-            and 'pretrained_weights_path' in hparams.keys() \
-            and hparams['pretrained_weights_path'] is not None \
-            and hparams['pretrained_weights_path'] != '':
-        print('Loading pretrained weights')
-        loaded_model_dict = torch.load(hparams['pretrained_weights_path'])
-
-        if loaded_model_dict['encoding.FF.weight'].shape == model.encoding.FF.weight.shape:
-            model.load_state_dict(loaded_model_dict, strict=False)
-        else:
-            print('PRETRAINED MODEL HAS DIFFERENT SPATIAL DIMENSIONS OR N LATENTS: NOT LOADING FF PARAMETERS')
-            del loaded_model_dict['encoding.FF.weight']
-            del loaded_model_dict['encoding.FF.bias']
-            del loaded_model_dict['decoding.FF.weight']
-            del loaded_model_dict['decoding.FF.bias']
-            model.load_state_dict(loaded_model_dict, strict=False)
-
-    elif hparams['model_type'] == 'linear' \
-            and 'pretrained_weights_path' in hparams.keys() \
-            and hparams['pretrained_weights_path'] is not None \
-            and hparams['pretrained_weights_path'] != '':
-        raise NotImplementedError('Loading pretrained weights with linear AE')
-    else:
-        print('Initializing with random weights')
-
-    return model

@@ -45,7 +45,7 @@ SESSIONS = ['sess-0', 'sess-1']
 TODO:
     - how to print traceback when testtube fails?
     - arhmm multisessions
-    - other models (ae/arhmm-neural, arhmm w/ labels, labels->images decoder
+    - other models (ae/arhmm-neural, arhmm w/ labels
 """
 
 

@@ -1224,3 +1224,51 @@ class AEMSP(AE):
         x_hat = self.decoding(latents_tensor, None, None, dataset=dataset)
 
         return x_hat
+
+
+def load_pretrained_ae(model, hparams):
+    """Load pretrained weights into already constructed AE model.
+
+    Parameters
+    ----------
+    model : :obj:`behavenet.models.aes` object
+        autoencoder-based model; AE, ConditionalAE, AEMSP
+    hparams : :obj:`dict`
+        needs to contain keys `model_type` and `pretrained_weights_path`
+
+    Returns
+    -------
+    :obj:`behavenet.models.aes` object
+        input model with updated weights
+
+    """
+
+    if hparams['model_type'] == 'conv' \
+            and hparams.get('pretrained_weights_path', False) \
+            and hparams['pretrained_weights_path'] is not None \
+            and hparams['pretrained_weights_path'] != '':
+
+        print('Loading pretrained weights')
+        loaded_model_dict = torch.load(hparams['pretrained_weights_path'])
+
+        if loaded_model_dict['encoding.FF.weight'].shape == model.encoding.FF.weight.shape:
+            model.load_state_dict(loaded_model_dict, strict=False)
+        else:
+            print('PRETRAINED MODEL HAS DIFFERENT SPATIAL DIMENSIONS OR N LATENTS: ' +
+                  'NOT LOADING FF PARAMETERS')
+            del loaded_model_dict['encoding.FF.weight']
+            del loaded_model_dict['encoding.FF.bias']
+            del loaded_model_dict['decoding.FF.weight']
+            del loaded_model_dict['decoding.FF.bias']
+            model.load_state_dict(loaded_model_dict, strict=False)
+
+    elif hparams['model_type'] == 'linear' \
+            and hparams.get('pretrained_weights_path', False) \
+            and hparams['pretrained_weights_path'] is not None \
+            and hparams['pretrained_weights_path'] != '':
+        raise NotImplementedError('Loading pretrained weights with linear AE')
+
+    else:
+        print('Initializing with random weights')
+
+    return model

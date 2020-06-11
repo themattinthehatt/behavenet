@@ -63,7 +63,7 @@ class Decoder(BaseModel):
         """Process input data."""
         return self.model(x)
 
-    def loss(self, data, accumulate_grad=True, chunk_size=200):
+    def loss(self, data, accumulate_grad=True, chunk_size=200, **kwargs):
         """Calculate negative log-likelihood loss for supervised models.
 
         The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
@@ -138,11 +138,11 @@ class Decoder(BaseModel):
                 targets[max_lags:-max_lags].cpu().detach().numpy(),
                 outputs_all,
                 multioutput='variance_weighted')
-            fc = None
+            fc = 0
         elif self.hparams['noise_dist'] == 'poisson':
             raise NotImplementedError
         elif self.hparams['noise_dist'] == 'categorical':
-            r2 = None
+            r2 = 0
             fc = accuracy_score(
                 targets[max_lags:-max_lags].cpu().detach().numpy(),
                 np.argmax(outputs_all, axis=1))
