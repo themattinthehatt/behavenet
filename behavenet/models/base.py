@@ -9,6 +9,10 @@ class BaseModule(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
+    def __str__(self):
+        """Pretty print module architecture."""
+        raise NotImplementedError
+
     def build_model(self):
         """Build model from hparams."""
         raise NotImplementedError
@@ -33,6 +37,10 @@ class BaseModel(nn.Module):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+
+    def __str__(self):
+        """Pretty print model architecture."""
+        raise NotImplementedError
 
     def build_model(self):
         """Build model from hparams."""

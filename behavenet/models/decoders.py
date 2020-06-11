@@ -1,5 +1,7 @@
 """Encoding/decoding models implemented in PyTorch."""
 
+import numpy as np
+from sklearn.metrics import r2_score, accuracy_score
 import torch
 from torch import nn
 from behavenet.models.base import BaseModule, BaseModel
@@ -26,7 +28,21 @@ class Decoder(BaseModel):
         """
         super().__init__()
         self.hparams = hparams
+        self.model = None
         self.build_model()
+
+        # choose loss based on noise distribution of the model
+        if self.hparams['noise_dist'] == 'gaussian':
+            self._loss = nn.MSELoss()
+        elif self.hparams['noise_dist'] == 'gaussian-full':
+            from behavenet.fitting.losses import GaussianNegLogProb
+            self._loss = GaussianNegLogProb()  # model holds precision mat
+        elif self.hparams['noise_dist'] == 'poisson':
+            self._loss = nn.PoissonNLLLoss(log_input=False)
+        elif self.hparams['noise_dist'] == 'categorical':
+            self._loss = nn.CrossEntropyLoss()
+        else:
+            raise ValueError('"%s" is not a valid noise dist' % self.model['noise_dist'])
 
     def __str__(self):
         """Pretty print model architecture."""
@@ -46,8 +62,93 @@ class Decoder(BaseModel):
         """Process input data."""
         return self.model(x)
 
-    def loss(self):
-        raise NotImplementedError
+    def loss(self, data, accumulate_grad=True, chunk_size=200):
+        """Calculate negative log-likelihood loss for supervised models.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            signals are of shape (1, time, n_channels)
+        accumulate_grad : :obj:`bool`, optional
+            accumulate gradient for training step
+        chunk_size : :obj:`int`, optional
+            batch is split into chunks of this size to keep memory requirements low
+
+        Returns
+        -------
+        :obj:`dict`
+            - 'loss' (:obj:`float`): total loss (negative log-like under specified noise dist)
+            - 'r2' (:obj:`float`): variance-weighted $R^2$ when noise dist is Gaussian
+            - 'fc' (:obj:`float`): fraction correct when noise dist is Categorical
+
+        """
+
+        if self.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
+        predictors = data[self.hparams['input_signal']][0]
+        targets = data[self.hparams['output_signal']][0]
+
+        max_lags = self.hparams['n_max_lags']
+
+        batch_size = targets.shape[0]
+        n_chunks = int(np.ceil(batch_size / chunk_size))
+
+        outputs_all = []
+        loss_val = 0
+        for chunk in range(n_chunks):
+
+            # take chunks of size chunk_size, plus overlap due to max_lags
+            idx_beg = np.max([chunk * chunk_size - max_lags, 0])
+            idx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
+
+            outputs, precision = self.model(predictors[idx_beg:idx_end])
+
+            # define loss on allowed window of data
+            if self.hparams['noise_dist'] == 'gaussian-full':
+                loss = self._loss(
+                    outputs[max_lags:-max_lags],
+                    targets[idx_beg:idx_end][max_lags:-max_lags],
+                    precision[max_lags:-max_lags])
+            else:
+                loss = self._loss(
+                    outputs[max_lags:-max_lags],
+                    targets[idx_beg:idx_end][max_lags:-max_lags])
+
+            if accumulate_grad:
+                loss.backward()
+
+            # get loss value (weighted by batch size)
+            loss_val += loss.item() * outputs[max_lags:-max_lags].shape[0]
+
+            outputs_all.append(outputs[max_lags:-max_lags].cpu().detach().numpy())
+
+        loss_val /= batch_size
+        outputs_all = np.concatenate(outputs_all, axis=0)
+
+        if self.hparams['noise_dist'] == 'gaussian' or \
+                self.hparams['noise_dist'] == 'gaussian-full':
+            # use variance-weighted r2s to ignore small-variance latents
+            r2 = r2_score(
+                targets[max_lags:-max_lags].cpu().detach().numpy(),
+                outputs_all,
+                multioutput='variance_weighted')
+            fc = None
+        elif self.hparams['noise_dist'] == 'poisson':
+            raise NotImplementedError
+        elif self.hparams['noise_dist'] == 'categorical':
+            r2 = None
+            fc = accuracy_score(
+                targets[max_lags:-max_lags].cpu().detach().numpy(),
+                np.argmax(outputs_all, axis=1))
+        else:
+            raise ValueError('"%s" is not a valid noise_dist' % self.hparams['noise_dist'])
+
+        return {'loss': loss_val, 'r2': r2, 'fc': fc}
 
 
 class NN(BaseModule):
@@ -238,8 +339,20 @@ class LSTM(BaseModule):
         super().__init__()
         raise NotImplementedError
 
+    def __str__(self):
+        """Pretty print model architecture."""
+        raise NotImplementedError
 
-class ConvDecoder(BaseModule):
+    def build_model(self):
+        """Construct the model."""
+        raise NotImplementedError
+
+    def forward(self, x):
+        """Process input data."""
+        raise NotImplementedError
+
+
+class ConvDecoder(BaseModel):
     """Decode images from predictors with a convolutional decoder."""
 
     def __init__(self, hparams):
@@ -323,3 +436,7 @@ class ConvDecoder(BaseModule):
         else:
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y
+
+    def loss(self, *args, **kwargs):
+        """Compute loss."""
+        raise NotImplementedError

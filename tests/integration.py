@@ -385,9 +385,9 @@ def main(args):
     # model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae', 'cond-ae-msp']
     # model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae', 'ae']  # %s_grid_search
     # sessions = [SESSIONS[0], SESSIONS[0], SESSIONS[0], SESSIONS[0], 'all', SESSIONS[0]]
-    model_classes = ['ae', 'ae']
-    model_files = ['ae', 'ae']  # %s_grid_search
-    sessions = [SESSIONS[0], 'all']
+    model_classes = ['ae', 'neural-ae']
+    model_files = ['ae', 'decoder']  # %s_grid_search
+    sessions = [SESSIONS[0], SESSIONS[0]]
     for model_class, model_file, session in zip(model_classes, model_files, sessions):
         # modify example jsons
         base_config_files = get_model_config_files(model_class, json_dir)

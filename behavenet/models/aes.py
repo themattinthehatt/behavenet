@@ -1,7 +1,7 @@
 """Autoencoder models implemented in PyTorch."""
 
 import numpy as np
-from sklearn.metrics import r2_score, accuracy_score
+from sklearn.metrics import r2_score
 import torch
 from torch import nn
 import torch.nn.functional as functional
@@ -738,6 +738,11 @@ class AE(BaseModel):
         chunk_size : :obj:`int`, optional
             batch is split into chunks of this size to keep memory requirements low
 
+        Returns
+        -------
+        :obj:`dict`
+            - 'loss' (:obj:`float`): mse loss
+
         """
 
         if self.hparams['device'] == 'cuda':
@@ -851,6 +856,11 @@ class ConditionalAE(AE):
             accumulate gradient for training step
         chunk_size : :obj:`int`, optional
             batch is split into chunks of this size to keep memory requirements low
+
+        Returns
+        -------
+        :obj:`dict`
+            - 'loss' (:obj:`float`): mse loss
 
         """
 
@@ -989,6 +999,14 @@ class AEMSP(AE):
             accumulate gradient for training step
         chunk_size : :obj:`int`, optional
             batch is split into chunks of this size to keep memory requirements low
+
+        Returns
+        -------
+        :obj:`dict`
+            - 'loss' (:obj:`float`): total loss
+            - 'loss_mse' (:obj:`float`): pixel mse loss
+            - 'loss_msp' (:obj:`float`): combined msp loss
+            - 'labels_r2' (:obj:`float`): variance-weighted $R^2$ of reconstructed labels
 
         """
 
