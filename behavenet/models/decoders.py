@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.metrics import r2_score, accuracy_score
 import torch
 from torch import nn
+import behavenet.fitting.losses as losses
 from behavenet.models.base import BaseModule, BaseModel
 
 
@@ -182,7 +183,6 @@ class NN(BaseModule):
             out_size = self.hparams['output_size']
         else:
             out_size = self.hparams['n_hid_units']
-
 
         layer = nn.Conv1d(
             in_channels=in_size,
@@ -437,6 +437,60 @@ class ConvDecoder(BaseModel):
             raise ValueError('"%s" is an invalid model_type' % self.model_type)
         return y
 
-    def loss(self, *args, **kwargs):
-        """Compute loss."""
-        raise NotImplementedError
+    def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
+        """Calculate MSE loss for convolutional decoder.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'labels', 'images' and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+        accumulate_grad : :obj:`bool`, optional
+            accumulate gradient for training step
+        chunk_size : :obj:`int`, optional
+            batch is split into chunks of this size to keep memory requirements low
+
+        Returns
+        -------
+        :obj:`dict`
+            - 'loss' (:obj:`float`): mse loss
+
+        """
+
+        if self.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
+        x = data['images'][0]
+        y = data['labels'][0]
+        m = data['masks'][0] if 'masks' in data else None
+
+        batch_size = x.shape[0]
+        n_chunks = int(np.ceil(batch_size / chunk_size))
+
+        loss_val = 0
+        for chunk in range(n_chunks):
+
+            idx_beg = chunk * chunk_size
+            idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+
+            x_in = x[idx_beg:idx_end]
+            y_in = y[idx_beg:idx_end]
+            m_in = m[idx_beg:idx_end] if m is not None else None
+            x_hat = self.forward(y_in, dataset=dataset)
+
+            loss = losses.mse(x_in, x_hat, m_in)
+
+            if accumulate_grad:
+                loss.backward()
+
+            # get loss value (weighted by batch size)
+            loss_val += loss.item() * (idx_end - idx_beg)
+
+        loss_val /= batch_size
+
+        return {'loss': loss_val}
