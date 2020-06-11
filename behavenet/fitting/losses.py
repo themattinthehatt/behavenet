@@ -24,35 +24,16 @@ class GaussianNegLogProb(_Loss):
         return torch.mean(-dist.log_prob(target))
 
 
-def mse(y, y_mu):
-    """Compute mean square error (MSE) loss.
-
-    Parameters
-    ----------
-    y : :obj:`torch.Tensor`
-        predicted data
-    y_mu : :obj:`torch.Tensor`
-        true data
-
-    Returns
-    -------
-    :obj:`torch.Tensor`
-        mean square error computed across all dimensions
-
-    """
-    return torch.mean((y - y_mu) ** 2)
-
-
-def masked_mse(y, y_mu, masks):
+def mse(y_pred, y_true, masks=None):
     """Compute mean square error (MSE) loss with masks.
 
     Parameters
     ----------
-    y : :obj:`torch.Tensor`
+    y_pred : :obj:`torch.Tensor`
         predicted data
-    y_mu : :obj:`torch.Tensor`
+    y_true : :obj:`torch.Tensor`
         true data
-    masks : :obj:`torch.Tensor`
+    masks : :obj:`torch.Tensor`, optional
         binary mask that is the same size as `y` and `y_mu`; by placing 0 entries in the mask,
         the corresponding dimensions will not contribute to the loss term, and will therefore
         not contribute to parameter updates
@@ -63,4 +44,7 @@ def masked_mse(y, y_mu, masks):
         mean square error computed across all dimensions
 
     """
-    return torch.mean(((y - y_mu) ** 2) * masks)
+    if masks is not None:
+        return torch.mean(((y_pred - y_true) ** 2) * masks)
+    else:
+        return torch.mean((y_pred - y_true) ** 2)

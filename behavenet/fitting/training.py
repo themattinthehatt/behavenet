@@ -287,22 +287,20 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
     """
 
-    # check inputs
-    if method == 'ae':
-        logger = Logger(n_datasets=data_generator.n_datasets)
-    elif method == 'ae-msp':
-        logger = AEMSPLoss(model, n_datasets=data_generator.n_datasets)
-    elif method == 'nll':
-        logger = NLLLoss(model, n_datasets=data_generator.n_datasets)
-    elif method == 'conv-decoder':
-        logger = ConvDecoderLoss(model, n_datasets=data_generator.n_datasets)
-    else:
-        raise ValueError('"%s" is an invalid fitting method' % method)
-
-    # optimizer set-up
+    # optimizer setup
     optimizer = torch.optim.Adam(
         model.get_parameters(), lr=hparams['learning_rate'], weight_decay=hparams.get('l2_reg', 0),
         amsgrad=True)
+
+    # logging setup
+    logger = Logger(n_datasets=data_generator.n_datasets)
+
+    # early stopping setup
+    if hparams['enable_early_stop']:
+        early_stop = EarlyStopping(
+            patience=hparams['early_stop_history'], min_epochs=hparams['min_n_epochs'])
+    else:
+        early_stop = None
 
     # enumerate batches on which validation metrics should be recorded
     best_val_loss = np.inf
@@ -313,13 +311,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         data_generator.n_tot_batches['train'] * (hparams['max_n_epochs']+1),
         int((hparams['max_n_epochs'] + 1) / hparams['val_check_interval'])).astype('int')
 
-    # early stopping set-up
-    if hparams['enable_early_stop']:
-        early_stop = EarlyStopping(
-            patience=hparams['early_stop_history'], min_epochs=hparams['min_n_epochs'])
-    else:
-        early_stop = None
-
+    # set random seeds for training
     if hparams.get('rng_seed_train', None) is None:
         rng_train = np.random.randint(0, 10000)
     else:
@@ -391,28 +383,21 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     best_val_model.hparams = hparams
                     best_val_epoch = i_epoch
 
-                # export aggregated metrics on train/val data
-                exp.log(logger.create_metric_row(
-                    'train', i_epoch, i_train, -1, trial=-1,
-                    by_dataset=False, best_epoch=best_val_epoch))
+                # export aggregated metrics on val data
                 exp.log(logger.create_metric_row(
                     'val', i_epoch, i_train, -1, trial=-1,
                     by_dataset=False, best_epoch=best_val_epoch))
-                # export individual session metrics on train/val data
+                # export individual session metrics on val data
                 if data_generator.n_datasets > 1:
-                    for dataset in range(data_generator.n_datasets):
-                        exp.log(logger.create_metric_row(
-                            'train', i_epoch, i_train, dataset, trial=-1,
-                            by_dataset=True, best_epoch=best_val_epoch))
                         exp.log(logger.create_metric_row(
                             'val', i_epoch, i_train, dataset, trial=-1,
                             by_dataset=True, best_epoch=best_val_epoch))
                 exp.save()
 
-            elif (i_train + 1) % data_generator.n_tot_batches['train'] == 0:
-                # export training metrics at end of epoch
+            # export training metrics at end of epoch
+            if (i_train + 1) % data_generator.n_tot_batches['train'] == 0:
 
-                # export aggregated metrics on train/val data
+                # export aggregated metrics on train data
                 exp.log(logger.create_metric_row(
                     'train', i_epoch, i_train, -1, trial=-1,
                     by_dataset=False, best_epoch=best_val_epoch))
@@ -443,18 +428,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         model.save(os.path.join(expt_dir, 'last_model.pt'))
 
     # compute test loss
-    if method == 'ae':
-        test_loss = AELoss(best_val_model, n_datasets=data_generator.n_datasets)
-    elif method == 'ae-msp':
-        test_loss = AEMSPLoss(best_val_model, n_datasets=data_generator.n_datasets)
-    elif method == 'nll':
-        test_loss = NLLLoss(best_val_model, n_datasets=data_generator.n_datasets)
-    elif method == 'conv-decoder':
-        test_loss = ConvDecoderLoss(model, n_datasets=data_generator.n_datasets)
-    else:
-        raise ValueError('"%s" is an invalid fitting method' % method)
-
-    test_loss.reset_metrics('test')
+    logger.reset_metrics('test')
     data_generator.reset_iterators('test')
     best_val_model.eval()
 
@@ -464,12 +438,12 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         data, dataset = data_generator.next_batch('test')
 
         # call the appropriate loss function
-        test_loss.reset_metrics('test')
-        test_loss.calc_loss(data, dataset=dataset)
-        test_loss.update_metrics('test', dataset=dataset)
+        logger.reset_metrics('test')
+        loss_dict = model.loss(data, dataset=dataset, accumulate_grad=False)
+        logger.update_metrics('test', loss_dict, dataset=dataset)
 
         # calculate metrics for each *batch* (rather than whole dataset)
-        exp.log(test_loss.create_metric_row(
+        exp.log(logger.create_metric_row(
             'test', i_epoch, i_test, dataset, trial=data['batch_idx'].item(), by_dataset=True))
 
     exp.save()
