@@ -116,9 +116,7 @@ class ConvAEEncoder(BaseModule):
 
         # If VAE model, have additional ff layer to latent variances
         if self.hparams['model_class'] == 'vae':
-            raise NotImplementedError
-            # self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
-            # self.softplus = nn.Softplus()
+            self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
     def _get_conv2d_args(self, layer, global_layer):
 
@@ -209,7 +207,7 @@ class ConvAEEncoder(BaseModule):
         # Reshape for ff layer
         x = x.view(x.size(0), -1)
         if self.hparams['model_class'] == 'vae':
-            raise NotImplementedError
+            return self.FF(x), self.logvar(x), pool_idx, target_output_size
         else:
             return self.FF(x), pool_idx, target_output_size
 
@@ -353,9 +351,6 @@ class ConvAEDecoder(BaseModule):
             self.decoder.add_module(
                 str('sigmoid%i' % global_layer_num), nn.Sigmoid())
 
-        if self.hparams['model_class'] == 'vae':
-            raise NotImplementedError
-
     def _get_convtranspose2d_args(self, layer, global_layer):
 
         # input channels
@@ -483,10 +478,7 @@ class ConvAEDecoder(BaseModule):
             else:
                 x = layer(x)
 
-        if self.hparams['model_class'] == 'vae':
-            raise NotImplementedError
-        else:
-            return x
+        return x
 
 
 class LinearAEEncoder(BaseModule):
@@ -621,8 +613,8 @@ class AE(BaseModel):
     utilizes a single hidden layer, dense feedforward layers (i.e. not convolutional), and the
     encoding and decoding weights are tied to more closely resemble PCA/SVD. The convolutional
     autoencoder architecture is defined by various keys in the dict that serves as the constructor
-    input. See the :mod:`behavenet.fitting.ae_model_architecture` module to see examples for how
-    this is done.
+    input. See the :mod:`behavenet.models.ae_model_architecture_generator` module to see examples
+    for how this is done.
     """
 
     def __init__(self, hparams):
@@ -632,7 +624,7 @@ class AE(BaseModel):
         ----------
         hparams : :obj:`dict`
             - 'model_type' (:obj:`int`): 'conv' | 'linear'
-            - 'model_class' (:obj:`str`): 'ae' | 'vae'
+            - 'model_class' (:obj:`str`): 'ae'
             - 'y_pixels' (:obj:`int`)
             - 'x_pixels' (:obj:`int`)
             - 'n_input_channels' (:obj:`int`)
