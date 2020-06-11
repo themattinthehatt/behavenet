@@ -1061,7 +1061,7 @@ class AEMSP(AE):
 
         # use variance-weighted r2s to ignore small-variance latents
         y_hat_all = np.concatenate(y_hat_all, axis=0)
-        r2 = r2_score(y, y_hat_all, multioutput='variance_weighted')
+        r2 = r2_score(y.cpu().detach().numpy(), y_hat_all, multioutput='variance_weighted')
 
         loss_dict = {
             'loss': loss_val, 'loss_mse': loss_mse_val, 'loss_msp': loss_msp_val, 'labels_r2': r2}

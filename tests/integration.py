@@ -99,8 +99,8 @@ def make_tmp_data(data_dir):
 
 
 def get_model_config_files(model, json_dir):
-    if model == 'ae' or model == 'arhmm' or model == 'cond-ae-msp':
-        if model == 'cond-ae-msp':
+    if model == 'ae' or model == 'arhmm' or model == 'cond-ae-msp' or model == 'labels-images':
+        if model == 'cond-ae-msp' or model == 'labels-images':
             model = 'ae'
         model_json_dir = os.path.join(json_dir, '%s_jsons' % model)
         base_config_files = {
@@ -151,6 +151,7 @@ def define_new_config_values(model, session='sess-0'):
             'data': data_dict,
             'model': {
                 'experiment_name': ae_expt_name,
+                'model_class': 'ae',
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
                 'l2_reg': 0.0},
@@ -169,6 +170,7 @@ def define_new_config_values(model, session='sess-0'):
             'data': data_dict,
             'model': {
                 'experiment_name': ae_expt_name,
+                'model_class': 'cond-ae-msp',
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents + TEMP_DATA['n_labels'],
                 'l2_reg': 0.0,
@@ -256,6 +258,25 @@ def define_new_config_values(model, session='sess-0'):
             'compute': {
                 'gpus_viz': str(gpu_id),
                 'tt_n_cpu_workers': 2}}
+    elif model == 'labels-images':
+        new_values = {
+            'data': data_dict,
+            'model': {
+                'experiment_name': ae_expt_name,
+                'model_class': 'labels-images',
+                'model_type': ae_model_type,
+                'n_ae_latents': 0,
+                'l2_reg': 0.0},
+            'training': {
+                'export_train_plots': False,
+                'export_latents': False,
+                'min_n_epochs': 1,
+                'max_n_epochs': 1,
+                'enable_early_stop': False,
+                'train_frac': train_frac,
+                'trial_splits': trial_splits},
+            'compute': {
+                'gpus_viz': str(gpu_id)}}
     else:
         raise NotImplementedError
 
@@ -382,29 +403,32 @@ def main(args):
     # -------------------------------------------
     # fit models
     # -------------------------------------------
-    # model_classes = ['ae', 'arhmm', 'neural-ae', 'neural-arhmm', 'ae', 'cond-ae-msp']
-    # model_files = ['ae', 'arhmm', 'decoder', 'decoder', 'ae', 'ae']  # %s_grid_search
-    # sessions = [SESSIONS[0], SESSIONS[0], SESSIONS[0], SESSIONS[0], 'all', SESSIONS[0]]
-    model_classes = ['ae', 'neural-ae']
-    model_files = ['ae', 'decoder']  # %s_grid_search
-    sessions = [SESSIONS[0], SESSIONS[0]]
-    for model_class, model_file, session in zip(model_classes, model_files, sessions):
+    models = [  # ['model_file']_grid_search
+        {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
+        {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+        {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+        {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
+        {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
+    ]
+    for model in models:
         # modify example jsons
-        base_config_files = get_model_config_files(model_class, json_dir)
-        new_values = define_new_config_values(model_class, session)
+        base_config_files = get_model_config_files(model['model_class'], json_dir)
+        new_values = define_new_config_values(model['model_class'], model['sessions'])
         config_dicts, new_config_files = update_config_files(
             base_config_files, new_values, args.save_dir)
         # fit model
         print('\n\n---------------------------------------------------')
-        print('model: %s' % model_class)
-        print('session: %s' % session)
+        print('model: %s' % model['model_class'])
+        print('session: %s' % model['sessions'])
         print('---------------------------------------------------\n\n')
-        fit_model(model_file, fitting_dir, new_config_files)
+        fit_model(model['model_file'], fitting_dir, new_config_files)
         # check model
-        if session == 'all':
-            model_key = '%s-multisession' % model_class
+        if model['sessions'] == 'all':
+            model_key = '%s-multisession' % model['model_class']
         else:
-            model_key = model_class
+            model_key = model['model_class']
         print_strs[model_key] = check_model(config_dicts, args)
 
     # -------------------------------------------

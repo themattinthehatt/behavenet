@@ -453,7 +453,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
         print('exporting predictions')
         from behavenet.fitting.eval import export_predictions
         export_predictions(data_generator, best_val_model)
-    elif method == 'conv-decoder' and hparams['export_predictions']:
+    elif method == 'conv-decoder' and hparams.get('export_predictions', False):
         print('warning! exporting predictions not currently implemented for convolutional decoder')
 
 
