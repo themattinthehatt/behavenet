@@ -247,9 +247,6 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     Training parameters such as min epochs, max epochs, and early stopping hyperparameters are
     specified in :obj:`hparams`.
 
-    For more information on how model losses are calculated, see the classes that inherit from
-    :class:`FitMethod`.
-
     For more information on how early stopping is implemented, see the class
     :class:`EarlyStopping`.
 
@@ -262,7 +259,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     processed.
 
     Monitored metrics are saved in a csv file in the model directory. This logging is handled by
-    the :obj:`testtube` package.
+    the :obj:`testtube` package and the class :class:`Logger`.
 
     At the end of training, model outputs (such as latents for autoencoder models, or predictions
     for decoder models) can optionally be computed and saved using the :obj:`hparams` keys
@@ -302,10 +299,11 @@ def fit(hparams, model, data_generator, exp, method='ae'):
     best_val_loss = np.inf
     best_val_epoch = None
     best_val_model = None
-    val_check_batch = np.linspace(
-        data_generator.n_tot_batches['train'] * hparams['val_check_interval'],
-        data_generator.n_tot_batches['train'] * (hparams['max_n_epochs']+1),
-        int((hparams['max_n_epochs'] + 1) / hparams['val_check_interval'])).astype('int')
+    val_check_batch = np.append(
+        hparams['val_check_interval'] * data_generator.n_tot_batches['train'] *
+        np.arange(1, int((hparams['max_n_epochs'] + 1) / hparams['val_check_interval'])),
+        [data_generator.n_tot_batches['train'] * hparams['max_n_epochs'],
+         data_generator.n_tot_batches['train'] * (hparams['max_n_epochs'] + 1)]).astype('int')
 
     # set random seeds for training
     if hparams.get('rng_seed_train', None) is None:
