@@ -1,6 +1,7 @@
 """Autoencoder models implemented in PyTorch."""
 
 import numpy as np
+from sklearn.metrics import r2_score, accuracy_score
 import torch
 from torch import nn
 import torch.nn.functional as functional
@@ -742,14 +743,10 @@ class AE(BaseModel):
         if self.hparams['device'] == 'cuda':
             data = {key: val.to('cuda') for key, val in data.items()}
 
-        y = data['images'][0]
+        x = data['images'][0]
+        m = data['masks'][0] if 'masks' in data else None
 
-        if 'masks' in data:
-            masks = data['masks'][0]
-        else:
-            masks = None
-
-        batch_size = y.shape[0]
+        batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
 
         loss_val = 0
@@ -758,17 +755,19 @@ class AE(BaseModel):
             idx_beg = chunk * chunk_size
             idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
 
-            y_in = y[idx_beg:idx_end]
-            masks_in = masks[idx_beg:idx_end] if masks is not None else None
-            y_mu, _ = self.forward(y_in, dataset=dataset)
+            x_in = x[idx_beg:idx_end]
+            m_in = m[idx_beg:idx_end] if m is not None else None
+            x_hat, _ = self.forward(x_in, dataset=dataset)
 
-            loss = losses.mse(y_in, y_mu, masks_in)
+            loss = losses.mse(x_in, x_hat, m_in)
 
             if accumulate_grad:
                 loss.backward()
+
             # get loss value (weighted by batch size)
             loss_val += loss.item() * (idx_end - idx_beg)
-        loss_val /= y.shape[0]
+
+        loss_val /= batch_size
 
         return {'loss': loss_val}
 
@@ -858,21 +857,16 @@ class ConditionalAE(AE):
         if self.hparams['device'] == 'cuda':
             data = {key: val.to('cuda') for key, val in data.items()}
 
-        y = data['images'][0]
-
-        if 'masks' in data:
-            masks = data['masks'][0]
-        else:
-            masks = None
-
-        labels = data['labels'][0]
+        x = data['images'][0]
+        y = data['labels'][0]
+        m = data['masks'][0] if 'masks' in data else None
         if self.hparams['conditional_encoder']:
             # continuous labels transformed into 2d one-hot array as input to encoder
-            labels_2d = data['labels_sc'][0]
+            y_2d = data['labels_sc'][0]
         else:
-            labels_2d = None
+            y_2d = None
 
-        batch_size = y.shape[0]
+        batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
 
         loss_val = 0
@@ -881,13 +875,13 @@ class ConditionalAE(AE):
             idx_beg = chunk * chunk_size
             idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
 
+            x_in = x[idx_beg:idx_end]
             y_in = y[idx_beg:idx_end]
-            masks_in = masks[idx_beg:idx_end] if masks is not None else None
-            labels_in = labels[idx_beg:idx_end] if labels is not None else None
-            labels_2d_in = labels_2d[idx_beg:idx_end] if labels_2d is not None else None
-            y_mu, _ = self.forward(y_in, labels=labels_in, labels_2d=labels_2d_in, dataset=dataset)
+            m_in = m[idx_beg:idx_end] if m is not None else None
+            y_2d_in = y_2d[idx_beg:idx_end] if y_2d is not None else None
+            x_hat, _ = self.forward(x_in, labels=y_in, labels_2d=y_2d_in, dataset=dataset)
 
-            loss = losses.mse(y_in, y_mu, masks_in)
+            loss = losses.mse(x_in, x_hat, m_in)
 
             if accumulate_grad:
                 loss.backward()
@@ -895,7 +889,7 @@ class ConditionalAE(AE):
             # get loss value (weighted by batch size)
             loss_val += loss.item() * (idx_end - idx_beg)
 
-        loss_val /= y.shape[0]
+        loss_val /= batch_size
 
         return {'loss': loss_val}
 
@@ -978,8 +972,83 @@ class AEMSP(AE):
         x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
         return x_hat, z, y
 
-    def loss(self):
-        raise NotImplementedError
+    def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
+        """Calculate MSE loss for autoencoder.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'images' and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+        accumulate_grad : :obj:`bool`, optional
+            accumulate gradient for training step
+        chunk_size : :obj:`int`, optional
+            batch is split into chunks of this size to keep memory requirements low
+
+        """
+
+        if self.hparams['device'] == 'cuda':
+            data = {key: val.to('cuda') for key, val in data.items()}
+
+        x = data['images'][0]
+        y = data['labels'][0]
+        m = data['masks'][0] if 'masks' in data else None
+
+        batch_size = x.shape[0]
+        n_chunks = int(np.ceil(batch_size / chunk_size))
+
+        loss_val = 0
+        loss_mse_val = 0
+        loss_msp_val = 0
+        y_hat_all = []
+        for chunk in range(n_chunks):
+
+            idx_beg = chunk * chunk_size
+            idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+
+            x_in = x[idx_beg:idx_end]
+            y_in = y[idx_beg:idx_end]
+            m_in = m[idx_beg:idx_end] if m is not None else None
+            x_hat, z, y_hat = self.forward(x_in, dataset=dataset)
+
+            # mse loss
+            loss_mse = losses.mse(x_in, x_hat, m_in)
+
+            # msp loss
+            loss_msp = losses.mse(y_in, y_hat) + \
+                losses.mse(z, torch.matmul(y_hat, self.projection.weight))
+            # ^NOTE: transpose on projection weights implicitly performed due to layer def
+
+            # combine
+            loss = loss_mse + self.hparams['msp_weight'] * loss_msp
+
+            if accumulate_grad:
+                loss.backward()
+
+            # get loss value (weighted by batch size)
+            loss_val += loss.item() * (idx_end - idx_beg)
+            loss_mse_val += loss_mse.item() * (idx_end - idx_beg)
+            loss_msp_val += loss_msp.item() * (idx_end - idx_beg)
+
+            y_hat_all.append(y_hat.cpu().detach().numpy())
+
+        loss_val /= batch_size
+        loss_mse_val /= batch_size
+        loss_msp_val /= batch_size
+
+        # use variance-weighted r2s to ignore small-variance latents
+        y_hat_all = np.concatenate(y_hat_all, axis=0)
+        r2 = r2_score(y, y_hat_all, multioutput='variance_weighted')
+
+        loss_dict = {
+            'loss': loss_val, 'loss_mse': loss_mse_val, 'loss_msp': loss_msp_val, 'labels_r2': r2}
+
+        return loss_dict
 
     def save(self, filepath):
         """Save model parameters."""
