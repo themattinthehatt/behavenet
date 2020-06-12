@@ -76,12 +76,16 @@ def gaussian_ll(y_pred, y_mean, masks=None, std=1):
 
     """
     n_frames, dims = y_pred.shape
+    if isinstance(dims, int):
+        dims = [dims]
     n_dims = np.prod(dims)
     log_var = np.log(std ** 2)
+
     if masks is not None:
-        diff_sq = (y_pred - y_mean) ** 2
-    else:
         diff_sq = ((y_pred - y_mean) ** 2) * masks
+    else:
+        diff_sq = (y_pred - y_mean) ** 2
+
     ll = - (0.5 * LN2PI + 0.5 * log_var) * n_dims - (0.5 / (std ** 2)) * diff_sq.sum(
         axis=tuple(1+np.arange(len(dims))))
 
@@ -108,15 +112,18 @@ def kl_div_to_std_normal(mu, logvar):
     return torch.mean(kl)
 
 
-def gaussian_ll_to_mse(ll, batch_size, n_dims, gaussian_std=1, mse_std=1):
+def gaussian_ll_to_mse(ll, n_dims, gaussian_std=1, mse_std=1):
     """Convert a Gaussian log-likelihood term to MSE by removing constants and swapping variances.
+
+    - NOTE:
+        does not currently return correct values if gaussian ll is computed with masks
 
     Parameters
     ----------
     ll : :obj:`float`
         original Gaussian log-likelihood
-    batch_size : :obj:`int`
-        batch size used to compute original ll; assumes `ll` has been averaged over batch
+    n_dims : :obj:`int`
+        number of dimensions in multivariate Gaussian
     gaussian_std : :obj:`float`
         std used to compute Gaussian log-likelihood
     mse_std : :obj:`float`
@@ -128,8 +135,9 @@ def gaussian_ll_to_mse(ll, batch_size, n_dims, gaussian_std=1, mse_std=1):
         MSE value
 
     """
-    ll *= batch_size  # undo mean
-    ll *= -(gaussian_std ** 2) / 0.5  # undo scaling by variance
-    ll += (0.5 * LN2PI + 0.5 * np.log(gaussian_std ** 2)) * n_dims  # remove constant
-    ll *= 1.0 / (mse_std ** 2)  # scale by mse variance
-    return ll
+    llc = ll.clone().detach()
+    llc += (0.5 * LN2PI + 0.5 * np.log(gaussian_std ** 2)) * n_dims  # remove constant
+    llc *= -(gaussian_std ** 2) / 0.5  # undo scaling by variance
+    llc /= n_dims  # change sum to mean
+    llc *= 1.0 / (mse_std ** 2)  # scale by mse variance
+    return llc

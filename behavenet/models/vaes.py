@@ -174,7 +174,7 @@ class VAE(AE):
             loss_ll_val += loss_ll.item() * (idx_end - idx_beg)
             loss_kl_val += loss_kl.item() * (idx_end - idx_beg)
             loss_mse_val += losses.gaussian_ll_to_mse(
-                loss_ll.item(), (idx_end - idx_beg), np.prod(x.shape[1:])) * (idx_end - idx_beg)
+                loss_ll.item(), np.prod(x.shape[1:])) * (idx_end - idx_beg)
 
         loss_val /= batch_size
         loss_ll_val /= batch_size
