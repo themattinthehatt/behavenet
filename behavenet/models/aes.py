@@ -783,7 +783,8 @@ class ConditionalAE(AE):
         Parameters
         ----------
         hparams : :obj:`dict`
-            in addition to the standard keys, must also contain :obj:`n_labels`
+            in addition to the standard keys, must also contain :obj:`n_labels` and
+            :obj:`conditional_encoder`
 
         """
         if hparams['model_type'] == 'linear':

@@ -13,6 +13,11 @@ class VAE(AE):
     architecture is defined by various keys in the dict that serves as the constructor input. See
     the :mod:`behavenet.fitting.ae_model_architecture_generator` module to see examples for how
     this is done.
+
+    The VAE class can also be used to fit β-VAE models (see https://arxiv.org/pdf/1804.03599.pdf)
+    by changing the value of the `vae.beta` parameter in the `ae_model.json` file; a value of 1
+    corresponds to a standard VAE; a value >1 will upweight the KL divergence term which, in some
+    cases, can lead to disentangling of the latent representation.
     """
 
     def __init__(self, hparams):
@@ -28,6 +33,8 @@ class VAE(AE):
             - 'n_input_channels' (:obj:`int`)
             - 'n_ae_latents' (:obj:`int`)
             - 'fit_sess_io_layers; (:obj:`bool`): fit session-specific input/output layers
+            - 'vae.beta' (:obj:`float`)
+            - 'vae.beta_anneal_epochs' (:obj:`int`)
             - 'ae_encoding_x_dim' (:obj:`list`)
             - 'ae_encoding_y_dim' (:obj:`list`)
             - 'ae_encoding_n_channels' (:obj:`list`)
@@ -51,6 +58,16 @@ class VAE(AE):
         if hparams['model_type'] == 'linear':
             raise NotImplementedError
         super().__init__(hparams)
+
+        # set up kl annealing
+        anneal_epochs = self.hparams.get('vae.beta_anneal_epochs', 0)
+        self.curr_epoch = 0  # must be modified by training script
+        if anneal_epochs > 0:
+            self.beta_vals = np.append(
+                np.linspace(0, hparams['vae.beta'], anneal_epochs),
+                np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
+        else:
+            self.beta_vals = np.ones(hparams['max_n_epochs'] + 1)
 
     def forward(self, x, dataset=None, use_mean=False, **kwargs):
         """Process input data.
@@ -131,6 +148,7 @@ class VAE(AE):
 
         x = data['images'][0]
         m = data['masks'][0] if 'masks' in data else None
+        beta = self.beta_vals[self.curr_epoch]
 
         batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
@@ -155,7 +173,7 @@ class VAE(AE):
             loss_kl = losses.kl_div_to_std_normal(mu, logvar)
 
             # combine
-            loss = -loss_ll + self.hparams['vae.beta'] * loss_kl
+            loss = -loss_ll + beta * loss_kl
 
             if accumulate_grad:
                 loss.backward()
@@ -174,6 +192,6 @@ class VAE(AE):
 
         loss_dict = {
             'loss': loss_val, 'loss_ll': loss_ll_val, 'loss_kl': loss_kl_val,
-            'loss_mse': loss_mse_val}
+            'loss_mse': loss_mse_val, 'beta': beta}
 
         return loss_dict

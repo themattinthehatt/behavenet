@@ -329,6 +329,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
 
         logger.reset_metrics('train')
         data_generator.reset_iterators('train')
+        model.curr_epoch = i_epoch  # for updating annealed loss terms
 
         for i_train in tqdm(range(data_generator.n_tot_batches['train'])):
 
