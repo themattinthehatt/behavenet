@@ -446,6 +446,25 @@ class TestClass:
         hparams['save_dir'] = 'sdir'
 
         # -------------------------
+        # vae
+        # -------------------------
+        hparams['model_class'] = 'vae'
+        hparams['model_type'] = 'conv'
+        hparams['n_ae_latents'] = 10
+        hparams['experiment_name'] = 'tt_expt'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], hparams['model_type'],
+            '%02i_latents' % hparams['n_ae_latents'], hparams['experiment_name'])
+
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        expt_dir = utils.get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None)
+        assert expt_dir == model_path
+
+        # -------------------------
         # cond-ae [-msp]
         # -------------------------
         hparams['model_class'] = 'cond-ae'
@@ -737,7 +756,7 @@ class TestClass:
         # -----------------
         # ae/vae/cond-ae
         # -----------------
-        # ae/vae
+        # ae
         model_hparams = {
             'model_class': 'ae',
             'model_type': 'conv',
@@ -745,6 +764,20 @@ class TestClass:
             'fit_sess_io_layers': False,
             'learning_rate': 1e-4,
             'l2_reg': 1e-2}
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        # vae
+        model_hparams = {
+            'model_class': 'vae',
+            'model_type': 'conv',
+            'n_ae_latents': 6,
+            'fit_sess_io_layers': False,
+            'learning_rate': 1e-4,
+            'l2_reg': 1e-2,
+            'vae.beta': 1,
+            'vae.beta_anneal_epochs': 100
+        }
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
 
@@ -768,8 +801,7 @@ class TestClass:
             'fit_sess_io_layers': False,
             'learning_rate': 1e-4,
             'l2_reg': 1e-2,
-            'msp_weight': 1e-5,
-            'conditional_encoder': False}
+            'msp.alpha': 1e-5}
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
 

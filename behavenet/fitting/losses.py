@@ -75,10 +75,8 @@ def gaussian_ll(y_pred, y_mean, masks=None, std=1):
         Gaussian log-likelihood summed across dims, averaged across batch
 
     """
-    n_frames, dims = y_pred.shape
-    if isinstance(dims, int):
-        dims = [dims]
-    n_dims = np.prod(dims)
+    dims = y_pred.shape
+    n_dims = np.prod(dims[1:])  # first value is n_frames in batch
     log_var = np.log(std ** 2)
 
     if masks is not None:
@@ -87,7 +85,7 @@ def gaussian_ll(y_pred, y_mean, masks=None, std=1):
         diff_sq = (y_pred - y_mean) ** 2
 
     ll = - (0.5 * LN2PI + 0.5 * log_var) * n_dims - (0.5 / (std ** 2)) * diff_sq.sum(
-        axis=tuple(1+np.arange(len(dims))))
+        axis=tuple(1+np.arange(len(dims[1:]))))
 
     return torch.mean(ll)
 
@@ -135,7 +133,7 @@ def gaussian_ll_to_mse(ll, n_dims, gaussian_std=1, mse_std=1):
         MSE value
 
     """
-    llc = ll.clone().detach()
+    llc = np.copy(ll)
     llc += (0.5 * LN2PI + 0.5 * np.log(gaussian_std ** 2)) * n_dims  # remove constant
     llc *= -(gaussian_std ** 2) / 0.5  # undo scaling by variance
     llc /= n_dims  # change sum to mean

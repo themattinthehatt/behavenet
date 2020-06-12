@@ -57,5 +57,5 @@ def test_gaussian_ll_to_mse():
     y = torch.zeros(n_batch, n_dims)
     ll = losses.gaussian_ll(x, y, std=std)
     mse_ = 2 * (-ll - (0.5 * LN2PI + 0.5 * np.log(std ** 2)) * n_dims) / n_dims
-    mse = losses.gaussian_ll_to_mse(ll, n_dims, gaussian_std=std, mse_std=1)
-    assert mse == mse_
+    mse = losses.gaussian_ll_to_mse(ll.detach().numpy(), n_dims, gaussian_std=std, mse_std=1)
+    assert np.allclose(mse, mse_.detach().numpy())

@@ -14,7 +14,6 @@ from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.models import AE, ConditionalAE, AEMSP, CustomDataParallel
 from behavenet.models.aes import load_pretrained_ae
 
 
@@ -55,14 +54,20 @@ def main(hparams, *args):
     torch_rng_seed = torch.get_rng_state()
     hparams['model_build_rng_seed'] = torch_rng_seed
     hparams['n_datasets'] = len(sess_ids)
-    if hparams['model_class'] == 'ae' or hparams['model_class'] == 'vae':
+    if hparams['model_class'] == 'ae':
+        from behavenet.models import AE
         model = AE(hparams)
+    elif hparams['model_class'] == 'vae':
+        from behavenet.models import VAE
+        model = VAE(hparams)
     elif hparams['model_class'] == 'cond-ae':
+        from behavenet.models import ConditionalAE
         data, _ = data_generator.next_batch('train')
         sh = data['labels'].shape
         hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
         model = ConditionalAE(hparams)
     elif hparams['model_class'] == 'cond-ae-msp':
+        from behavenet.models import AEMSP
         data, _ = data_generator.next_batch('train')
         sh = data['labels'].shape
         hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
@@ -77,6 +82,7 @@ def main(hparams, *args):
 
     # Parallelize over gpus if desired
     if hparams['n_parallel_gpus'] > 1:
+        from behavenet.models import CustomDataParallel
         model = CustomDataParallel(model)
 
     model.version = exp.version

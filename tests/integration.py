@@ -99,8 +99,12 @@ def make_tmp_data(data_dir):
 
 
 def get_model_config_files(model, json_dir):
-    if model == 'ae' or model == 'arhmm' or model == 'cond-ae-msp' or model == 'labels-images':
-        if model == 'cond-ae-msp' or model == 'labels-images':
+    if model == 'ae' \
+            or model == 'vae' \
+            or model == 'cond-ae-msp' \
+            or model == 'labels-images' \
+            or model == 'arhmm':
+        if model == 'vae' or model == 'cond-ae-msp' or model == 'labels-images':
             model = 'ae'
         model_json_dir = os.path.join(json_dir, '%s_jsons' % model)
         base_config_files = {
@@ -146,12 +150,12 @@ def define_new_config_values(model, session='sess-0'):
     transitions = 'stationary'
     noise_type = 'gaussian'
 
-    if model == 'ae':
+    if model == 'ae' or model == 'vae':
         new_values = {
             'data': data_dict,
             'model': {
                 'experiment_name': ae_expt_name,
-                'model_class': 'ae',
+                'model_class': model,
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
                 'l2_reg': 0.0},
@@ -174,7 +178,7 @@ def define_new_config_values(model, session='sess-0'):
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents + TEMP_DATA['n_labels'],
                 'l2_reg': 0.0,
-                'msp_weight': 1e-5},
+                'msp.alpha': 1e-5},
             'training': {
                 'export_train_plots': False,
                 'export_latents': True,
@@ -375,8 +379,12 @@ def main(args):
 
     # create temp dir to store data
     if os.path.exists(args.data_dir):
-        args.data_dir += '_tmp_data'
-    os.mkdir(args.data_dir)
+        args.data_dir += '_tmp_data_AaA'
+    if not os.path.exists(args.data_dir):
+        os.mkdir(args.data_dir)
+    else:
+        shutil.rmtree(args.data_dir)
+        os.mkdir(args.data_dir)
 
     # make temp data
     print('creating temp data...', end='')
@@ -385,8 +393,12 @@ def main(args):
 
     # create temp dir to store results
     if os.path.exists(args.save_dir):
-        args.save_dir += '_tmp_save'
-    os.mkdir(args.save_dir)
+        args.save_dir += '_tmp_save_AaA'
+    if not os.path.exists(args.save_dir):
+        os.mkdir(args.save_dir)
+    else:
+        shutil.rmtree(args.save_dir)
+        os.mkdir(args.save_dir)
 
     # update directories to include new temp dirs
     dirs_file = os.path.join(get_params_dir(), 'directories.json')
@@ -409,6 +421,7 @@ def main(args):
         {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
         {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
         {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
+        {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
     ]

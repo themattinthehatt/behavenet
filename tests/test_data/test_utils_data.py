@@ -38,6 +38,25 @@ def test_get_data_generator_inputs():
     hparams['use_output_mask'] = False
 
     # -----------------
+    # vae
+    # -----------------
+    hparams['model_class'] = 'vae'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['images']
+    assert transforms[0] == [None]
+    assert paths[0] == [hdf5_path]
+
+    hparams['model_class'] = 'vae'
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['images', 'masks']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
+    hparams['use_output_mask'] = False
+
+    # -----------------
     # cond-ae [-msp]
     # -----------------
     hparams['model_class'] = 'cond-ae'

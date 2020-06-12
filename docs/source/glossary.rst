@@ -120,13 +120,23 @@ Autoencoder
 * **fit_sess_io_layers** (*bool*): ``True`` to fit session-specific input and output layers; all other layers are shared across all sessions
 * **ae_arch_json** (*str*): ``null`` to use the default convolutional autoencoder architecture from the original behavenet paper; otherwise, a string that defines the path to a json file that defines the architecture. An example can be found `here <https://github.com/ebatty/behavenet/tree/master/configs>`__.
 
+
+Variational autoencoders
+------------------------
+
+In addition to the autoencoder parameters defined above,
+
+* **vae.beta** (*float*): weight on KL divergence term in VAE ELBO
+* **vae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase vae beta
+
+
 Conditional autoencoders
 ------------------------
 
 In addition to the autoencoder parameters defined above,
 
 * **conditional_encoder** (*bool*): ``True`` to condition encoder on labels when model class is 'cond-ae'
-* **msp_weight** (*float*): weight on label reconstruction term when model class is 'cond-ae-msp'
+* **msp.alpha** (*float*): weight on label reconstruction term when model class is 'cond-ae-msp'
 
 
 ARHMM

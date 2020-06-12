@@ -917,7 +917,7 @@ class AEMSP(AE):
         ----------
         hparams : :obj:`dict`
             in addition to the standard keys, must also contain :obj:`n_labels` and
-            :obj:`msp_weight`
+            :obj:`msp.alpha`
 
         """
         if hparams['model_type'] == 'linear':
@@ -1035,7 +1035,7 @@ class AEMSP(AE):
             # ^NOTE: transpose on projection weights implicitly performed due to layer def
 
             # combine
-            loss = loss_mse + self.hparams['msp_weight'] * loss_msp
+            loss = loss_mse + self.hparams['msp.alpha'] * loss_msp
 
             if accumulate_grad:
                 loss.backward()

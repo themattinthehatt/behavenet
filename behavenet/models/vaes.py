@@ -48,18 +48,9 @@ class VAE(AE):
             - 'ae_decoding_last_FF_layer' (:obj:`bool`)
 
         """
-        super().__init__()
-        self.hparams = hparams
-        self.model_type = self.hparams['model_type']
-        if self.model_type == 'linear':
+        if hparams['model_type'] == 'linear':
             raise NotImplementedError
-        self.img_size = (
-                self.hparams['n_input_channels'],
-                self.hparams['y_pixels'],
-                self.hparams['x_pixels'])
-        self.encoding = None
-        self.decoding = None
-        self.build_model()
+        super().__init__(hparams)
 
     def forward(self, x, dataset=None, use_mean=False, **kwargs):
         """Process input data.

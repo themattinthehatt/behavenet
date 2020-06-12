@@ -71,7 +71,8 @@ def export_latents(data_generator, model, filename=None):
                         y_in = torch.cat((y[idx_beg:idx_end], labels_2d[idx_beg:idx_end]), dim=1)
                     else:
                         y_in = y[idx_beg:idx_end]
-                    curr_latents, _, _ = model.encoding(y_in, dataset=sess)
+                    output = model.encoding(y_in, dataset=sess)
+                    curr_latents = output[0]
                     if isinstance(model, AEMSP):
                         # push latents through linear transformation
                         curr_latents = model.U(curr_latents)
@@ -82,7 +83,8 @@ def export_latents(data_generator, model, filename=None):
                     y_in = torch.cat((y, labels_2d), dim=1)
                 else:
                     y_in = y
-                curr_latents, _, _ = model.encoding(y_in, dataset=sess)
+                output = model.encoding(y_in, dataset=sess)
+                curr_latents = output[0]
                 if isinstance(model, AEMSP):
                     # push latents through linear transformation
                     curr_latents = model.U(curr_latents)

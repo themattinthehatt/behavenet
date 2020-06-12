@@ -345,7 +345,8 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         expt_name = hparams['experiment_name']
 
     # get results dir
-    if model_class == 'ae' or model_class == 'cond-ae' or model_class == 'cond-ae-msp':
+    if model_class == 'ae' or model_class == 'vae' or model_class == 'cond-ae' \
+            or model_class == 'cond-ae-msp':
         model_path = os.path.join(
             model_class, model_type, '%02i_latents' % hparams['n_ae_latents'])
         if hparams.get('ae_multisession', None) is not None:
@@ -648,10 +649,13 @@ def get_model_params(hparams):
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['l2_reg'] = hparams['l2_reg']
-        if model_class == 'cond-ae' or model_class == 'cond-ae-msp':
+        if model_class == 'cond-ae':
             hparams_less['conditional_encoder'] = hparams.get('conditional_encoder', False)
         if model_class == 'cond-ae-msp':
-            hparams_less['msp_weight'] = hparams['msp_weight']
+            hparams_less['msp.alpha'] = hparams['msp.alpha']
+        if model_class == 'vae':
+            hparams_less['vae.beta'] = hparams['vae.beta']
+            hparams_less['vae.beta_anneal_epochs'] = hparams['vae.beta_anneal_epochs']
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']

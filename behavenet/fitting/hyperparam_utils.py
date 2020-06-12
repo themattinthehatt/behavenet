@@ -60,6 +60,7 @@ def add_dependent_params(parser, namespace):
     """Add params that are derived from json arguments."""
 
     if namespace.model_class == 'ae' \
+            or namespace.model_class == 'vae' \
             or namespace.model_class == 'cond-ae' \
             or namespace.model_class == 'cond-ae-msp' \
             or namespace.model_class == 'labels-images':

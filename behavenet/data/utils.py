@@ -51,7 +51,7 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
             neural_path = None
 
         # get model-specific signals/transforms/paths
-        if hparams['model_class'] == 'ae':
+        if hparams['model_class'] == 'ae' or hparams['model_class'] == 'vae':
 
             signals = ['images']
             transforms = [None]
