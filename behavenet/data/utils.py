@@ -487,7 +487,8 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx, data_key='labels'):
         data_generator.reset_iterators(dtype)
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
-            labels[data['batch_idx'].item()] = data[data_key][0][0]
+            if sess == sess_idx:
+                labels[data['batch_idx'].item()] = data[data_key][0][0]
     all_labels = {
         'latents': labels,  # name latents to match with old analysis code
         'trials': data_generator.datasets[sess_idx].batch_idxs}
