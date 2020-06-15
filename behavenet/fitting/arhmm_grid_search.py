@@ -66,24 +66,28 @@ def main(hparams):
         hparams['ae_model_latents_file'] = data_generator.datasets[0].paths['ae_latents']
 
     # collect model constructor inputs
+    if hparams['n_arhmm_lags'] > 0:
+        if hparams['model_class'][:5] != 'arhmm':  # 'arhmm' or 'arhmm-labels'
+            raise ValueError('Must specify model_class as arhmm when using AR lags')
+    else:
+        if hparams['model_class'][:3] != 'hmm':  # 'hmm' or 'hmm-labels'
+            raise ValueError('Must specify model_class as hmm when using 0 AR lags')
+
     if hparams['noise_type'] == 'gaussian':
         if hparams['n_arhmm_lags'] > 0:
-            if hparams['model_class'][:5] != 'arhmm':  # 'arhmm' or 'arhmm-labels'
-                raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'ar'
         else:
-            if hparams['model_class'][:3] != 'hmm':  # 'hmm' or 'hmm-labels'
-                raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'gaussian'
     elif hparams['noise_type'] == 'studentst':
         if hparams['n_arhmm_lags'] > 0:
-            if hparams['model_class'][:5] != 'arhmm':  # 'arhmm' or 'arhmm-labels'
-                raise ValueError('Must specify model_class as arhmm when using AR lags')
             obs_type = 'robust_ar'
         else:
-            if hparams['model_class'][:3] != 'hmm':  # 'hmm' or 'hmm-labels'
-                raise ValueError('Must specify model_class as hmm when using 0 AR lags')
             obs_type = 'studentst'
+    elif hparams['noise_type'] == 'diagonal_studentst':
+        if hparams['n_arhmm_lags'] > 0:
+            obs_type = 'diagonal_robust_ar'
+        else:
+            obs_type = 'diagonal_studentst'
     else:
         raise ValueError('%s is not a valid noise type' % hparams['noise_type'])
 
