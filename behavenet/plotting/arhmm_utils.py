@@ -86,7 +86,7 @@ def get_state_durations(latents, hmm, include_edges=True):
     """
     if hmm.K == 1:
         return []
-    states = [hmm.most_likely_states(x) for x in latents]
+    states = [hmm.most_likely_states(x) for x in latents if len(x) > 0]
     state_indices = get_discrete_chunks(states, include_edges=include_edges)
     durations = []
     for i_state in range(0, len(state_indices)):
