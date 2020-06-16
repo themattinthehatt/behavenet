@@ -21,6 +21,13 @@ def main(hparams):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
+    if hparams['transitions'] == 'sticky' and hparams['kappa'] == 0:
+        print('Cannot fit sticky transitions with kappa=0! Aborting fit')
+        return
+    if hparams['transitions'] != 'sticky' and hparams['kappa'] > 0:
+        print('Cannot fit %s transitions with kappa>0! Aborting fit' % hparams['transitions'])
+        return
+
     # print hparams to console
     _print_hparams(hparams)
 
@@ -130,6 +137,7 @@ def main(hparams):
     # save out hparams as csv and dict
     hparams['training_completed'] = False
     export_hparams(hparams, exp)
+    hmm.hparams = hparams
     print('done')
 
     # ####################
@@ -148,6 +156,10 @@ def main(hparams):
 
     val_ll_prev = np.inf
     tolerance = hparams.get('arhmm_es_tol', 0)
+    # hmm.fit(
+    #     latents['train'], method='em', num_iters=hparams['n_iters'], initialize=False,
+    #     tolerance=tolerance)
+    # epoch = hparams['n_iters']
     for epoch in range(hparams['n_iters'] + 1):
         # Note: the 0th epoch has no training (randomly initialized model is evaluated) so we cycle
         # through `n_iters` training epochs
