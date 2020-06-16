@@ -66,7 +66,7 @@ def get_discrete_chunks(states, include_edges=True):
     return indexing_list
 
 
-def get_state_durations(latents, hmm):
+def get_state_durations(latents, hmm, include_edges=True):
     """Calculate frame count for each state.
 
     Parameters
@@ -75,6 +75,8 @@ def get_state_durations(latents, hmm):
         latent states
     hmm : :obj:`ssm.HMM`
         arhmm objecct
+    include_edges : :obj:`bool`
+        include states at start and end of chunk
 
     Returns
     -------
@@ -84,11 +86,13 @@ def get_state_durations(latents, hmm):
     """
     # TODO: bad return type when n_arhmm_states = 1
     states = [hmm.most_likely_states(x) for x in latents]
-    state_indices = get_discrete_chunks(states, include_edges=False)
+    state_indices = get_discrete_chunks(states, include_edges=include_edges)
     durations = []
     for i_state in range(0, len(state_indices)):
         if len(state_indices[i_state]) > 0:
-            durations = np.append(durations, np.diff(state_indices[i_state][:, 1:3], 1))
+            durations.append(np.concatenate(np.diff(state_indices[i_state][:, 1:3], 1)))
+        else:
+            durations.append(np.array([]))
     return durations
 
 

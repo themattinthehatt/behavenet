@@ -37,5 +37,15 @@ def test_get_state_durations():
         np.array([3, 3, 3, 4, 4, 2, 2, 2]),
         np.array([0, 0, 0, 3, 3, 3, 1, 1, 2])
     ]
-    durations = arhmm_utils.get_state_durations(latents, hmm)
-    assert np.all(durations == np.array([3, 2, 2, 3, 2]))
+
+    durations = arhmm_utils.get_state_durations(latents, hmm, include_edges=True)
+    assert np.all(durations[0] == np.array([1, 1, 3]))
+    assert np.all(durations[1] == np.array([3, 2]))
+    assert np.all(durations[2] == np.array([2, 3, 1]))
+    assert np.all(durations[3] == np.array([3, 3]))
+
+    durations = arhmm_utils.get_state_durations(latents, hmm, include_edges=False)
+    assert np.all(durations[0] == np.array([]))
+    assert np.all(durations[1] == np.array([3, 2]))
+    assert np.all(durations[2] == np.array([2]))
+    assert np.all(durations[3] == np.array([3]))
