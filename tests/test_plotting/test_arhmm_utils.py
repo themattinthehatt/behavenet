@@ -32,6 +32,7 @@ def test_get_state_durations():
         def most_likely_states(cls, x):
             return x
     hmm = HMM()
+    hmm.K = 4
     latents = [
         np.array([0, 1, 1, 1, 2, 2, 0]),
         np.array([3, 3, 3, 4, 4, 2, 2, 2]),
@@ -49,3 +50,7 @@ def test_get_state_durations():
     assert np.all(durations[1] == np.array([3, 2]))
     assert np.all(durations[2] == np.array([2]))
     assert np.all(durations[3] == np.array([3]))
+
+    hmm.K = 1
+    durations = arhmm_utils.get_state_durations(latents, hmm)
+    assert len(durations) == 0

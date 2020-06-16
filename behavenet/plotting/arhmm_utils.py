@@ -81,10 +81,11 @@ def get_state_durations(latents, hmm, include_edges=True):
     Returns
     -------
     :obj:`list`
-        number of frames for each state run
+        number of frames for each state run; list is empty if single-state model
 
     """
-    # TODO: bad return type when n_arhmm_states = 1
+    if hmm.K == 1:
+        return []
     states = [hmm.most_likely_states(x) for x in latents]
     state_indices = get_discrete_chunks(states, include_edges=include_edges)
     durations = []
