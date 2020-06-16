@@ -65,7 +65,6 @@ def main(hparams):
             os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
         hparams['ae_model_latents_file'] = data_generator.datasets[0].paths['ae_latents']
 
-    # collect model constructor inputs
     if hparams['n_arhmm_lags'] > 0:
         if hparams['model_class'][:5] != 'arhmm':  # 'arhmm' or 'arhmm-labels'
             raise ValueError('Must specify model_class as arhmm when using AR lags')
@@ -73,6 +72,7 @@ def main(hparams):
         if hparams['model_class'][:3] != 'hmm':  # 'hmm' or 'hmm-labels'
             raise ValueError('Must specify model_class as hmm when using 0 AR lags')
 
+    # determine observation model
     if hparams['noise_type'] == 'gaussian':
         if hparams['n_arhmm_lags'] > 0:
             obs_type = 'ar'
@@ -83,6 +83,11 @@ def main(hparams):
             obs_type = 'robust_ar'
         else:
             obs_type = 'studentst'
+    elif hparams['noise_type'] == 'diagonal_gaussian':
+        if hparams['n_arhmm_lags'] > 0:
+            obs_type = 'diagonal_ar'
+        else:
+            obs_type = 'diagonal_gaussian'
     elif hparams['noise_type'] == 'diagonal_studentst':
         if hparams['n_arhmm_lags'] > 0:
             obs_type = 'diagonal_robust_ar'
@@ -97,12 +102,22 @@ def main(hparams):
     else:
         obs_kwargs = None
         obs_init_kwargs = {}
-    if hparams['kappa'] == 0:
+
+    # determine transition model
+    if hparams['transitions'] == 'stationary' or hparams['transitions'] == 'standard':
         transitions = 'stationary'
         transition_kwargs = None
-    else:
+    elif hparams['transitions'] == 'sticky':
         transitions = 'sticky'
         transition_kwargs = {'kappa': hparams['kappa']}
+    elif hparams['transitions'] == 'recurrent':
+        transitions = 'recurrent'
+        transition_kwargs = None
+    elif hparams['transitions'] == 'recurrent_only':
+        transitions = 'recurrent_only'
+        transition_kwargs = None
+    else:
+        raise ValueError('%s is not a valid transition type' % hparams['transitions'])
 
     print('constructing model...', end='')
     np.random.seed(hparams['rng_seed_model'])

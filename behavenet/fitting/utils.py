@@ -109,6 +109,26 @@ def _get_single_sessions(base_dir, depth, curr_depth):
     return session_list
 
 
+def _get_transition_str(hparams):
+    """
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        model hyperparameters; needs key 'transitions' and 'kappa' if using sticky transitions
+
+    Returns
+    -------
+    :obj:`str`
+        arhmm transition string used for model path specification
+
+    """
+    if hparams['transitions'] == 'sticky':
+        return 'sticky_%.0e' % hparams['kappa']
+    else:
+        return hparams['transitions']
+
+
 def get_session_dir(hparams, session_source='save'):
     """Get session-level directory for saving model outputs from hparams dict.
 
@@ -287,13 +307,13 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     Examples
     --------
     * autoencoder: :obj:`session_dir/ae/conv/08_latents/expt_name`
-    * arhmm: :obj:`session_dir/arhmm/08_latents/16_states/0e+00_kappa/gaussian/expt_name`
-    * arhmm-labels: :obj:`session_dir/arhmm-labels/16_states/0e+00_kappa/gaussian/expt_name`
+    * arhmm: :obj:`session_dir/arhmm/08_latents/16_states/stationary/gaussian/expt_name`
+    * arhmm-labels: :obj:`session_dir/arhmm-labels/16_states/stationary/gaussian/expt_name`
     * neural->ae decoder: :obj:`session_dir/neural-ae/08_latents/ff/mctx/expt_name`
     * neural->arhmm decoder:
-      :obj:`session_dir/neural-ae/08_latents/16_states/0e+00_kappa/ff/mctx/expt_name`
+      :obj:`session_dir/neural-ae/08_latents/16_states/stationary/ff/mctx/expt_name`
     * bayesian decoder:
-      :obj:`session_dir/arhmm-decoding/08_latents/16_states/0e+00_kappa/gaussian/mctx/expt_name`
+      :obj:`session_dir/arhmm-decoding/08_latents/16_states/stationary/gaussian/mctx/expt_name`
 
     Parameters
     ----------
@@ -350,13 +370,13 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'], model_type, brain_region)
+            _get_transition_str(hparams), model_type, brain_region)
         session_dir = hparams['session_dir']
     elif model_class == 'arhmm' or model_class == 'hmm':
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
+            _get_transition_str(hparams), hparams['noise_type'])
         if hparams.get('arhmm_multisession', None) is not None:
             # using a multisession autoencoder with single session arhmm; assumes multisession
             # is at animal level (rather than experiment level), i.e.
@@ -371,7 +391,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
         model_path = os.path.join(
             model_class, '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'])
+            _get_transition_str(hparams), hparams['noise_type'])
         if hparams.get('arhmm_multisession', None) is not None:
             # using a multisession autoencoder with single session arhmm; assumes multisession
             # is at animal level (rather than experiment level), i.e.
@@ -388,7 +408,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'],
             '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], brain_region)
+            _get_transition_str(hparams), hparams['noise_type'], brain_region)
         session_dir = hparams['session_dir']
     elif model_class == 'labels-images':
         model_path = os.path.join(model_class, model_type)
@@ -636,7 +656,9 @@ def get_model_params(hparams):
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
-        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['transitions'] = hparams['transitions']
+        if hparams['transitions'] == 'sticky':
+            hparams_less['kappa'] = hparams['kappa']
         hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
         hparams_less['ae_version'] = hparams['ae_version']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
@@ -644,7 +666,9 @@ def get_model_params(hparams):
     elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
-        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['transitions'] = hparams['transitions']
+        if hparams['transitions'] == 'sticky':
+            hparams_less['kappa'] = hparams['kappa']
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
         hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
         hparams_less['ae_version'] = hparams['ae_version']
@@ -656,7 +680,9 @@ def get_model_params(hparams):
         hparams_less['n_arhmm_states'] = hparams['n_arhmm_states']
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
-        hparams_less['kappa'] = hparams['kappa']
+        hparams_less['transitions'] = hparams['transitions']
+        if hparams['transitions'] == 'sticky':
+            hparams_less['kappa'] = hparams['kappa']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
     elif model_class == 'bayesian-decoding':

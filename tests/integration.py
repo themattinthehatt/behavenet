@@ -143,7 +143,7 @@ def define_new_config_values(model, session='sess-0'):
     arhmm_expt_name = 'arhmm-expt'
     n_arhmm_states = [2, 4]
     n_arhmm_lags = 1
-    kappa = 0
+    transitions = 'stationary'
     noise_type = 'gaussian'
 
     if model == 'ae':
@@ -190,7 +190,7 @@ def define_new_config_values(model, session='sess-0'):
                 'experiment_name': arhmm_expt_name,
                 'n_arhmm_states': n_arhmm_states,
                 'n_arhmm_lags': n_arhmm_lags,
-                'kappa': kappa,
+                'transitions': transitions,
                 'noise_type': noise_type,
                 'ae_experiment_name': ae_expt_name,
                 'ae_model_type': ae_model_type,
@@ -240,7 +240,7 @@ def define_new_config_values(model, session='sess-0'):
                 'arhmm_experiment_name': arhmm_expt_name,
                 'n_arhmm_states': n_arhmm_states[0],
                 'n_arhmm_lags': n_arhmm_lags,
-                'kappa': kappa,
+                'transitions': transitions,
                 'noise_type': noise_type,
                 'model_type': 'ff',
                 'n_hid_layers': 1,

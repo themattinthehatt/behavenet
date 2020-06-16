@@ -502,11 +502,11 @@ class TestClass:
         hparams['model_type'] = 'ff'
         hparams['n_ae_latents'] = 8
         hparams['n_arhmm_states'] = 10
-        hparams['kappa'] = 0
+        hparams['transitions'] = 'stationary'
         hparams['experiment_name'] = 'tt_expt'
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
-            '%02i_states' % hparams['n_arhmm_states'], '%.0e_kappa' % hparams['kappa'],
+            '%02i_states' % hparams['n_arhmm_states'], hparams['transitions'],
             hparams['model_type'], 'all', hparams['experiment_name'])
 
         expt_dir = utils.get_expt_dir(
@@ -517,7 +517,19 @@ class TestClass:
         hparams['model_class'] = 'arhmm-neural'
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
-             '%02i_states' % hparams['n_arhmm_states'], '%.0e_kappa' % hparams['kappa'],
+            '%02i_states' % hparams['n_arhmm_states'],
+            hparams['transitions'], hparams['model_type'], 'all', hparams['experiment_name'])
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        hparams['transitions'] = 'sticky'
+        hparams['kappa'] = 100
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
+            '%02i_states' % hparams['n_arhmm_states'],
+            '%s_%.0e' % (hparams['transitions'], hparams['kappa']),
             hparams['model_type'], 'all', hparams['experiment_name'])
         expt_dir = utils.get_expt_dir(
             hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
@@ -530,12 +542,12 @@ class TestClass:
         hparams['model_class'] = 'arhmm'
         hparams['n_ae_latents'] = 8
         hparams['n_arhmm_states'] = 10
-        hparams['kappa'] = 0
+        hparams['transitions'] = 'stationary'
         hparams['noise_type'] = 'gaussian'
         hparams['experiment_name'] = 'tt_expt'
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
-            '%02i_states' % hparams['n_arhmm_states'], '%.0e_kappa' % hparams['kappa'],
+            '%02i_states' % hparams['n_arhmm_states'], hparams['transitions'],
             hparams['noise_type'], hparams['experiment_name'])
 
         expt_dir = utils.get_expt_dir(
@@ -550,7 +562,7 @@ class TestClass:
             hparams['save_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
             'multisession-%02i' % hparams['arhmm_multisession'], hparams['model_class'],
             '%02i_latents' % hparams['n_ae_latents'], '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], hparams['experiment_name'])
+            hparams['transitions'], hparams['noise_type'], hparams['experiment_name'])
         expt_dir = utils.get_expt_dir(
             hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
             expt_name=hparams['experiment_name'])
@@ -563,12 +575,12 @@ class TestClass:
         # -------------------------
         hparams['model_class'] = 'arhmm-labels'
         hparams['n_arhmm_states'] = 10
-        hparams['kappa'] = 0
+        hparams['transitions'] = 'stationary'
         hparams['noise_type'] = 'studentst'
         hparams['experiment_name'] = 'tt_expt'
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_states' % hparams['n_arhmm_states'],
-            '%.0e_kappa' % hparams['kappa'], hparams['noise_type'], hparams['experiment_name'])
+            hparams['transitions'], hparams['noise_type'], hparams['experiment_name'])
 
         expt_dir = utils.get_expt_dir(
             hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
@@ -581,12 +593,12 @@ class TestClass:
         hparams['model_class'] = 'bayesian-decoding'
         hparams['n_ae_latents'] = 8
         hparams['n_arhmm_states'] = 10
-        hparams['kappa'] = 0
+        hparams['transitions'] = 'stationary'
         hparams['noise_type'] = 'studentst'
         hparams['experiment_name'] = 'tt_expt'
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
-             '%02i_states' % hparams['n_arhmm_states'], '%.0e_kappa' % hparams['kappa'],
+            '%02i_states' % hparams['n_arhmm_states'], hparams['transitions'],
             hparams['noise_type'], 'all', hparams['experiment_name'])
 
         expt_dir = utils.get_expt_dir(
@@ -769,7 +781,21 @@ class TestClass:
             'model_type': '',
             'n_arhmm_lags': 2,
             'noise_type': 'gaussian',
-            'kappa': 0,
+            'transitions': 'stationary',
+            'ae_experiment_name': 'ae_expt',
+            'ae_version': 4,
+            'ae_model_type': 'conv',
+            'n_ae_latents': 5}
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        model_hparams = {
+            'model_class': 'arhmm',
+            'model_type': '',
+            'n_arhmm_lags': 2,
+            'noise_type': 'gaussian',
+            'transitions': 'sticky',
+            'kappa': 100,
             'ae_experiment_name': 'ae_expt',
             'ae_version': 4,
             'ae_model_type': 'conv',
@@ -785,7 +811,7 @@ class TestClass:
             'model_type': '',
             'n_arhmm_lags': 2,
             'noise_type': 'gaussian',
-            'kappa': 0}
+            'transitions': 'stationary'}
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
 
@@ -818,6 +844,7 @@ class TestClass:
             'n_arhmm_states': 4,
             'n_arhmm_lags': 1,
             'noise_type': 'gaussian',
+            'transitions': 'sticky',
             'kappa': 10,
             'ae_model_type': 'conv',
             'n_ae_latents': 5,

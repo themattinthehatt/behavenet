@@ -134,7 +134,8 @@ ARHMM
 
 * **model_type** (*NoneType*): not used for ARHMMs
 * **n_arhmm_lags** (*int*): number of autoregressive lags (order of AR process)
-* **noise_type** (*str*): observation noise; 'gaussian' | 'studentst'
+* **noise_type** (*str*): observation noise; 'gaussian' | 'studentst' | 'diagonal_gaussian' | 'diagonal_studentst'
+* **transitions** (*float*): transition model; 'stationary' | 'sticky' | 'recurrent' | 'recurrent_only'
 * **kappa** (*float*): stickiness parameter that biases diagonal of Markov transition matrix, which increases average state durations
 
 * **ae_experiment_name** (*str*): name of AE test-tube experiment

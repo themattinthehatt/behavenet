@@ -200,7 +200,7 @@ def test_get_data_generator_inputs():
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 0
     hparams['n_arhmm_states'] = 2
-    hparams['kappa'] = 0
+    hparams['transitions'] = 'stationary'
     hparams['noise_type'] = 'gaussian'
     hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
     hparams['arhmm_version'] = 1
@@ -221,7 +221,7 @@ def test_get_data_generator_inputs():
     hparams['neural_type'] = 'spikes'
     hparams['neural_thresh'] = 0
     hparams['n_arhmm_states'] = 2
-    hparams['kappa'] = 0
+    hparams['transitions'] = 'stationary'
     hparams['noise_type'] = 'gaussian'
     hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
     hparams['arhmm_version'] = 1
@@ -400,7 +400,7 @@ def test_get_transforms_paths():
     # ------------------------
     hparams['n_ae_latents'] = 8
     hparams['n_arhmm_states'] = 2
-    hparams['kappa'] = 0
+    hparams['transitions'] = 'stationary'
     hparams['noise_type'] = 'gaussian'
     hparams['arhmm_experiment_name'] = 'tt_expt_arhmm'
     hparams['arhmm_version'] = 1
@@ -408,7 +408,7 @@ def test_get_transforms_paths():
     arhmm_path = os.path.join(
         hparams['data_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
         hparams['session'], 'arhmm', '%02i_latents' % hparams['n_ae_latents'],
-        '%02i_states' % hparams['n_arhmm_states'], '%.0e_kappa' % hparams['kappa'],
+        '%02i_states' % hparams['n_arhmm_states'], hparams['transitions'],
         hparams['noise_type'], hparams['arhmm_experiment_name'])
 
     # user-defined state path
@@ -419,7 +419,7 @@ def test_get_transforms_paths():
     assert transform is None
     hparams.pop('arhmm_states_file')
 
-    # build pathname from hparams
+    # build path name from hparams
     transform, path = utils.get_transforms_paths(
         'arhmm_states', hparams, sess_id=None, check_splits=False)
     assert path == os.path.join(
@@ -472,7 +472,7 @@ def test_get_transforms_paths():
     # ------------------------
     hparams['n_ae_latents'] = 8
     hparams['n_arhmm_states'] = 10
-    hparams['kappa'] = 0
+    hparams['transitions'] = 'stationary'
     hparams['noise_type'] = 'studentst'
     hparams['neural_arhmm_model_type'] = 'linear'
     hparams['neural_arhmm_experiment_name'] = 'tt_expt_ae_decoder'
@@ -481,7 +481,7 @@ def test_get_transforms_paths():
     arhmm_pred_path = os.path.join(
         hparams['data_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
         hparams['session'], 'neural-arhmm', '%02i_latents' % hparams['n_ae_latents'],
-        '%02i_states' % hparams['n_arhmm_states'], '%.0e_kappa' % hparams['kappa'],
+        '%02i_states' % hparams['n_arhmm_states'], hparams['transitions'],
         hparams['neural_arhmm_model_type'], 'all', hparams['neural_arhmm_experiment_name'])
 
     # user-defined predictions path

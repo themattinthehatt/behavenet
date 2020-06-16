@@ -19,7 +19,9 @@
 
 "kappa": 0, # type: int
 
-"noise_type": "gaussian", # type: str, help: gaussian or students
+"noise_type": "gaussian", # type: str
+
+"transitions": "stationary", # type: str
 
 
 ###################
