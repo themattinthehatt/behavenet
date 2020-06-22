@@ -182,8 +182,10 @@ def main(hparams):
                 'epoch': epoch, 'dataset': d, 'tr_loss': tr_ll, 'val_loss': val_ll, 'trial': -1})
 
         # check for convergence
-        if epoch > 0 and np.abs((val_ll - val_ll_prev) / val_ll) < tolerance:
+        if epoch > 10 and np.abs((val_ll - val_ll_prev) / val_ll) < tolerance:
             print('relative change less than tolerance=%1.2f; training terminating!' % tolerance)
+            break
+
         val_ll_prev = val_ll
 
     # export individual session metrics on test data
