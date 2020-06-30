@@ -53,7 +53,7 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
         # get model-specific signals/transforms/paths
         if hparams['model_class'] == 'ae' \
                 or hparams['model_class'] == 'vae' \
-                or hparams['model_class'] == 'betatcvae':
+                or hparams['model_class'] == 'beta-tcvae':
 
             signals = ['images']
             transforms = [None]

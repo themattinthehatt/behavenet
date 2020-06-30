@@ -101,7 +101,7 @@ def make_tmp_data(data_dir):
 def get_model_config_files(model, json_dir):
     if model == 'ae' \
             or model == 'vae' \
-            or model == 'betatcvae' \
+            or model == 'beta-tcvae' \
             or model == 'cond-ae-msp' \
             or model == 'labels-images' \
             or model == 'arhmm':
@@ -151,7 +151,7 @@ def define_new_config_values(model, session='sess-0'):
     transitions = 'stationary'
     noise_type = 'gaussian'
 
-    if model == 'ae' or model == 'vae' or model == 'betatcvae':
+    if model == 'ae' or model == 'vae' or model == 'beta-tcvae':
         new_values = {
             'data': data_dict,
             'model': {
@@ -417,15 +417,15 @@ def main(args):
     # fit models
     # -------------------------------------------
     models = [  # ['model_file']_grid_search
-        {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
-        {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
-        {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
-        {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
-        {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'betatcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
+        # {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
+        # {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+        # {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+        # {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
+        # {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        {'model_class': 'beta-tcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
     ]
     for model in models:
         # modify example jsons

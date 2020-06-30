@@ -57,16 +57,16 @@ def test_get_data_generator_inputs():
     hparams['use_output_mask'] = False
 
     # -----------------
-    # betatcvae
+    # beta-tcvae
     # -----------------
-    hparams['model_class'] = 'betatcvae'
+    hparams['model_class'] = 'beta-tcvae'
     hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
         hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images']
     assert transforms[0] == [None]
     assert paths[0] == [hdf5_path]
 
-    hparams['model_class'] = 'betatcvae'
+    hparams['model_class'] = 'beta-tcvae'
     hparams['use_output_mask'] = True
     hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
         hparams, sess_ids, check_splits=False)

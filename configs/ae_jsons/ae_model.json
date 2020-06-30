@@ -38,8 +38,8 @@
 
 "vae.beta_anneal_epochs": 100, # type: int, help: number of epochs to linearly increase vae beta
 
-"betatcvae.beta": 1, # type: int, help: weight on VAE total correlation term
+"beta_tcvae.beta": 1, # type: int, help: weight on VAE total correlation term
 
-"betatcvae.beta_anneal_epochs": 100 # type: int, help: number of epochs to linearly increase betatcvae beta
+"beta_tcvae.beta_anneal_epochs": 100 # type: int, help: number of epochs to linearly increase betatcvae beta
 
 }

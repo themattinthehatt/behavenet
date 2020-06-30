@@ -61,7 +61,7 @@ def add_dependent_params(parser, namespace):
 
     if namespace.model_class == 'ae' \
             or namespace.model_class == 'vae' \
-            or namespace.model_class == 'betatcvae' \
+            or namespace.model_class == 'beta-tcvae' \
             or namespace.model_class == 'cond-ae' \
             or namespace.model_class == 'cond-ae-msp' \
             or namespace.model_class == 'labels-images':

@@ -58,7 +58,7 @@ def main(hparams, *args):
         from behavenet.models import AE as Model
     elif hparams['model_class'] == 'vae':
         from behavenet.models import VAE as Model
-    elif hparams['model_class'] == 'betatcvae':
+    elif hparams['model_class'] == 'beta-tcvae':
         from behavenet.models import BetaTCVAE as Model
     elif hparams['model_class'] == 'cond-ae':
         from behavenet.models import ConditionalAE as Model

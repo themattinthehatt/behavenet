@@ -95,7 +95,7 @@ class VAE(AE):
                 np.linspace(0, hparams['vae.beta'], anneal_epochs),
                 np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
         else:
-            self.beta_vals = np.ones(hparams['max_n_epochs'] + 1)
+            self.beta_vals = hparams['vae.beta'] * np.ones(hparams['max_n_epochs'] + 1)
 
     def forward(self, x, dataset=None, use_mean=False, **kwargs):
         """Process input data.
@@ -233,14 +233,15 @@ class BetaTCVAE(VAE):
         super().__init__(hparams)
 
         # set up beta annealing
-        anneal_epochs = self.hparams.get('btcvae.beta_anneal_epochs', 0)
+        anneal_epochs = self.hparams.get('beta_tcvae.beta_anneal_epochs', 0)
         self.curr_epoch = 0  # must be modified by training script
+        beta = hparams['beta_tcvae.beta']
         if anneal_epochs > 0:
             self.beta_vals = np.append(
-                np.linspace(0, hparams['btcvae.beta'], anneal_epochs),
-                np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
+                np.linspace(1, beta, anneal_epochs),
+                beta * np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
         else:
-            self.beta_vals = np.ones(hparams['max_n_epochs'] + 1)
+            self.beta_vals = beta * np.ones(hparams['max_n_epochs'] + 1)
 
     def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
         """Calculate (decomposed) ELBO loss for VAE.

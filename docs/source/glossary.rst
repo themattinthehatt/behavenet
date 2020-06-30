@@ -96,7 +96,7 @@ All models:
 
     * 'ae': autoencoder
     * 'vae': variational autoencoder
-    * 'betatcvae': variational autoencoder with beta tc-vae decomposition of elbo
+    * 'beta-tcvae': variational autoencoder with beta tc-vae decomposition of elbo
     * 'cond-ae': conditional autoencoder
     * 'cond-ae-msp': autoencoder with matrix subspace projection loss
     * 'hmm': hidden Markov model
@@ -129,8 +129,8 @@ In addition to the autoencoder parameters defined above,
 
 * **vae.beta** (*float*): weight on KL divergence term in VAE ELBO
 * **vae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase VAE beta
-* **betatcvae.beta** (*float*) weight on total correlation term in Beta TC-VAE ELBO
-* **betatcvae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase Beta TC-VAE beta
+* **beta_tcvae.beta** (*float*) weight on total correlation term in Beta TC-VAE ELBO
+* **beta_tcvae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase Beta TC-VAE beta
 
 Conditional autoencoders
 ------------------------
