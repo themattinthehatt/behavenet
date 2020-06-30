@@ -8,6 +8,11 @@ import torch.nn.functional as functional
 import behavenet.fitting.losses as losses
 from behavenet.models.base import BaseModule, BaseModel
 
+# to ignore imports for sphix-autoapidoc
+__all__ = [
+    'ConvAEEncoder', 'ConvAEDecoder', 'LinearAEEncoder', 'LinearAEDecoder', 'AE', 'ConditionalAE',
+    'AEMSP', 'load_pretrained_ae']
+
 
 class ConvAEEncoder(BaseModule):
     """Convolutional encoder."""
@@ -115,7 +120,7 @@ class ConvAEEncoder(BaseModule):
         self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
         # If VAE model, have additional ff layer to latent variances
-        if self.hparams['model_class'] == 'vae':
+        if self.hparams.get('variational', False):
             self.logvar = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
     def _get_conv2d_args(self, layer, global_layer):
@@ -190,8 +195,8 @@ class ConvAEEncoder(BaseModule):
             - output_size (:obj:`list`): output size for each layer
 
         """
-        # Loop over layers, have to collect pool_idx and output sizes if using
-        # max pooling to use in unpooling
+        # loop over layers, have to collect pool_idx and output sizes if using max pooling to use
+        # in unpooling
         pool_idx = []
         target_output_size = []
         for layer in self.encoder:
@@ -204,9 +209,9 @@ class ConvAEEncoder(BaseModule):
             else:
                 x = layer(x)
 
-        # Reshape for ff layer
+        # reshape for ff layer
         x = x.view(x.size(0), -1)
-        if self.hparams['model_class'] == 'vae':
+        if self.hparams.get('variational', False):
             return self.FF(x), self.logvar(x), pool_idx, target_output_size
         else:
             return self.FF(x), pool_idx, target_output_size
@@ -737,9 +742,6 @@ class AE(BaseModel):
 
         """
 
-        if self.hparams['device'] == 'cuda':
-            data = {key: val.to('cuda') for key, val in data.items()}
-
         x = data['images'][0]
         m = data['masks'][0] if 'masks' in data else None
 
@@ -856,9 +858,6 @@ class ConditionalAE(AE):
             - 'loss' (:obj:`float`): mse loss
 
         """
-
-        if self.hparams['device'] == 'cuda':
-            data = {key: val.to('cuda') for key, val in data.items()}
 
         x = data['images'][0]
         y = data['labels'][0]
@@ -1002,9 +1001,6 @@ class AEMSP(AE):
             - 'labels_r2' (:obj:`float`): variance-weighted $R^2$ of reconstructed labels
 
         """
-
-        if self.hparams['device'] == 'cuda':
-            data = {key: val.to('cuda') for key, val in data.items()}
 
         x = data['images'][0]
         y = data['labels'][0]

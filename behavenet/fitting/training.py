@@ -384,9 +384,9 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     by_dataset=False, best_epoch=best_val_epoch))
                 # export individual session metrics on val data
                 if data_generator.n_datasets > 1:
-                        exp.log(logger.create_metric_row(
-                            'val', i_epoch, i_train, dataset, trial=-1,
-                            by_dataset=True, best_epoch=best_val_epoch))
+                    exp.log(logger.create_metric_row(
+                        'val', i_epoch, i_train, dataset, trial=-1,
+                        by_dataset=True, best_epoch=best_val_epoch))
                 exp.save()
 
             # export training metrics at end of epoch

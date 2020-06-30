@@ -101,10 +101,11 @@ def make_tmp_data(data_dir):
 def get_model_config_files(model, json_dir):
     if model == 'ae' \
             or model == 'vae' \
+            or model == 'betatcvae' \
             or model == 'cond-ae-msp' \
             or model == 'labels-images' \
             or model == 'arhmm':
-        if model == 'vae' or model == 'cond-ae-msp' or model == 'labels-images':
+        if model != 'arhmm':
             model = 'ae'
         model_json_dir = os.path.join(json_dir, '%s_jsons' % model)
         base_config_files = {
@@ -150,7 +151,7 @@ def define_new_config_values(model, session='sess-0'):
     transitions = 'stationary'
     noise_type = 'gaussian'
 
-    if model == 'ae' or model == 'vae':
+    if model == 'ae' or model == 'vae' or model == 'betatcvae':
         new_values = {
             'data': data_dict,
             'model': {
@@ -422,6 +423,7 @@ def main(args):
         {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
         {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
         {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        {'model_class': 'betatcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
     ]

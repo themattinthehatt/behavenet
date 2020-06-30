@@ -345,7 +345,10 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         expt_name = hparams['experiment_name']
 
     # get results dir
-    if model_class == 'ae' or model_class == 'vae' or model_class == 'cond-ae' \
+    if model_class == 'ae' \
+            or model_class == 'vae' \
+            or model_class == 'betatcvae' \
+            or model_class == 'cond-ae' \
             or model_class == 'cond-ae-msp':
         model_path = os.path.join(
             model_class, model_type, '%02i_latents' % hparams['n_ae_latents'])
@@ -643,8 +646,11 @@ def get_model_params(hparams):
         'model_type': hparams['model_type'],
     }
 
-    if model_class == 'ae' or model_class == 'vae' or model_class == 'cond-ae' or \
-            model_class == 'cond-ae-msp':
+    if model_class == 'ae' \
+            or model_class == 'vae' \
+            or model_class == 'betatcvae' \
+            or model_class == 'cond-ae' \
+            or model_class == 'cond-ae-msp':
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
@@ -656,6 +662,9 @@ def get_model_params(hparams):
         if model_class == 'vae':
             hparams_less['vae.beta'] = hparams['vae.beta']
             hparams_less['vae.beta_anneal_epochs'] = hparams['vae.beta_anneal_epochs']
+        if model_class == 'betatcvae':
+            hparams_less['betatcvae.beta'] = hparams['betatcvae.beta']
+            # hparams_less['betatcvae.beta_anneal_epochs'] = hparams['betatcvae.beta_anneal_epochs']
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
@@ -1009,7 +1018,7 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
     hparams_new['session_dir'] = hparams['session_dir']
     hparams_new['expt_dir'] = expt_dir
     hparams_new['use_output_mask'] = hparams.get('use_output_mask', False)
-    hparams_new['device'] = 'cpu'
+    hparams_new['device'] = hparams.get('device', 'cpu')
 
     # build data generator
     hparams_new, signals, transforms, paths = get_data_generator_inputs(hparams_new, sess_ids)

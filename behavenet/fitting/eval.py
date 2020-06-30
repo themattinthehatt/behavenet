@@ -44,9 +44,6 @@ def export_latents(data_generator, model, filename=None):
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
 
-            if next(model.parameters()).is_cuda:
-                data = {key: val.to('cuda') for key, val in data.items()}
-
             # process batch, perhaps in chunks if full batch is too large to fit on gpu
             chunk_size = 200
             y = data['images'][0]
@@ -223,9 +220,6 @@ def export_predictions(data_generator, model, filename=None):
         data_generator.reset_iterators(dtype)
         for i in range(data_generator.n_tot_batches[dtype]):
             data, sess = data_generator.next_batch(dtype)
-
-            if next(model.parameters()).is_cuda:
-                data = {key: val.to('cuda') for key, val in data.items()}
 
             predictors = data[model.hparams['input_signal']][0]
             targets = data[model.hparams['output_signal']][0]

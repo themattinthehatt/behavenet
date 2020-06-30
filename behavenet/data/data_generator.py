@@ -482,6 +482,7 @@ class ConcatSessionsGenerator(object):
             ids_list = [ids_list]
         self.ids = ids_list
         self.as_numpy = as_numpy
+        self.device = device
 
         self.batch_load = batch_load
         if self.batch_load:
@@ -627,5 +628,8 @@ class ConcatSessionsGenerator(object):
             for i, signal in enumerate(sample):
                 if signal is not 'batch_idx':
                     sample[signal] = [ss.cpu().detach().numpy() for ss in sample[signal]]
+        else:
+            if self.device == 'cuda':
+                sample = {key: val.to('cuda') for key, val in sample.items()}
 
         return sample, dataset

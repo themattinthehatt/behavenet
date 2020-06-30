@@ -7,6 +7,9 @@ from torch import nn
 import behavenet.fitting.losses as losses
 from behavenet.models.base import BaseModule, BaseModel
 
+# to ignore imports for sphix-autoapidoc
+__all__ = ['Decoder', 'NN', 'LSTM', 'ConvDecoder']
+
 
 class Decoder(BaseModel):
     """General wrapper class for encoding/decoding models."""
@@ -87,9 +90,6 @@ class Decoder(BaseModel):
             - 'fc' (:obj:`float`): fraction correct when noise dist is Categorical
 
         """
-
-        if self.hparams['device'] == 'cuda':
-            data = {key: val.to('cuda') for key, val in data.items()}
 
         predictors = data[self.hparams['input_signal']][0]
         targets = data[self.hparams['output_signal']][0]

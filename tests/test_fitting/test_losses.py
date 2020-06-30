@@ -40,14 +40,6 @@ def test_gaussian_ll():
     assert ll == - (0.5 * LN2PI + 0.5 * np.log(std ** 2)) * n_dims - (0.5 / (std ** 2))
 
 
-def test_kl_div_to_std_normal():
-
-    mu = torch.zeros(1, 1)
-    logvar = torch.zeros(1, 1)
-    kl = losses.kl_div_to_std_normal(mu, logvar)
-    assert kl == 0
-
-
 def test_gaussian_ll_to_mse():
 
     n_batch = 5
@@ -59,3 +51,48 @@ def test_gaussian_ll_to_mse():
     mse_ = 2 * (-ll - (0.5 * LN2PI + 0.5 * np.log(std ** 2)) * n_dims) / n_dims
     mse = losses.gaussian_ll_to_mse(ll.detach().numpy(), n_dims, gaussian_std=std, mse_std=1)
     assert np.allclose(mse, mse_.detach().numpy())
+
+
+def test_kl_div_to_std_normal():
+
+    mu = torch.zeros(1, 1)
+    logvar = torch.zeros(1, 1)
+    kl = losses.kl_div_to_std_normal(mu, logvar)
+    assert kl == 0
+
+
+def test_index_code_mi():
+    pass
+
+
+def test_total_correlation():
+    pass
+
+
+def test_dimension_wise_kl_to_std_normal():
+    pass
+
+
+def test_decomposed_kl():
+
+    n_batch = 5
+    n_dims = 3
+    z = torch.rand(n_batch, n_dims)
+    mu = torch.rand(n_batch, n_dims)
+    logvar = torch.rand(n_batch, n_dims)
+
+    # compute terms individually
+    ic1 = losses.index_code_mi(z, mu, logvar)
+    tc1 = losses.total_correlation(z, mu, logvar)
+    dw1 = losses.dimension_wise_kl_to_std_normal(z, mu, logvar)
+
+    # compute terms together
+    ic2, tc2, dw2 = losses.decomposed_kl(z, mu, logvar)
+
+    assert ic1.item() == ic2.item()
+    assert tc1.item() == tc2.item()
+    assert dw1.item() == dw2.item()
+
+
+def test_subspace_overlap():
+    pass
