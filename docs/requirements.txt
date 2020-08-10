@@ -1,3 +1,16 @@
 sphinx==3.2.0
 sphinx_rtd_theme==0.4.3
 sphinx-automodapi==0.12
+commentjson==0.8.2
+h5py==2.9.0
+matplotlib==3.0.3
+notebook==6.0.3
+numpy==1.17.4
+requests==2.22.0
+scikit-image==0.15.0
+scikit-learn==0.20.3
+scipy==1.3.0
+seaborn==0.9.0
+test-tube==0.7.3
+torch==1.3.1
+tqdm==4.31.1
