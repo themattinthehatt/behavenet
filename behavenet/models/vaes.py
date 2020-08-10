@@ -326,7 +326,7 @@ class BetaTCVAE(VAE):
             for key, val in loss_dict_torch.items():
                 loss_dict_vals[key] += val.item() * bs
             loss_dict_vals['loss_mse'] += losses.gaussian_ll_to_mse(
-                loss_dict_vals['loss_ll'], np.prod(x.shape[1:])) * bs
+                loss_dict_vals['loss_ll'] / bs, np.prod(x.shape[1:])) * bs
 
         # compile (properly weighted) loss terms
         for key in loss_dict_vals.keys():
