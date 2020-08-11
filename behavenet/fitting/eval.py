@@ -275,7 +275,7 @@ def export_predictions(data_generator, model, filename=None):
 
 def get_reconstruction(
         model, inputs, dataset=None, return_latents=False, labels=None, labels_2d=None,
-        apply_inverse_transform=True):
+        apply_inverse_transform=True, use_mean=True):
     """Reconstruct an image from either image or latent inputs.
 
     Parameters
@@ -296,6 +296,9 @@ def get_reconstruction(
     apply_inverse_transform : :obj:`bool`
         if inputs are latents (and model class is 'cond-ae-msp'), apply inverse transform to put in
         original latent space
+    use_mean : :obj:`bool`
+        if inputs are images (and model class is variational), use mean of approximate posterior
+        without sampling
 
     Returns
     -------
@@ -319,6 +322,8 @@ def get_reconstruction(
     if input_type == 'images':
         if model.hparams['model_class'] == 'cond-ae-msp':
             ims_recon, latents, _ = model(inputs, dataset=dataset)
+        elif model.hparams['model_class'] == 'vae' or model.hparams['model_class'] == 'beta-tcvae':
+            ims_recon, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
         else:
             ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
     else:  # input is latents

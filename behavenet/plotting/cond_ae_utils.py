@@ -256,7 +256,9 @@ def get_model_input(
     ims_np = ims_pt.cpu().detach().numpy()
 
     # continuous labels
-    if hparams['model_class'] == 'ae':
+    if hparams['model_class'] == 'ae' \
+            or hparams['model_class'] == 'vae' \
+            or hparams['model_class'] == 'beta-tcvae':
         labels_pt = None
         labels_np = None
     elif hparams['model_class'] == 'cond-ae' \
