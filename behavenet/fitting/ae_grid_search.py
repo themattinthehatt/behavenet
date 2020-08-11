@@ -34,7 +34,7 @@ def main(hparams, *args):
 
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
-    time.sleep(np.random.uniform(1))
+    time.sleep(np.random.uniform(3))
 
     # create test-tube experiment
     hparams, sess_ids, exp = create_tt_experiment(hparams)

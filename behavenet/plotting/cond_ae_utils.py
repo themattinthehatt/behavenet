@@ -413,7 +413,9 @@ def interpolate_2d(
                         apply_inverse_transform=True)
                 else:
                     # get labels
-                    if model.hparams['model_class'] == 'ae':
+                    if model.hparams['model_class'] == 'ae' \
+                            or model.hparams['model_class'] == 'vae' \
+                            or model.hparams['model_class'] == 'beta-tcvae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae':
                         labels = torch.from_numpy(labels_0).float()

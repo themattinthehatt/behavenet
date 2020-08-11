@@ -8,15 +8,15 @@
 "device": "cuda", # type: str, help: cpu or cuda
   
 "n_parallel_gpus": 1, # type: int, help: number of gpus to use for one model
-    
-  
+
+
 #################
 ## OWN MACHINE ##
 #################
   
 "gpus_viz": "0;1;2", # type: str, help: add multiple gpus as '0;1;4' etc
 
-  
+
 ###########
 ## SLURM ##
 ###########
@@ -26,7 +26,8 @@
 #"slurm_log_path": "", # path for slurm logs
   
 #"slurm_param_file": "", # filename of .sh with slurm info
-  
+
+
 ######################
 ## Test tube params ##
 ######################
