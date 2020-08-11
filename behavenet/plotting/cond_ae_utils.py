@@ -13,7 +13,7 @@ from behavenet.fitting.utils import get_session_dir
 # to ignore imports for sphix-autoapidoc
 __all__ = [
     'get_crop', 'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
-    'interpolate_2d', 'plot_2d_frame_array']
+    'interpolate_2d', 'interpolate_1d', 'plot_2d_frame_array']
 
 
 def get_crop(im, y_0, y_ext, x_0, x_ext):
@@ -320,7 +320,7 @@ def interpolate_2d(
         base labels of shape (1, n_labels)
     labels_sc_0 : :obj:`np.ndarray`
         base scaled labels in pixel space of shape (1, n_labels, y_pix, x_pix)
-    mins : :obj:`list`
+    mins : :obj:`array-like`
         minimum values of labels/latents, one for each interpolated dim (2 values)
     maxes : :obj:`list`
         maximum values of labels/latents, one for each interpolated dim (2 values)
@@ -365,14 +365,19 @@ def interpolate_2d(
         one_hot_2d = MakeOneHot2D(y_pix, x_pix)
 
     # compute grid for relevant inputs
-    inputs_0 = np.linspace(mins[0], maxes[0], n_frames)
-    inputs_1 = np.linspace(mins[1], maxes[1], n_frames)
-    if mins_sc is not None and maxes_sc is not None:
-        inputs_0_sc = np.linspace(mins_sc[0], maxes_sc[0], n_frames)
-        inputs_1_sc = np.linspace(mins_sc[1], maxes_sc[1], n_frames)
-    else:
-        if interp_type == 'labels':
-            raise NotImplementedError
+    n_interp_dims = len(input_idxs)
+    assert n_interp_dims == 2
+
+    # compute ranges for relevant inputs
+    inputs = []
+    inputs_sc = []
+    for d in input_idxs:
+        inputs.append(np.linspace(mins[d], maxes[d], n_frames))
+        if mins_sc is not None and maxes_sc is not None:
+            inputs_sc.append(np.linspace(mins_sc[d], maxes_sc[d], n_frames))
+        else:
+            if interp_type == 'labels':
+                raise NotImplementedError
 
     ims_list = []
     ims_crop_list = []
@@ -391,19 +396,11 @@ def interpolate_2d(
 
                 # get (new) latents
                 latents = np.copy(latents_0)
-                latents[0, input_idxs[0]] = inputs_0[i0]
-                latents[0, input_idxs[1]] = inputs_1[i1]
+                latents[0, input_idxs[0]] = inputs[0][i0]
+                latents[0, input_idxs[1]] = inputs[1][i1]
 
                 # get scaled labels (for markers)
-                if labels_sc_0 is not None:
-                    if len(labels_sc_0.shape) == 4:
-                        # 2d scaled labels
-                        tmp = np.copy(labels_sc_0)
-                        t, y, x = np.where(tmp[0] == 1)
-                        labels_sc = np.hstack([x, y])[None, :]
-                    else:
-                        # 1d scaled labels
-                        labels_sc = np.copy(labels_sc_0)
+                labels_sc = _get_updated_scaled_labels(labels_sc_0)
 
                 if model.hparams['model_class'] == 'cond-ae-msp':
                     # get reconstruction
@@ -430,33 +427,27 @@ def interpolate_2d(
             elif interp_type == 'labels':
 
                 # get (new) scaled labels
+                labels_sc = _get_updated_scaled_labels(
+                    labels_sc_0, input_idxs, [inputs_sc[0][i0], inputs_sc[1][i1]])
                 if len(labels_sc_0.shape) == 4:
                     # 2d scaled labels
-                    tmp = np.copy(labels_sc_0)
-                    t, y, x = np.where(tmp[0] == 1)
-                    labels_sc = np.hstack([x, y])[None, :]
-                    labels_sc[0, input_idxs[0]] = inputs_0_sc[i0]
-                    labels_sc[0, input_idxs[1]] = inputs_1_sc[i1]
                     labels_2d = torch.from_numpy(one_hot_2d(labels_sc)).float()
                 else:
                     # 1d scaled labels
-                    labels_sc = np.copy(labels_sc_0)
-                    labels_sc[0, input_idxs[0]] = inputs_0_sc[i0]
-                    labels_sc[0, input_idxs[1]] = inputs_1_sc[i1]
                     labels_2d = None
 
                 if model.hparams['model_class'] == 'cond-ae-msp':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
-                    latents[0, input_idxs[0]] = inputs_0[i0]
-                    latents[0, input_idxs[1]] = inputs_1[i1]
+                    latents[0, input_idxs[0]] = inputs[0][i0]
+                    latents[0, input_idxs[1]] = inputs[1][i1]
                     # get reconstruction
                     im_tmp = get_reconstruction(model, latents, apply_inverse_transform=True)
                 else:
                     # get (new) labels
                     labels = np.copy(labels_0)
-                    labels[0, input_idxs[0]] = inputs_0[i0]
-                    labels[0, input_idxs[1]] = inputs_1[i1]
+                    labels[0, input_idxs[0]] = inputs[0][i0]
+                    labels[0, input_idxs[1]] = inputs[1][i1]
                     # get reconstruction
                     im_tmp = get_reconstruction(
                         model,
@@ -500,9 +491,223 @@ def interpolate_2d(
     return ims_list, labels_list, ims_crop_list
 
 
+def interpolate_1d(
+        interp_type, model, ims_0, latents_0, labels_0, labels_sc_0, mins, maxes, input_idxs,
+        n_frames, crop_type=None, mins_sc=None, maxes_sc=None, crop_kwargs=None,
+        marker_idxs=None, ch=0):
+    """Return reconstructed images created by interpolating through latent/label space.
+
+    Parameters
+    ----------
+    interp_type : :obj:`str`
+        'latents' | 'labels'
+    model : :obj:`behavenet.models` object
+        autoencoder model
+    ims_0 : :obj:`np.ndarray`
+        base images for interpolating labels, of shape (1, n_channels, y_pix, x_pix)
+    latents_0 : :obj:`np.ndarray`
+        base latents of shape (1, n_latents); only two of these dimensions will be changed if
+        `interp_type='latents'`
+    labels_0 : :obj:`np.ndarray`
+        base labels of shape (1, n_labels)
+    labels_sc_0 : :obj:`np.ndarray`
+        base scaled labels in pixel space of shape (1, n_labels, y_pix, x_pix)
+    mins : :obj:`array-like`
+        minimum values of all labels/latents
+    maxes : :obj:`array-like`
+        maximum values of all labels/latents
+    input_idxs : :obj:`array-like`
+        indices of labels/latents that will be interpolated
+    n_frames : :obj:`int`
+        number of interpolation points between mins and maxes (inclusive)
+    crop_type : :obj:`str` or :obj:`NoneType`, optional
+        currently only implements 'fixed'; if not None, cropped images are returned, and returned
+        labels are also cropped so that they can be plotted on top of the cropped images; if None,
+        returned cropped images are empty and labels are relative to original image size
+    mins_sc : :obj:`list`, optional
+        min values of scaled labels that correspond to min values of labels when using conditional
+        encoders
+    maxes_sc : :obj:`list`, optional
+        max values of scaled labels that correspond to max values of labels when using conditional
+        encoders
+    crop_kwargs : :obj:`dict`, optional
+        define center and extent of crop if `crop_type='fixed'`; keys are 'x_0', 'x_ext', 'y_0',
+        'y_ext'
+    marker_idxs : :obj:`list`, optional
+        indices of `labels_sc_0` that will be interpolated; note that this is analogous but
+        different from `input_idxs`, since the 2d tensor `labels_sc_0` has half as many label
+        dimensions as `latents_0` and `labels_0`
+    ch : :obj:`int`, optional
+        specify which channel of input images to return (can only be a single value)
+
+    Returns
+    -------
+    :obj:`tuple`
+        - ims_list (:obj:`list` of :obj:`list` of :obj:`np.ndarray`) interpolated images
+        - labels_list (:obj:`list` of :obj:`list` of :obj:`np.ndarray`) interpolated labels
+        - ims_crop_list (:obj:`list` of :obj:`list` of :obj:`np.ndarray`) interpolated , cropped
+          images
+
+    """
+
+    if interp_type == 'labels':
+        from behavenet.data.transforms import MakeOneHot2D
+        _, _, y_pix, x_pix = ims_0.shape
+        one_hot_2d = MakeOneHot2D(y_pix, x_pix)
+
+    n_interp_dims = len(input_idxs)
+
+    # compute ranges for relevant inputs
+    inputs = []
+    inputs_sc = []
+    for d in input_idxs:
+        inputs.append(np.linspace(mins[d], maxes[d], n_frames))
+        if mins_sc is not None and maxes_sc is not None:
+            inputs_sc.append(np.linspace(mins_sc[d], maxes_sc[d], n_frames))
+        else:
+            if interp_type == 'labels':
+                raise NotImplementedError
+
+    ims_list = []
+    ims_crop_list = []
+    labels_list = []
+    # latent_vals = []
+    for i0 in range(n_interp_dims):
+
+        ims_tmp = []
+        ims_crop_tmp = []
+        labels_tmp = []
+
+        for i1 in range(n_frames):
+
+            if interp_type == 'latents':
+
+                # get (new) latents
+                latents = np.copy(latents_0)
+                latents[0, input_idxs[i0]] = inputs[i0][i1]
+
+                # get scaled labels (for markers)
+                labels_sc = _get_updated_scaled_labels(labels_sc_0)
+
+                if model.hparams['model_class'] == 'cond-ae-msp':
+                    # get reconstruction
+                    im_tmp = get_reconstruction(
+                        model,
+                        torch.from_numpy(latents).float(),
+                        apply_inverse_transform=True)
+                else:
+                    # get labels
+                    if model.hparams['model_class'] == 'ae' \
+                            or model.hparams['model_class'] == 'vae' \
+                            or model.hparams['model_class'] == 'beta-tcvae':
+                        labels = None
+                    elif model.hparams['model_class'] == 'cond-ae':
+                        labels = torch.from_numpy(labels_0).float()
+                    else:
+                        raise NotImplementedError
+                    # get reconstruction
+                    im_tmp = get_reconstruction(
+                        model,
+                        torch.from_numpy(latents).float(),
+                        labels=labels)
+
+            elif interp_type == 'labels':
+
+                # get (new) scaled labels
+                labels_sc = _get_updated_scaled_labels(
+                    labels_sc_0, input_idxs[i0], inputs[i0][i1])
+                if len(labels_sc_0.shape) == 4:
+                    # 2d scaled labels
+                    labels_2d = torch.from_numpy(one_hot_2d(labels_sc)).float()
+                else:
+                    # 1d scaled labels
+                    labels_2d = None
+
+                if model.hparams['model_class'] == 'cond-ae-msp':
+                    # change latents that correspond to desired labels
+                    latents = np.copy(latents_0)
+                    latents[0, input_idxs[i0]] = inputs[i0][i1]
+                    # get reconstruction
+                    im_tmp = get_reconstruction(model, latents, apply_inverse_transform=True)
+                else:
+                    # get (new) labels
+                    labels = np.copy(labels_0)
+                    labels[0, input_idxs[i0]] = inputs[i0][i1]
+                    # get reconstruction
+                    im_tmp = get_reconstruction(
+                        model,
+                        ims_0,
+                        labels=torch.from_numpy(labels).float(),
+                        labels_2d=labels_2d)
+            else:
+                raise NotImplementedError
+
+            ims_tmp.append(np.copy(im_tmp[0, ch]))
+
+            if crop_type:
+                x_min_tmp = crop_kwargs['x_0'] - crop_kwargs['x_ext']
+                y_min_tmp = crop_kwargs['y_0'] - crop_kwargs['y_ext']
+            else:
+                x_min_tmp = 0
+                y_min_tmp = 0
+
+            if interp_type == 'labels':
+                labels_tmp.append([
+                    np.copy(labels_sc[0, input_idxs[0]]) - y_min_tmp,
+                    np.copy(labels_sc[0, input_idxs[1]]) - x_min_tmp])
+            elif interp_type == 'latents' and labels_sc_0 is not None:
+                labels_tmp.append([
+                    np.copy(labels_sc[0, marker_idxs[0]]) - y_min_tmp,
+                    np.copy(labels_sc[0, marker_idxs[1]]) - x_min_tmp])
+            else:
+                labels_tmp.append([np.nan, np.nan])
+
+            if crop_type:
+                ims_crop_tmp.append(get_crop(
+                    im_tmp[0, 0], crop_kwargs['y_0'], crop_kwargs['y_ext'], crop_kwargs['x_0'],
+                    crop_kwargs['x_ext']))
+            else:
+                ims_crop_tmp.append([])
+
+        ims_list.append(ims_tmp)
+        ims_crop_list.append(ims_crop_tmp)
+        labels_list.append(labels_tmp)
+
+    return ims_list, labels_list, ims_crop_list
+
+
+def _get_updated_scaled_labels(labels_og, idxs=None, vals=None):
+    """Helper function for interpolate_xd functions."""
+
+    if labels_og is not None:
+
+        if len(labels_og.shape) == 4:
+            # 2d scaled labels
+            tmp = np.copy(labels_og)
+            t, y, x = np.where(tmp[0] == 1)
+            labels_sc = np.hstack([x, y])[None, :]
+        else:
+            # 1d scaled labels
+            labels_sc = np.copy(labels_og)
+
+        if idxs is not None:
+            if isinstance(idxs, int):
+                assert isinstance(vals, int)
+                idxs = [idxs]
+                vals = [vals]
+            else:
+                assert len(idxs) == len(vals)
+            for idx, val in zip(idxs, vals):
+                labels_sc[0, idx] = val
+
+    else:
+        labels_sc = None
+
+    return labels_sc
+
+
 def plot_2d_frame_array(
-        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=(15, 15),
-        save_file=None):
+        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None):
     """Plot list of list of interpolated images output by :func:`interpolate_2d()` in a 2d grid.
 
     Parameters
@@ -522,9 +727,15 @@ def plot_2d_frame_array(
         figure saved if not None
 
     """
-    n_x = len(ims_list)
-    n_y = len(ims_list[0])
-    fig, axes = plt.subplots(n_x, n_y, figsize=figsize)
+
+    n_y = len(ims_list)
+    n_x = len(ims_list[0])
+    if figsize is None:
+        y_pix, x_pix = ims_list[0][0].shape
+        # how many inches per pixel?
+        in_per_pix = 15 / (x_pix * n_x)
+        figsize = (15, in_per_pix * y_pix * n_y)
+    fig, axes = plt.subplots(n_y, n_x, figsize=figsize)
 
     if im_kwargs is None:
         im_kwargs = {'vmin': 0, 'vmax': 1, 'cmap': 'gray'}
