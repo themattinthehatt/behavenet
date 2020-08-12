@@ -377,11 +377,14 @@ def subspace_overlap(A, B):
     Parameters
     ----------
     A : :obj:`torch.Tensor`
-        shape
-    B
+        shape (a, b)
+    B : :obj:`torch.Tensor`
+        shape (c, b)
 
     Returns
     -------
+    :obj:`torch.Tensor`
+        scalar value; Frobenious norm of AB^T
 
     """
-    return torch.tensor(0).float()
+    return torch.sum(torch.matmul(A, torch.transpose(B, 1, 0)).pow(2))

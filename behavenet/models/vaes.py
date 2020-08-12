@@ -538,8 +538,12 @@ class SSSVAE(AE):
             loss_dict_torch['loss'] += kl * loss_dict_torch['loss_zu_kl']
 
             # orthogonality between A and B
+            # A shape: [n_labels, n_latents]
+            # B shape: [n_latents - n_labels, n_latents]
+            # compute ||AB^T||^2
             loss_dict_torch['loss_AB_orth'] = losses.subspace_overlap(
-                self.encoding.A, self.encoding.B)
+                self.encoding.A.weight, self.encoding.B.weight)
+
             loss_dict_torch['loss'] += gamma * loss_dict_torch['loss_AB_orth']
 
             if accumulate_grad:

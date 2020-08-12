@@ -95,4 +95,19 @@ def test_decomposed_kl():
 
 
 def test_subspace_overlap():
-    pass
+
+    A = torch.tensor([[1, 0, 0], [0, 1, 0]]).float()
+    B = torch.tensor([[0, 0, 1]]).float()
+    overlap = losses.subspace_overlap(A, B)
+    assert overlap == 0
+
+    from scipy.linalg import null_space
+    M = np.random.randn(10, 15)  # M shape: [a, b]
+    N = null_space(M)  # N shape: [b, b - a]
+    overlap = losses.subspace_overlap(torch.from_numpy(M), torch.from_numpy(N.T))
+    assert np.isclose(overlap, 0)
+
+    k = 10
+    M = torch.from_numpy(np.eye(10)).float()
+    overlap = losses.subspace_overlap(M, M)
+    assert overlap == k
