@@ -49,6 +49,11 @@ def main(hparams, *args):
     # ### CREATE MODEL ###
     # ####################
 
+    def set_n_labels(data_generator, hparams):
+        data, _ = data_generator.next_batch('train')
+        sh = data['labels'].shape
+        hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+
     print('constructing model...', end='')
     torch.manual_seed(hparams['rng_seed_model'])
     torch_rng_seed = torch.get_rng_state()
@@ -60,16 +65,15 @@ def main(hparams, *args):
         from behavenet.models import VAE as Model
     elif hparams['model_class'] == 'beta-tcvae':
         from behavenet.models import BetaTCVAE as Model
+    elif hparams['model_class'] == 'sss-vae':
+        from behavenet.models import SSSVAE as Model
+        set_n_labels(data_generator, hparams)
     elif hparams['model_class'] == 'cond-ae':
         from behavenet.models import ConditionalAE as Model
-        data, _ = data_generator.next_batch('train')
-        sh = data['labels'].shape
-        hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+        set_n_labels(data_generator, hparams)
     elif hparams['model_class'] == 'cond-ae-msp':
         from behavenet.models import AEMSP as Model
-        data, _ = data_generator.next_batch('train')
-        sh = data['labels'].shape
-        hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+        set_n_labels(data_generator, hparams)
     else:
         raise NotImplementedError(
             'The model class "%s" is not currently implemented' % hparams['model_class'])

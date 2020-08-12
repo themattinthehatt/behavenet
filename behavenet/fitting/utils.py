@@ -349,7 +349,8 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             or model_class == 'vae' \
             or model_class == 'beta-tcvae' \
             or model_class == 'cond-ae' \
-            or model_class == 'cond-ae-msp':
+            or model_class == 'cond-ae-msp' \
+            or model_class == 'sss-vae':
         model_path = os.path.join(
             model_class, model_type, '%02i_latents' % hparams['n_ae_latents'])
         if hparams.get('ae_multisession', None) is not None:
@@ -650,7 +651,8 @@ def get_model_params(hparams):
             or model_class == 'vae' \
             or model_class == 'beta-tcvae' \
             or model_class == 'cond-ae' \
-            or model_class == 'cond-ae-msp':
+            or model_class == 'cond-ae-msp' \
+            or model_class == 'sss-vae':
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
@@ -665,6 +667,10 @@ def get_model_params(hparams):
         if model_class == 'beta-tcvae':
             hparams_less['beta_tcvae.beta'] = hparams['beta_tcvae.beta']
             # hparams_less['beta_tcvae.beta_anneal_epochs'] = hparams['betatcvae.beta_anneal_epochs']
+        if model_class == 'sss-vae':
+            hparams_less['sss_vae.alpha'] = hparams['sss_vae.alpha']
+            hparams_less['sss_vae.beta'] = hparams['sss_vae.beta']
+            hparams_less['sss_vae.gamma'] = hparams['sss_vae.gamma']
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']

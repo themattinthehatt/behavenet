@@ -33,13 +33,28 @@ DATA_DICT = {
     'neural_type': 'ca',
     'approx_batch_size': 200
 }
+
 TEMP_DATA = {
     'n_batches': 22,
     'batch_lens': [20, 100],  # [min, max] of random uniform int
-    'n_labels': 8,
+    'n_labels': 2,
     'n_neurons': 25
 }
+
 SESSIONS = ['sess-0', 'sess-1']
+
+MODELS_TO_FIT = [  # ['model_file']_grid_search
+        # {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
+        # {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+        # {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+        # {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
+        # {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'beta-tcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        {'model_class': 'sss-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
+]
 
 """
 TODO:
@@ -103,6 +118,7 @@ def get_model_config_files(model, json_dir):
             or model == 'vae' \
             or model == 'beta-tcvae' \
             or model == 'cond-ae-msp' \
+            or model == 'sss-vae' \
             or model == 'labels-images' \
             or model == 'arhmm':
         if model != 'arhmm':
@@ -151,7 +167,7 @@ def define_new_config_values(model, session='sess-0'):
     transitions = 'stationary'
     noise_type = 'gaussian'
 
-    if model == 'ae' or model == 'vae' or model == 'beta-tcvae':
+    if model == 'ae' or model == 'vae' or model == 'beta-tcvae' or model == 'sss-vae':
         new_values = {
             'data': data_dict,
             'model': {
@@ -416,18 +432,7 @@ def main(args):
     # -------------------------------------------
     # fit models
     # -------------------------------------------
-    models = [  # ['model_file']_grid_search
-        # {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        # {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
-        # {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
-        # {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
-        # {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
-        # {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'beta-tcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        # {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        # {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
-    ]
-    for model in models:
+    for model in MODELS_TO_FIT:
         # modify example jsons
         base_config_files = get_model_config_files(model['model_class'], json_dir)
         new_values = define_new_config_values(model['model_class'], model['sessions'])

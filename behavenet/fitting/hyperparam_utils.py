@@ -64,6 +64,7 @@ def add_dependent_params(parser, namespace):
             or namespace.model_class == 'beta-tcvae' \
             or namespace.model_class == 'cond-ae' \
             or namespace.model_class == 'cond-ae-msp' \
+            or namespace.model_class == 'sss-vae' \
             or namespace.model_class == 'labels-images':
 
         max_latents = 64

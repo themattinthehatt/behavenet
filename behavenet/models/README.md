@@ -7,7 +7,7 @@ Model-related code
 * define a new class in `behavenet.models` package
     * note that the key-value pairs returned in the `loss` method are the values logged to csv throughout training
     * add to `behavenet.models.__init__.py` imports
-* add model to relevant grid search script, i.e. `behavenet.fitting.ae_grid_search.py` (or create a new one)
+* add model to relevant grid search script for model construction, i.e. `behavenet.fitting.ae_grid_search.py` (or create a new one)
 * required function updates:
     * `behavenet.data.utils.get_data_generator_inputs` [UPDATE UNIT TEST!]
     * `behavenet.fitting.utils.get_expt_dir` [UPDATE UNIT TEST!]
@@ -17,20 +17,20 @@ Model-related code
     * other `behavenet.fitting.eval` methods
     * `behavenet.fitting.hyperparam_utils.add_dependent_params` [UPDATE UNIT TEST!]
 * update relevant jsons (e.g. extra hyperparameters)
-    
-    
+
+
 Testing
 ---
 
 * add new model to integration script `tests/integration.py`
-    * add to `models` list in `main()` 
+    * add to `MODELS_TO_FIT` list at top of file 
     * update `get_model_config_files()`
     * update `define_new_config_values()`
 *  run tests
     * unit tests: from behavenet parent directory run `pytest`
     * integration test: from behavenet parent directory run `python tests/integration.py`
-    
-    
+
+
 Documentation
 ---
 

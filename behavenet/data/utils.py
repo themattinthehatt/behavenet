@@ -63,7 +63,9 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
 
-        elif hparams['model_class'] == 'cond-ae' or hparams['model_class'] == 'cond-ae-msp':
+        elif hparams['model_class'] == 'cond-ae' \
+                or hparams['model_class'] == 'cond-ae-msp' \
+                or hparams['model_class'] == 'sss-vae':
 
             signals = ['images', 'labels']
             transforms = [None, None]

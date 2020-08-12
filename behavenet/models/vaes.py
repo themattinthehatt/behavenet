@@ -369,7 +369,7 @@ class SSSVAE(AE):
         if hparams['model_type'] == 'linear':
             raise NotImplementedError
         if hparams['n_ae_latents'] < hparams['n_labels']:
-            raise ValueError('AEMSP model must contain at least as many latents as labels')
+            raise ValueError('SSS-VAE model must contain at least as many latents as labels')
 
         self.n_latents = hparams['n_ae_latents']
         self.n_labels = hparams['n_labels']
@@ -377,15 +377,23 @@ class SSSVAE(AE):
         hparams['variational'] = True
         super().__init__(hparams)
 
-        # # set up kl annealing
-        # anneal_epochs = self.hparams.get('vae.beta_anneal_epochs', 0)
-        # self.curr_epoch = 0  # must be modified by training script
-        # if anneal_epochs > 0:
-        #     self.beta_vals = np.append(
-        #         np.linspace(0, hparams['vae.beta'], anneal_epochs),
-        #         np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
-        # else:
-        #     self.beta_vals = np.ones(hparams['max_n_epochs'] + 1)
+        # set up beta annealing
+        anneal_epochs = self.hparams.get('sss_vae.anneal_epochs', 0)
+        self.curr_epoch = 0  # must be modified by training script
+        beta = hparams['sss_vae.beta']
+        # TODO: these values should not be precomputed
+        if anneal_epochs > 0:
+            # annealing for total correlation term
+            self.beta_vals = np.append(
+                np.linspace(0, beta, anneal_epochs),  # USED TO START AT 1!!
+                beta * np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
+            # annealing for remaining kl terms - index code mutual info and dim-wise kl
+            self.kl_anneal_vals = np.append(
+                np.linspace(0, 1, anneal_epochs),
+                np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
+        else:
+            self.beta_vals = beta * np.ones(hparams['max_n_epochs'] + 1)
+            self.kl_anneal_vals = np.ones(hparams['max_n_epochs'] + 1)
 
     def build_model(self):
         """Construct the model using hparams."""
@@ -470,12 +478,13 @@ class SSSVAE(AE):
         batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
         n_labels = self.hparams['n_labels']
-        n_latents = self.hparams['n_latents']
+        n_latents = self.hparams['n_ae_latents']
 
         # beta = self.beta_vals[self.curr_epoch]
-        alpha = self.hparams['sss.alpha']
-        beta = self.hparams['sss.beta']
-        gamma = self.hparams['sss.gamma']
+        alpha = self.hparams['sss_vae.alpha']
+        beta = self.beta_vals[self.curr_epoch]
+        gamma = self.hparams['sss_vae.gamma']
+        kl = self.kl_anneal_vals[self.curr_epoch]
 
         loss_strs = [
             'loss', 'loss_data_ll', 'loss_label_ll', 'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc',
@@ -518,7 +527,7 @@ class SSSVAE(AE):
 
             # unsupervised latents index-code mutual information
             loss_dict_torch['loss_zu_mi'] = index_code_mi
-            loss_dict_torch['loss'] += loss_dict_torch['loss_zu_mi']
+            loss_dict_torch['loss'] += kl * loss_dict_torch['loss_zu_mi']
 
             # unsupervised latents total correlation
             loss_dict_torch['loss_zu_tc'] = total_correlation
@@ -526,7 +535,7 @@ class SSSVAE(AE):
 
             # unsupervised latents dimension-wise kl
             loss_dict_torch['loss_zu_kl'] = dimension_wise_kl
-            loss_dict_torch['loss'] += loss_dict_torch['loss_zu_kl']
+            loss_dict_torch['loss'] += kl * loss_dict_torch['loss_zu_kl']
 
             # orthogonality between A and B
             loss_dict_torch['loss_AB_orth'] = losses.subspace_overlap(
@@ -576,7 +585,7 @@ class ConvAESSSEncoder(ConvAEEncoder):
         self.A = nn.Linear(n_latents, n_labels, bias=False)
         # NN -> unconstrained latents
         self.B = nn.Linear(n_latents, n_latents - n_labels, bias=False)
-        # unconstrained latents -> labels
+        # constrained latents -> labels
         self.D = nn.Linear(n_labels, n_labels)
 
     def __str__(self):
@@ -630,11 +639,11 @@ class ConvAESSSEncoder(ConvAEEncoder):
                 x = layer(x)
 
         # reshape for ff layer
-        x = x.view(x.size(0), -1)
-        x = self.FF(x)
+        x1 = x.view(x.size(0), -1)
+        x = self.FF(x1)
 
         # push through linear transformations
         y = self.A(x)
         z = self.B(x)
 
-        return y, z, self.logvar(x), pool_idx, target_output_size
+        return y, z, self.logvar(x1), pool_idx, target_output_size
