@@ -88,14 +88,23 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, version='best'):
             'epoch': row['epoch'],
             'dtype': 'val'}
         for metric in metrics_list:
-            val_dict[metric] = row['val_%s' % metric]
-        metrics_df.append(pd.DataFrame(val_dict, index=[0]))
+            metrics_df.append(pd.DataFrame(
+                {**val_dict, 'loss': metric, 'val': row['val_%s' % metric]}, index=[0]))
+        # NOTE: grayed out lines are old version that returns a single dataframe row containing all
+        # losses per epoch; new way creates one row per loss, making it easy to use with seaborn's
+        # FacetGrid object for multi-axis plotting
+        # for metric in metrics_list:
+        #     val_dict[metric] = row['val_%s' % metric]
+        # metrics_df.append(pd.DataFrame(val_dict, index=[0]))
         # make dict for train data
         tr_dict = {
             'dataset': dataset,
             'epoch': row['epoch'],
             'dtype': 'train'}
         for metric in metrics_list:
-            tr_dict[metric] = row['tr_%s' % metric]
-        metrics_df.append(pd.DataFrame(tr_dict, index=[0]))
+            metrics_df.append(pd.DataFrame(
+                {**tr_dict, 'loss': metric, 'val': row['tr_%s' % metric]}, index=[0]))
+        # for metric in metrics_list:
+        #     tr_dict[metric] = row['tr_%s' % metric]
+        # metrics_df.append(pd.DataFrame(tr_dict, index=[0]))
     return pd.concat(metrics_df, sort=True)
