@@ -236,12 +236,19 @@ class BetaTCVAE(VAE):
         anneal_epochs = self.hparams.get('beta_tcvae.beta_anneal_epochs', 0)
         self.curr_epoch = 0  # must be modified by training script
         beta = hparams['beta_tcvae.beta']
+        # TODO: these values should not be precomputed
         if anneal_epochs > 0:
+            # annealing for total correlation term
             self.beta_vals = np.append(
-                np.linspace(1, beta, anneal_epochs),
+                np.linspace(0, beta, anneal_epochs),  # USED TO START AT 1!!
                 beta * np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
+            # annealing for remaining kl terms - index code mutual info and dim-wise kl
+            self.kl_anneal_vals = np.append(
+                np.linspace(0, 1, anneal_epochs),
+                np.ones(hparams['max_n_epochs'] + 1))  # sloppy addition to fully cover rest
         else:
             self.beta_vals = beta * np.ones(hparams['max_n_epochs'] + 1)
+            self.kl_anneal_vals = np.ones(hparams['max_n_epochs'] + 1)
 
     def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
         """Calculate (decomposed) ELBO loss for VAE.
@@ -277,6 +284,7 @@ class BetaTCVAE(VAE):
         x = data['images'][0]
         m = data['masks'][0] if 'masks' in data else None
         beta = self.beta_vals[self.curr_epoch]
+        kl = self.kl_anneal_vals[self.curr_epoch]
 
         batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
@@ -308,7 +316,7 @@ class BetaTCVAE(VAE):
 
             # unsupervised latents index-code mutual information
             loss_dict_torch['loss_mi'] = index_code_mi
-            loss_dict_torch['loss'] += loss_dict_torch['loss_mi']
+            loss_dict_torch['loss'] += kl * loss_dict_torch['loss_mi']
 
             # unsupervised latents total correlation
             loss_dict_torch['loss_tc'] = total_correlation
@@ -316,7 +324,7 @@ class BetaTCVAE(VAE):
 
             # unsupervised latents dimension-wise kl
             loss_dict_torch['loss_dwkl'] = dimension_wise_kl
-            loss_dict_torch['loss'] += loss_dict_torch['loss_dwkl']
+            loss_dict_torch['loss'] += kl * loss_dict_torch['loss_dwkl']
 
             if accumulate_grad:
                 loss_dict_torch['loss'].backward()
