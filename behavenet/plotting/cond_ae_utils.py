@@ -289,7 +289,7 @@ def get_model_input(
 
     # latents
     if compute_latents:
-        if hparams['model_class'] == 'cond-ae-msp':
+        if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'sss-vae':
             latents_np = model.get_transformed_latents(ims_pt, dataset=sess_idx, as_numpy=True)
         else:
             _, latents_np = get_reconstruction(
@@ -445,7 +445,6 @@ def interpolate_2d(
                     latents[0, input_idxs[0]] = inputs[0][i0]
                     latents[0, input_idxs[1]] = inputs[1][i1]
                     # get reconstruction
-                    # TODO
                     im_tmp = get_reconstruction(model, latents, apply_inverse_transform=True)
                 else:
                     # get (new) labels

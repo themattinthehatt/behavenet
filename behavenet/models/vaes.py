@@ -602,6 +602,99 @@ class SSSVAE(AE):
         y_hat = torch.add(torch.mul(y, self.encoding.D), self.encoding.D_bias)
         return y_hat
 
+    def get_transformed_latents(self, inputs, dataset=None, as_numpy=True):
+        """Return latents after supervised subspace has been transformed to original label space.
+
+        Parameters
+        ----------
+        inputs : :obj:`torch.Tensor` object
+            - image tensor of shape (batch, n_channels, y_pix, x_pix)
+            - latents tensor of shape (batch, n_ae_latents)
+        dataset : :obj:`int`, optional
+            used with session-specific io layers
+        as_numpy : :obj:`bool`, optional
+            True to return as numpy array, False to return as torch Tensor
+
+        Returns
+        -------
+        :obj:`np.ndarray` or :obj:`torch.Tensor` object
+            array of latents in transformed latent space
+
+        """
+
+        if not isinstance(inputs, torch.Tensor):
+            inputs = torch.Tensor(inputs)
+
+        # check to see if inputs are images or latents
+        if len(inputs.shape) == 2:
+            input_type = 'latents'
+        else:
+            input_type = 'images'
+
+        # get latents in original space
+        if input_type == 'images':
+            y_og, w_og, logvar, pool_idx, outsize = self.encoding(inputs, dataset=dataset)
+        else:
+            y_og = inputs[:, :self.hparams['n_labels']]
+            w_og = inputs[:, self.hparams['n_labels']:]
+
+        # transform supervised latents to label space
+        y_new = torch.add(torch.mul(y_og, self.encoding.D), self.encoding.D_bias)
+
+        latents_tr = torch.cat([y_new, w_og], axis=1)
+
+        if as_numpy:
+            return latents_tr.cpu().detach().numpy()
+        else:
+            return latents_tr
+
+    def get_inverse_transformed_latents(self, inputs, dataset=None, as_numpy=True):
+        """Return latents after they have been transformed using the diagonal mapping D.
+
+        Parameters
+        ----------
+        inputs : :obj:`torch.Tensor` object
+            - image tensor of shape (batch, n_channels, y_pix, x_pix)
+            - latents tensor of shape (batch, n_ae_latents) where the first n_labels entries are
+              assumed to be labels in the original pixel space
+        dataset : :obj:`int`, optional
+            used with session-specific io layers
+        as_numpy : :obj:`bool`, optional
+            True to return as numpy array, False to return as torch Tensor
+
+        Returns
+        -------
+        :obj:`np.ndarray` or :obj:`torch.Tensor` object
+            array of latents in transformed latent space
+
+        """
+
+        if not isinstance(inputs, torch.Tensor):
+            inputs = torch.Tensor(inputs)
+
+        # check to see if inputs are images or latents
+        if len(inputs.shape) == 2:
+            input_type = 'latents'
+        else:
+            input_type = 'images'
+
+        # get latents in original space
+        if input_type == 'images':
+            raise NotImplementedError
+        else:
+            y_og = inputs[:, :self.hparams['n_labels']]
+            w_og = inputs[:, self.hparams['n_labels']:]
+
+        # transform given labels to latent space
+        y_new = torch.div(torch.sub(y_og, self.encoding.D_bias), self.encoding.D)
+
+        latents_tr = torch.cat([y_new, w_og], axis=1)
+
+        if as_numpy:
+            return latents_tr.cpu().detach().numpy()
+        else:
+            return latents_tr
+
 
 class ConvAESSSEncoder(ConvAEEncoder):
     """Convolutional encoder that separates label-related subspace."""
@@ -617,8 +710,7 @@ class ConvAESSSEncoder(ConvAEEncoder):
         self.A = nn.Linear(n_latents, n_labels, bias=False)
         # NN -> unconstrained latents
         self.B = nn.Linear(n_latents, n_latents - n_labels, bias=False)
-        # constrained latents -> labels (diagonal matrix)
-        #self.D = nn.Linear(n_labels, n_labels)
+        # constrained latents -> labels (diagonal matrix + bias)
         self.D = torch.randn((1, n_labels), requires_grad=True, device=self.hparams['device'])
         self.D_bias = torch.randn((1, n_labels), requires_grad=True, device=self.hparams['device'])
 
@@ -678,6 +770,6 @@ class ConvAESSSEncoder(ConvAEEncoder):
 
         # push through linear transformations
         y = self.A(x)  # NN -> constrained latents
-        z = self.B(x)  # NN -> unconstrained latents
+        w = self.B(x)  # NN -> unconstrained latents
 
-        return y, z, self.logvar(x1), pool_idx, target_output_size
+        return y, w, self.logvar(x1), pool_idx, target_output_size

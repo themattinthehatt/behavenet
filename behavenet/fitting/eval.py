@@ -333,6 +333,7 @@ def get_reconstruction(
         elif model.hparams['model_class'] == 'sss-vae':
             ims_recon, _, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
         else:
+            # TODO: beta-tcvae and sss-vae with apply_inverse_transform
             ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
     else:  # input is latents
         # TODO: how to incorporate maxpool layers for decoding only?
@@ -341,8 +342,9 @@ def get_reconstruction(
         elif model.hparams['model_class'] == 'cond-ae-msp' and apply_inverse_transform:
             inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
         elif model.hparams['model_class'] == 'sss-vae' and apply_inverse_transform:
-            pass
-            # inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
+            # assume "inputs" are [labels, unsupervised latents] where "labels" need to be
+            # transformed into N(0, 1) latent space
+            inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
         else:
             pass
         ims_recon = model.decoding(inputs, None, None, dataset=None)
