@@ -441,7 +441,7 @@ class SSSVAE(AE):
             z = reparameterize(mu, logvar)
         x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
         y_hat = torch.add(torch.mul(y, self.encoding.D), self.encoding.D_bias)
-        return x_hat, y_hat, z, mu, logvar
+        return x_hat, z, mu, logvar, y_hat
 
     def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
         """Calculate modified ELBO loss for SSSVAE.
@@ -503,7 +503,7 @@ class SSSVAE(AE):
             x_in = x[idx_beg:idx_end]
             y_in = y[idx_beg:idx_end]
             m_in = m[idx_beg:idx_end] if m is not None else None
-            x_hat, y_hat, sample, mu, logvar = self.forward(x_in, dataset=dataset, use_mean=False)
+            x_hat, sample, mu, logvar, y_hat = self.forward(x_in, dataset=dataset, use_mean=False)
 
             # reset losses
             loss_dict_torch = {loss: 0 for loss in loss_strs}
@@ -599,7 +599,7 @@ class SSSVAE(AE):
         y, z, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
         if not use_mean:
             y = reparameterize(y, logvar[:, :self.n_labels])
-        y_hat = torch.mul(y, self.encoding.D)
+        y_hat = torch.add(torch.mul(y, self.encoding.D), self.encoding.D_bias)
         return y_hat
 
 

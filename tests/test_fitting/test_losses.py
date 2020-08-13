@@ -110,4 +110,4 @@ def test_subspace_overlap():
     k = 10
     M = torch.from_numpy(np.eye(k)).float()
     overlap = losses.subspace_overlap(M, M)
-    assert overlap == k
+    assert overlap == 1 / k
