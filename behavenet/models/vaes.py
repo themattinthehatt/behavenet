@@ -554,7 +554,7 @@ class SSSVAE(AE):
             for key, val in loss_dict_torch.items():
                 loss_dict_vals[key] += val.item() * bs
             loss_dict_vals['loss_data_mse'] += losses.gaussian_ll_to_mse(
-                loss_dict_vals['loss_data_ll'], np.prod(x.shape[1:])) * bs
+                loss_dict_vals['loss_data_ll'] / bs, np.prod(x.shape[1:])) * bs
 
             # collect predicted labels to compute R2
             y_hat_all.append(y_hat.cpu().detach().numpy())
@@ -573,6 +573,32 @@ class SSSVAE(AE):
         loss_dict_vals['label_r2'] = r2
 
         return loss_dict_vals
+
+    def get_predicted_labels(self, x, dataset=None, use_mean=True):
+        """Process input data to get predicted labels.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data
+        dataset : :obj:`int`
+            used with session-specific io layers
+        use_mean : :obj:`bool`
+            True to skip sampling step
+
+        Returns
+        -------
+        :obj:`tuple`
+            - x_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - y_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - z (:obj:`torch.Tensor`): sampled latent variable of shape (n_frames, n_latents)
+            - mu (:obj:`torch.Tensor`): mean paramter of shape (n_frames, n_latents)
+            - logvar (:obj:`torch.Tensor`): logvar paramter of shape (n_frames, n_latents)
+
+        """
+        y, z, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
+        y_hat = self.encoding.D(y)
+        return y_hat
 
 
 class ConvAESSSEncoder(ConvAEEncoder):
@@ -647,7 +673,7 @@ class ConvAESSSEncoder(ConvAEEncoder):
         x = self.FF(x1)
 
         # push through linear transformations
-        y = self.A(x)
-        z = self.B(x)
+        y = self.A(x)  # NN -> constrained latents
+        z = self.B(x)  # NN -> unconstrained latents
 
         return y, z, self.logvar(x1), pool_idx, target_output_size

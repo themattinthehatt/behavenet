@@ -384,7 +384,7 @@ def subspace_overlap(A, B):
     Returns
     -------
     :obj:`torch.Tensor`
-        scalar value; Frobenious norm of AB^T
+        scalar value; Frobenious norm of AB^T divided by number of entries
 
     """
-    return torch.sum(torch.matmul(A, torch.transpose(B, 1, 0)).pow(2))
+    return torch.mean(torch.matmul(A, torch.transpose(B, 1, 0)).pow(2))
