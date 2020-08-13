@@ -1242,6 +1242,9 @@ def load_pretrained_ae(model, hparams):
 
         if loaded_model_dict['encoding.FF.weight'].shape == model.encoding.FF.weight.shape:
             model.load_state_dict(loaded_model_dict, strict=False)
+            # TODO: remove
+            if model.hparams['model_class'] == 'sss_vae':
+                del loaded_model_dict['encoding.D']
         else:
             print('PRETRAINED MODEL HAS DIFFERENT SPATIAL DIMENSIONS OR N LATENTS: ' +
                   'NOT LOADING FF PARAMETERS')
@@ -1249,6 +1252,15 @@ def load_pretrained_ae(model, hparams):
             del loaded_model_dict['encoding.FF.bias']
             del loaded_model_dict['decoding.FF.weight']
             del loaded_model_dict['decoding.FF.bias']
+
+            # TODO: get rid of other latent-related parameters
+            if model.hparams['model_class'] == 'vae':
+                pass
+            elif model.hparams['model_class'] == 'beta_tcvae':
+                pass
+            elif model.hparams['model_class'] == 'sss_vae':
+                del loaded_model_dict['encoding.D']
+
             model.load_state_dict(loaded_model_dict, strict=False)
 
     elif hparams['model_type'] == 'linear' \

@@ -263,6 +263,7 @@ def get_model_input(
         labels_np = None
     elif hparams['model_class'] == 'cond-ae' \
             or hparams['model_class'] == 'cond-ae-msp' \
+            or hparams['model_class'] == 'sss-vae' \
             or hparams['model_class'] == 'labels-images':
         labels_pt = batch['labels'][:max_frames]
         labels_np = labels_pt.cpu().detach().numpy()
@@ -412,7 +413,8 @@ def interpolate_2d(
                     # get labels
                     if model.hparams['model_class'] == 'ae' \
                             or model.hparams['model_class'] == 'vae' \
-                            or model.hparams['model_class'] == 'beta-tcvae':
+                            or model.hparams['model_class'] == 'beta-tcvae' \
+                            or model.hparams['model_class'] == 'sss-vae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae':
                         labels = torch.from_numpy(labels_0).float()
@@ -436,12 +438,14 @@ def interpolate_2d(
                     # 1d scaled labels
                     labels_2d = None
 
-                if model.hparams['model_class'] == 'cond-ae-msp':
+                if model.hparams['model_class'] == 'cond-ae-msp' \
+                        or model.hparams['model_class'] == 'sss-vae':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
                     latents[0, input_idxs[0]] = inputs[0][i0]
                     latents[0, input_idxs[1]] = inputs[1][i1]
                     # get reconstruction
+                    # TODO
                     im_tmp = get_reconstruction(model, latents, apply_inverse_transform=True)
                 else:
                     # get (new) labels

@@ -440,7 +440,7 @@ class SSSVAE(AE):
         else:
             z = reparameterize(mu, logvar)
         x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
-        y_hat = self.encoding.D(y)
+        y_hat = torch.mul(y, self.encoding.D)
         return x_hat, y_hat, z, mu, logvar
 
     def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
@@ -597,7 +597,9 @@ class SSSVAE(AE):
 
         """
         y, z, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
-        y_hat = self.encoding.D(y)
+        if not use_mean:
+            y = reparameterize(y, logvar[:, :self.n_labels])
+        y_hat = torch.mul(y, self.encoding.D)
         return y_hat
 
 
@@ -615,8 +617,8 @@ class ConvAESSSEncoder(ConvAEEncoder):
         self.A = nn.Linear(n_latents, n_labels, bias=False)
         # NN -> unconstrained latents
         self.B = nn.Linear(n_latents, n_latents - n_labels, bias=False)
-        # constrained latents -> labels
-        self.D = nn.Linear(n_labels, n_labels)
+        # constrained latents -> labels (diagonal matrix)
+        self.D = torch.randn((1, n_labels), requires_grad=True, device=self.hparams['device'])
 
     def __str__(self):
         """Pretty print encoder architecture."""
