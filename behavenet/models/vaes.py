@@ -440,7 +440,7 @@ class SSSVAE(AE):
         else:
             z = reparameterize(mu, logvar)
         x_hat = self.decoding(z, pool_idx, outsize, dataset=dataset)
-        y_hat = torch.add(torch.mul(y, self.encoding.D), self.encoding.D_bias)
+        y_hat = self.encoding.D(y)
         return x_hat, z, mu, logvar, y_hat
 
     def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
@@ -596,10 +596,10 @@ class SSSVAE(AE):
             - logvar (:obj:`torch.Tensor`): logvar paramter of shape (n_frames, n_latents)
 
         """
-        y, z, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
+        y, w, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
         if not use_mean:
             y = reparameterize(y, logvar[:, :self.n_labels])
-        y_hat = torch.add(torch.mul(y, self.encoding.D), self.encoding.D_bias)
+        y_hat = self.encoding.D(y)
         return y_hat
 
     def get_transformed_latents(self, inputs, dataset=None, as_numpy=True):
@@ -639,7 +639,7 @@ class SSSVAE(AE):
             w_og = inputs[:, self.hparams['n_labels']:]
 
         # transform supervised latents to label space
-        y_new = torch.add(torch.mul(y_og, self.encoding.D), self.encoding.D_bias)
+        y_new = self.encoding.D(y_og)
 
         latents_tr = torch.cat([y_new, w_og], axis=1)
 
@@ -686,7 +686,7 @@ class SSSVAE(AE):
             w_og = inputs[:, self.hparams['n_labels']:]
 
         # transform given labels to latent space
-        y_new = torch.div(torch.sub(y_og, self.encoding.D_bias), self.encoding.D)
+        y_new = torch.div(torch.sub(y_og, self.encoding.D.bias), self.encoding.D.weight)
 
         latents_tr = torch.cat([y_new, w_og], axis=1)
 
@@ -701,6 +701,8 @@ class ConvAESSSEncoder(ConvAEEncoder):
 
     def __init__(self, hparams):
 
+        from behavenet.models.base import DiagLinear
+
         super().__init__(hparams)
 
         # add linear transformations mapping from NN output to label-, non-label-related subspaces
@@ -711,8 +713,7 @@ class ConvAESSSEncoder(ConvAEEncoder):
         # NN -> unconstrained latents
         self.B = nn.Linear(n_latents, n_latents - n_labels, bias=False)
         # constrained latents -> labels (diagonal matrix + bias)
-        self.D = torch.randn((1, n_labels), requires_grad=True, device=self.hparams['device'])
-        self.D_bias = torch.randn((1, n_labels), requires_grad=True, device=self.hparams['device'])
+        self.D = DiagLinear(n_labels, bias=True)
 
     def __str__(self):
         """Pretty print encoder architecture."""

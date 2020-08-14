@@ -1242,9 +1242,6 @@ def load_pretrained_ae(model, hparams):
 
         if loaded_model_dict['encoding.FF.weight'].shape == model.encoding.FF.weight.shape:
             model.load_state_dict(loaded_model_dict, strict=False)
-            # TODO: remove
-            if model.hparams['model_class'] == 'sss_vae':
-                del loaded_model_dict['encoding.D']
         else:
             print('PRETRAINED MODEL HAS DIFFERENT SPATIAL DIMENSIONS OR N LATENTS: ' +
                   'NOT LOADING FF PARAMETERS')
