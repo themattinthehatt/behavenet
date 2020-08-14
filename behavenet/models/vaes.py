@@ -488,7 +488,7 @@ class SSSVAE(AE):
 
         loss_strs = [
             'loss', 'loss_data_ll', 'loss_label_ll', 'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc',
-            'loss_zu_kl', 'loss_AB_orth']
+            'loss_zu_dwkl', 'loss_AB_orth']
 
         loss_dict_vals = {loss: 0 for loss in loss_strs}
         loss_dict_vals['loss_data_mse'] = 0
@@ -534,8 +534,8 @@ class SSSVAE(AE):
             loss_dict_torch['loss'] += beta * loss_dict_torch['loss_zu_tc']
 
             # unsupervised latents dimension-wise kl
-            loss_dict_torch['loss_zu_kl'] = dimension_wise_kl
-            loss_dict_torch['loss'] += kl * loss_dict_torch['loss_zu_kl']
+            loss_dict_torch['loss_zu_dwkl'] = dimension_wise_kl
+            loss_dict_torch['loss'] += kl * loss_dict_torch['loss_zu_dwkl']
 
             # orthogonality between A and B
             # A shape: [n_labels, n_latents]

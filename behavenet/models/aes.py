@@ -1256,7 +1256,7 @@ def load_pretrained_ae(model, hparams):
             elif model.hparams['model_class'] == 'beta_tcvae':
                 pass
             elif model.hparams['model_class'] == 'sss_vae':
-                del loaded_model_dict['encoding.D']
+                pass
 
             model.load_state_dict(loaded_model_dict, strict=False)
 
