@@ -312,7 +312,7 @@ def interpolate_2d(
         'latents' | 'labels'
     model : :obj:`behavenet.models` object
         autoencoder model
-    ims_0 : :obj:`np.ndarray`
+    ims_0 : :obj:`torch.Tensor`
         base images for interpolating labels, of shape (1, n_channels, y_pix, x_pix)
     latents_0 : :obj:`np.ndarray`
         base latents of shape (1, n_latents); only two of these dimensions will be changed if
@@ -322,9 +322,9 @@ def interpolate_2d(
     labels_sc_0 : :obj:`np.ndarray`
         base scaled labels in pixel space of shape (1, n_labels, y_pix, x_pix)
     mins : :obj:`array-like`
-        minimum values of labels/latents, one for each interpolated dim (2 values)
+        minimum values of labels/latents, one for each dim
     maxes : :obj:`list`
-        maximum values of labels/latents, one for each interpolated dim (2 values)
+        maximum values of labels/latents, one for each dim
     input_idxs : :obj:`list`
         indices of labels/latents that will be interpolated; for labels, must be y first, then x
         for proper marker recording
@@ -506,7 +506,7 @@ def interpolate_1d(
         'latents' | 'labels'
     model : :obj:`behavenet.models` object
         autoencoder model
-    ims_0 : :obj:`np.ndarray`
+    ims_0 : :obj:`torch.Tensor`
         base images for interpolating labels, of shape (1, n_channels, y_pix, x_pix)
     latents_0 : :obj:`np.ndarray`
         base latents of shape (1, n_latents); only two of these dimensions will be changed if

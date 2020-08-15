@@ -727,6 +727,7 @@ class ConvAESSSEncoder(ConvAEEncoder):
         # final linear transformations
         format_str += str('    {:02d}: {} (to constrained latents)\n'.format(i, self.A))
         format_str += str('    {:02d}: {} (to unconstrained latents)\n'.format(i, self.B))
+        format_str += str('    {:02d}: {} (to constrained latents to labels)\n'.format(i, self.D))
         return format_str
 
     def forward(self, x, dataset=None):
