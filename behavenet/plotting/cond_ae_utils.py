@@ -602,7 +602,8 @@ def interpolate_1d(
                     # get labels
                     if model.hparams['model_class'] == 'ae' \
                             or model.hparams['model_class'] == 'vae' \
-                            or model.hparams['model_class'] == 'beta-tcvae':
+                            or model.hparams['model_class'] == 'beta-tcvae' \
+                            or model.hparams['model_class'] == 'sss-vae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae':
                         labels = torch.from_numpy(labels_0).float()
