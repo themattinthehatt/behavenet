@@ -7,19 +7,44 @@ BehaveNet data structure
 Introduction
 ============
 
-In order to quickly and easily fit many models, BehaveNet uses a standardized data structure. "Raw" experimental data such as behavioral videos and (processed) neural data are stored in the `HDF5 file format <https://support.hdfgroup.org/HDF5/whatishdf5.html>`_. This file format can accomodate large and complex datasets, and is easy to work with thanks to a high-level `python API <https://www.h5py.org/>`_.
+In order to quickly and easily fit many models, BehaveNet uses a standardized data structure. "Raw"
+experimental data such as behavioral videos and (processed) neural data are stored in the
+`HDF5 file format <https://support.hdfgroup.org/HDF5/whatishdf5.html>`_. This file format can
+accomodate large and complex datasets, and is easy to work with thanks to a high-level
+`python API <https://www.h5py.org/>`_.
 
-HDF is an acronym for Hierarchical Data Format, and one can think of it like a full directory structure inside of a single file. HDF5 "groups" are analogous to directories, while HDF5 "datasets" are analogous to files. The BehaveNet code uses up to 3 HDF5 groups: ``images``, ``masks`` (for masking images), and ``neural``. Each of these HDF5 groups contains multiple HDF5 datasets - one for each experimental trial. These datasets should have names that follow the pattern ``trial_%04i`` - datasets with more than 10000 trials are not currently supported with this naming convention.
+HDF is an acronym for Hierarchical Data Format, and one can think of it like a full directory
+structure inside of a single file. HDF5 "groups" are analogous to directories, while HDF5
+"datasets" are analogous to files. The BehaveNet code uses up to 3 HDF5 groups: ``images``,
+``masks`` (for masking images), and ``neural``. Each of these HDF5 groups contains multiple HDF5
+datasets - one for each experimental trial. These datasets should have names that follow the
+pattern ``trial_%04i`` - datasets with more than 10000 trials are not currently supported with this
+naming convention.
 
-BehaveNet models are trained on batches of data, which here are defined as one trial per batch. For datasets that do not have a trial structure (i.e. spontaneous behavior) we recommend splitting frames into arbitrarily defined "trials", the length of which should depend on the autocorrelation of the behavior (i.e. trials should not be shorter than the temporal extent of relevant behaviors). For the NP dataset in the original paper we used batch sizes of 1000 frames (~25 sec), and inserted additional gap trials between training, validation, and testing trials to minimize the possibility that good model performance was due to similarity of trials.
+BehaveNet models are trained on batches of data, which here are defined as one trial per batch. For
+datasets that do not have a trial structure (i.e. spontaneous behavior) we recommend splitting
+frames into arbitrarily defined "trials", the length of which should depend on the autocorrelation
+of the behavior (i.e. trials should not be shorter than the temporal extent of relevant behaviors).
+For the NP dataset in the original paper we used batch sizes of 1000 frames (~25 sec), and inserted
+additional gap trials between training, validation, and testing trials to minimize the possibility
+that good model performance was due to similarity of trials.
 
-Below is a sample python script demonstrating how to create an HDF5 file with video data and neural data. Video data is assumed to be in a list, where each list element corresponds to a single trial, and is a numpy array of shape (n_frames, n_channels, y_pix, x_pix). Neural data is assumed to be in the same format; a corresponding list of numpy arrays of shape (n_frames, n_neurons). BehaveNet does not require all trials to be of the same length, but does require that for each trial the images and neural activity have the same number of frames. This may require you to interpolate/bin video or neural data differently than the rate at which it was acquired.
+Below is a sample python script demonstrating how to create an HDF5 file with video data and neural
+data. Video data is assumed to be in a list, where each list element corresponds to a single trial,
+and is a numpy array of shape (n_frames, n_channels, y_pix, x_pix). Neural data is assumed to be in
+the same format; a corresponding list of numpy arrays of shape (n_frames, n_neurons). BehaveNet
+does not require all trials to be of the same length, but does require that for each trial the
+images and neural activity have the same number of frames. This may require you to interpolate/bin
+video or neural data differently than the rate at which it was acquired.
 
-**Note 1**: for large experiments having all of this data in memory might be infeasible, and more sophisticated processing will be required
+**Note 1**: for large experiments having all of this data in memory might be infeasible, and more
+sophisticated processing will be required
 
-**Note 2**: neural data is only required for fitting decoding models; it is still possible to fit autoencoders and ARHMMs when the HDF5 file only contains images
+**Note 2**: neural data is only required for fitting decoding models; it is still possible to fit
+autoencoders and ARHMMs when the HDF5 file only contains images
 
-**Note 3**: the python package ``h5py`` is required for creating the HDF5 file, and is automatically installed with the BehaveNet package.
+**Note 3**: the python package ``h5py`` is required for creating the HDF5 file, and is
+automatically installed with the BehaveNet package.
 
 .. code-block:: python
 
@@ -131,12 +156,26 @@ This HDF5 file will now have the following addtional datasets:
 Just as the top-level group (here named "regions") can have an arbitrary name (later specified in the data json file), the second-level groups (here named "idxs_lr" and "idxs") can also have arbitrary names, and there can be any number of them, as long as the datasets within them contain valid indices into the neural data. The specific set of indices used for any analyses will be specified in the data json file. See the :ref:`decoding documentation<decoding_with_subsets>` for an example of how to decode behavior using specified subsets of neurons.
 
 
-Including labels for conditional autoencoders
-=============================================
+Including labels for ARHMMs and conditional autoencoders
+========================================================
 
-In order to fit :ref:`conditional autoencoder models<conditional_aes>`, you will need to include additional information about labels in the HDF5 file. These labels can be outputs from pose estimation software, or other behavior-related signals such as pupil diameter or lick times. These labels should be stored in an HDF5 group named ``labels``. As before, the ``labels`` group contains multiple HDF5 datasets - one for each experimental trial. These datasets should also follow the pattern ``trial_%04i``, and match the image data in the corresponding image dataset ``images/trial_%04i``.
+In order to fit :ref:`conditional autoencoder models<conditional_aes>`, you will need to include
+additional information about labels in the HDF5 file. These labels can be outputs from pose
+estimation software, or other behavior-related signals such as pupil diameter or lick times. These
+labels should be stored in an HDF5 group named ``labels``. As before, the ``labels`` group contains
+multiple HDF5 datasets - one for each experimental trial. These datasets should also follow the
+pattern ``trial_%04i``, and match the image data in the corresponding image dataset
+``images/trial_%04i``. If the image data in a given trial is of shape
+(n_frames, n_channels, y_pix, x_pix), then the corresponding label data should be of shape
+(n_frames, n_markers). Note that, when using pose estimation software, each marker has an x- and
+y-coordinate, so tracking four body parts will result in an 8-dimensional set of labels.
 
-Note that, when using pose estimation software, each marker has an x- and y-coordinate, so tracking four body parts will result in an 8-dimensional set of labels.
+It is also possible to fit ARHMMs directly to labels rather than the outputs of an autoencoder. In
+this case ``labels`` is the only necessary HDF5 group, though including a corresponding ``images``
+group will allow you to utilize more of the ARHMM visualization tools. To fit an ARHMM on label
+data, you simply need to change the ``model_class`` entry of the arhmm model json from ``arhmm`` to
+``arhmm-labels`` (see the json config ``arhmm_labels_model.json``).
+
 
 .. note::
     

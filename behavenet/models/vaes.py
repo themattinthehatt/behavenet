@@ -480,7 +480,7 @@ class SSSVAE(AE):
         n_labels = self.hparams['n_labels']
         n_latents = self.hparams['n_ae_latents']
 
-        # beta = self.beta_vals[self.curr_epoch]
+        # compute hyperparameters
         alpha = self.hparams['sss_vae.alpha']
         beta = self.beta_vals[self.curr_epoch]
         gamma = self.hparams['sss_vae.gamma']
