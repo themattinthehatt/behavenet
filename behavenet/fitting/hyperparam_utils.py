@@ -6,7 +6,7 @@ from subprocess import call
 from test_tube import HyperOptArgumentParser
 from test_tube.hpc import SlurmCluster, AbstractCluster
 from behavenet import get_user_dir
-from behavenet.models.ae_model_architecture_generator import load_handcrafted_arch
+from behavenet.models.ae_model_architecture_generator import load_handcrafted_arches
 
 
 def get_all_params(search_type='grid_search', args=None):
@@ -50,10 +50,13 @@ def get_all_params(search_type='grid_search', args=None):
 
 
 def add_to_parser(parser, arg_name, value):
-    if isinstance(value, list):
-        parser.opt_list('--' + arg_name, options=value, tunable=True)
+    if arg_name == 'n_ae_latents':
+        parser.add_argument('--' + 'n_latents', default=str(value))
     else:
-        parser.add_argument('--' + arg_name, default=value)
+        if isinstance(value, list):
+            parser.opt_list('--' + arg_name, options=value, tunable=True)
+        else:
+            parser.add_argument('--' + arg_name, default=value)
 
 
 def add_dependent_params(parser, namespace):
@@ -70,20 +73,21 @@ def add_dependent_params(parser, namespace):
 
         max_latents = 64
         parser.add_argument('--max_latents', default=max_latents)
-
-        arch_dict = load_handcrafted_arch(
+        print(namespace)
+        arch_dicts = load_handcrafted_arches(
             [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
-            namespace.n_ae_latents,
+            namespace.n_latents,
             namespace.ae_arch_json,
             check_memory=False,
             batch_size=namespace.approx_batch_size,
             mem_limit_gb=namespace.mem_limit_gb)
-        parser.opt_list('--architecture_params', options=[arch_dict], tunable=True)
+        parser.opt_list('--architecture_params', options=arch_dicts, tunable=True)
 
-        if (arch_dict['ae_encoding_n_channels'][-1]
-                * arch_dict['ae_encoding_x_dim'][-1]
-                * arch_dict['ae_encoding_y_dim'][-1]) < namespace.n_ae_latents:
-            raise ValueError('Bottleneck smaller than number of latents')
+        # for i, arch_dict in enumerate(arch_dicts):
+        #     if (arch_dict['ae_encoding_n_channels'][-1]
+        #             * arch_dict['ae_encoding_x_dim'][-1]
+        #             * arch_dict['ae_encoding_y_dim'][-1]) < namespace.n_latents[i]:
+        #         raise ValueError('Bottleneck smaller than number of latents')
 
     elif namespace.model_class.find('neural') > -1:
 

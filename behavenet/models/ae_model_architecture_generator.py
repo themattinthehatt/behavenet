@@ -660,6 +660,46 @@ def load_handcrafted_arch(
     return arch_dict
 
 
+def load_handcrafted_arches(
+        input_dim, n_ae_latents, ae_arch_json, batch_size=None, check_memory=True,
+        mem_limit_gb=10):
+    """Load handcrafted autoencoder architectures from a json file.
+
+    Parameters
+    ----------
+    input_dim : :obj:`array-like`
+        dimensions of image with shape (n_channels, y_pix, x_pix)
+    n_ae_latents : :obj:`int` or :obj:`list` of :obj:`ints`
+        number of autoencoder latents
+    ae_arch_json : :obj:`str`
+        path to ae architecture json
+    batch_size : :obj:`int`, optional
+        expected batch size, to ensure that model and intermediate values will fit on gpu
+    check_memory : :obj:`bool`, optional
+        :obj:`True` to check that the memory footprint of each architecture is below a certain
+        threshold
+    mem_limit_gb : :obj:`float`, optional
+        memory threshold in GB
+
+    Returns
+    -------
+    :obj:`dict`
+        dict which fully defines a handcrafted architecture
+
+    """
+    if isinstance(n_ae_latents, int):
+        # single latent value as an int
+        n_ae_latents = [n_ae_latents]
+    elif isinstance(n_ae_latents, str):
+        # multiple latent values as a string '[x, y, z, ...]'
+        n_ae_latents = [int(v) for v in n_ae_latents[1:-1].split(',')]
+    arch_dicts = []
+    for n in n_ae_latents:
+        arch_dicts.append(load_handcrafted_arch(
+            input_dim, n, ae_arch_json, batch_size, check_memory, mem_limit_gb))
+    return arch_dicts
+
+
 def load_default_arch():
     """Load default convolutional AE architecture used in Batty et al 2019"""
     arch = {

@@ -22,12 +22,12 @@ def main(hparams, *args):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
-    # print hparams to console
-    _print_hparams(hparams)
-
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
         hparams = {**hparams['architecture_params'], **hparams}
+
+    # print hparams to console
+    _print_hparams(hparams)
 
     if hparams['model_type'] == 'conv' and hparams['n_ae_latents'] > hparams['max_latents']:
         raise ValueError('Number of latents higher than max latents, architecture will not work')
