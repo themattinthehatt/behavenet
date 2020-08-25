@@ -35,7 +35,7 @@ def concat(ims, axis=1):
     return np.concatenate([ims[0, :, :], ims[1, :, :]], axis=axis)
 
 
-def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, version='best'):
+def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, test=False, version='best'):
     """Load metrics csv file and return as a pandas dataframe for easy plotting.
 
     Parameters
@@ -47,7 +47,9 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, version='best'):
     expt : :obj:`str`
         for `get_lab_example`
     metrics_list : :obj:`list`
-        names of metrics to pull from csv; do not prepend with 'tr', 'val', or 'test
+        names of metrics to pull from csv; do not prepend with 'tr', 'val', or 'test'
+    test : :obj:`bool`
+        True to only return test values (computed once at end of training)
     version: :obj:`str`
         `best` to find best model in tt expt, None to find model with hyperparams defined in
         `hparams`, int to load specific model
@@ -82,29 +84,37 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, version='best'):
     metrics_df = []
     for i, row in metrics.iterrows():
         dataset = 'all' if row['dataset'] == -1 else sess_ids_strs[row['dataset']]
-        # make dict for val data
-        val_dict = {
-            'dataset': dataset,
-            'epoch': row['epoch'],
-            'dtype': 'val'}
-        for metric in metrics_list:
-            metrics_df.append(pd.DataFrame(
-                {**val_dict, 'loss': metric, 'val': row['val_%s' % metric]}, index=[0]))
-        # NOTE: grayed out lines are old version that returns a single dataframe row containing all
-        # losses per epoch; new way creates one row per loss, making it easy to use with seaborn's
-        # FacetGrid object for multi-axis plotting
-        # for metric in metrics_list:
-        #     val_dict[metric] = row['val_%s' % metric]
-        # metrics_df.append(pd.DataFrame(val_dict, index=[0]))
-        # make dict for train data
-        tr_dict = {
-            'dataset': dataset,
-            'epoch': row['epoch'],
-            'dtype': 'train'}
-        for metric in metrics_list:
-            metrics_df.append(pd.DataFrame(
-                {**tr_dict, 'loss': metric, 'val': row['tr_%s' % metric]}, index=[0]))
-        # for metric in metrics_list:
-        #     tr_dict[metric] = row['tr_%s' % metric]
-        # metrics_df.append(pd.DataFrame(tr_dict, index=[0]))
+        if test:
+            test_dict = {
+                'dataset': dataset,
+                'epoch': row['epoch'],
+                'dtype': 'test'}
+            for metric in metrics_list:
+                metrics_df.append(pd.DataFrame(
+                    {**test_dict, 'loss': metric, 'val': row['test_%s' % metric]}, index=[0]))
+        else:
+            # make dict for val data
+            val_dict = {
+                'dataset': dataset,
+                'epoch': row['epoch'],
+                'dtype': 'val'}
+            for metric in metrics_list:
+                metrics_df.append(pd.DataFrame(
+                    {**val_dict, 'loss': metric, 'val': row['val_%s' % metric]}, index=[0]))
+            # NOTE: grayed out lines are old version that returns a single dataframe row containing
+            # all losses per epoch; new way creates one row per loss, making it easy to use with
+            # seaborn's FacetGrid object for multi-axis plotting for metric in metrics_list:
+            #     val_dict[metric] = row['val_%s' % metric]
+            # metrics_df.append(pd.DataFrame(val_dict, index=[0]))
+            # make dict for train data
+            tr_dict = {
+                'dataset': dataset,
+                'epoch': row['epoch'],
+                'dtype': 'train'}
+            for metric in metrics_list:
+                metrics_df.append(pd.DataFrame(
+                    {**tr_dict, 'loss': metric, 'val': row['tr_%s' % metric]}, index=[0]))
+            # for metric in metrics_list:
+            #     tr_dict[metric] = row['tr_%s' % metric]
+            # metrics_df.append(pd.DataFrame(tr_dict, index=[0]))
     return pd.concat(metrics_df, sort=True)
