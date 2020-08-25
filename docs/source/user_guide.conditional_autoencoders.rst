@@ -44,7 +44,7 @@ An alternative way to obtain a more interpretable latent space is to encourage a
 
 For example, imagine we are tracking 4 body parts, each with their own x-y coordinates for each frame. This gives us 8 dimensions of behavior to predict. If we fit a CAE with 10 latent dimensions, we will use 8 of those dimensions to predict the 8 marker dimensions - one latent dimension for each marker dimension. This leaves 2 unconstrained dimensions to predict remaining variability in the images not captured by the labels. The model is trained by minimizing the mean square error between the true and predicted images, as well as the true and predicted labels. Unlike the conditional autoencoder described above, this new loss function has an additional hyperparameter that governs the tradeoff between image reconstruction and label reconstruction.
 
-To fit a single autoencoder with the matrix subspace projection loss (and the default CAE BehaveNet architecture), edit the ``model_class`` and ``msp_weight`` parameters of the ``ae_model.json`` file:
+To fit a single autoencoder with the matrix subspace projection loss (and the default CAE BehaveNet architecture), edit the ``model_class`` and ``msp.alpha`` parameters of the ``ae_model.json`` file:
 
 .. code-block:: json
 
@@ -57,11 +57,11 @@ To fit a single autoencoder with the matrix subspace projection loss (and the de
     "fit_sess_io_layers": false,
     "ae_arch_json": null,
     "model_class": "cond-ae-msp",
-    "msp_weight": 1e-4,
+    "msp.alpha": 1e-4,
     "conditional_encoder": false
     }
 
-The ``msp_weight`` parameter needs to be tuned for each dataset, but ``msp_weight=1.0`` is a reasonable starting value if the labels have each been z-scored.
+The ``msp.alpha`` parameter needs to be tuned for each dataset, but ``msp.alpha=1.0`` is a reasonable starting value if the labels have each been z-scored.
 
 .. note::
     

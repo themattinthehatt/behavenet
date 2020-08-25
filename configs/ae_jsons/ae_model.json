@@ -32,7 +32,7 @@
 
 "conditional_encoder": false, # type: str
 
-"msp_weight": null, # type: float, help: weight on matrix subspace projection loss
+"msp.alpha": null, # type: float, help: weight on matrix subspace projection loss
 
 "vae.beta": 1, # type: int, help: weight on VAE KL divergence term
 
