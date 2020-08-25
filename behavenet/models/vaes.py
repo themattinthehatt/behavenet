@@ -9,7 +9,7 @@ import behavenet.fitting.losses as losses
 from behavenet.models.aes import AE, ConvAEDecoder, ConvAEEncoder
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['reparameterize', 'VAE', 'BetaTCVAE', 'SSSVAE', 'ConvAESSSEncoder']
+__all__ = ['reparameterize', 'VAE', 'ConditionalVAE', 'BetaTCVAE', 'SSSVAE', 'ConvAESSSEncoder']
 
 
 def reparameterize(mu, logvar):
@@ -174,6 +174,162 @@ class VAE(AE):
             x_in = x[idx_beg:idx_end]
             m_in = m[idx_beg:idx_end] if m is not None else None
             x_hat, _, mu, logvar = self.forward(x_in, dataset=dataset, use_mean=False)
+
+            # log-likelihood
+            loss_ll = losses.gaussian_ll(x_in, x_hat, m_in)
+
+            # kl
+            loss_kl = losses.kl_div_to_std_normal(mu, logvar)
+
+            # combine
+            loss = -loss_ll + beta * loss_kl
+
+            if accumulate_grad:
+                loss.backward()
+
+            # get loss value (weighted by batch size)
+            loss_val += loss.item() * (idx_end - idx_beg)
+            loss_ll_val += loss_ll.item() * (idx_end - idx_beg)
+            loss_kl_val += loss_kl.item() * (idx_end - idx_beg)
+            loss_mse_val += losses.gaussian_ll_to_mse(
+                loss_ll.item(), np.prod(x.shape[1:])) * (idx_end - idx_beg)
+
+        loss_val /= batch_size
+        loss_ll_val /= batch_size
+        loss_kl_val /= batch_size
+        loss_mse_val /= batch_size
+
+        loss_dict = {
+            'loss': loss_val, 'loss_ll': loss_ll_val, 'loss_kl': loss_kl_val,
+            'loss_mse': loss_mse_val, 'beta': beta}
+
+        return loss_dict
+
+
+class ConditionalVAE(VAE):
+    """Conditional variational autoencoder class.
+
+    This class constructs conditional convolutional variational autoencoders. At the latent layer
+    an additional set of variables, saved under the 'labels' key in the hdf5 data file, are
+    concatenated with the latents before being reshaped into a 2D array for decoding.
+    """
+
+    def __init__(self, hparams):
+        """See constructor documentation of AE for hparams details.
+
+        Parameters
+        ----------
+        hparams : :obj:`dict`
+            in addition to the standard keys, must also contain :obj:`n_labels` and
+            :obj:`conditional_encoder`
+
+        """
+        super().__init__(hparams)
+
+    def build_model(self):
+        """Construct the model using hparams.
+
+        The ConditionalAE is initialized when :obj:`model_class='cond-ae`, and currently only
+        supports :obj:`model_type='conv` (i.e. no linear)
+        """
+        self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents'] + self.hparams['n_labels']
+        self.encoding = ConvAEEncoder(self.hparams)
+        self.decoding = ConvAEDecoder(self.hparams)
+
+    def forward(self, x, dataset=None, labels=None, labels_2d=None, use_mean=False, **kwargs):
+        """Process input data.
+
+        Parameters
+        ----------
+        x : :obj:`torch.Tensor` object
+            input data of shape (batch, n_channels, y_pix, x_pix)
+        dataset : :obj:`int`
+            used with session-specific io layers
+        labels : :obj:`torch.Tensor` object
+            continuous labels corresponding to input data, of shape (batch, n_labels)
+        labels_2d: :obj:`torch.Tensor` object
+            one-hot labels corresponding to input data, of shape (batch, n_labels, y_pix, x_pix);
+            for a given frame, each channel corresponds to a label and is all zeros with a single
+            value of one in the proper x/y position
+        use_mean : :obj:`bool`
+            True to skip sampling step
+
+        Returns
+        -------
+        :obj:`tuple`
+            - y (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
+            - x (:obj:`torch.Tensor`): hidden representation of shape (n_frames, n_latents)
+
+        """
+        if self.hparams['conditional_encoder']:
+            # append label information to input
+            x = torch.cat((x, labels_2d), dim=1)
+        mu, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
+        if use_mean:
+            z = mu
+        else:
+            z = reparameterize(mu, logvar)
+        z_aug = torch.cat((z, labels), dim=1)
+        x_hat = self.decoding(z_aug, pool_idx, outsize, dataset=dataset)
+        return x_hat, z, mu, logvar
+
+    def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
+        """Calculate ELBO loss for ConditionalVAE.
+
+        The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
+        requirements low; gradients are accumulated across all chunks before a gradient step is
+        taken.
+
+        Parameters
+        ----------
+        data : :obj:`dict`
+            batch of data; keys should include 'images' and 'masks', if necessary
+        dataset : :obj:`int`, optional
+            used for session-specific io layers
+        accumulate_grad : :obj:`bool`, optional
+            accumulate gradient for training step
+        chunk_size : :obj:`int`, optional
+            batch is split into chunks of this size to keep memory requirements low
+
+        Returns
+        -------
+        :obj:`dict`
+            - 'loss' (:obj:`float`): full elbo
+            - 'loss_ll' (:obj:`float`): log-likelihood portion of elbo
+            - 'loss_kl' (:obj:`float`): kl portion of elbo
+            - 'loss_mse' (:obj:`float`): mse (without gaussian constants)
+            - 'beta' (:obj:`float`): weight in front of kl term
+
+        """
+
+        x = data['images'][0]
+        y = data['labels'][0]
+        m = data['masks'][0] if 'masks' in data else None
+        if self.hparams['conditional_encoder']:
+            # continuous labels transformed into 2d one-hot array as input to encoder
+            y_2d = data['labels_sc'][0]
+        else:
+            y_2d = None
+        beta = self.beta_vals[self.curr_epoch]
+
+        batch_size = x.shape[0]
+        n_chunks = int(np.ceil(batch_size / chunk_size))
+
+        loss_val = 0
+        loss_ll_val = 0
+        loss_kl_val = 0
+        loss_mse_val = 0
+        for chunk in range(n_chunks):
+
+            idx_beg = chunk * chunk_size
+            idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+
+            x_in = x[idx_beg:idx_end]
+            y_in = y[idx_beg:idx_end]
+            m_in = m[idx_beg:idx_end] if m is not None else None
+            y_2d_in = y_2d[idx_beg:idx_end] if y_2d is not None else None
+            x_hat, _, mu, logvar = self.forward(
+                x_in, dataset=dataset, use_mean=False, labels=y_in, labels_2d=y_2d_in)
 
             # log-likelihood
             loss_ll = losses.gaussian_ll(x_in, x_hat, m_in)

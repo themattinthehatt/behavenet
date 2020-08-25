@@ -52,7 +52,8 @@ MODELS_TO_FIT = [  # ['model_file']_grid_search
         # {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         # {'model_class': 'beta-tcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         # {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'sss-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        {'model_class': 'cond-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+        # {'model_class': 'sss-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
         # {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
 ]
 
@@ -116,6 +117,7 @@ def make_tmp_data(data_dir):
 def get_model_config_files(model, json_dir):
     if model == 'ae' \
             or model == 'vae' \
+            or model == 'cond-vae' \
             or model == 'beta-tcvae' \
             or model == 'cond-ae-msp' \
             or model == 'sss-vae' \
@@ -196,6 +198,26 @@ def define_new_config_values(model, session='sess-0'):
                 'n_ae_latents': n_ae_latents + TEMP_DATA['n_labels'],
                 'l2_reg': 0.0,
                 'msp.alpha': 1e-5},
+            'training': {
+                'export_train_plots': False,
+                'export_latents': True,
+                'min_n_epochs': 1,
+                'max_n_epochs': 1,
+                'enable_early_stop': False,
+                'train_frac': train_frac,
+                'trial_splits': trial_splits},
+            'compute': {
+                'gpus_viz': str(gpu_id)}}
+    elif model == 'cond-vae':
+        new_values = {
+            'data': data_dict,
+            'model': {
+                'experiment_name': ae_expt_name,
+                'model_class': model,
+                'model_type': ae_model_type,
+                'n_ae_latents': n_ae_latents,
+                'l2_reg': 0.0,
+                'conditional_encoder': False},
             'training': {
                 'export_train_plots': False,
                 'export_latents': True,

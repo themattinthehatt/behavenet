@@ -484,6 +484,25 @@ class TestClass:
         assert expt_dir == model_path
 
         # -------------------------
+        # cond-vae
+        # -------------------------
+        hparams['model_class'] = 'cond-vae'
+        hparams['model_type'] = 'conv'
+        hparams['n_ae_latents'] = 8
+        hparams['experiment_name'] = 'tt_expt'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], hparams['model_type'],
+            '%02i_latents' % hparams['n_ae_latents'], hparams['experiment_name'])
+
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        expt_dir = utils.get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None)
+        assert expt_dir == model_path
+
+        # -------------------------
         # cond-ae [-msp]
         # -------------------------
         hparams['model_class'] = 'cond-ae'
@@ -814,7 +833,7 @@ class TestClass:
             'learning_rate': 1e-4,
             'l2_reg': 1e-2,
             'vae.beta': 1,
-            'vae.beta_anneal_epochs': 100
+            # 'vae.beta_anneal_epochs': 100
         }
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
@@ -829,6 +848,21 @@ class TestClass:
             'l2_reg': 1e-2,
             'beta_tcvae.beta': 1,
             # 'beta_tcvae.beta_anneal_epochs': 100
+        }
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        # cond-vae
+        model_hparams = {
+            'model_class': 'cond-vae',
+            'model_type': 'conv',
+            'n_ae_latents': 6,
+            'fit_sess_io_layers': False,
+            'learning_rate': 1e-4,
+            'l2_reg': 1e-2,
+            'vae.beta': 1,
+            'conditional_encoder': False,
+            # 'vae.beta_anneal_epochs': 100
         }
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}

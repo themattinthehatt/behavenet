@@ -348,6 +348,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     if model_class == 'ae' \
             or model_class == 'vae' \
             or model_class == 'beta-tcvae' \
+            or model_class == 'cond-vae' \
             or model_class == 'cond-ae' \
             or model_class == 'cond-ae-msp' \
             or model_class == 'sss-vae':
@@ -650,6 +651,7 @@ def get_model_params(hparams):
     if model_class == 'ae' \
             or model_class == 'vae' \
             or model_class == 'beta-tcvae' \
+            or model_class == 'cond-vae' \
             or model_class == 'cond-ae' \
             or model_class == 'cond-ae-msp' \
             or model_class == 'sss-vae':
@@ -657,16 +659,15 @@ def get_model_params(hparams):
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['l2_reg'] = hparams['l2_reg']
-        if model_class == 'cond-ae':
+        if model_class == 'cond-ae' or model_class == 'cond-vae':
             hparams_less['conditional_encoder'] = hparams.get('conditional_encoder', False)
         if model_class == 'cond-ae-msp':
             hparams_less['msp.alpha'] = hparams['msp.alpha']
-        if model_class == 'vae':
+        if model_class == 'vae' or model_class == 'cond-vae':
             hparams_less['vae.beta'] = hparams['vae.beta']
-            hparams_less['vae.beta_anneal_epochs'] = hparams['vae.beta_anneal_epochs']
+            # hparams_less['vae.beta_anneal_epochs'] = hparams['vae.beta_anneal_epochs']
         if model_class == 'beta-tcvae':
             hparams_less['beta_tcvae.beta'] = hparams['beta_tcvae.beta']
-            # hparams_less['beta_tcvae.beta_anneal_epochs'] = hparams['betatcvae.beta_anneal_epochs']
         if model_class == 'sss-vae':
             hparams_less['sss_vae.alpha'] = hparams['sss_vae.alpha']
             hparams_less['sss_vae.beta'] = hparams['sss_vae.beta']
