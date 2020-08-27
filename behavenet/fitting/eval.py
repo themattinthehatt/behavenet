@@ -328,16 +328,21 @@ def get_reconstruction(
     if input_type == 'images':
         if model.hparams['model_class'] == 'cond-ae-msp':
             ims_recon, latents, _ = model(inputs, dataset=dataset)
-        elif model.hparams['model_class'] == 'vae' or model.hparams['model_class'] == 'beta-tcvae':
+        elif model.hparams['model_class'] == 'vae' \
+                or model.hparams['model_class'] == 'beta-tcvae':
             ims_recon, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
         elif model.hparams['model_class'] == 'sss-vae':
             ims_recon, _, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
-        else:
-            # TODO: beta-tcvae and sss-vae with apply_inverse_transform
+        elif model.hparams['model_class'] == 'cond-ae':
             ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
+        elif model.hparams['model_class'] == 'cond-vae':
+            ims_recon, latents, _, _ = model(
+                inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
+        else:
+            raise ValueError('Invalid model class %s' % model.hparams['model_class'])
     else:  # input is latents
         # TODO: how to incorporate maxpool layers for decoding only?
-        if model.hparams['model_class'] == 'cond-ae':
+        if model.hparams['model_class'] == 'cond-ae' or model.hparams['model_class'] == 'cond-vae':
             inputs = torch.cat((inputs, labels), dim=1)
         elif model.hparams['model_class'] == 'cond-ae-msp' and apply_inverse_transform:
             inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)

@@ -262,6 +262,7 @@ def get_model_input(
         labels_pt = None
         labels_np = None
     elif hparams['model_class'] == 'cond-ae' \
+            or hparams['model_class'] == 'cond-vae' \
             or hparams['model_class'] == 'cond-ae-msp' \
             or hparams['model_class'] == 'sss-vae' \
             or hparams['model_class'] == 'labels-images':
@@ -416,7 +417,8 @@ def interpolate_2d(
                             or model.hparams['model_class'] == 'beta-tcvae' \
                             or model.hparams['model_class'] == 'sss-vae':
                         labels = None
-                    elif model.hparams['model_class'] == 'cond-ae':
+                    elif model.hparams['model_class'] == 'cond-ae' \
+                            or model.hparams['model_class'] == 'cond-vae':
                         labels = torch.from_numpy(labels_0).float()
                     else:
                         raise NotImplementedError
@@ -605,7 +607,8 @@ def interpolate_1d(
                             or model.hparams['model_class'] == 'beta-tcvae' \
                             or model.hparams['model_class'] == 'sss-vae':
                         labels = None
-                    elif model.hparams['model_class'] == 'cond-ae':
+                    elif model.hparams['model_class'] == 'cond-ae' \
+                            or model.hparams['model_class'] == 'cond-vae':
                         labels = torch.from_numpy(labels_0).float()
                     else:
                         raise NotImplementedError
