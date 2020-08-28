@@ -691,8 +691,10 @@ def load_handcrafted_arches(
         # single latent value as an int
         n_ae_latents = [n_ae_latents]
     elif isinstance(n_ae_latents, str):
-        # multiple latent values as a string '[x, y, z, ...]'
-        n_ae_latents = [int(v) for v in n_ae_latents[1:-1].split(',')]
+        if n_ae_latents.find(',') > -1:
+            n_ae_latents = [int(v) for v in n_ae_latents[1:-1].split(',')]
+        else:
+            n_ae_latents = [int(n_ae_latents)]
     arch_dicts = []
     for n in n_ae_latents:
         arch_dicts.append(load_handcrafted_arch(

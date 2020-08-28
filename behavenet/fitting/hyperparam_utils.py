@@ -73,7 +73,6 @@ def add_dependent_params(parser, namespace):
 
         max_latents = 64
         parser.add_argument('--max_latents', default=max_latents)
-        print(namespace)
         arch_dicts = load_handcrafted_arches(
             [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
             namespace.n_latents,

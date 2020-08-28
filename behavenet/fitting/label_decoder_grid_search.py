@@ -21,13 +21,13 @@ def main(hparams, *args):
     if not isinstance(hparams, dict):
         hparams = vars(hparams)
 
-    # print hparams to console
-    _print_hparams(hparams)
-
     if hparams['model_type'] == 'conv':
         # blend outer hparams with architecture hparams
         hparams = {**hparams, **hparams['architecture_params']}
 
+    # print hparams to console
+    _print_hparams(hparams)
+    
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
