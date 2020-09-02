@@ -13,7 +13,7 @@ from behavenet.fitting.utils import get_session_dir
 # to ignore imports for sphix-autoapidoc
 __all__ = [
     'get_crop', 'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
-    'interpolate_2d', 'interpolate_1d', 'plot_2d_frame_array']
+    'interpolate_2d', 'interpolate_1d', 'plot_2d_frame_array', 'plot_1d_frame_array']
 
 
 def get_crop(im, y_0, y_ext, x_0, x_ext):
@@ -622,7 +622,7 @@ def interpolate_1d(
 
                 # get (new) scaled labels
                 labels_sc = _get_updated_scaled_labels(
-                    labels_sc_0, input_idxs[i0], inputs[i0][i1])
+                    labels_sc_0, input_idxs[i0], inputs_sc[i0][i1])
                 if len(labels_sc_0.shape) == 4:
                     # 2d scaled labels
                     labels_2d = torch.from_numpy(one_hot_2d(labels_sc)).float()
@@ -630,7 +630,8 @@ def interpolate_1d(
                     # 1d scaled labels
                     labels_2d = None
 
-                if model.hparams['model_class'] == 'cond-ae-msp':
+                if model.hparams['model_class'] == 'cond-ae-msp' \
+                        or model.hparams['model_class'] == 'sss-vae':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
                     latents[0, input_idxs[i0]] = inputs[i0][i1]
@@ -699,7 +700,7 @@ def _get_updated_scaled_labels(labels_og, idxs=None, vals=None):
 
         if idxs is not None:
             if isinstance(idxs, int):
-                assert isinstance(vals, int)
+                assert isinstance(vals, float)
                 idxs = [idxs]
                 vals = [vals]
             else:
@@ -757,6 +758,64 @@ def plot_2d_frame_array(
             if markers is not None:
                 axes[r, c].plot(
                     markers[r][c][1], markers[r][c][0], 'o', **marker_kwargs)
+    plt.subplots_adjust(wspace=0, hspace=0, bottom=0, left=0, top=1, right=1)
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        plt.savefig(save_file, dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def plot_1d_frame_array(
+        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None):
+    """Plot list of list of interpolated images output by :func:`interpolate_1d()` in a 2d grid.
+
+    Parameters
+    ----------
+    ims_list : :obj:`list` of :obj:`list`
+        each inner list element holds an np.ndarray of shape (y_pix, x_pix)
+    markers : :obj:`list` of :obj:`list` or NoneType, optional
+        each inner list element holds an array-like object with values (y_pix, x_pix); if None,
+        markers are not plotted on top of frames
+    im_kwargs : :obj:`dict` or NoneType, optional
+        kwargs for `matplotlib.pyplot.imshow()` function (vmin, vmax, cmap, etc)
+    marker_kwargs : :obj:`dict` or NoneType, optional
+        kwargs for `matplotlib.pyplot.plot()` function (markersize, markeredgewidth, etc)
+    figsize : :obj:`tuple`
+        (width, height) in inches
+    save_file : :obj:`str` or NoneType, optional
+        figure saved if not None
+
+    """
+
+    n_y = len(ims_list) * 2
+    n_x = len(ims_list[0])
+    if figsize is None:
+        y_pix, x_pix = ims_list[0][0].shape
+        # how many inches per pixel?
+        in_per_pix = 15 / (x_pix * n_x)
+        figsize = (15, in_per_pix * y_pix * n_y)
+    fig, axes = plt.subplots(n_y, n_x, figsize=figsize)
+
+    if im_kwargs is None:
+        im_kwargs = {'vmin': 0, 'vmax': 1, 'cmap': 'gray'}
+    if marker_kwargs is None:
+        marker_kwargs = {'markersize': 20, 'markeredgewidth': 3}
+
+    for r, ims_list_y in enumerate(ims_list):
+        base_im = ims_list_y[0]
+        for c, im in enumerate(ims_list_y):
+            # plot original images
+            axes[2 * r, c].imshow(im, **im_kwargs)
+            axes[2 * r, c].set_xticks([])
+            axes[2 * r, c].set_yticks([])
+            if markers is not None:
+                axes[2 * r, c].plot(
+                    markers[r][c][1], markers[r][c][0], 'o', **marker_kwargs)
+            # plot differences
+            axes[2 * r + 1, c].imshow(0.5 + (im - base_im), **im_kwargs)
+            axes[2 * r + 1, c].set_xticks([])
+            axes[2 * r + 1, c].set_yticks([])
+
     plt.subplots_adjust(wspace=0, hspace=0, bottom=0, left=0, top=1, right=1)
     if save_file is not None:
         make_dir_if_not_exists(save_file)

@@ -27,7 +27,7 @@ def main(hparams, *args):
 
     # print hparams to console
     _print_hparams(hparams)
-    
+
     # Start at random times (so test tube creates separate folders)
     np.random.seed(random.randint(0, 1000))
     time.sleep(np.random.uniform(1))
