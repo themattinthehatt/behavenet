@@ -427,7 +427,7 @@ class ConvAEDecoder(BaseModule):
             'output_padding': output_padding}
         return args
 
-    def forward(self, x, pool_idx, target_output_size, dataset=None):
+    def forward(self, x, pool_idx=None, target_output_size=None, dataset=None):
         """Process input data.
 
         Parameters

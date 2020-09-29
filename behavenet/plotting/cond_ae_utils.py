@@ -766,7 +766,8 @@ def plot_2d_frame_array(
 
 
 def plot_1d_frame_array(
-        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None):
+        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None,
+        plot_ims=True, plot_diffs=True):
     """Plot list of list of interpolated images output by :func:`interpolate_1d()` in a 2d grid.
 
     Parameters
@@ -784,10 +785,22 @@ def plot_1d_frame_array(
         (width, height) in inches
     save_file : :obj:`str` or NoneType, optional
         figure saved if not None
+    plot_ims : :obj:`bool`
+        plot images
+    plot_diffs : :obj:`bool`
+        plot differences
 
     """
 
-    n_y = len(ims_list) * 2
+    if not (plot_ims or plot_diffs):
+        raise ValueError('Must plot at least one of ims or diffs')
+
+    if plot_ims and plot_diffs:
+        n_y = len(ims_list) * 2
+        offset = 2
+    else:
+        n_y = len(ims_list)
+        offset = 1
     n_x = len(ims_list[0])
     if figsize is None:
         y_pix, x_pix = ims_list[0][0].shape
@@ -805,16 +818,22 @@ def plot_1d_frame_array(
         base_im = ims_list_y[0]
         for c, im in enumerate(ims_list_y):
             # plot original images
-            axes[2 * r, c].imshow(im, **im_kwargs)
-            axes[2 * r, c].set_xticks([])
-            axes[2 * r, c].set_yticks([])
-            if markers is not None:
-                axes[2 * r, c].plot(
-                    markers[r][c][1], markers[r][c][0], 'o', **marker_kwargs)
+            if plot_ims:
+                axes[offset * r, c].imshow(im, **im_kwargs)
+                axes[offset * r, c].set_xticks([])
+                axes[offset * r, c].set_yticks([])
+                if markers is not None:
+                    axes[offset * r, c].plot(
+                        markers[r][c][1], markers[r][c][0], 'o', **marker_kwargs)
             # plot differences
-            axes[2 * r + 1, c].imshow(0.5 + (im - base_im), **im_kwargs)
-            axes[2 * r + 1, c].set_xticks([])
-            axes[2 * r + 1, c].set_yticks([])
+            if plot_diffs and plot_ims:
+                axes[offset * r + 1, c].imshow(0.5 + (im - base_im), **im_kwargs)
+                axes[offset * r + 1, c].set_xticks([])
+                axes[offset * r + 1, c].set_yticks([])
+            elif plot_diffs:
+                axes[offset * r, c].imshow(0.5 + (im - base_im), **im_kwargs)
+                axes[offset * r, c].set_xticks([])
+                axes[offset * r, c].set_yticks([])
 
     plt.subplots_adjust(wspace=0, hspace=0, bottom=0, left=0, top=1, right=1)
     if save_file is not None:
