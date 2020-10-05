@@ -88,7 +88,11 @@ def add_dependent_params(parser, namespace):
         #             * arch_dict['ae_encoding_y_dim'][-1]) < namespace.n_latents[i]:
         #         raise ValueError('Bottleneck smaller than number of latents')
 
-    elif namespace.model_class.find('neural') > -1:
+    else:
+        if getattr(namespace, 'n_latents', False):
+            parser.add_argument('--n_ae_latents', default=namespace.n_latents, type=int)
+
+    if namespace.model_class.find('neural') > -1:
 
         # parse "subsample_idxs_names" arg to determine which index keys to fit; the code below
         # currently supports 'all' (all idx keys) or a single string (single idx key)
