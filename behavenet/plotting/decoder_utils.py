@@ -25,7 +25,7 @@ def get_r2s_by_trial(hparams, model_types):
     hparams : :obj:`dict`
         needs to contain enough information to specify decoders
     model_types : :obj:`list` of :obj:`strs`
-        'ff' | 'ff-mv' | 'lstm'
+        'mlp' | 'mlp-mv' | 'lstm'
 
     Returns
     -------

@@ -550,7 +550,7 @@ class TestClass:
         # neural-ae/ae-neural
         # -------------------------
         hparams['model_class'] = 'neural-ae'
-        hparams['model_type'] = 'ff'
+        hparams['model_type'] = 'mlp'
         hparams['n_ae_latents'] = 8
         hparams['experiment_name'] = 'tt_expt'
         model_path = os.path.join(
@@ -575,7 +575,7 @@ class TestClass:
         # neural-arhmm/arhmm-neural
         # -------------------------
         hparams['model_class'] = 'neural-arhmm'
-        hparams['model_type'] = 'ff'
+        hparams['model_type'] = 'mlp'
         hparams['n_ae_latents'] = 8
         hparams['n_arhmm_states'] = 10
         hparams['transitions'] = 'stationary'
@@ -954,7 +954,7 @@ class TestClass:
         # -----------------
         model_hparams = {
             'model_class': 'neural-ae',
-            'model_type': 'ff',
+            'model_type': 'mlp',
             'ae_experiment_name': 'ae_expt',
             'ae_version': 4,
             'ae_model_type': 'conv',
@@ -972,7 +972,7 @@ class TestClass:
         # -----------------
         model_hparams = {
             'model_class': 'neural-arhmm',
-            'model_type': 'ff',
+            'model_type': 'mlp',
             'arhmm_experiment_name': 'arhmm_expt',
             'arhmm_version': 12,
             'n_arhmm_states': 4,

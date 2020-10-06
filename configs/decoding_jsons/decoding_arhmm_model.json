@@ -46,7 +46,7 @@
 ## Model Architecture ##
 ########################
 
-"model_type": "ff", # type: str, currently ff only option (ff with 0 hidden layers is linear)
+"model_type": "mlp", # type: str, currently mlp only option (mlp with 0 hidden layers is linear)
 
 "n_hid_layers": [1], # type: int
 

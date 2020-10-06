@@ -308,9 +308,9 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     * autoencoder: :obj:`session_dir/ae/conv/08_latents/expt_name`
     * arhmm: :obj:`session_dir/arhmm/08_latents/16_states/stationary/gaussian/expt_name`
     * arhmm-labels: :obj:`session_dir/arhmm-labels/16_states/stationary/gaussian/expt_name`
-    * neural->ae decoder: :obj:`session_dir/neural-ae/08_latents/ff/mctx/expt_name`
+    * neural->ae decoder: :obj:`session_dir/neural-ae/08_latents/mlp/mctx/expt_name`
     * neural->arhmm decoder:
-      :obj:`session_dir/neural-ae/08_latents/16_states/stationary/ff/mctx/expt_name`
+      :obj:`session_dir/neural-ae/08_latents/16_states/stationary/mlp/mctx/expt_name`
     * bayesian decoder:
       :obj:`session_dir/arhmm-decoding/08_latents/16_states/stationary/gaussian/mctx/expt_name`
 

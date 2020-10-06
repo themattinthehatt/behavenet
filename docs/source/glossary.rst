@@ -165,8 +165,8 @@ For both continuous and discrete decoders:
 
 * **model_type**: 
 
-    * 'ff' - standard feedforward neural network; use ``n_hid_layers=0`` (see below) for linear regression
-    * 'ff-mv' - use the neural network to estimate both the mean and the covariance matrix of the AE latents
+    * 'mlp' - standard feedforward neural network; use ``n_hid_layers=0`` (see below) for linear regression
+    * 'mlp-mv' - use the neural network to estimate both the mean and the covariance matrix of the AE latents
     * 'lstm' - currently not implemented
 
 * **n_hid_layers** (*int*): number of hidden layers in decoder, not counting data or output layer

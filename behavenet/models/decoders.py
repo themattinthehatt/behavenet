@@ -20,7 +20,7 @@ class Decoder(BaseModel):
         Parameters
         ----------
         hparams : :obj:`dict`
-            - model_type (:obj:`str`): 'ff' | 'ff-mv' | 'lstm'
+            - model_type (:obj:`str`): 'mlp' | 'mlp-mv' | 'lstm'
             - input_size (:obj:`int`)
             - output_size (:obj:`int`)
             - n_hid_layers (:obj:`int`)
@@ -55,8 +55,8 @@ class Decoder(BaseModel):
     def build_model(self):
         """Construct the model using hparams."""
 
-        if self.hparams['model_type'] == 'ff' or self.hparams['model_type'] == 'ff-mv':
-            self.model = NN(self.hparams)
+        if self.hparams['model_type'] == 'mlp' or self.hparams['model_type'] == 'mlp-mv':
+            self.model = MLP(self.hparams)
         elif self.hparams['model_type'] == 'lstm':
             self.model = LSTM(self.hparams)
         else:
@@ -152,7 +152,7 @@ class Decoder(BaseModel):
         return {'loss': loss_val, 'r2': r2, 'fc': fc}
 
 
-class NN(BaseModule):
+class MLP(BaseModule):
     """Feedforward neural network model."""
 
     def __init__(self, hparams):
@@ -304,7 +304,7 @@ class NN(BaseModule):
         -------
         :obj:`tuple`
             - x (:obj:`torch.Tensor`): mean prediction of model
-            - y (:obj:`torch.Tensor`): precision matrix prediction of model (when using 'ff-mv')
+            - y (:obj:`torch.Tensor`): precision matrix prediction of model (when using 'mlp-mv')
 
         """
         y = None
