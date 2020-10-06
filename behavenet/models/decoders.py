@@ -8,7 +8,7 @@ import behavenet.fitting.losses as losses
 from behavenet.models.base import BaseModule, BaseModel
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['Decoder', 'NN', 'LSTM', 'ConvDecoder']
+__all__ = ['Decoder', 'MLP', 'LSTM', 'ConvDecoder']
 
 
 class Decoder(BaseModel):
