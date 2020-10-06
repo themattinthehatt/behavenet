@@ -13,7 +13,7 @@ from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.models import Decoder
+from behavenet.models import Decoder, HierarchicalDecoder
 
 
 def main(hparams, *args):
@@ -37,24 +37,7 @@ def main(hparams, *args):
     # build data generator
     data_generator = build_data_generator(hparams, sess_ids)
 
-    ex_trial = data_generator.datasets[0].batch_idxs['train'][0]
-    i_sig = hparams['input_signal']
-    o_sig = hparams['output_signal']
-
-    if hparams['model_class'] == 'neural-arhmm':
-        hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
-        hparams['output_size'] = hparams['n_arhmm_states']
-    elif hparams['model_class'] == 'arhmm-neural':
-        hparams['input_size'] = hparams['n_arhmm_states']
-        hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
-    elif hparams['model_class'] == 'neural-ae':
-        hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
-        hparams['output_size'] = hparams['n_ae_latents']
-    elif hparams['model_class'] == 'ae-neural':
-        hparams['input_size'] = hparams['n_ae_latents']
-        hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
-    else:
-        raise ValueError('%s is an invalid model class' % hparams['model_class'])
+    get_io_sizes(hparams)
 
     if hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'ae-neural':
         hparams['ae_model_path'] = os.path.join(
@@ -77,7 +60,10 @@ def main(hparams, *args):
     torch.manual_seed(hparams['rng_seed_model'])
     torch_rng_seed = torch.get_rng_state()
     hparams['model_build_rng_seed'] = torch_rng_seed
-    model = Decoder(hparams)
+    if len(sess_ids) > 1:
+        model = HierarchicalDecoder(hparams)
+    else:
+        model = Decoder(hparams)
     model.to(hparams['device'])
     model.version = exp.version
     torch_rng_seed = torch.get_rng_state()
@@ -100,6 +86,33 @@ def main(hparams, *args):
 
     # get rid of unneeded logging info
     _clean_tt_dir(hparams)
+
+
+def get_io_sizes(hparams, data_generator):
+    """Helper function to determine IO sizes for decoder."""
+
+    ex_trial = data_generator.datasets[0].batch_idxs['train'][0]
+    i_sig = hparams['input_signal']
+    o_sig = hparams['output_signal']
+
+    # TODO: change input/output_size to lists for hierarchical model
+    # e.g. hparams['input_size'] = [
+    #   data_generator.datasets[i][ex_trial][i_sig].shape[1] for i in range(len(sess_ids))]
+    # ex_trial will need to be session-specific as well
+    if hparams['model_class'] == 'neural-arhmm':
+        hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
+        hparams['output_size'] = hparams['n_arhmm_states']
+    elif hparams['model_class'] == 'arhmm-neural':
+        hparams['input_size'] = hparams['n_arhmm_states']
+        hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
+    elif hparams['model_class'] == 'neural-ae':
+        hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
+        hparams['output_size'] = hparams['n_ae_latents']
+    elif hparams['model_class'] == 'ae-neural':
+        hparams['input_size'] = hparams['n_ae_latents']
+        hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
+    else:
+        raise ValueError('%s is an invalid model class' % hparams['model_class'])
 
 
 if __name__ == '__main__':
