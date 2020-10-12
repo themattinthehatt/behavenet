@@ -75,6 +75,12 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
                 signals.append('masks')
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
+            if hparams.get('use_label_mask', False) and (
+                    hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'sss-vae'
+                    ):
+                signals.append('labels_masks')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
             if hparams.get('conditional_encoder', False):
                 from behavenet.data.transforms import MakeOneHot2D
                 signals.append('labels_sc')
@@ -253,6 +259,10 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
             signals = [hparams['model_class']]
             transforms = [None]
             paths = [os.path.join(data_dir, 'data.hdf5')]
+            if hparams.get('use_label_mask', False):
+                signals.append('labels_masks')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
 
         else:
             raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])

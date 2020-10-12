@@ -631,6 +631,7 @@ class SSSVAE(AE):
         x = data['images'][0]
         y = data['labels'][0]
         m = data['masks'][0] if 'masks' in data else None
+        n = data['labels_masks'][0] if 'labels_masks' in data else None
         batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
         n_labels = self.hparams['n_labels']
@@ -659,6 +660,7 @@ class SSSVAE(AE):
             x_in = x[idx_beg:idx_end]
             y_in = y[idx_beg:idx_end]
             m_in = m[idx_beg:idx_end] if m is not None else None
+            n_in = n[idx_beg:idx_end] if n is not None else None
             x_hat, sample, mu, logvar, y_hat = self.forward(x_in, dataset=dataset, use_mean=False)
 
             # reset losses
@@ -669,7 +671,7 @@ class SSSVAE(AE):
             loss_dict_torch['loss'] -= loss_dict_torch['loss_data_ll']
 
             # label log-likelihood
-            loss_dict_torch['loss_label_ll'] = losses.gaussian_ll(y_in, y_hat)
+            loss_dict_torch['loss_label_ll'] = losses.gaussian_ll(y_in, y_hat, n_in)
             loss_dict_torch['loss'] -= alpha * loss_dict_torch['loss_label_ll']
 
             # supervised latents kl
@@ -717,7 +719,12 @@ class SSSVAE(AE):
 
         # use variance-weighted r2s to ignore small-variance latents
         y_hat_all = np.concatenate(y_hat_all, axis=0)
-        r2 = r2_score(y.cpu().detach().numpy(), y_hat_all, multioutput='variance_weighted')
+        y_all = y.cpu().detach().numpy()
+        if n is not None:
+            n_np = n.cpu().detach().numpy()
+            r2 = r2_score(y_all[n_np == 1], y_hat_all[n_np == 1], multioutput='variance_weighted')
+        else:
+            r2 = r2_score(y_all, y_hat_all, multioutput='variance_weighted')
 
         # compile (properly weighted) loss terms
         for key in loss_dict_vals.keys():

@@ -31,6 +31,8 @@
 
 "use_output_mask": false, # type: boolean
 
+"use_label_mask": false, # type: boolean
+
 
 ########################
 ## Neural data params ##

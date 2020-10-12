@@ -94,6 +94,15 @@ def test_get_data_generator_inputs():
     assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
     hparams['use_output_mask'] = False
 
+    hparams['model_class'] = 'sss-vae'
+    hparams['use_label_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['images', 'labels', 'labels_masks']
+    assert transforms[0] == [None, None, None]
+    assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
+    hparams['use_label_mask'] = False
+
     # -----------------
     # cond-vae
     # -----------------
@@ -114,7 +123,7 @@ def test_get_data_generator_inputs():
     hparams['use_output_mask'] = False
 
     # -----------------
-    # cond-ae [-msp]
+    # cond-ae
     # -----------------
     hparams['model_class'] = 'cond-ae'
     hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
@@ -145,12 +154,24 @@ def test_get_data_generator_inputs():
     assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
     hparams['conditional_encoder'] = False
 
+    # -----------------
+    # cond-ae-msp
+    # -----------------
     hparams['model_class'] = 'cond-ae-msp'
     hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
         hparams, sess_ids, check_splits=False)
     assert signals[0] == ['images', 'labels']
     assert transforms[0] == [None, None]
     assert paths[0] == [hdf5_path, hdf5_path]
+
+    hparams['model_class'] = 'cond-ae-msp'
+    hparams['use_label_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['images', 'labels', 'labels_masks']
+    assert transforms[0] == [None, None, None]
+    assert paths[0] == [hdf5_path, hdf5_path, hdf5_path]
+    hparams['use_label_mask'] = False
 
     # -----------------
     # ae_latents
@@ -376,6 +397,14 @@ def test_get_data_generator_inputs():
     assert signals[0] == ['labels']
     assert transforms[0] == [None]
     assert paths[0] == [hdf5_path]
+
+    hparams['use_label_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['labels', 'labels_masks']
+    assert transforms[0] == [None, None]
+    assert paths[0] == [hdf5_path, hdf5_path]
+    hparams['use_label_mask'] = False
 
     # -----------------
     # other

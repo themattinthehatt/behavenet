@@ -274,7 +274,8 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     else:
                         sample[signal] = f[signal][str('trial_%04i' % idx)][()].astype(dtype)
 
-            elif signal == 'neural' or signal == 'labels' or signal == 'labels_sc':
+            elif signal == 'neural' or signal == 'labels' or signal == 'labels_sc' \
+                    or signal == 'labels_masks':
                 dtype = 'float32'
                 with h5py.File(self.paths[signal], 'r', libver='latest', swmr=True) as f:
                     if idx is None:
@@ -288,23 +289,19 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
 
             elif signal == 'ae_latents':
                 dtype = 'float32'
-                sample[signal] = self._try_to_load(
-                    signal, key='latents', idx=idx, dtype=dtype)
+                sample[signal] = self._try_to_load(signal, key='latents', idx=idx, dtype=dtype)
 
             elif signal == 'ae_predictions':
                 dtype = 'float32'
-                sample[signal] = self._try_to_load(
-                    signal, key='predictions', idx=idx, dtype=dtype)
+                sample[signal] = self._try_to_load(signal, key='predictions', idx=idx, dtype=dtype)
 
             elif signal == 'arhmm' or signal == 'arhmm_states':
                 dtype = 'int32'
-                sample[signal] = self._try_to_load(
-                    signal, key='states', idx=idx, dtype=dtype)
+                sample[signal] = self._try_to_load(signal, key='states', idx=idx, dtype=dtype)
 
             elif signal == 'arhmm_predictions':
                 dtype = 'float32'
-                sample[signal] = self._try_to_load(
-                    signal, key='predictions', idx=idx, dtype=dtype)
+                sample[signal] = self._try_to_load(signal, key='predictions', idx=idx, dtype=dtype)
 
             else:
                 raise ValueError('"%s" is an invalid signal type' % signal)

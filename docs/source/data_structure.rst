@@ -37,14 +37,12 @@ does not require all trials to be of the same length, but does require that for 
 images and neural activity have the same number of frames. This may require you to interpolate/bin
 video or neural data differently than the rate at which it was acquired.
 
-**Note 1**: for large experiments having all of this data in memory might be infeasible, and more
-sophisticated processing will be required
+**Notes**:
 
-**Note 2**: neural data is only required for fitting decoding models; it is still possible to fit
-autoencoders and ARHMMs when the HDF5 file only contains images
-
-**Note 3**: the python package ``h5py`` is required for creating the HDF5 file, and is
-automatically installed with the BehaveNet package.
+* for large experiments, having all of this (video) data in memory to create the HDF5 file might be infeasible, and more sophisticated processing will be required
+* neural data is only required for fitting decoding models; it is still possible to fit autoencoders and ARHMMs when the HDF5 file only contains images
+* masks should be the same size as images; a value of 0 excludes the pixel from the loss function, a value of 1 includes it
+* the python package ``h5py`` is required for creating the HDF5 file, and is automatically installed with the BehaveNet package.
 
 .. code-block:: python
 
