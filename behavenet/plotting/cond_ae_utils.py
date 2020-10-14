@@ -53,7 +53,7 @@ def get_crop(im, y_0, y_ext, x_0, x_ext):
 
 def get_input_range(
         input_type, hparams, sess_ids=None, sess_idx=0, model=None, data_gen=None, version=0,
-        min_p=5, max_p=95):
+        min_p=5, max_p=95, apply_label_masks=False):
     """Helper function to compute input range for a variety of data types.
 
     Parameters
@@ -110,6 +110,13 @@ def get_input_range(
         inputs = labels_sc['latents']
     else:
         raise NotImplementedError
+
+    if apply_label_masks:
+        masks = load_labels_like_latents(
+            hparams, sess_ids, sess_idx=sess_idx, data_key='labels_masks')
+        for i, m in zip(inputs, masks):
+            i[m == 0] = np.nan
+
     input_range = compute_range(inputs, min_p=min_p, max_p=max_p)
     return input_range
 
@@ -141,8 +148,8 @@ def compute_range(values_list, min_p=5, max_p=95):
     else:
         values = np.vstack(values_list)
     ranges = {
-        'min': np.percentile(values, min_p, axis=0),
-        'max': np.percentile(values, max_p, axis=0)}
+        'min': np.nanpercentile(values, min_p, axis=0),
+        'max': np.nanpercentile(values, max_p, axis=0)}
     return ranges
 
 

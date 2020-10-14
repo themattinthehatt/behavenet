@@ -407,6 +407,16 @@ def test_get_data_generator_inputs():
     hparams['use_label_mask'] = False
 
     # -----------------
+    # labels_masks
+    # -----------------
+    hparams['model_class'] = 'labels_masks'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['labels_masks']
+    assert transforms[0] == [None]
+    assert paths[0] == [hdf5_path]
+
+    # -----------------
     # other
     # -----------------
     hparams['model_class'] = 'test'

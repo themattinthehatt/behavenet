@@ -295,11 +295,13 @@ class MakeOneHot2D(Transform):
         labels_2d = np.zeros((time, n_labels, self.y_pixels, self.x_pixels))
 
         x_vals = sample[:, :n_labels]
+        x_vals[np.isnan(x_vals)] = -1  # set nans to 0
         x_vals[x_vals > self.x_pixels - 1] = self.x_pixels - 1
         x_vals[x_vals < 0] = 0
         x_vals = np.round(x_vals).astype(np.int)
 
         y_vals = sample[:, n_labels:]
+        y_vals[np.isnan(y_vals)] = -1  # set nans to 0
         y_vals[y_vals > self.y_pixels - 1] = self.y_pixels - 1
         y_vals[y_vals < 0] = 0
         y_vals = np.round(y_vals).astype(np.int)

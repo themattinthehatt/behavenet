@@ -264,6 +264,12 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
 
+        elif hparams['model_class'] == 'labels_masks':
+
+            signals = [hparams['model_class']]
+            transforms = [None]
+            paths = [os.path.join(data_dir, 'data.hdf5')]
+
         else:
             raise ValueError('"%s" is an invalid model_class' % hparams['model_class'])
 

@@ -119,6 +119,19 @@ def test_makeonehot2d():
     s = t(signal)
     assert np.all(s == sp)
 
+    # correct one-hotting with nans in signal
+    t = transforms.MakeOneHot2D(4, 4)
+    signal = np.array([[1, 2, 0, np.nan], [0, 2, 1, 1], [3, 0, np.nan, 2]])
+    sp = np.zeros((3, 2, 4, 4))
+    sp[0, 0, 0, 1] = 1
+    sp[0, 1, 0, 2] = 1
+    sp[1, 0, 1, 0] = 1
+    sp[1, 1, 1, 2] = 1
+    sp[2, 0, 0, 3] = 1
+    sp[2, 1, 2, 0] = 1
+    s = t(signal)
+    assert np.all(s == sp)
+
 
 def test_blockshuffle():
 
