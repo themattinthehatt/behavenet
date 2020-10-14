@@ -581,8 +581,8 @@ def plot_neural_reconstruction_traces(
     sns.set_style('white')
     sns.set_context('poster')
 
-    means = np.mean(traces_ae, axis=0)
-    std = np.std(traces_ae) / scale  # scale for better visualization
+    means = np.nanmean(traces_ae, axis=0)
+    std = np.nanstd(traces_ae) / scale  # scale for better visualization
 
     traces_ae_sc = (traces_ae - means) / std
     traces_neural_sc = (traces_neural - means) / std

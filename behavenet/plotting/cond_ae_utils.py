@@ -77,6 +77,8 @@ def get_input_range(
         defines lower end of range; percentile in [0, 100]
     max_p : :obj:`int`, optional
         defines upper end of range; percentile in [0, 100]
+    apply_label_masks : :obj:`bool`, optional
+        `True` to set masked values to NaN in labels
 
     Returns
     -------
