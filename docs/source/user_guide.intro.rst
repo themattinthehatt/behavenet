@@ -136,4 +136,3 @@ Finally, multiple hyperparameters can be searched over simultaneously; for examp
     }
 
 This job would then fit a total of 4 latent values x 3 regularization values = 12 models.
-

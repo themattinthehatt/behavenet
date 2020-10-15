@@ -3,6 +3,9 @@
 import math
 from torch import nn, save, Tensor
 
+# to ignore imports for sphix-autoapidoc
+__all__ = ['BaseModule', 'BaseModel', 'DiagLinear', 'CustomDataParallel']
+
 
 class BaseModule(nn.Module):
     """Template for PyTorch modules."""
