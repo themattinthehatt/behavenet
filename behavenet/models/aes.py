@@ -115,8 +115,8 @@ class ConvAEEncoder(BaseModule):
 
         # final ff layer to latents
         last_conv_size = self.hparams['ae_encoding_n_channels'][-1] \
-                         * self.hparams['ae_encoding_y_dim'][-1] \
-                         * self.hparams['ae_encoding_x_dim'][-1]
+            * self.hparams['ae_encoding_y_dim'][-1] \
+            * self.hparams['ae_encoding_x_dim'][-1]
         self.FF = nn.Linear(last_conv_size, self.hparams['n_ae_latents'])
 
         # If VAE model, have additional ff layer to latent variances
@@ -260,8 +260,8 @@ class ConvAEDecoder(BaseModule):
 
         # First ff layer (from latents to size of last encoding layer)
         first_conv_size = self.hparams['ae_decoding_starting_dim'][0] \
-                          * self.hparams['ae_decoding_starting_dim'][1] \
-                          * self.hparams['ae_decoding_starting_dim'][2]
+            * self.hparams['ae_decoding_starting_dim'][1] \
+            * self.hparams['ae_decoding_starting_dim'][2]
         self.FF = nn.Linear(self.hparams['hidden_layer_size'], first_conv_size)
 
         self.decoder = nn.ModuleList()
@@ -473,7 +473,7 @@ class ConvAEDecoder(BaseModule):
                     # (-i does cropping!)
                     x = functional.pad(x, [-i for i in self.conv_t_pads[name]])
             elif isinstance(layer, nn.Linear):
-                x = x.view(x.shape[0],-1)
+                x = x.view(x.shape[0], -1)
                 x = layer(x)
                 x = x.view(
                     -1,
@@ -659,9 +659,9 @@ class AE(BaseModel):
         self.hparams = hparams
         self.model_type = self.hparams['model_type']
         self.img_size = (
-                self.hparams['n_input_channels'],
-                self.hparams['y_pixels'],
-                self.hparams['x_pixels'])
+            self.hparams['n_input_channels'],
+            self.hparams['y_pixels'],
+            self.hparams['x_pixels'])
         self.encoding = None
         self.decoding = None
         self.build_model()

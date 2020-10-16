@@ -516,7 +516,7 @@ def find_session_dirs(hparams):
     expts = get_subdirs(os.path.join(hparams['save_dir'], lab))
     # need to grab all multi-sessions as well as the single session
     session_dirs = []  # full paths
-    session_ids  = []  # dict of lab/expt/animal/session
+    session_ids = []  # dict of lab/expt/animal/session
     for expt in expts:
         if expt[:5] == 'multi':
             session_dir = os.path.join(hparams['save_dir'], lab, expt)

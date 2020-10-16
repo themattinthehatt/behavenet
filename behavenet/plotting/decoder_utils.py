@@ -63,10 +63,9 @@ def get_r2s_by_trial(hparams, model_types):
                 # read metrics csv file
                 model_dir = os.path.join(expt_dir, version)
                 try:
-                    metric = pd.read_csv(
-                        os.path.join(model_dir, 'metrics.csv'))
+                    metric = pd.read_csv(os.path.join(model_dir, 'metrics.csv'))
                     model_counter += 1
-                except:
+                except FileNotFoundError:
                     continue
                 with open(os.path.join(model_dir, 'meta_tags.pkl'), 'rb') as f:
                     hparams = pickle.load(f)

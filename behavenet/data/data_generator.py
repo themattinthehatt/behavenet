@@ -199,7 +199,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     break
             elif signal == 'ae_latents':
                 try:
-                    latents = _load_pkl_dict(self.paths[signal], 'latents') #[0]
+                    latents = _load_pkl_dict(self.paths[signal], 'latents')
                 except FileNotFoundError:
                     raise NotImplementedError(
                         ('Could not open %s\nMust create ae latents from model;' +
@@ -623,7 +623,7 @@ class ConcatSessionsGenerator(object):
 
         if self.as_numpy:
             for i, signal in enumerate(sample):
-                if signal is not 'batch_idx':
+                if signal != 'batch_idx':
                     sample[signal] = [ss.cpu().detach().numpy() for ss in sample[signal]]
         else:
             if self.device == 'cuda':

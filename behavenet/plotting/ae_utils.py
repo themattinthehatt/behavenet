@@ -367,10 +367,14 @@ def make_neural_reconstruction_movie(
     # check that the axes are correct
     fontsize = 12
     idx = 0
-    axs[idx].set_title('Original', fontsize=fontsize); idx += 1
-    axs[idx].set_title('AE reconstructed', fontsize=fontsize); idx += 1
-    axs[idx].set_title('Neural reconstructed', fontsize=fontsize); idx += 1
-    axs[idx].set_title('Reconstructions residual', fontsize=fontsize); idx += 1
+    axs[idx].set_title('Original', fontsize=fontsize)
+    idx += 1
+    axs[idx].set_title('AE reconstructed', fontsize=fontsize)
+    idx += 1
+    axs[idx].set_title('Neural reconstructed', fontsize=fontsize)
+    idx += 1
+    axs[idx].set_title('Reconstructions residual', fontsize=fontsize)
+    idx += 1
     axs[idx].set_title('AE latent predictions', fontsize=fontsize)
     axs[idx].set_xlabel('Time (bins)', fontsize=fontsize)
 

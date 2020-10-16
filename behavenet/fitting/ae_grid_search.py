@@ -165,5 +165,3 @@ if __name__ == '__main__':
                 main,
                 nb_trials=hyperparams.tt_n_cpu_trials,
                 nb_workers=hyperparams.tt_n_cpu_workers)
-
-

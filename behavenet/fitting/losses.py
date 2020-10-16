@@ -389,6 +389,6 @@ def subspace_overlap(A, B):
     """
     C = torch.cat([A, B], dim=0)
     d = C.shape[0]
-    I = torch.eye(d, device=C.device)
-    return torch.mean((torch.matmul(C, torch.transpose(C, 1, 0)) - I).pow(2))
+    eye = torch.eye(d, device=C.device)
+    return torch.mean((torch.matmul(C, torch.transpose(C, 1, 0)) - eye).pow(2))
     # return torch.mean(torch.matmul(A, torch.transpose(B, 1, 0)).pow(2))

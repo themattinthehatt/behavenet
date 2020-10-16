@@ -59,7 +59,7 @@ def main(hparams):
         data_generator, sess_idxs=list(range(n_datasets)), data_key=data_key)
     obs_dim = latents['train'][0].shape[1]
 
-    hparams['total_train_length'] = np.sum([l.shape[0] for l in latents['train']])
+    hparams['total_train_length'] = np.sum([z.shape[0] for z in latents['train']])
     # get separated by dataset as well
     latents_sess = {d: None for d in range(n_datasets)}
     trial_idxs_sess = {d: None for d in range(n_datasets)}
@@ -206,7 +206,7 @@ def main(hparams):
     # save model
     filepath = os.path.join(hparams['expt_dir'], 'version_%i' % exp.version, 'best_val_model.pt')
     with open(filepath, 'wb') as f:
-        pickle.dump(hmm, f)   
+        pickle.dump(hmm, f)
 
     # ######################
     # ### EVALUATE ARHMM ###

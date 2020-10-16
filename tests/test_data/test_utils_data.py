@@ -639,7 +639,7 @@ def test_get_region_list(tmpdir):
         'i2': np.array([6, 7, 8])}
     with h5py.File(path, 'w') as f:
         group0 = f.create_group('group0')
-        groupa = f.create_group('groupa')
+        # groupa = f.create_group('groupa')
         group1 = group0.create_group('group1')
         group1.create_dataset('i0', data=idx_data['i0'])
         group1.create_dataset('i1', data=idx_data['i1'])

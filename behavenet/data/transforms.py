@@ -306,8 +306,8 @@ class MakeOneHot2D(Transform):
         y_vals[y_vals < 0] = 0
         y_vals = np.round(y_vals).astype(np.int)
 
-        for l in range(n_labels):
-            labels_2d[np.arange(time), l, y_vals[:, l], x_vals[:, l]] = 1
+        for n in range(n_labels):
+            labels_2d[np.arange(time), n, y_vals[:, n], x_vals[:, n]] = 1
         return labels_2d
 
     def __repr__(self):

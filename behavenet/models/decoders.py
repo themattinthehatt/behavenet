@@ -384,9 +384,9 @@ class ConvDecoder(BaseModel):
         self.hparams = hparams
         self.model_type = self.hparams['model_type']
         self.img_size = (
-                self.hparams['n_input_channels'],
-                self.hparams['y_pixels'],
-                self.hparams['x_pixels'])
+            self.hparams['n_input_channels'],
+            self.hparams['y_pixels'],
+            self.hparams['x_pixels'])
         self.decoding = None
         self.build_model()
 

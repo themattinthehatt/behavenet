@@ -158,7 +158,7 @@ def export_states(hparams, data_generator, model, filename=None):
                 y = data['labels'][0][0]
             else:
                 y = data['ae_latents'][0][0]
-            batch_size = y.shape[0]
+            # batch_size = y.shape[0]
 
             curr_states = model.most_likely_states(y)
 
@@ -315,7 +315,7 @@ def get_reconstruction(
     import torch
 
     model.eval()
-    
+
     if not isinstance(inputs, torch.Tensor):
         inputs = torch.Tensor(inputs)
 

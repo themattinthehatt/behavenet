@@ -635,7 +635,7 @@ class SSSVAE(AE):
         batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
         n_labels = self.hparams['n_labels']
-        n_latents = self.hparams['n_ae_latents']
+        # n_latents = self.hparams['n_ae_latents']
 
         # compute hyperparameters
         alpha = self.hparams['sss_vae.alpha']

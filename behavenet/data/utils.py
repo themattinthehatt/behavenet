@@ -76,8 +76,8 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
             if hparams.get('use_label_mask', False) and (
-                    hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'sss-vae'
-                    ):
+                    hparams['model_class'] == 'cond-ae-msp'
+                    or hparams['model_class'] == 'sss-vae'):
                 signals.append('labels_masks')
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
@@ -303,10 +303,19 @@ def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
         'neural_arhmm_predictions'
     hparams : :obj:`dict`
         - required keys for :obj:`data_type=neural`: 'neural_type', 'neural_thresh'
-        - required keys for :obj:`data_type=ae_latents`: 'ae_experiment_name', 'ae_model_type', 'n_ae_latents', 'ae_version' or 'ae_latents_file'; this last option defines either the specific ae version (as 'best' or an int) or a path to a specific ae latents pickle file.
-        - required keys for :obj:`data_type=arhmm_states`: 'arhmm_experiment_name', 'n_arhmm_states', 'kappa', 'noise_type', 'n_ae_latents', 'arhmm_version' or 'arhmm_states_file'; this last option defines either the specific arhmm version (as 'best' or an int) or a path to a specific ae latents pickle file.
-        - required keys for :obj:`data_type=neural_ae_predictions`: 'neural_ae_experiment_name', 'neural_ae_model_type', 'neural_ae_version' or 'ae_predictions_file' plus keys for neural and ae_latents data types.
-        - required keys for :obj:`data_type=neural_arhmm_predictions`: 'neural_arhmm_experiment_name', 'neural_arhmm_model_type', 'neural_arhmm_version' or 'arhmm_predictions_file', plus keys for neural and arhmm_states data types.
+        - required keys for :obj:`data_type=ae_latents`: 'ae_experiment_name', 'ae_model_type',
+          'n_ae_latents', 'ae_version' or 'ae_latents_file'; this last option defines either the
+          specific ae version (as 'best' or an int) or a path to a specific ae latents pickle file.
+        - required keys for :obj:`data_type=arhmm_states`: 'arhmm_experiment_name',
+          'n_arhmm_states', 'kappa', 'noise_type', 'n_ae_latents', 'arhmm_version' or
+          'arhmm_states_file'; this last option defines either the specific arhmm version (as
+          'best' or an int) or a path to a specific ae latents pickle file.
+        - required keys for :obj:`data_type=neural_ae_predictions`: 'neural_ae_experiment_name',
+          'neural_ae_model_type', 'neural_ae_version' or 'ae_predictions_file' plus keys for neural
+          and ae_latents data types.
+        - required keys for :obj:`data_type=neural_arhmm_predictions`:
+          'neural_arhmm_experiment_name', 'neural_arhmm_model_type', 'neural_arhmm_version' or
+          'arhmm_predictions_file', plus keys for neural and arhmm_states data types.
     sess_id : :obj:`dict`
         each list entry is a session-specific dict with keys 'lab', 'expt', 'animal', 'session'
     check_splits : :obj:`bool`, optional

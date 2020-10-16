@@ -131,9 +131,9 @@ def test_get_decoding_conv_block():
     assert arch['ae_decoding_n_channels'][-1] == input_dim[0]
     for i in range(len(arch['ae_decoding_n_channels']) - 1):
         assert arch['ae_decoding_layer_type'][i] in ['convtranspose']
-        assert arch['ae_decoding_n_channels'][i] == arch['ae_encoding_n_channels'][-2-i]
-        assert arch['ae_decoding_kernel_size'][i] == arch['ae_encoding_kernel_size'][-1-i]
-        assert arch['ae_decoding_stride_size'][i] == arch['ae_encoding_stride_size'][-1-i]
+        assert arch['ae_decoding_n_channels'][i] == arch['ae_encoding_n_channels'][-2 - i]
+        assert arch['ae_decoding_kernel_size'][i] == arch['ae_encoding_kernel_size'][-1 - i]
+        assert arch['ae_decoding_stride_size'][i] == arch['ae_encoding_stride_size'][-1 - i]
 
     # using correct options (with maxpool)
     np.random.seed(16)
@@ -143,9 +143,9 @@ def test_get_decoding_conv_block():
     print(arch)
     for i in range(len(arch['ae_decoding_n_channels']) - 1):
         assert arch['ae_decoding_layer_type'][i] in ['convtranspose', 'unpool']
-        assert arch['ae_decoding_n_channels'][i] == arch['ae_encoding_n_channels'][-2-i]
-        assert arch['ae_decoding_kernel_size'][i] == arch['ae_encoding_kernel_size'][-1-i]
-        assert arch['ae_decoding_stride_size'][i] == arch['ae_encoding_stride_size'][-1-i]
+        assert arch['ae_decoding_n_channels'][i] == arch['ae_encoding_n_channels'][-2 - i]
+        assert arch['ae_decoding_kernel_size'][i] == arch['ae_encoding_kernel_size'][-1 - i]
+        assert arch['ae_decoding_stride_size'][i] == arch['ae_encoding_stride_size'][-1 - i]
 
     # using correct options (with final ff layer)
     arch['ae_decoding_last_FF_layer'] = True

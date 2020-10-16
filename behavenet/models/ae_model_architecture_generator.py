@@ -106,19 +106,19 @@ def get_possible_arch(input_dim, n_ae_latents, arch_seed=0):
 
     arch = {}
     arch['ae_input_dim'] = input_dim
-    arch['model_type'] = 'conv' 
+    arch['model_type'] = 'conv'
     arch['n_ae_latents'] = n_ae_latents
     arch['ae_decoding_last_FF_layer'] = 0
     # arch['ae_decoding_last_FF_layer'] = np.random.choice(
     #     np.asarray([0, 1]), p=np.asarray([1 - opts['FF_layer_prob'], opts['FF_layer_prob']]))
-    arch['ae_batch_norm'] = 0 
+    arch['ae_batch_norm'] = 0
     arch['ae_batch_norm_momentum'] = None
 
     # First decide if strides only or max pooling
     # network_types = ['strides_only', 'max_pooling']
     # arch['ae_network_type'] = network_types[np.random.randint(2)]
     arch['ae_network_type'] = 'strides_only'
-    
+
     # Then decide if padding is 0 (0) or same (1) for all layers
     padding_types = ['valid', 'same']
     arch['ae_padding_type'] = padding_types[np.random.randint(2)]
@@ -255,7 +255,7 @@ def get_encoding_conv_block(arch, opts):
                 break
 
         last_dims = arch['ae_encoding_n_channels'][-1] * arch['ae_encoding_y_dim'][-1] * \
-                    arch['ae_encoding_x_dim'][-1]
+            arch['ae_encoding_x_dim'][-1]
         smallest_pix = min(arch['ae_encoding_y_dim'][-1], arch['ae_encoding_x_dim'][-1])
         p = opts['prob_stopping'][global_layer]
         stop_this_layer = np.random.choice([0, 1], p=[1 - p, p])
@@ -348,7 +348,8 @@ def calculate_output_dim(input_dim, kernel, stride, padding_type, layer_type):
     """Calculate output dimension of a layer/dimension based on input size, kernel size, etc.
 
     Inspired by:
-        - https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/common_shape_fns.cc#L21
+        - https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/
+          common_shape_fns.cc#L21
         - https://github.com/pytorch/pytorch/issues/3867
 
     Parameters
@@ -506,17 +507,17 @@ def get_handcrafted_dims(arch, symmetric=True):
     """
 
     arch['model_type'] = 'conv'
-    
+
     arch['ae_encoding_x_dim'] = []
     arch['ae_encoding_y_dim'] = []
     arch['ae_encoding_x_padding'] = []
     arch['ae_encoding_y_padding'] = []
 
     for i_layer in range(len(arch['ae_encoding_n_channels'])):
-        
+
         kernel_size = arch['ae_encoding_kernel_size'][i_layer]
         stride_size = arch['ae_encoding_stride_size'][i_layer]
-        
+
         if i_layer == 0:  # use input dimensions
             input_dim_y = arch['ae_input_dim'][1]
             input_dim_x = arch['ae_input_dim'][2]
@@ -533,8 +534,8 @@ def get_handcrafted_dims(arch, symmetric=True):
 
         arch['ae_encoding_x_dim'].append(output_dim_x)
         arch['ae_encoding_y_dim'].append(output_dim_y)
-        arch['ae_encoding_x_padding'].append((x_before_pad,x_after_pad))
-        arch['ae_encoding_y_padding'].append((y_before_pad,y_after_pad))
+        arch['ae_encoding_x_padding'].append((x_before_pad, x_after_pad))
+        arch['ae_encoding_y_padding'].append((y_before_pad, y_after_pad))
 
     if symmetric:
         arch = get_decoding_conv_block(arch)
@@ -552,7 +553,7 @@ def get_handcrafted_dims(arch, symmetric=True):
         for i_layer in range(len(arch['ae_decoding_n_channels'])):
             kernel_size = arch['ae_decoding_kernel_size'][i_layer]
             stride_size = arch['ae_decoding_stride_size'][i_layer]
-        
+
             if i_layer == 0:  # use input dimensions
                 input_dim_y = arch['ae_decoding_starting_dim'][1]
                 input_dim_x = arch['ae_decoding_starting_dim'][2]
@@ -562,8 +563,9 @@ def get_handcrafted_dims(arch, symmetric=True):
 
             # TODO: not correct
             if arch['ae_padding_type'] == 'valid':
-                before_pad = 0
-                after_pad = 0
+                pass
+                # before_pad = 0
+                # after_pad = 0
             elif arch['ae_padding_type'] == 'same':
                 # output_dim_x, x_before_pad, y_before_pad = calculate_output_dim(
                 #     input_dim_x, kernel_size, stride_size, 'same', 'conv')

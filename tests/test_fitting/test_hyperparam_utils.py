@@ -37,7 +37,7 @@ def test_get_all_params():
     training_config = os.path.join(
         os.getcwd(), 'configs', 'arhmm_jsons', 'arhmm_training.json')
     compute_config = os.path.join(
-            os.getcwd(), 'configs', 'arhmm_jsons', 'arhmm_compute.json')
+        os.getcwd(), 'configs', 'arhmm_jsons', 'arhmm_compute.json')
     args = [
         '--data_config', data_config,
         '--model_config', model_config,
@@ -133,7 +133,7 @@ def test_add_dependent_params(tmpdir):
         'i2': np.array([6, 7, 8])}
     with h5py.File(path, 'w') as f:
         group0 = f.create_group('regions')
-        groupa = f.create_group('neural')
+        # groupa = f.create_group('neural')
         group1 = group0.create_group('indxs')
         group1.create_dataset('i0', data=idx_data['i0'])
         group1.create_dataset('i1', data=idx_data['i1'])

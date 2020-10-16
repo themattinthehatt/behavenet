@@ -130,7 +130,7 @@ class CustomSlurmCluster(SlurmCluster):
             self.slurm_files_log_path, '{}_slurm_cmd.sh'.format(timestamp))
         run_cmd = self.__get_run_command(
             trial_params, slurm_cmd_script_path, timestamp, exp_i, self.on_gpu)
-        sbatch_params = open(self.master_slurm_file,'r').read()
+        sbatch_params = open(self.master_slurm_file, 'r').read()
         slurm_cmd = sbatch_params+run_cmd
         self._SlurmCluster__save_slurm_cmd(slurm_cmd, slurm_cmd_script_path)
 

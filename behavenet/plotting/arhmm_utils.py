@@ -4,7 +4,6 @@ import pickle
 import os
 import numpy as np
 import torch
-import scipy
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.animation as animation
@@ -14,7 +13,8 @@ from behavenet.models import AE as AE
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
-    'get_discrete_chunks', 'get_state_durations', 'get_latent_arrays_by_dtype', 'get_model_latents_states',
+    'get_discrete_chunks', 'get_state_durations', 'get_latent_arrays_by_dtype',
+    'get_model_latents_states',
     'make_syllable_movies_wrapper', 'make_syllable_movies',
     'real_vs_sampled_wrapper', 'make_real_vs_sampled_movies', 'plot_real_vs_sampled',
     'plot_states_overlaid_with_latents', 'plot_state_transition_matrix', 'plot_dynamics_matrices',
@@ -56,9 +56,11 @@ def get_discrete_chunks(states, include_edges=True):
             which_state = chunk[split_indices[i]+1]
             if not include_edges:
                 if split_indices[i] != 0 and split_indices[i+1] != (len(chunk)-2):
-                    indexing_list[which_state].append([i_chunk, split_indices[i], split_indices[i+1]])
+                    indexing_list[which_state].append(
+                        [i_chunk, split_indices[i], split_indices[i+1]])
             else:
-                indexing_list[which_state].append([i_chunk, split_indices[i], split_indices[i + 1]])
+                indexing_list[which_state].append(
+                    [i_chunk, split_indices[i], split_indices[i+1]])
 
     # convert lists to numpy arrays
     indexing_list = [np.asarray(indexing_list[i_state]) for i_state in range(max_state + 1)]
@@ -184,7 +186,8 @@ def get_model_latents_states(
     else:
         _, version = experiment_exists(hparams, which_version=True)
     if version is None:
-        raise FileNotFoundError('Could not find the specified model version in %s' % hparams['expt_dir'])
+        raise FileNotFoundError(
+            'Could not find the specified model version in %s' % hparams['expt_dir'])
 
     # load model
     model_file = os.path.join(hparams['expt_dir'], 'version_%i' % version, 'best_val_model.pt')
@@ -916,8 +919,8 @@ def plot_dynamics_matrices(model, deridge=False):
     for k in range(K):
         plt.subplot(n_rows, n_cols, k + 1)
         im = plt.imshow(mats[k], cmap='RdBu_r', clim=[-clim, clim])
-        for l in range(n_lags - 1):
-            plt.axvline((l + 1) * D - 0.5, ymin=0, ymax=K, color=[0, 0, 0])
+        for lag in range(n_lags - 1):
+            plt.axvline((lag + 1) * D - 0.5, ymin=0, ymax=K, color=[0, 0, 0])
         plt.xticks([])
         plt.yticks([])
         plt.title('State %i' % k)

@@ -44,17 +44,17 @@ TEMP_DATA = {
 SESSIONS = ['sess-0', 'sess-1']
 
 MODELS_TO_FIT = [  # ['model_file']_grid_search
-        {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
-        {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
-        {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
-        {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
-        {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'beta-tcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'cond-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'sss-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-        {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
+    {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
+    {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+    {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+    {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
+    {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'beta-tcvae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'cond-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'sss-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
 ]
 
 """
