@@ -34,7 +34,7 @@ example; below is the relevant section of the json file located in
 
 The Musall dataset provided with the repo (see ``behavenet/example/00_data.ipynb``) contains
 autoencoders trained on two sessions individually, as well as a single autoencoder trained on both
-sessions as an example of this.
+sessions as an example of this feature.
 
 
 .. _all_keyword:
@@ -60,9 +60,9 @@ experiment, or lab. For example, if we want to fit a model on all sessions from 
     "all_source": "save", # type: str, help: "save" or "data"
 
 In this case the resulting models will be stored in the directory
-``save_dir/musall/vistrained/mSM30/multisession-xx``, where ``xx`` can change. BehaveNet will
-create a csv file named ``session_info.csv`` inside the multisession directory that lists the
-lab, expt, animal, and session for all sessions in that multisession.
+``save_dir/musall/vistrained/mSM30/multisession-xx``, where ``xx`` is selected automatically.
+BehaveNet will create a csv file named ``session_info.csv`` inside the multisession directory that
+lists the lab, expt, animal, and session for all sessions in that multisession.
 
 
 If we want to fit a model on all sessions from all animals in the ``vistrained`` experiment, we
@@ -99,8 +99,8 @@ further entries.
 
 .. _sessions_csv:
 
-Method 2: session_info.csv file
---------------------------------
+Method 2: specify sessions in a csv file
+----------------------------------------
 This method is appropriate if you want finer control over which sessions are included; for example,
 if you want all sessions from one animal, as well as all but one session from another animal. To
 specify these sessions, you can construct a csv file with the four column headers ``lab``,
@@ -123,3 +123,83 @@ specify these sessions, you can construct a csv file with the four column header
 
 The ``sessions_csv`` parameter takes precedence over any values supplied for ``lab``, ``expt``,
 ``animal``, ``session``, and ``all_source``.
+
+
+Loading a trained multisession model
+------------------------------------
+
+The approach is almost identical to that laid out in :ref:`Loading a trained model<load_model>`;
+namely, you can either specify the "best" model, the model version, or fully specify all the model
+hyperparameters. The one necessary change is to alert BehaveNet that you want to load a
+multisession model. As above, you can do this by either using the "all" keyword or a csv file.
+The code snippets below illustrate both of these methods when loading the "best" model.
+
+Method 1: use the "all" keyword to specify all sessions for a particular animal:
+
+.. code-block:: python
+
+    # imports
+    from behavenet import get_user_dir
+    from behavenet.fitting.utils import get_best_model_and_data
+    from behavenet.fitting.utils import get_expt_dir
+    from behavenet.fitting.utils import get_lab_example
+    from behavenet.fitting.utils import get_session_dir
+    from behavenet.models import AE as Model
+
+    # define necessary hyperparameters
+    hparams = {
+        'data_dir': get_user_dir('data'),
+        'save_dir': get_user_dir('save'),
+        'lab': 'musall',
+        'expt': 'vistrained',
+        'animal': 'mSM30',
+        'session': 'all',  # use all sessions for animal mSM30
+        'experiment_name': 'ae-example',
+        'model_class': 'ae',
+        'model_type': 'conv',
+        'n_ae_latents': 10,
+    }
+
+    # programmatically fill out other hparams options
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
+
+    # use helper function to load model and data generator
+    model, data_generator = get_best_model_and_data(hparams, Model, version='best')
+
+As above, the ``all`` keyword can also be used at the animal or expt level, though not currently at
+the lab level.
+
+Method 2: use a sessions csv file:
+
+.. code-block:: python
+
+    # imports
+    from behavenet import get_user_dir
+    from behavenet.fitting.utils import get_best_model_and_data
+    from behavenet.fitting.utils import get_expt_dir
+    from behavenet.fitting.utils import get_lab_example
+    from behavenet.fitting.utils import get_session_dir
+    from behavenet.models import AE as Model
+
+    # define necessary hyperparameters
+    hparams = {
+        'data_dir': get_user_dir('data'),
+        'save_dir': get_user_dir('save'),
+        'sessions_csv': '/path/to/csv/file',
+        'experiment_name': 'ae-example',
+        'model_class': 'ae',
+        'model_type': 'conv',
+        'n_ae_latents': 10,
+    }
+
+    # programmatically fill out other hparams options
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
+
+    # use helper function to load model and data generator
+    model, data_generator = get_best_model_and_data(hparams, Model, version='best')
+
+In both cases, iterating through the data proceeds exactly as when using a single session, and the
+second return value from ``data_generator.next_batch()`` identifies which session the batch belongs
+to.

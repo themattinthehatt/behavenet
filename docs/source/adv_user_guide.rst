@@ -8,4 +8,4 @@ Advanced user guide
 
    adv_user_guide.slurm
    adv_user_guide.load_model
-
+   adv_user_guide.multisession

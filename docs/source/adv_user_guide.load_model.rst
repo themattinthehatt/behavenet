@@ -1,3 +1,5 @@
+.. _load_model:
+
 Loading a trained model
 =======================
 
