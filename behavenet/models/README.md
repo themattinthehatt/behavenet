@@ -12,6 +12,7 @@ Model-related code
     * `behavenet.data.utils.get_data_generator_inputs` [UPDATE UNIT TEST!]
     * `behavenet.fitting.utils.get_expt_dir` [UPDATE UNIT TEST!]
     * `behavenet.fitting.utils.get_model_params` [UPDATE UNIT TEST!]
+    * `behavenet.fitting.utils.get_best_data_and_model`
     * `behavenet.fitting.eval.export_xxx` (latents, states, predictions, etc)
 * potential function updates:
     * other `behavenet.fitting.eval` methods (like `get_rconstruction`)

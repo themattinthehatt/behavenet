@@ -967,14 +967,14 @@ def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=
     return best_versions
 
 
-def get_best_model_and_data(hparams, Model, load_data=True, version='best', data_kwargs=None):
+def get_best_model_and_data(hparams, Model=None, load_data=True, version='best', data_kwargs=None):
     """Load the best model (and data) defined by hparams out of all available test-tube versions.
 
     Parameters
     ----------
     hparams : :obj:`dict`
         needs to contain enough information to specify both a model and the associated data
-    Model : :obj:`behavenet.models` object
+    Model : :obj:`behavenet.models` object, optional
         model type
     load_data : :obj:`bool`, optional
         if `False` then data generator is not returned
@@ -1042,7 +1042,33 @@ def get_best_model_and_data(hparams, Model, load_data=True, version='best', data
     else:
         data_generator = None
 
-    # build models
+    # build model
+    if Model is None:
+        if hparams['model_class'] == 'ae':
+            from behavenet.models import AE as Model
+        elif hparams['model_class'] == 'vae':
+            from behavenet.models import VAE as Model
+        elif hparams['model_class'] == 'cond-ae':
+            from behavenet.models import ConditionalAE as Model
+        elif hparams['model_class'] == 'cond-vae':
+            from behavenet.models import ConditionalVAE as Model
+        elif hparams['model_class'] == 'cond-ae-msp':
+            from behavenet.models import AEMSP as Model
+        elif hparams['model_class'] == 'beta-tcvae':
+            from behavenet.models import BetaTCVAE as Model
+        elif hparams['model_class'] == 'sss-vae':
+            from behavenet.models import SSSVAE as Model
+        elif hparams['model_class'] == 'labels-images':
+            from behavenet.models import ConvDecoder as Model
+        elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-arhmm':
+            from behavenet.models import Decoder as Model
+        elif hparams['model_class'] == 'ae-neural' or hparams['model_class'] == 'arhmm-neural':
+            from behavenet.models import Decoder as Model
+        elif hparams['model_class'] == 'arhmm':
+            raise NotImplementedError('Cannot use get_best_model_and_data() for ssm models')
+        else:
+            raise NotImplementedError
+
     model = Model(hparams_new)
     model.version = int(best_version.split('_')[1])
     model.load_state_dict(torch.load(model_file, map_location=lambda storage, loc: storage))
