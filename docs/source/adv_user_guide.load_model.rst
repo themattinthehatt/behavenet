@@ -1,7 +1,8 @@
 Loading a trained model
 =======================
 
-After you've fit one or more models, often you'll want to load these models and their associated data generator to perform further analyses. BehaveNet provides three methods for doing so:
+After you've fit one or more models, often you'll want to load these models and their associated
+data generator to perform further analyses. BehaveNet provides three methods for doing so:
 
 * :ref:`Method 1<load_best_model>`: load the "best" model from a test-tube experiment
 * :ref:`Method 2<specify_version>`: specify the model version in a test-tube experiment
