@@ -724,7 +724,8 @@ def _get_updated_scaled_labels(labels_og, idxs=None, vals=None):
 
 
 def plot_2d_frame_array(
-        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None):
+        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None,
+        **kwargs):
     """Plot list of list of interpolated images output by :func:`interpolate_2d()` in a 2d grid.
 
     Parameters
@@ -776,7 +777,7 @@ def plot_2d_frame_array(
 
 def plot_1d_frame_array(
         ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None,
-        plot_ims=True, plot_diffs=True):
+        plot_ims=True, plot_diffs=True, **kwargs):
     """Plot list of list of interpolated images output by :func:`interpolate_1d()` in a 2d grid.
 
     Parameters

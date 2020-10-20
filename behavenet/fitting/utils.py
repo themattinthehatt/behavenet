@@ -1038,7 +1038,7 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
             signals_list=signals, transforms_list=transforms, paths_list=paths,
             device=hparams_new['device'], as_numpy=hparams_new['as_numpy'],
             batch_load=hparams_new['batch_load'], rng_seed=hparams_new['rng_seed_data'],
-            **data_kwargs)
+            train_frac=hparams_new['train_frac'], **data_kwargs)
     else:
         data_generator = None
 
