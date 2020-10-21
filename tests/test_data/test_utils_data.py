@@ -178,6 +178,7 @@ def test_get_data_generator_inputs():
     # -----------------
     hparams['model_class'] = 'ae_latents'
     hparams['session_dir'] = session_dir
+    hparams['ae_model_class'] = 'ae'
     hparams['ae_model_type'] = 'conv'
     hparams['n_ae_latents'] = 8
     hparams['ae_experiment_name'] = 'tt_expt_ae'
@@ -483,6 +484,7 @@ def test_get_transforms_paths():
     # ae latents
     # ------------------------
     hparams['session_dir'] = session_dir
+    hparams['ae_model_class'] = 'ae'
     hparams['ae_model_type'] = 'conv'
     hparams['n_ae_latents'] = 8
     hparams['ae_experiment_name'] = 'tt_expt_ae'
@@ -490,7 +492,7 @@ def test_get_transforms_paths():
 
     ae_path = os.path.join(
         hparams['data_dir'], hparams['lab'], hparams['expt'], hparams['animal'],
-        hparams['session'], 'ae', hparams['ae_model_type'],
+        hparams['session'], hparams['ae_model_class'], hparams['ae_model_type'],
         '%02i_latents' % hparams['n_ae_latents'], hparams['ae_experiment_name'])
 
     # user-defined latent path

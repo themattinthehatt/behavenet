@@ -27,6 +27,8 @@
 
 "ae_version": "best",
 
+"ae_model_class": "ae", # class of AE, ae, vae, etc
+
 "ae_model_type": "conv", # type of AE, linear or conv
 
 "n_ae_latents": 9, # type: int
@@ -47,7 +49,3 @@
 "activation": "relu" # type: str, could be linear, relu, lrelu, sigmoid, tanh
 
 }
-
-
-
-

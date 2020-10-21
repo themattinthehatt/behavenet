@@ -679,6 +679,7 @@ def get_model_params(hparams):
             hparams_less['kappa'] = hparams['kappa']
         hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
         hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_class'] = hparams['ae_model_class']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
     elif model_class == 'arhmm-labels' or model_class == 'hmm-labels':
@@ -690,6 +691,7 @@ def get_model_params(hparams):
     elif model_class == 'neural-ae' or model_class == 'ae-neural':
         hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
         hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_class'] = hparams['ae_model_class']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
     elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
@@ -701,6 +703,7 @@ def get_model_params(hparams):
         hparams_less['transitions'] = hparams['transitions']
         if hparams['transitions'] == 'sticky':
             hparams_less['kappa'] = hparams['kappa']
+        hparams_less['ae_model_class'] = hparams['ae_model_class']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
     elif model_class == 'bayesian-decoding':

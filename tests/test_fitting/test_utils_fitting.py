@@ -918,6 +918,7 @@ class TestClass:
             'transitions': 'stationary',
             'ae_experiment_name': 'ae_expt',
             'ae_version': 4,
+            'ae_model_class': 'ae',
             'ae_model_type': 'conv',
             'n_ae_latents': 5}
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
@@ -932,6 +933,7 @@ class TestClass:
             'kappa': 100,
             'ae_experiment_name': 'ae_expt',
             'ae_version': 4,
+            'ae_model_class': 'ae',
             'ae_model_type': 'conv',
             'n_ae_latents': 5}
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
@@ -957,6 +959,7 @@ class TestClass:
             'model_type': 'mlp',
             'ae_experiment_name': 'ae_expt',
             'ae_version': 4,
+            'ae_model_class': 'ae',
             'ae_model_type': 'conv',
             'n_ae_latents': 5,
             'n_lags': 3,
@@ -980,6 +983,7 @@ class TestClass:
             'noise_type': 'gaussian',
             'transitions': 'sticky',
             'kappa': 10,
+            'ae_model_class': 'ae',
             'ae_model_type': 'conv',
             'n_ae_latents': 5,
             'n_lags': 3,

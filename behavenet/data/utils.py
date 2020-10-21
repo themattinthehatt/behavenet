@@ -431,6 +431,8 @@ def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
             if hparams['model_type'][-6:] != 'neural':
                 # don't zscore if predicting calcium activity
                 transforms_.append(ZScore())
+        elif hparams['neural_type'] == 'ca-zscored':
+            pass
         else:
             raise ValueError('"%s" is an invalid neural type' % hparams['neural_type'])
 
@@ -448,7 +450,7 @@ def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
             path = hparams['ae_latents_file']
         else:
             ae_dir = get_expt_dir(
-                hparams, model_class='ae',
+                hparams, model_class=hparams['ae_model_class'],
                 expt_name=hparams['ae_experiment_name'],
                 model_type=hparams['ae_model_type'])
             if 'ae_version' in hparams and isinstance(hparams['ae_version'], int):

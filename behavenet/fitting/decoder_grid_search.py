@@ -72,7 +72,6 @@ def main(hparams, *args):
     # ####################
     # ### CREATE MODEL ###
     # ####################
-    print(hparams['input_size'])
     print('constructing model...', end='')
     torch.manual_seed(hparams['rng_seed_model'])
     torch_rng_seed = torch.get_rng_state()

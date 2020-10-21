@@ -159,6 +159,7 @@ def define_new_config_values(model, session='sess-0'):
 
     # model vals: ae
     ae_expt_name = 'ae-expt'
+    ae_model_class = 'ae'
     ae_model_type = 'conv'
     n_ae_latents = 6
 
@@ -238,6 +239,7 @@ def define_new_config_values(model, session='sess-0'):
                 'transitions': transitions,
                 'noise_type': noise_type,
                 'ae_experiment_name': ae_expt_name,
+                'ae_model_class': ae_model_class,
                 'ae_model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents},
             'training': {
@@ -257,6 +259,7 @@ def define_new_config_values(model, session='sess-0'):
                 'n_max_lags': 8,
                 'l2_reg': 1e-3,
                 'ae_experiment_name': ae_expt_name,
+                'ae_model_class': ae_model_class,
                 'ae_model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
                 'model_type': 'mlp',
@@ -280,6 +283,7 @@ def define_new_config_values(model, session='sess-0'):
                 'n_lags': 2,
                 'n_max_lags': 8,
                 'l2_reg': 1e-3,
+                'ae_model_class': ae_model_class,
                 'ae_model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
                 'arhmm_experiment_name': arhmm_expt_name,

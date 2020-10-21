@@ -153,6 +153,7 @@ ARHMM
 
 * **ae_experiment_name** (*str*): name of AE test-tube experiment
 * **ae_version** (*str* or *int*): 'best' to choose best version in AE experiment, otherwise an integer specifying test-tube version number
+* **ae_model_class** (*str*): 'ae' | 'vae' | 'beta-tcvae' | ...
 * **ae_model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): number of autoencoder latents; this will be the observation dimension in the ARHMM
 * **export_train_plots** ('*bool*): ``True`` to automatically export training/validation log probability as a function of epoch upon completion of training
@@ -182,6 +183,7 @@ For the continuous decoder:
 
 * **ae_experiment_name** (*str*): name of AE test-tube experiment
 * **ae_version** (*str* or *int*): 'best' to choose best version in AE experiment, otherwise an integer specifying test-tube version number
+* **ae_model_class** (*str*): 'ae' | 'vae' | 'beta-tcvae' | ...
 * **ae_model_type** (*str*): 'conv' | 'linear'
 * **n_ae_latents** (*int*): number of autoencoder latents; this will be the dimension of the data predicted by the decoder
 * **ae_multisession** (*int*): use if loading latents from an AE that was trained on multiple datasets
@@ -190,6 +192,7 @@ For the continuous decoder:
 For the discrete decoder:
 
 * **n_ae_latents** (*int*): number of autoencoder latents that the ARHMM was trained on
+* **ae_model_class** (*str*): 'ae' | 'vae' | 'beta-tcvae' | ...
 * **ae_model_type** (*str*): 'conv' | 'linear'
 * **arhmm_experiment_name** (*str*): name of ARHMM test-tube experiment
 * **n_arhmm_states** (*int*): number of ARHMM discrete states; this will be the number of classes the decoder is trained on
