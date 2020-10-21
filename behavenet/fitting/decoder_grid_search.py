@@ -5,12 +5,12 @@ import random
 import torch
 import pickle
 
+from behavenet.data.utils import build_data_generator
 from behavenet.fitting.hyperparam_utils import get_all_params
 from behavenet.fitting.hyperparam_utils import get_slurm_params
 from behavenet.fitting.training import fit
 from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import _print_hparams
-from behavenet.fitting.utils import build_data_generator
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.models import Decoder

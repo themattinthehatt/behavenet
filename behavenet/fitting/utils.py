@@ -3,14 +3,13 @@
 import os
 import pickle
 import numpy as np
-from behavenet.data.utils import get_data_generator_inputs
 
 # to ignore imports for sphinx-autoapidoc
 __all__ = [
     'get_subdirs', 'get_session_dir', 'get_expt_dir', 'read_session_info_from_csv',
     'export_session_info_to_csv', 'contains_session', 'find_session_dirs', 'experiment_exists',
     'get_model_params', 'export_hparams', 'get_lab_example', 'get_region_dir',
-    'create_tt_experiment', 'build_data_generator', 'get_best_model_version',
+    'create_tt_experiment', 'get_best_model_version',
     'get_best_model_and_data']
 
 
@@ -855,53 +854,6 @@ def create_tt_experiment(hparams):
     return hparams, sess_ids, exp
 
 
-def build_data_generator(hparams, sess_ids, export_csv=True):
-    """Helper function to build data generator from hparams dict.
-
-    Parameters
-    ----------
-    hparams : :obj:`dict`
-        needs to contain information specifying data inputs to model
-    sess_ids : :obj:`list` of :obj:`dict`
-        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'
-    export_csv : :obj:`bool`, optional
-        export csv file containing session info (useful when fitting multi-sessions)
-
-    Returns
-    -------
-    :obj:`ConcatSessionsGenerator` object
-        data generator
-
-    """
-    from behavenet.data.data_generator import ConcatSessionsGenerator
-    from behavenet.data.utils import get_data_generator_inputs
-    print('using data from following sessions:')
-    for ids in sess_ids:
-        print('%s' % os.path.join(
-            hparams['save_dir'], ids['lab'], ids['expt'], ids['animal'], ids['session']))
-    hparams, signals, transforms, paths = get_data_generator_inputs(hparams, sess_ids)
-    if hparams.get('trial_splits', None) is not None:
-        # assumes string of form 'train;val;test;gap'
-        trs = [int(tr) for tr in hparams['trial_splits'].split(';')]
-        trial_splits = {'train_tr': trs[0], 'val_tr': trs[1], 'test_tr': trs[2], 'gap_tr': trs[3]}
-    else:
-        trial_splits = None
-    print('constructing data generator...', end='')
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], sess_ids,
-        signals_list=signals, transforms_list=transforms, paths_list=paths,
-        device=hparams['device'], as_numpy=hparams['as_numpy'], batch_load=hparams['batch_load'],
-        rng_seed=hparams['rng_seed_data'], trial_splits=trial_splits,
-        train_frac=hparams['train_frac'])
-    # csv order will reflect dataset order in data generator
-    if export_csv:
-        export_session_info_to_csv(os.path.join(
-            hparams['expt_dir'], str('version_%i' % hparams['version'])), sess_ids)
-    print('done')
-    print(data_generator)
-    return data_generator
-
-
 def get_best_model_version(expt_dir, measure='val_loss', best_def='min', n_best=1):
     """Get best model version from a test tube experiment.
 
@@ -993,6 +945,7 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
 
     import torch
     from behavenet.data.data_generator import ConcatSessionsGenerator
+    from behavenet.data.utils import get_data_generator_inputs
 
     # get session_dir
     hparams['session_dir'], sess_ids = get_session_dir(

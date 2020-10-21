@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import torch
 
 from behavenet import make_dir_if_not_exists
+from behavenet.data.utils import build_data_generator
 from behavenet.data.utils import load_labels_like_latents
 from behavenet.fitting.eval import get_reconstruction
 from behavenet.fitting.utils import get_session_dir
@@ -190,7 +191,6 @@ def get_labels_2d_for_trial(
         raise ValueError('only one of "trial" or "trial_idx" can be specified')
 
     if data_gen is None:
-        from behavenet.fitting.utils import build_data_generator
         hparams_new = copy.deepcopy(hparams)
         hparams_new['conditional_encoder'] = True  # ensure scaled labels are returned
         hparams_new['device'] = 'cpu'
