@@ -453,7 +453,10 @@ def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
                 hparams, model_class=hparams['ae_model_class'],
                 expt_name=hparams['ae_experiment_name'],
                 model_type=hparams['ae_model_type'])
-            if 'ae_version' in hparams and isinstance(hparams['ae_version'], int):
+            if 'ae_version' in hparams and hparams['ae_version'] != 'best':
+                # json args read as strings
+                if isinstance(hparams['ae_version'], str):
+                    hparams['ae_version'] = int(hparams['ae_version'])
                 ae_version = str('version_%i' % hparams['ae_version'])
             else:
                 ae_version = 'version_%i' % get_best_model_version(ae_dir, 'val_loss')[0]

@@ -99,17 +99,19 @@ def make_reconstruction_movie(
     plt.tight_layout(pad=0)
 
     ani = animation.ArtistAnimation(fig, ims_ani, blit=True, repeat_delay=1000)
-    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
 
     if save_file is not None:
         make_dir_if_not_exists(save_file)
-        if save_file[-3:] != 'mp4':
-            save_file += '.mp4'
+        if save_file[-3:] == 'gif':
+            writer = 'imagemagick'
+        else:
+            if save_file[-3:] != 'mp4':
+                save_file += '.mp4'
+            writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
+
         print('saving video to %s...' % save_file, end='')
-        ani.save(save_file, writer=writer)
-        # if save_file[-3:] != 'gif':
-        #     save_file += '.gif'
-        # ani.save(save_file, writer='imagemagick', fps=15)
+        ani.save(save_file, writer=writer, fps=frame_rate)
+
         print('done')
 
 
@@ -473,7 +475,8 @@ def make_neural_reconstruction_movie(
 
 
 def plot_neural_reconstruction_traces_wrapper(
-        hparams, save_file=None, trial=None, xtick_locs=None, frame_rate=None, format='png'):
+        hparams, save_file=None, trial=None, xtick_locs=None, frame_rate=None, format='png',
+        **kwargs):
     """Plot ae latents and their neural reconstructions.
 
     This is a high-level function that loads the model described in the hparams dictionary and
@@ -529,7 +532,7 @@ def plot_neural_reconstruction_traces_wrapper(
     data_generator = ConcatSessionsGenerator(
         hparams['data_dir'], [hparams],
         signals_list=[signals], transforms_list=[transforms], paths_list=[paths],
-        device='cpu', as_numpy=False, batch_load=False, rng_seed=0)
+        device='cpu', as_numpy=False, batch_load=True, rng_seed=0)
 
     if trial is None:
         # choose first test trial
@@ -539,9 +542,14 @@ def plot_neural_reconstruction_traces_wrapper(
     traces_ae = batch['ae_latents'].cpu().detach().numpy()
     traces_neural = batch['ae_predictions'].cpu().detach().numpy()
 
-    fig = plot_neural_reconstruction_traces(
-        traces_ae, traces_neural, save_file, xtick_locs, frame_rate, format)
-
+    n_max_lags = hparams.get('n_max_lags', 0)  # only plot valid segment of data
+    if n_max_lags > 0:
+        fig = plot_neural_reconstruction_traces(
+            traces_ae[n_max_lags:-n_max_lags], traces_neural[n_max_lags:-n_max_lags],
+            save_file, xtick_locs, frame_rate, format, **kwargs)
+    else:
+        fig = plot_neural_reconstruction_traces(
+            traces_ae, traces_neural, save_file, xtick_locs, frame_rate, format, **kwargs)
     return fig
 
 

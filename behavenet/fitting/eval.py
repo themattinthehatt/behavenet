@@ -373,7 +373,7 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
     model_version : :obj:`int` or :obj:`str`
         version from test tube experiment defined in :obj:`hparams` or the string 'best'
     metric : :obj:`str`, optional
-        'r2' | 'fc'
+        'r2' | 'fc' | 'mse'
     sess_idx : :obj:`int`, optional
         session index into data generator
 
@@ -418,11 +418,13 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
         metric = r2_score(
             np.concatenate(true, axis=0), np.concatenate(pred, axis=0),
             multioutput='variance_weighted')
+    elif metric == 'mse':
+        metric = np.mean(np.square(np.concatenate(true, axis=0) - np.concatenate(pred, axis=0)))
     elif metric == 'fc':
         metric = accuracy_score(
             np.concatenate(true, axis=0), np.argmax(np.concatenate(pred, axis=0), axis=1))
 
-    return model.hparams, metric
+    return model.hparams, metric, true, pred
 
 
 def export_train_plots(hparams, dtype, loss_type='mse', save_file=None, format='png'):

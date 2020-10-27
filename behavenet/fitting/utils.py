@@ -28,7 +28,7 @@ def get_subdirs(path):
 
     """
     if not os.path.exists(path):
-        raise ValueError('%s is not a path' % path)
+        raise NotADirectoryError('%s is not a path' % path)
     try:
         s = next(os.walk(path))[1]
     except StopIteration:
@@ -718,6 +718,7 @@ def get_model_params(hparams):
     # decoder arch params
     if model_class == 'neural-ae' or model_class == 'ae-neural' \
             or model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
+        hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['n_lags'] = hparams['n_lags']
         hparams_less['l2_reg'] = hparams['l2_reg']
         hparams_less['model_type'] = hparams['model_type']
