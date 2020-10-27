@@ -53,6 +53,12 @@ def main(hparams, *args):
     elif hparams['model_class'] == 'ae-neural':
         hparams['input_size'] = hparams['n_ae_latents']
         hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
+    elif hparams['model_class'] == 'neural-labels':
+        hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
+        hparams['output_size'] = hparams['n_labels']
+    elif hparams['model_class'] == 'labels-neural':
+        hparams['input_size'] = hparams['n_labels']
+        hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
     else:
         raise ValueError('%s is an invalid model class' % hparams['model_class'])
 

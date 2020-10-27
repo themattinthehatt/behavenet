@@ -1,0 +1,32 @@
+{
+
+#############################
+## Commonly changed params ##
+#############################
+
+"experiment_name": "grid_search", # type: str, name of this experiment
+
+"n_lags": [4], # type: int
+
+"n_max_lags": 8, # type: int, should match largest n_lags value (so all lags are evaluated on exact same data)
+
+"l2_reg": [1e-3], # type: float
+
+"rng_seed_model": 0, # type: int, help: control model initialization
+
+"model_class": "neural-labels", # type: str
+
+
+########################
+## Model Architecture ##
+########################
+
+"model_type": "mlp", # type: str, currently mlp only option (mlp with 0 hidden layers is linear)
+
+"n_hid_layers": [1], # type: int
+
+"n_hid_units": [32], # type: int
+
+"activation": "relu" # type: str, could be linear, relu, lrelu, sigmoid, tanh
+
+}

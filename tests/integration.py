@@ -47,6 +47,7 @@ MODELS_TO_FIT = [  # ['model_file']_grid_search
     {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
     {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+    {'model_class': 'neural-labels', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
     {'model_class': 'vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
@@ -131,7 +132,7 @@ def get_model_config_files(model, json_dir):
             'model': os.path.join(model_json_dir, '%s_model.json' % model),
             'training': os.path.join(model_json_dir, '%s_training.json' % model),
             'compute': os.path.join(model_json_dir, '%s_compute.json' % model)}
-    elif model == 'neural-ae' or model == 'neural-arhmm':
+    elif model == 'neural-ae' or model == 'neural-arhmm' or model == 'neural-labels':
         m = 'decoding'
         s = model.split('-')[-1]
         model_json_dir = os.path.join(json_dir, '%s_jsons' % m)
@@ -148,7 +149,8 @@ def get_model_config_files(model, json_dir):
 def define_new_config_values(model, session='sess-0'):
 
     # data vals
-    data_dict = {'session': session, 'all_source': 'data', **DATA_DICT}
+    data_dict = {
+        'session': session, 'all_source': 'data', 'n_labels': TEMP_DATA['n_labels'], **DATA_DICT}
 
     # training vals
     train_frac = 0.5
@@ -262,6 +264,27 @@ def define_new_config_values(model, session='sess-0'):
                 'ae_model_class': ae_model_class,
                 'ae_model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
+                'model_type': 'mlp',
+                'n_hid_layers': 1,
+                'n_hid_units': 16,
+                'activation': 'relu'},
+            'training': {
+                'export_predictions': True,
+                'min_n_epochs': 1,
+                'max_n_epochs': 1,
+                'enable_early_stop': False,
+                'train_frac': train_frac,
+                'trial_splits': trial_splits},
+            'compute': {
+                'gpus_viz': str(gpu_id),
+                'tt_n_cpu_workers': 2}}
+    elif model == 'neural-labels':
+        new_values = {
+            'data': data_dict,
+            'model': {
+                'n_lags': 3,
+                'n_max_lags': 5,
+                'l2_reg': 1e-4,
                 'model_type': 'mlp',
                 'n_hid_layers': 1,
                 'n_hid_units': 16,

@@ -369,6 +369,10 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'], model_type, brain_region)
         session_dir = hparams['session_dir']
+    elif model_class == 'neural-labels' or model_class == 'labels-neural':
+        brain_region = get_region_dir(hparams)
+        model_path = os.path.join(model_class, model_type, brain_region)
+        session_dir = hparams['session_dir']
     elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
@@ -694,6 +698,8 @@ def get_model_params(hparams):
         hparams_less['ae_model_class'] = hparams['ae_model_class']
         hparams_less['ae_model_type'] = hparams['ae_model_type']
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+    elif model_class == 'neural-labels' or model_class == 'labels-neural':
+        pass
     elif model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
         hparams_less['arhmm_experiment_name'] = hparams['arhmm_experiment_name']
         hparams_less['arhmm_version'] = hparams['arhmm_version']
@@ -717,7 +723,8 @@ def get_model_params(hparams):
 
     # decoder arch params
     if model_class == 'neural-ae' or model_class == 'ae-neural' \
-            or model_class == 'neural-arhmm' or model_class == 'arhmm-neural':
+            or model_class == 'neural-arhmm' or model_class == 'arhmm-neural' \
+            or model_class == 'neural-labels' or model_class == 'labels-neural':
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['n_lags'] = hparams['n_lags']
         hparams_less['l2_reg'] = hparams['l2_reg']
@@ -1017,9 +1024,11 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
             from behavenet.models import SSSVAE as Model
         elif hparams['model_class'] == 'labels-images':
             from behavenet.models import ConvDecoder as Model
-        elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-arhmm':
+        elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-arhmm' \
+                or hparams['model_class'] == 'neural-labels':
             from behavenet.models import Decoder as Model
-        elif hparams['model_class'] == 'ae-neural' or hparams['model_class'] == 'arhmm-neural':
+        elif hparams['model_class'] == 'ae-neural' or hparams['model_class'] == 'arhmm-neural' \
+                or hparams['model_class'] == 'labels-neural':
             from behavenet.models import Decoder as Model
         elif hparams['model_class'] == 'arhmm':
             raise NotImplementedError('Cannot use get_best_model_and_data() for ssm models')

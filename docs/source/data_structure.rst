@@ -6,7 +6,6 @@ BehaveNet data structure
 
 Introduction
 ============
-
 In order to quickly and easily fit many models, BehaveNet uses a standardized data structure. "Raw"
 experimental data such as behavioral videos and (processed) neural data are stored in the
 `HDF5 file format <https://support.hdfgroup.org/HDF5/whatishdf5.html>`_. This file format can
@@ -83,7 +82,6 @@ video or neural data differently than the rate at which it was acquired.
 
 Identifying subsets of neurons
 ==============================
-
 It is possible that the neural data used for encoding and decoding models will have natural partitions - for example, neurons belonging to different brain regions or cell types. In this case you may be interested in, say, decoding behavior from each brain region individually, as well as all together. BehaveNet provides this capability through the addition of another HDF5 group. This group can have any name, but for illustration purposes we will use the name "regions" (this name will be later be provided in the updated data json file).
 
 The "regions" group contains a second level of (again user-defined) groups, which will define different index groupings. As a concrete example, let's say we have neural data with 100 neurons:
@@ -151,12 +149,18 @@ This HDF5 file will now have the following addtional datasets:
 * regions/idxs/AUD
 * regions/idxs/VIS
 
-Just as the top-level group (here named "regions") can have an arbitrary name (later specified in the data json file), the second-level groups (here named "idxs_lr" and "idxs") can also have arbitrary names, and there can be any number of them, as long as the datasets within them contain valid indices into the neural data. The specific set of indices used for any analyses will be specified in the data json file. See the :ref:`decoding documentation<decoding_with_subsets>` for an example of how to decode behavior using specified subsets of neurons.
+Just as the top-level group (here named "regions") can have an arbitrary name (later specified in
+the data json file), the second-level groups (here named "idxs_lr" and "idxs") can also have
+arbitrary names, and there can be any number of them, as long as the datasets within them contain
+valid indices into the neural data. The specific set of indices used for any analyses will be
+specified in the data json file. See the :ref:`decoding documentation<decoding_with_subsets>` for
+an example of how to decode behavior using specified subsets of neurons.
 
+
+.. _data_structure_labels:
 
 Including labels for ARHMMs and conditional autoencoders
 ========================================================
-
 In order to fit :ref:`conditional autoencoder models<conditional_aes>`, you will need to include
 additional information about labels in the HDF5 file. These labels can be outputs from pose
 estimation software, or other behavior-related signals such as pupil diameter or lick times. These
@@ -177,5 +181,8 @@ data, you simply need to change the ``model_class`` entry of the arhmm model jso
 
 .. note::
     
-    The matrix subspace projection model implemented in BehaveNet learns a linear mapping from the original latent space to the predicted labels that **does not contain a bias term**. Therefore you should center each label before adding them to the HDF5 file. Additionally, normalizing each label by its standard deviation can make searching across msp weights less dependent on the size of the input image.
-
+    The matrix subspace projection model implemented in BehaveNet learns a linear mapping from the
+    original latent space to the predicted labels that **does not contain a bias term**. Therefore
+    you should center each label before adding them to the HDF5 file. Additionally, normalizing
+    each label by its standard deviation can make searching across msp weights less dependent on
+    the size of the input image.

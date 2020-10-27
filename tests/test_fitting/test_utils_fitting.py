@@ -189,7 +189,7 @@ class TestClass:
         assert sorted(subdirs) == ['expt0', 'expt1', 'multisession-00']
 
         # raise exception when not a path
-        with pytest.raises(ValueError):
+        with pytest.raises(NotADirectoryError):
             utils.get_subdirs('/ZzZtestingZzZ')
 
     def test_get_multisession_paths(self):
@@ -566,6 +566,30 @@ class TestClass:
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
             hparams['model_type'], 'all', hparams['experiment_name'])
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        # -------------------------
+        # neural-labels/labels-neural
+        # -------------------------
+        hparams['model_class'] = 'neural-labels'
+        hparams['model_type'] = 'mlp'
+        hparams['experiment_name'] = 'tt_expt'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], hparams['model_type'], 'all',
+            hparams['experiment_name'])
+
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        hparams['model_class'] = 'labels-neural'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], hparams['model_type'], 'all',
+            hparams['experiment_name'])
         expt_dir = utils.get_expt_dir(
             hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
             expt_name=hparams['experiment_name'])
@@ -966,6 +990,22 @@ class TestClass:
             'l2_reg': 1,
             'n_hid_layers': 0,
             'activation': 'relu',
+            'learning_rate': 1e-3,
+            'subsample_method': 'none'}
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        # -----------------
+        # neural-labels/labels-neural
+        # -----------------
+        model_hparams = {
+            'model_class': 'neural-labels',
+            'model_type': 'mlp',
+            'n_lags': 3,
+            'l2_reg': 1,
+            'n_hid_layers': 0,
+            'activation': 'relu',
+            'learning_rate': 1e-3,
             'subsample_method': 'none'}
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
@@ -991,6 +1031,7 @@ class TestClass:
             'n_hid_layers': 2,
             'n_hid_units': 10,
             'activation': 'relu',
+            'learning_rate': 1e-3,
             'subsample_method': 'single',
             'subsample_idxs_name': 'a',
             'subsample_idxs_group_0': 'b',

@@ -18,18 +18,13 @@ require modifying the data configuration json before training. We'll use the Mus
 example; below is the relevant section of the json file located in
 ``behavenet/configs/data_default.json`` that we will modify below.
 
-.. code-block:: json
+.. code-block:: javascript
 
     "lab": "musall", # type: str
-
     "expt": "vistrained", # type: str
-
     "animal": "mSM30", # type: str
-
     "session": "10-Oct-2017", # type: str
-
     "sessions_csv": "", # type: str, help: specify multiple sessions
-
     "all_source": "save", # type: str, help: "save" or "data"
 
 The Musall dataset provided with the repo (see ``behavenet/example/00_data.ipynb``) contains
@@ -45,18 +40,13 @@ This method is appropriate if you want to fit a model on all sessions from a spe
 experiment, or lab. For example, if we want to fit a model on all sessions from animal
 ``mSM30``, we would modify the ``session`` parameter value to ``all``:
 
-.. code-block:: json
+.. code-block:: javascript
 
     "lab": "musall", # type: str
-
     "expt": "vistrained", # type: str
-
     "animal": "mSM30", # type: str
-
     "session": "all", # type: str
-
     "sessions_csv": "", # type: str, help: specify multiple sessions
-
     "all_source": "save", # type: str, help: "save" or "data"
 
 In this case the resulting models will be stored in the directory
@@ -68,18 +58,13 @@ lists the lab, expt, animal, and session for all sessions in that multisession.
 If we want to fit a model on all sessions from all animals in the ``vistrained`` experiment, we
 would modify the ``animal`` parameter value to ``all``:
 
-.. code-block:: json
+.. code-block:: javascript
 
     "lab": "musall", # type: str
-
     "expt": "vistrained", # type: str
-
     "animal": "all", # type: str
-
     "session": "all", # type: str
-
     "sessions_csv": "", # type: str, help: specify multiple sessions
-
     "all_source": "save", # type: str, help: "save" or "data"
 
 In this case the resulting models will be stored in the directory
@@ -107,18 +92,13 @@ specify these sessions, you can construct a csv file with the four column header
 ``expt``, ``animal``, and ``session``. You can then provide this csv file (let's say it's called
 ``data_dir/example_sessions.csv``) as the value for the ``sessions_csv`` parameter:
 
-.. code-block:: json
+.. code-block:: javascript
 
     "lab": "musall", # type: str
-
     "expt": "vistrained", # type: str
-
     "animal": "all", # type: str
-
     "session": "all", # type: str
-
     "sessions_csv": "data_dir/example_sessions.csv", # type: str, help: specify multiple sessions
-
     "all_source": "save", # type: str, help: "save" or "data"
 
 The ``sessions_csv`` parameter takes precedence over any values supplied for ``lab``, ``expt``,

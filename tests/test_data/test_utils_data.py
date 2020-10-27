@@ -238,6 +238,57 @@ def test_get_data_generator_inputs():
     assert hparams_['noise_dist'] == 'gaussian-full'
 
     # -----------------
+    # neural-labels
+    # -----------------
+    hparams['model_class'] = 'neural-labels'
+    hparams['model_type'] = 'linear'
+    hparams['n_labels'] = 4
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['neural', 'labels']
+    assert hparams_['input_signal'] == 'neural'
+    assert hparams_['output_signal'] == 'labels'
+    assert hparams_['output_size'] == hparams['n_labels']
+    assert hparams_['noise_dist'] == 'gaussian'
+
+    hparams['model_type'] = 'linear-mv'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert hparams_['noise_dist'] == 'gaussian-full'
+
+    # -----------------
+    # labels-neural
+    # -----------------
+    hparams['model_class'] = 'labels-neural'
+    hparams['model_type'] = 'linear'
+    hparams['n_labels'] = 4
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['neural', 'labels']
+    assert hparams_['input_signal'] == 'labels'
+    assert hparams_['output_signal'] == 'neural'
+    assert hparams_['output_size'] is None
+    assert hparams_['noise_dist'] == 'poisson'
+
+    hparams['model_type'] = 'linear'
+    hparams['neural_type'] = 'ca'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert hparams_['noise_dist'] == 'gaussian'
+
+    hparams['model_type'] = 'linear-mv'
+    hparams['neural_type'] = 'ca'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert hparams_['noise_dist'] == 'gaussian-full'
+
+    # -----------------
     # arhmm
     # -----------------
     hparams['model_class'] = 'arhmm'

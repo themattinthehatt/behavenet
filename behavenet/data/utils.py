@@ -6,6 +6,11 @@ import pickle
 
 from behavenet.fitting.utils import export_session_info_to_csv
 
+# to ignore imports for sphinx-autoapidoc
+__all__ = [
+    'get_data_generator_inputs', 'build_data_generator', 'check_same_training_split',
+    'get_transforms_paths', 'load_labels_like_latents', 'get_region_list']
+
 
 def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
     """Helper function for generating signals, transforms and paths.
@@ -134,6 +139,37 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
             signals = ['neural', 'ae_latents']
             transforms = [neural_transform, ae_transform]
             paths = [neural_path, ae_path]
+
+        elif hparams['model_class'] == 'neural-labels':
+
+            hparams['input_signal'] = 'neural'
+            hparams['output_signal'] = 'labels'
+            hparams['output_size'] = hparams['n_labels']
+            if hparams['model_type'][-2:] == 'mv':
+                hparams['noise_dist'] = 'gaussian-full'
+            else:
+                hparams['noise_dist'] = 'gaussian'
+
+            signals = ['neural', 'labels']
+            transforms = [neural_transform, None]
+            paths = [neural_path, os.path.join(data_dir, 'data.hdf5')]
+
+        elif hparams['model_class'] == 'labels-neural':
+
+            hparams['input_signal'] = 'labels'
+            hparams['output_signal'] = 'neural'
+            hparams['output_size'] = None  # to fill in after data is loaded
+            if hparams['neural_type'] == 'ca':
+                if hparams['model_type'][-2:] == 'mv':
+                    hparams['noise_dist'] = 'gaussian-full'
+                else:
+                    hparams['noise_dist'] = 'gaussian'
+            elif hparams['neural_type'] == 'spikes':
+                hparams['noise_dist'] = 'poisson'
+
+            signals = ['neural', 'labels']
+            transforms = [neural_transform, None]
+            paths = [neural_path, os.path.join(data_dir, 'data.hdf5')]
 
         elif hparams['model_class'] == 'neural-arhmm':
 

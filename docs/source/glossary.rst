@@ -22,6 +22,7 @@ Data
 * **x_pixels** (*int*): number of behavioral video pixels in x dimension
 * **use_output_mask** (*bool*): `True`` to apply frame-wise output masks (must be a key ``masks`` in data HDF5 file)
 * **use_label_mask** (*bool*): `True`` to apply frame-wise masks to labels in conditional ae models (must be a key ``labels_masks`` in data HDF5 file)
+* **n_labels** (*bool*): specify number of labels when model_class is 'neural-labels' or 'labels-neural'
 * **neural_bin_size** (*float*): bin size of neural/video data (ms)
 * **neural_type** (*str*): 'spikes' | 'ca'
 * **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
