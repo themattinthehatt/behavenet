@@ -363,7 +363,7 @@ def get_reconstruction(
         return ims_recon
 
 
-def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
+def get_test_metric(hparams, model_version, metric='r2', dtype='test', sess_idx=0):
     """Calculate a single R\ :sup:`2` value across all test batches for a decoder.
 
     Parameters
@@ -374,6 +374,9 @@ def get_test_metric(hparams, model_version, metric='r2', sess_idx=0):
         version from test tube experiment defined in :obj:`hparams` or the string 'best'
     metric : :obj:`str`, optional
         'r2' | 'fc' | 'mse'
+    dtype : :obj:`str`
+        type of trials to use for computing metric
+        'train' | 'val' | 'test'
     sess_idx : :obj:`int`, optional
         session index into data generator
 
