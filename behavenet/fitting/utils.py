@@ -967,6 +967,10 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
     if version == 'best':
         best_version_int = get_best_model_version(expt_dir)[0]
         best_version = str('version_{}'.format(best_version_int))
+    elif version is None:
+        # try to match hparams
+        _, version_hp = experiment_exists(hparams, which_version=True)
+        best_version = str('version_{}'.format(version_hp))
     else:
         if isinstance(version, str) and version[0] == 'v':
             # assume we got a string of the form 'version_{%i}'

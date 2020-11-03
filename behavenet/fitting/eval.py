@@ -317,7 +317,7 @@ def get_reconstruction(
     model.eval()
 
     if not isinstance(inputs, torch.Tensor):
-        inputs = torch.Tensor(inputs)
+        inputs = torch.Tensor(inputs).to(model.hparams['device'])
 
     # check to see if inputs are images or latents
     if len(inputs.shape) == 2:
@@ -363,7 +363,9 @@ def get_reconstruction(
         return ims_recon
 
 
-def get_test_metric(hparams, model_version, metric='r2', dtype='test', sess_idx=0):
+def get_test_metric(
+        hparams, model_version, metric='r2', dtype='test', multioutput='variance_weighted',
+        sess_idx=0):
     """Calculate a single R\ :sup:`2` value across all test batches for a decoder.
 
     Parameters
@@ -377,6 +379,9 @@ def get_test_metric(hparams, model_version, metric='r2', dtype='test', sess_idx=
     dtype : :obj:`str`
         type of trials to use for computing metric
         'train' | 'val' | 'test'
+    multioutput : :obj:`str`
+        defines how to aggregate multiple r2 scores; see r2_score documentation in sklearn
+        'raw_values' | 'uniform_average' | 'variance_weighted'
     sess_idx : :obj:`int`, optional
         session index into data generator
 
@@ -395,17 +400,22 @@ def get_test_metric(hparams, model_version, metric='r2', dtype='test', sess_idx=
     model, data_generator = get_best_model_and_data(
         hparams, Decoder, load_data=True, version=model_version)
 
-    n_test_batches = len(data_generator.datasets[sess_idx].batch_idxs['test'])
+    n_test_batches = len(data_generator.datasets[sess_idx].batch_idxs[dtype])
     max_lags = hparams['n_max_lags']
     true = []
     pred = []
-    data_generator.reset_iterators('test')
+    data_generator.reset_iterators(dtype)
     for i in range(n_test_batches):
-        batch, _ = data_generator.next_batch('test')
+        batch, _ = data_generator.next_batch(dtype)
 
         # get true latents/states
         if metric == 'r2':
-            curr_true = batch['ae_latents'][0].cpu().detach().numpy()
+            if 'ae_latents' in batch:
+                curr_true = batch['ae_latents'][0].cpu().detach().numpy()
+            elif 'labels' in batch:
+                curr_true = batch['labels'][0].cpu().detach().numpy()
+            else:
+                raise ValueError('no valid key in {}'.format(batch.keys()))
         elif metric == 'fc':
             curr_true = batch['arhmm_states'][0].cpu().detach().numpy()
         else:
@@ -419,8 +429,7 @@ def get_test_metric(hparams, model_version, metric='r2', dtype='test', sess_idx=
 
     if metric == 'r2':
         metric = r2_score(
-            np.concatenate(true, axis=0), np.concatenate(pred, axis=0),
-            multioutput='variance_weighted')
+            np.concatenate(true, axis=0), np.concatenate(pred, axis=0), multioutput=multioutput)
     elif metric == 'mse':
         metric = np.mean(np.square(np.concatenate(true, axis=0) - np.concatenate(pred, axis=0)))
     elif metric == 'fc':
