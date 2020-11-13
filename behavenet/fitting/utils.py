@@ -364,7 +364,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             session_dir, _ = get_session_dir(hparams_)
         else:
             session_dir = hparams['session_dir']
-    elif model_class == 'neural-ae' or model_class == 'ae-neural':
+    elif model_class == 'neural-ae' or model_class == 'neural-ae-me' or model_class == 'ae-neural':
         brain_region = get_region_dir(hparams)
         model_path = os.path.join(
             model_class, '%02i_latents' % hparams['n_ae_latents'], model_type, brain_region)
@@ -692,7 +692,7 @@ def get_model_params(hparams):
         hparams_less['transitions'] = hparams['transitions']
         if hparams['transitions'] == 'sticky':
             hparams_less['kappa'] = hparams['kappa']
-    elif model_class == 'neural-ae' or model_class == 'ae-neural':
+    elif model_class == 'neural-ae' or model_class == 'neural-ae-me' or model_class == 'ae-neural':
         hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
         hparams_less['ae_version'] = hparams['ae_version']
         hparams_less['ae_model_class'] = hparams['ae_model_class']
@@ -722,7 +722,7 @@ def get_model_params(hparams):
         raise NotImplementedError('"%s" is not a valid model class' % model_class)
 
     # decoder arch params
-    if model_class == 'neural-ae' or model_class == 'ae-neural' \
+    if model_class == 'neural-ae' or model_class == 'neural-ae-me' or model_class == 'ae-neural' \
             or model_class == 'neural-arhmm' or model_class == 'arhmm-neural' \
             or model_class == 'neural-labels' or model_class == 'labels-neural':
         hparams_less['learning_rate'] = hparams['learning_rate']
@@ -1028,7 +1028,8 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
             from behavenet.models import SSSVAE as Model
         elif hparams['model_class'] == 'labels-images':
             from behavenet.models import ConvDecoder as Model
-        elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-arhmm' \
+        elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-ae-me' \
+                or hparams['model_class'] == 'neural-arhmm' \
                 or hparams['model_class'] == 'neural-labels':
             from behavenet.models import Decoder as Model
         elif hparams['model_class'] == 'ae-neural' or hparams['model_class'] == 'arhmm-neural' \

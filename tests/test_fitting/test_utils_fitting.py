@@ -547,12 +547,22 @@ class TestClass:
         assert expt_dir == model_path
 
         # -------------------------
-        # neural-ae/ae-neural
+        # neural-ae/neural-ae-me/ae-neural
         # -------------------------
         hparams['model_class'] = 'neural-ae'
         hparams['model_type'] = 'mlp'
         hparams['n_ae_latents'] = 8
         hparams['experiment_name'] = 'tt_expt'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
+            hparams['model_type'], 'all', hparams['experiment_name'])
+
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        hparams['model_class'] = 'neural-ae-me'
         model_path = os.path.join(
             session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
             hparams['model_type'], 'all', hparams['experiment_name'])
@@ -976,7 +986,7 @@ class TestClass:
         assert ret_hparams == {**base_hparams, **model_hparams}
 
         # -----------------
-        # neural-ae/ae-neural
+        # neural-ae/neural-ae-me/ae-neural
         # -----------------
         model_hparams = {
             'model_class': 'neural-ae',
@@ -992,6 +1002,14 @@ class TestClass:
             'activation': 'relu',
             'learning_rate': 1e-3,
             'subsample_method': 'none'}
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        model_hparams['model_class'] = 'neural-ae-me'
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        model_hparams['model_class'] = 'ae-neural'
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
 

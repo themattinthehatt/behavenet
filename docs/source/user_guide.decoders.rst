@@ -24,12 +24,15 @@ Decoding ARHMM states:
     
 or
 
-Decoding AE states:
+Decoding AE latents:
 
 .. code-block:: console
 
     $: python behavenet/fitting/decoding_grid_search.py --data_config ~/.behavenet/musall_vistrained_params.json --model_config ~/.behavenet/decoding_ae_model.json --training_config ~/.behavenet/decoding_training.json --compute_config ~/.behavenet/decoding_compute.json
 
+It is also possible to decode the motion energy of the AE latents, defined as the absolute value of
+the difference between neighboring time points; to do so make the following change in the model
+json: ``model_class: 'neural-ae-me'``
 
 .. _decoding_with_subsets:
 

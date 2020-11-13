@@ -16,6 +16,43 @@ def test_compose():
     assert np.allclose(np.std(s, axis=0), [1, 1], atol=1e-3)
 
 
+def test_blockshuffle():
+
+    def get_runs(sample):
+
+        vals = np.unique(sample)
+        n_time = len(sample)
+
+        # mark first time point of state change with a nonzero number
+        change = np.where(np.concatenate([[0], np.diff(sample)], axis=0) != 0)[0]
+        # collect runs
+        runs = {val: [] for val in vals}
+        prev_beg = 0
+        for curr_beg in change:
+            runs[sample[prev_beg]].append(curr_beg - prev_beg)
+            prev_beg = curr_beg
+        runs[sample[-1]].append(n_time - prev_beg)
+        return runs
+
+    t = transforms.BlockShuffle(0)
+
+    # signal has changed
+    signal = np.array([0, 0, 0, 1, 1, 1, 2, 2, 0, 0, 1, 1])
+    s = t(signal)
+    assert not np.all(signal == s)
+
+    # frequency of values unchanged
+    n_ex_og = np.array([len(np.argwhere(signal == i)) for i in range(3)])
+    n_ex_sh = np.array([len(np.argwhere(s == i)) for i in range(3)])
+    assert np.all(n_ex_og == n_ex_sh)
+
+    # distribution of runs unchanged
+    runs_og = get_runs(signal)
+    runs_sh = get_runs(s)
+    for key in runs_og.keys():
+        assert np.all(np.sort(np.array(runs_og[key])) == np.sort(np.array(runs_sh[key])))
+
+
 def test_clipnormalize():
 
     # raise exception when clip value <= 0
@@ -33,40 +70,6 @@ def test_clipnormalize():
     signal[0, 0] = 3
     s = t(signal)
     assert np.max(s) == 1
-
-
-def test_threshold():
-
-    # raise exception when bin size <= 0
-    with pytest.raises(ValueError):
-        transforms.Threshold(1, 0)
-
-    # raise exception when threshold < 0
-    with pytest.raises(ValueError):
-        transforms.Threshold(-1, 1)
-
-    # no thresholding with 0 threshold
-    t = transforms.Threshold(0, 1)
-    signal = np.random.uniform(0, 4, (5, 4))
-    s = t(signal)
-    assert s.shape == (5, 4)
-
-    # correct thresholding
-    t = transforms.Threshold(1, 1e3)
-    signal = np.random.uniform(2, 4, (5, 4))
-    signal[:, 0] = 0
-    s = t(signal)
-    assert s.shape == (5, 3)
-
-
-def test_zscore():
-
-    t = transforms.ZScore()
-    signal = 10 + 0.3 * np.random.randn(100, 3)
-    s = t(signal)
-    assert s.shape == (100, 3)
-    assert np.allclose(np.mean(s, axis=0), [0, 0, 0], atol=1e-3)
-    assert np.allclose(np.std(s, axis=0), [1, 1, 1], atol=1e-3)
 
 
 def test_makeonehot():
@@ -133,41 +136,17 @@ def test_makeonehot2d():
     assert np.all(s == sp)
 
 
-def test_blockshuffle():
+def test_motionenergy():
 
-    def get_runs(sample):
-
-        vals = np.unique(sample)
-        n_time = len(sample)
-
-        # mark first time point of state change with a nonzero number
-        change = np.where(np.concatenate([[0], np.diff(sample)], axis=0) != 0)[0]
-        # collect runs
-        runs = {val: [] for val in vals}
-        prev_beg = 0
-        for curr_beg in change:
-            runs[sample[prev_beg]].append(curr_beg - prev_beg)
-            prev_beg = curr_beg
-        runs[sample[-1]].append(n_time - prev_beg)
-        return runs
-
-    t = transforms.BlockShuffle(0)
-
-    # signal has changed
-    signal = np.array([0, 0, 0, 1, 1, 1, 2, 2, 0, 0, 1, 1])
+    T = 100
+    D = 4
+    t = transforms.MotionEnergy()
+    signal = np.random.randn(T, D)
     s = t(signal)
-    assert not np.all(signal == s)
-
-    # frequency of values unchanged
-    n_ex_og = np.array([len(np.argwhere(signal == i)) for i in range(3)])
-    n_ex_sh = np.array([len(np.argwhere(s == i)) for i in range(3)])
-    assert np.all(n_ex_og == n_ex_sh)
-
-    # distribution of runs unchanged
-    runs_og = get_runs(signal)
-    runs_sh = get_runs(s)
-    for key in runs_og.keys():
-        assert np.all(np.sort(np.array(runs_og[key])) == np.sort(np.array(runs_sh[key])))
+    me = np.vstack([np.zeros((1, signal.shape[1])), np.abs(np.diff(signal, axis=0))])
+    assert s.shape == (T, D)
+    assert np.allclose(s, me, atol=1e-3)
+    assert np.all(me >= 0)
 
 
 def test_selectindxs():
@@ -179,3 +158,37 @@ def test_selectindxs():
     s = t(signal)
     assert s.shape == (5, 2)
     assert np.all(signal[:, idxs] == s)
+
+
+def test_threshold():
+
+    # raise exception when bin size <= 0
+    with pytest.raises(ValueError):
+        transforms.Threshold(1, 0)
+
+    # raise exception when threshold < 0
+    with pytest.raises(ValueError):
+        transforms.Threshold(-1, 1)
+
+    # no thresholding with 0 threshold
+    t = transforms.Threshold(0, 1)
+    signal = np.random.uniform(0, 4, (5, 4))
+    s = t(signal)
+    assert s.shape == (5, 4)
+
+    # correct thresholding
+    t = transforms.Threshold(1, 1e3)
+    signal = np.random.uniform(2, 4, (5, 4))
+    signal[:, 0] = 0
+    s = t(signal)
+    assert s.shape == (5, 3)
+
+
+def test_zscore():
+
+    t = transforms.ZScore()
+    signal = 10 + 0.3 * np.random.randn(100, 3)
+    s = t(signal)
+    assert s.shape == (100, 3)
+    assert np.allclose(np.mean(s, axis=0), [0, 0, 0], atol=1e-3)
+    assert np.allclose(np.std(s, axis=0), [1, 1, 1], atol=1e-3)

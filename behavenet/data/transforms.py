@@ -55,6 +55,60 @@ class Transform(object):
         raise NotImplementedError
 
 
+class BlockShuffle(Transform):
+    """Shuffle blocks of contiguous discrete states within each trial."""
+
+    def __init__(self, rng_seed):
+        """
+
+        Parameters
+        ----------
+        rng_seed : :obj:`int`
+            to control random number generator
+
+        """
+        self.rng_seed = rng_seed
+
+    def __call__(self, sample):
+        """
+
+        Parameters
+        ----------
+        sample : :obj:`np.ndarray`
+            dense representation of shape (time)
+
+        Returns
+        -------
+        :obj:`np.ndarray`
+            output shape is (time)
+
+        """
+
+        np.random.seed(self.rng_seed)
+        n_time = len(sample)
+        if not any(np.isnan(sample)):
+            # mark first time point of state change with a nonzero number
+            state_change = np.where(np.concatenate([[0], np.diff(sample)], axis=0) != 0)[0]
+            # collect runs
+            runs = []
+            prev_beg = 0
+            for curr_beg in state_change:
+                runs.append(np.arange(prev_beg, curr_beg))
+                prev_beg = curr_beg
+            runs.append(np.arange(prev_beg, n_time))
+            # shuffle runs
+            rand_perm = np.random.permutation(len(runs))
+            runs_shuff = [runs[idx] for idx in rand_perm]
+            # index back into original labels with shuffled indices
+            sample_shuff = sample[np.concatenate(runs_shuff)]
+        else:
+            sample_shuff = np.full(n_time, fill_value=np.nan)
+        return sample_shuff
+
+    def __repr__(self):
+        return str('BlockShuffle(rng_seed=%i)' % self.rng_seed)
+
+
 class ClipNormalize(Transform):
     """Clip upper level of signal and divide by clip value."""
 
@@ -90,126 +144,6 @@ class ClipNormalize(Transform):
 
     def __repr__(self):
         return str('ClipNormalize(clip_val=%f)' % self.clip_val)
-
-
-# class Resize(Transform):
-#     """Resize the sample images."""
-#
-#     def __init__(self, size=(128, 128), order=1):
-#         """
-#
-#         Parameters
-#         ----------
-#         size : :obj:`int` or :obj:`tuple`
-#             desired output size for each image; if type is :obj:`int`, the same value is used for
-#             both height and width
-#         order : :obj:`int`
-#             interpolation order
-#
-#         """
-#         assert isinstance(size, (tuple, int))
-#         self.order = order
-#         if isinstance(size, tuple):
-#             self.x = size[0]
-#             self.y = size[1]
-#         else:
-#             self.x = self.y = size
-#
-#     def __call__(self, sample):
-#         """
-#
-#         Parameters
-#         ----------
-#         sample: :obj:`np.ndarray`
-#             input shape is (trial, time, n_channels)
-#
-#         Returns
-#         -------
-#         :obj:`np.ndarray`
-#             output shape is (trial, time, n_channels)
-#
-#         """
-#         sh = sample.shape
-#         sample = transform.resize(sample, (sh[0], sh[1], self.y, self.x), order=self.order)
-#         return sample
-#
-#     def __repr__(self):
-#         return str('Resize(size=(%i, %i))' % (self.y, self.x))
-
-
-class Threshold(Transform):
-    """Remove channels of neural activity whose mean value is below a threshold."""
-
-    def __init__(self, threshold, bin_size):
-        """
-
-        Parameters
-        ----------
-        threshold : :obj:`float`
-            threshold in Hz
-        bin_size : :obj:`float`
-            bin size of neural activity in ms
-
-        """
-        if bin_size <= 0:
-            raise ValueError('bin size must be positive')
-        if threshold < 0:
-            raise ValueError('threshold must be non-negative')
-
-        self.threshold = threshold
-        self.bin_size = bin_size
-
-    def __call__(self, sample):
-        """Calculates firing rate over all time points and thresholds.
-
-        Parameters
-        ----------
-        sample: :obj:`np.ndarray`
-            input shape is (time, n_channels)
-
-        Returns
-        -------
-        :obj:`np.ndarray`
-            output shape is (time, n_channels)
-
-        """
-        # get firing rates
-        frs = np.squeeze(np.mean(sample, axis=0)) / (self.bin_size * 1e-3)
-        fr_mask = frs > self.threshold
-        # get rid of neurons below fr threshold
-        sample = sample[:, fr_mask]
-        return sample.astype(np.float)
-
-    def __repr__(self):
-        return str('Threshold(threshold=%f, bin_size=%f)' % (self.threshold, self.bin_size))
-
-
-class ZScore(Transform):
-    """z-score channel activity."""
-
-    def __init__(self):
-        pass
-
-    def __call__(self, sample):
-        """
-
-        Parameters
-        ----------
-        sample : :obj:`np.ndarray`
-            input shape is (time, n_channels)
-
-        Returns
-        -------
-        :obj:`np.ndarray`
-            output shape is (time, n_channels)
-
-        """
-        sample -= np.mean(sample, axis=0)
-        sample /= np.std(sample, axis=0)
-        return sample
-
-    def __repr__(self):
-        return 'ZScore()'
 
 
 class MakeOneHot(Transform):
@@ -314,19 +248,11 @@ class MakeOneHot2D(Transform):
         return str('MakeOneHot2D(y_pixels=%i, x_pixels=%i)' % (self.y_pixels, self.x_pixels))
 
 
-class BlockShuffle(Transform):
-    """Shuffle blocks of contiguous discrete states within each trial."""
+class MotionEnergy(Transform):
+    """Compute motion energy across batch dimension."""
 
-    def __init__(self, rng_seed):
-        """
-
-        Parameters
-        ----------
-        rng_seed : :obj:`int`
-            to control random number generator
-
-        """
-        self.rng_seed = rng_seed
+    def __init__(self):
+        pass
 
     def __call__(self, sample):
         """
@@ -334,38 +260,18 @@ class BlockShuffle(Transform):
         Parameters
         ----------
         sample : :obj:`np.ndarray`
-            dense representation of shape (time)
+            input shape is (time, n_channels)
 
         Returns
         -------
         :obj:`np.ndarray`
-            output shape is (time)
+            output shape is (time, n_channels)
 
         """
-
-        np.random.seed(self.rng_seed)
-        n_time = len(sample)
-        if not any(np.isnan(sample)):
-            # mark first time point of state change with a nonzero number
-            state_change = np.where(np.concatenate([[0], np.diff(sample)], axis=0) != 0)[0]
-            # collect runs
-            runs = []
-            prev_beg = 0
-            for curr_beg in state_change:
-                runs.append(np.arange(prev_beg, curr_beg))
-                prev_beg = curr_beg
-            runs.append(np.arange(prev_beg, n_time))
-            # shuffle runs
-            rand_perm = np.random.permutation(len(runs))
-            runs_shuff = [runs[idx] for idx in rand_perm]
-            # index back into original labels with shuffled indices
-            sample_shuff = sample[np.concatenate(runs_shuff)]
-        else:
-            sample_shuff = np.full(n_time, fill_value=np.nan)
-        return sample_shuff
+        return np.vstack([np.zeros((1, sample.shape[1])), np.abs(np.diff(sample, axis=0))])
 
     def __repr__(self):
-        return str('BlockShuffle(rng_seed=%i)' % self.rng_seed)
+        return 'MotionEnergy()'
 
 
 class SelectIdxs(Transform):
@@ -402,3 +308,123 @@ class SelectIdxs(Transform):
 
     def __repr__(self):
         return str('SelectIndxs(idxs=idxs, sample_name=%s)' % self.sample_name)
+
+
+class Threshold(Transform):
+    """Remove channels of neural activity whose mean value is below a threshold."""
+
+    def __init__(self, threshold, bin_size):
+        """
+
+        Parameters
+        ----------
+        threshold : :obj:`float`
+            threshold in Hz
+        bin_size : :obj:`float`
+            bin size of neural activity in ms
+
+        """
+        if bin_size <= 0:
+            raise ValueError('bin size must be positive')
+        if threshold < 0:
+            raise ValueError('threshold must be non-negative')
+
+        self.threshold = threshold
+        self.bin_size = bin_size
+
+    def __call__(self, sample):
+        """Calculates firing rate over all time points and thresholds.
+
+        Parameters
+        ----------
+        sample: :obj:`np.ndarray`
+            input shape is (time, n_channels)
+
+        Returns
+        -------
+        :obj:`np.ndarray`
+            output shape is (time, n_channels)
+
+        """
+        # get firing rates
+        frs = np.squeeze(np.mean(sample, axis=0)) / (self.bin_size * 1e-3)
+        fr_mask = frs > self.threshold
+        # get rid of neurons below fr threshold
+        sample = sample[:, fr_mask]
+        return sample.astype(np.float)
+
+    def __repr__(self):
+        return str('Threshold(threshold=%f, bin_size=%f)' % (self.threshold, self.bin_size))
+
+
+class ZScore(Transform):
+    """z-score channel activity."""
+
+    def __init__(self):
+        pass
+
+    def __call__(self, sample):
+        """
+
+        Parameters
+        ----------
+        sample : :obj:`np.ndarray`
+            input shape is (time, n_channels)
+
+        Returns
+        -------
+        :obj:`np.ndarray`
+            output shape is (time, n_channels)
+
+        """
+        sample -= np.mean(sample, axis=0)
+        sample /= np.std(sample, axis=0)
+        return sample
+
+    def __repr__(self):
+        return 'ZScore()'
+
+
+# class Resize(Transform):
+#     """Resize the sample images."""
+#
+#     def __init__(self, size=(128, 128), order=1):
+#         """
+#
+#         Parameters
+#         ----------
+#         size : :obj:`int` or :obj:`tuple`
+#             desired output size for each image; if type is :obj:`int`, the same value is used for
+#             both height and width
+#         order : :obj:`int`
+#             interpolation order
+#
+#         """
+#         assert isinstance(size, (tuple, int))
+#         self.order = order
+#         if isinstance(size, tuple):
+#             self.x = size[0]
+#             self.y = size[1]
+#         else:
+#             self.x = self.y = size
+#
+#     def __call__(self, sample):
+#         """
+#
+#         Parameters
+#         ----------
+#         sample: :obj:`np.ndarray`
+#             input shape is (trial, time, n_channels)
+#
+#         Returns
+#         -------
+#         :obj:`np.ndarray`
+#             output shape is (trial, time, n_channels)
+#
+#         """
+#         sh = sample.shape
+#         sample = transform.resize(sample, (sh[0], sh[1], self.y, self.x), order=self.order)
+#         return sample
+#
+#     def __repr__(self):
+#         return str('Resize(size=(%i, %i))' % (self.y, self.x))

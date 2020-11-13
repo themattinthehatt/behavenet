@@ -15,7 +15,7 @@ Model-related code
     * `behavenet.fitting.utils.get_best_data_and_model`
     * `behavenet.fitting.eval.export_xxx` (latents, states, predictions, etc)
 * potential function updates:
-    * other `behavenet.fitting.eval` methods (like `get_rconstruction`)
+    * other `behavenet.fitting.eval` methods (like `get_reconstruction`)
     * `behavenet.fitting.hyperparam_utils.add_dependent_params` [UPDATE UNIT TEST!]
 * update relevant jsons (e.g. extra hyperparameters)
 

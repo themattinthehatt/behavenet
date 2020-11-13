@@ -4,7 +4,11 @@
 Hyperparameter glossary
 #######################
 
-The BehaveNet code requires a diverse array of hyperparameters (hparams) to specify details about the data, computational resources, training algorithms, and the models themselves. This glossary contains a brief description for each of the hparams options. See the `example json files <https://github.com/ebatty/behavenet/tree/master/configs>`_ for reasonable hparams defaults.
+The BehaveNet code requires a diverse array of hyperparameters (hparams) to specify details about
+the data, computational resources, training algorithms, and the models themselves. This glossary
+contains a brief description for each of the hparams options. See the
+`example json files <https://github.com/ebatty/behavenet/tree/master/configs>`_ for reasonable
+hparams defaults.
 
 Data
 ====
@@ -27,7 +31,11 @@ Data
 * **neural_type** (*str*): 'spikes' | 'ca'
 * **approx_batch_size** (*str*): approximate batch size (number of frames) for gpu memory calculation
 
-For encoders/decoders, additional information can be supplied to control which subsets of neurons are used for encoding/decoding. See the :ref:`data structure documentation<data_structure_subsets>` for detailed instructions on how to incorporate this information into your HDF5 data file. The following options must be added to the data json file (an example can be found `here <https://github.com/ebatty/behavenet/blob/master/configs/decoding_jsons/decoding_data.json>`__):
+For encoders/decoders, additional information can be supplied to control which subsets of neurons
+are used for encoding/decoding. See the :ref:`data structure documentation<data_structure_subsets>`
+for detailed instructions on how to incorporate this information into your HDF5 data file. The
+following options must be added to the data json file (an example can be found
+`here <https://github.com/ebatty/behavenet/blob/master/configs/decoding_jsons/decoding_data.json>`__):
 
 * **subsample_idxs_group_0** (*str*): name of the top-level HDF5 group that contains index groups
 * **subsample_idxs_group_1** (*str*): name of the second-level HDF5 group that contains index datasets
@@ -100,13 +108,17 @@ All models:
     * 'vae': variational autoencoder
     * 'beta-tcvae': variational autoencoder with beta tc-vae decomposition of elbo
     * 'cond-ae': conditional autoencoder
+    * 'cond-vae': conditional variational autoencoder
     * 'cond-ae-msp': autoencoder with matrix subspace projection loss
+    * 'sss-vae': semi-supervised subspace variational autoencoder
     * 'hmm': hidden Markov model
     * 'arhmm': autoregressive hidden Markov model
     * 'neural-ae': decode AE latents from neural activity
+    * 'neural-ae-me': decode motion energy of AE latents (absolute value of temporal difference) from neural activity
     * 'neural-arhmm': decode arhmm states from neural activity
     * 'ae-neural': predict neural activity from AE latents
     * 'arhmm-neural': predict neural activity from arhmm states
+    * 'labels-images': decode images from labels with a convolutional decoder
     * 'bayesian-decoding': baysian decoding of AE latents and arhmm states from neural activity
 
 

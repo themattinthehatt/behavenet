@@ -120,6 +120,23 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
             transforms = [neural_transform, ae_transform]
             paths = [neural_path, ae_path]
 
+        elif hparams['model_class'] == 'neural-ae-me':
+
+            hparams['input_signal'] = 'neural'
+            hparams['output_signal'] = 'ae_latents'
+            hparams['output_size'] = hparams['n_ae_latents']
+            if hparams['model_type'][-2:] == 'mv':
+                hparams['noise_dist'] = 'gaussian-full'
+            else:
+                hparams['noise_dist'] = 'gaussian'
+
+            ae_transform, ae_path = get_transforms_paths(
+                'ae_latents_me', hparams, sess_id=sess_id, check_splits=check_splits)
+
+            signals = ['neural', 'ae_latents']
+            transforms = [neural_transform, ae_transform]
+            paths = [neural_path, ae_path]
+
         elif hparams['model_class'] == 'ae-neural':
 
             hparams['input_signal'] = 'ae_latents'
@@ -413,11 +430,12 @@ def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
 
     """
 
+    from behavenet.data.transforms import BlockShuffle
+    from behavenet.data.transforms import Compose
+    from behavenet.data.transforms import MotionEnergy
     from behavenet.data.transforms import SelectIdxs
     from behavenet.data.transforms import Threshold
     from behavenet.data.transforms import ZScore
-    from behavenet.data.transforms import BlockShuffle
-    from behavenet.data.transforms import Compose
     from behavenet.fitting.utils import get_best_model_version
     from behavenet.fitting.utils import get_expt_dir
 
@@ -478,9 +496,13 @@ def get_transforms_paths(data_type, hparams, sess_id, check_splits=True):
         else:
             transform = Compose(transforms_)
 
-    elif data_type == 'ae_latents' or data_type == 'latents':
+    elif data_type == 'ae_latents' or data_type == 'latents' \
+            or data_type == 'ae_latents_me' or data_type == 'latents_me':
 
-        transform = None
+        if data_type == 'ae_latents_me' or data_type == 'latents_me':
+            transform = MotionEnergy()
+        else:
+            transform = None
 
         if 'ae_latents_file' in hparams:
             path = hparams['ae_latents_file']

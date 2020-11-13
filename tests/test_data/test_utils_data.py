@@ -210,6 +210,29 @@ def test_get_data_generator_inputs():
     assert hparams_['noise_dist'] == 'gaussian-full'
 
     # -----------------
+    # neural-ae-me
+    # -----------------
+    hparams['model_class'] = 'neural-ae-me'
+    hparams['model_type'] = 'linear'
+    hparams['session_dir'] = session_dir
+    hparams['neural_type'] = 'spikes'
+    hparams['neural_thresh'] = 0
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['neural', 'ae_latents']
+    assert transforms[0][0] is None
+    assert transforms[0][1].__repr__().find('MotionEnergy') > -1
+    assert hparams_['input_signal'] == 'neural'
+    assert hparams_['output_signal'] == 'ae_latents'
+    assert hparams_['output_size'] == hparams['n_ae_latents']
+    assert hparams_['noise_dist'] == 'gaussian'
+
+    hparams['model_type'] = 'linear-mv'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert hparams_['noise_dist'] == 'gaussian-full'
+
+    # -----------------
     # ae-neural
     # -----------------
     hparams['model_class'] = 'ae-neural'
@@ -560,6 +583,13 @@ def test_get_transforms_paths():
     assert path == os.path.join(
         ae_path, 'version_%i' % hparams['ae_version'], '%slatents.pkl' % sess_id_str)
     assert transform is None
+
+    # get correct transform
+    transform, path = utils.get_transforms_paths(
+        'ae_latents_me', hparams, sess_id=None, check_splits=False)
+    assert path == os.path.join(
+        ae_path, 'version_%i' % hparams['ae_version'], '%slatents.pkl' % sess_id_str)
+    assert transform.__repr__().find('MotionEnergy') > -1
 
     # TODO: use get_best_model_version()
 

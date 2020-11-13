@@ -47,6 +47,7 @@ MODELS_TO_FIT = [  # ['model_file']_grid_search
     {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
     {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+    {'model_class': 'neural-ae-me', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-labels', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'ae', 'model_file': 'ae', 'sessions': 'all'},
@@ -132,9 +133,10 @@ def get_model_config_files(model, json_dir):
             'model': os.path.join(model_json_dir, '%s_model.json' % model),
             'training': os.path.join(model_json_dir, '%s_training.json' % model),
             'compute': os.path.join(model_json_dir, '%s_compute.json' % model)}
-    elif model == 'neural-ae' or model == 'neural-arhmm' or model == 'neural-labels':
+    elif model == 'neural-ae' or model == 'neural-ae-me' or model == 'neural-arhmm' \
+            or model == 'neural-labels':
         m = 'decoding'
-        s = model.split('-')[-1]
+        s = model.split('-')[1]  # take string after "neural"
         model_json_dir = os.path.join(json_dir, '%s_jsons' % m)
         base_config_files = {
             'data': os.path.join(model_json_dir, '%s_data.json' % m),
@@ -196,7 +198,7 @@ def define_new_config_values(model, session='sess-0'):
             'data': data_dict,
             'model': {
                 'experiment_name': ae_expt_name,
-                'model_class': 'cond-ae-msp',
+                'model_class': model,
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents + TEMP_DATA['n_labels'],
                 'l2_reg': 0.0,
@@ -257,6 +259,33 @@ def define_new_config_values(model, session='sess-0'):
         new_values = {
             'data': data_dict,
             'model': {
+                'model_class': model,
+                'n_lags': 4,
+                'n_max_lags': 8,
+                'l2_reg': 1e-3,
+                'ae_experiment_name': ae_expt_name,
+                'ae_model_class': ae_model_class,
+                'ae_model_type': ae_model_type,
+                'n_ae_latents': n_ae_latents,
+                'model_type': 'mlp',
+                'n_hid_layers': 1,
+                'n_hid_units': 16,
+                'activation': 'relu'},
+            'training': {
+                'export_predictions': True,
+                'min_n_epochs': 1,
+                'max_n_epochs': 1,
+                'enable_early_stop': False,
+                'train_frac': train_frac,
+                'trial_splits': trial_splits},
+            'compute': {
+                'gpus_viz': str(gpu_id),
+                'tt_n_cpu_workers': 2}}
+    elif model == 'neural-ae-me':
+        new_values = {
+            'data': data_dict,
+            'model': {
+                'model_class': model,
                 'n_lags': 4,
                 'n_max_lags': 8,
                 'l2_reg': 1e-3,
@@ -282,6 +311,7 @@ def define_new_config_values(model, session='sess-0'):
         new_values = {
             'data': data_dict,
             'model': {
+                'model_class': model,
                 'n_lags': 3,
                 'n_max_lags': 5,
                 'l2_reg': 1e-4,

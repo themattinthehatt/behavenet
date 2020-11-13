@@ -50,6 +50,9 @@ def main(hparams, *args):
     elif hparams['model_class'] == 'neural-ae':
         hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
         hparams['output_size'] = hparams['n_ae_latents']
+    elif hparams['model_class'] == 'neural-ae-me':
+        hparams['input_size'] = data_generator.datasets[0][ex_trial][i_sig].shape[1]
+        hparams['output_size'] = hparams['n_ae_latents']
     elif hparams['model_class'] == 'ae-neural':
         hparams['input_size'] = hparams['n_ae_latents']
         hparams['output_size'] = data_generator.datasets[0][ex_trial][o_sig].shape[1]
@@ -62,7 +65,8 @@ def main(hparams, *args):
     else:
         raise ValueError('%s is an invalid model class' % hparams['model_class'])
 
-    if hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'ae-neural':
+    if hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-ae' \
+            or hparams['model_class'] == 'ae-neural':
         hparams['ae_model_path'] = os.path.join(
             os.path.dirname(data_generator.datasets[0].paths['ae_latents']))
         hparams['ae_model_latents_file'] = data_generator.datasets[0].paths['ae_latents']
@@ -72,7 +76,7 @@ def main(hparams, *args):
         hparams['arhmm_model_states_file'] = data_generator.datasets[0].paths['arhmm_states']
 
         # Store which AE was used for the ARHMM
-        tags = pickle.load(open(hparams['arhmm_model_path'] + '/meta_tags.pkl', 'rb'))
+        tags = pickle.load(open(os.path.join(hparams['arhmm_model_path'], 'meta_tags.pkl'), 'rb'))
         hparams['ae_model_latents_file'] = tags['ae_model_latents_file']
 
     # ####################
