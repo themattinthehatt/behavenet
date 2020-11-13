@@ -158,14 +158,28 @@ def define_new_config_values(model, session='sess-0'):
     train_frac = 0.5
     trial_splits = '8;1;1;1'
 
+    training_dict = {
+        'export_train_plots': False,
+        'export_latents': True,
+        'export_predictions': True,
+        'min_n_epochs': 1,
+        'max_n_epochs': 1,
+        'enable_early_stop': False,
+        'train_frac': train_frac,
+        'trial_splits': trial_splits
+    }
+
     # compute vals
     gpu_id = 0
+
+    compute_dict = {'gpus_viz': str(gpu_id), 'tt_n_cpu_workers': 2}
 
     # model vals: ae
     ae_expt_name = 'ae-expt'
     ae_model_class = 'ae'
     ae_model_type = 'conv'
     n_ae_latents = 6
+    l2_reg = 0.0
 
     # model vals: arhmm
     arhmm_expt_name = 'arhmm-expt'
@@ -182,17 +196,9 @@ def define_new_config_values(model, session='sess-0'):
                 'model_class': model,
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
-                'l2_reg': 0.0},
-            'training': {
-                'export_train_plots': False,
-                'export_latents': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id)}}
+                'l2_reg': l2_reg},
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'cond-ae-msp':
         new_values = {
             'data': data_dict,
@@ -201,18 +207,10 @@ def define_new_config_values(model, session='sess-0'):
                 'model_class': model,
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents + TEMP_DATA['n_labels'],
-                'l2_reg': 0.0,
+                'l2_reg': l2_reg,
                 'msp.alpha': 1e-5},
-            'training': {
-                'export_train_plots': False,
-                'export_latents': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id)}}
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'cond-vae':
         new_values = {
             'data': data_dict,
@@ -221,18 +219,10 @@ def define_new_config_values(model, session='sess-0'):
                 'model_class': model,
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
-                'l2_reg': 0.0,
+                'l2_reg': l2_reg,
                 'conditional_encoder': False},
-            'training': {
-                'export_train_plots': False,
-                'export_latents': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id)}}
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'arhmm':
         new_values = {
             'data': data_dict,
@@ -252,9 +242,7 @@ def define_new_config_values(model, session='sess-0'):
                 'n_iters': 2,
                 'train_frac': train_frac,
                 'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id),
-                'tt_n_cpu_workers': 2}}
+            'compute': compute_dict}
     elif model == 'neural-ae':
         new_values = {
             'data': data_dict,
@@ -271,16 +259,8 @@ def define_new_config_values(model, session='sess-0'):
                 'n_hid_layers': 1,
                 'n_hid_units': 16,
                 'activation': 'relu'},
-            'training': {
-                'export_predictions': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id),
-                'tt_n_cpu_workers': 2}}
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'neural-ae-me':
         new_values = {
             'data': data_dict,
@@ -297,16 +277,8 @@ def define_new_config_values(model, session='sess-0'):
                 'n_hid_layers': 1,
                 'n_hid_units': 16,
                 'activation': 'relu'},
-            'training': {
-                'export_predictions': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id),
-                'tt_n_cpu_workers': 2}}
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'neural-labels':
         new_values = {
             'data': data_dict,
@@ -319,16 +291,8 @@ def define_new_config_values(model, session='sess-0'):
                 'n_hid_layers': 1,
                 'n_hid_units': 16,
                 'activation': 'relu'},
-            'training': {
-                'export_predictions': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id),
-                'tt_n_cpu_workers': 2}}
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'neural-arhmm':
         new_values = {
             'data': data_dict,
@@ -348,16 +312,8 @@ def define_new_config_values(model, session='sess-0'):
                 'n_hid_layers': 1,
                 'n_hid_units': [8, 16],
                 'activation': 'relu'},
-            'training': {
-                'export_predictions': True,
-                'min_n_epochs': 1,
-                'max_n_epochs': 1,
-                'enable_early_stop': False,
-                'train_frac': train_frac,
-                'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id),
-                'tt_n_cpu_workers': 2}}
+            'training': training_dict,
+            'compute': compute_dict}
     elif model == 'labels-images':
         new_values = {
             'data': data_dict,
@@ -366,17 +322,16 @@ def define_new_config_values(model, session='sess-0'):
                 'model_class': 'labels-images',
                 'model_type': ae_model_type,
                 'n_ae_latents': 0,
-                'l2_reg': 0.0},
+                'l2_reg': l2_reg},
             'training': {
                 'export_train_plots': False,
-                'export_latents': False,
+                'export_predictions': False,
                 'min_n_epochs': 1,
                 'max_n_epochs': 1,
                 'enable_early_stop': False,
                 'train_frac': train_frac,
                 'trial_splits': trial_splits},
-            'compute': {
-                'gpus_viz': str(gpu_id)}}
+            'compute': compute_dict}
     else:
         raise NotImplementedError
 
