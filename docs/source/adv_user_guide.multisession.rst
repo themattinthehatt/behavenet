@@ -18,7 +18,7 @@ require modifying the data configuration json before training. We'll use the Mus
 example; below is the relevant section of the json file located in
 ``behavenet/configs/data_default.json`` that we will modify below.
 
-.. code-block:: javascript
+.. code-block:: JSON
 
     "lab": "musall", # type: str
     "expt": "vistrained", # type: str
@@ -40,7 +40,7 @@ This method is appropriate if you want to fit a model on all sessions from a spe
 experiment, or lab. For example, if we want to fit a model on all sessions from animal
 ``mSM30``, we would modify the ``session`` parameter value to ``all``:
 
-.. code-block:: javascript
+.. code-block:: JSON
 
     "lab": "musall", # type: str
     "expt": "vistrained", # type: str
@@ -58,7 +58,7 @@ lists the lab, expt, animal, and session for all sessions in that multisession.
 If we want to fit a model on all sessions from all animals in the ``vistrained`` experiment, we
 would modify the ``animal`` parameter value to ``all``:
 
-.. code-block:: javascript
+.. code-block:: JSON
 
     "lab": "musall", # type: str
     "expt": "vistrained", # type: str
@@ -89,10 +89,11 @@ Method 2: specify sessions in a csv file
 This method is appropriate if you want finer control over which sessions are included; for example,
 if you want all sessions from one animal, as well as all but one session from another animal. To
 specify these sessions, you can construct a csv file with the four column headers ``lab``,
-``expt``, ``animal``, and ``session``. You can then provide this csv file (let's say it's called
-``data_dir/example_sessions.csv``) as the value for the ``sessions_csv`` parameter:
+``expt``, ``animal``, and ``session`` (see below). You can then provide this csv file
+(let's say it's called ``data_dir/example_sessions.csv``) as the value for the ``sessions_csv``
+parameter:
 
-.. code-block:: javascript
+.. code-block:: JSON
 
     "lab": "musall", # type: str
     "expt": "vistrained", # type: str
@@ -104,6 +105,23 @@ specify these sessions, you can construct a csv file with the four column header
 The ``sessions_csv`` parameter takes precedence over any values supplied for ``lab``, ``expt``,
 ``animal``, ``session``, and ``all_source``.
 
+Below is an example csv file that includes two sessions from one animal:
+
+.. code-block:: text
+
+    lab,expt,animal,session
+    musall,vistrained,mSM36,05-Dec-2017
+    musall,vistrained,mSM36,07-Dec-2017
+
+Here is another example that include the previous two sessions, as well as a third from a different
+animal:
+
+.. code-block:: text
+
+    lab,expt,animal,session
+    musall,vistrained,mSM30,12-Oct-2017
+    musall,vistrained,mSM36,05-Dec-2017
+    musall,vistrained,mSM36,07-Dec-2017
 
 Loading a trained multisession model
 ------------------------------------

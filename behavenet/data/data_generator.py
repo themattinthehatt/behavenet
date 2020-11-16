@@ -287,7 +287,7 @@ class SingleSessionDatasetBatchedLoad(data.Dataset):
                     else:
                         sample[signal] = [f[signal][str('trial_%04i' % idx)][()].astype(dtype)]
 
-            elif signal == 'ae_latents':
+            elif signal == 'ae_latents' or signal == 'latents':
                 dtype = 'float32'
                 sample[signal] = self._try_to_load(signal, key='latents', idx=idx, dtype=dtype)
 

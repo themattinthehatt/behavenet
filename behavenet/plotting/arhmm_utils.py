@@ -377,13 +377,13 @@ def make_syllable_movies(
         maximum number of frames to animate
     frame_rate : :obj:`float`, optional
         frame rate of saved movie
-    n_buffer : :obj:`int`
+    n_buffer : :obj:`int`, optional
         number of blank frames between syllable instances
-    n_pre_frames : :obj:`int`
+    n_pre_frames : :obj:`int`, optional
         number of behavioral frames to precede each syllable instance
-    n_rows : :obj:`int` or :obj:`NoneType`
+    n_rows : :obj:`int` or :obj:`NoneType`, optional
         number of rows in output movie
-    single_syllable : :obj:`int` or :obj:`NoneType`
+    single_syllable : :obj:`int` or :obj:`NoneType`, optional
         choose only a single state for movie
 
     """
