@@ -722,7 +722,13 @@ class SSSVAE(AE):
         y_all = y.cpu().detach().numpy()
         if n is not None:
             n_np = n.cpu().detach().numpy()
-            r2 = r2_score(y_all[n_np == 1], y_hat_all[n_np == 1], multioutput='variance_weighted')
+            try:
+                r2 = r2_score(y_all[n_np == 1], y_hat_all[n_np == 1], multioutput='variance_weighted')
+                print(np.sum(np.isnan(y_hat_all[n_np == 1])))
+            except:
+                print(y_all[n_np == 1])
+                print()
+                print(y_hat_all[n_np == 1])
         else:
             r2 = r2_score(y_all, y_hat_all, multioutput='variance_weighted')
 

@@ -103,16 +103,16 @@ def make_reconstruction_movie(
     if save_file is not None:
         make_dir_if_not_exists(save_file)
         if save_file[-3:] == 'gif':
-            writer = 'imagemagick'
+            print('saving video to %s...' % save_file, end='')
+            ani.save(save_file, writer='imagemagick', fps=frame_rate)
+            print('done')
         else:
             if save_file[-3:] != 'mp4':
                 save_file += '.mp4'
             writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
-
-        print('saving video to %s...' % save_file, end='')
-        ani.save(save_file, writer=writer, fps=frame_rate)
-
-        print('done')
+            print('saving video to %s...' % save_file, end='')
+            ani.save(save_file, writer=writer)
+            print('done')
 
 
 def make_ae_reconstruction_movie_wrapper(
