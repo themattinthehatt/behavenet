@@ -2,7 +2,7 @@ commentjson==0.8.2
 h5py==2.9.0
 ipykernel==5.1.0
 matplotlib==3.0.3
-notebook==6.0.3
+notebook==6.1.5
 numpy==1.17.4
 requests==2.22.0
 scikit-image==0.15.0
