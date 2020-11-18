@@ -722,19 +722,14 @@ class SSSVAE(AE):
         y_all = y.cpu().detach().numpy()
         if n is not None:
             n_np = n.cpu().detach().numpy()
-            try:
-                r2 = r2_score(y_all[n_np == 1], y_hat_all[n_np == 1], multioutput='variance_weighted')
-                print(np.sum(np.isnan(y_hat_all[n_np == 1])))
-            except:
-                print(y_all[n_np == 1])
-                print()
-                print(y_hat_all[n_np == 1])
+            r2 = r2_score(y_all[n_np == 1], y_hat_all[n_np == 1], multioutput='variance_weighted')
         else:
             r2 = r2_score(y_all, y_hat_all, multioutput='variance_weighted')
 
         # compile (properly weighted) loss terms
         for key in loss_dict_vals.keys():
             loss_dict_vals[key] /= batch_size
+
         # store hyperparams
         loss_dict_vals['alpha'] = alpha
         loss_dict_vals['beta'] = beta
