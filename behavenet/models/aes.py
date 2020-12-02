@@ -1252,12 +1252,16 @@ def load_pretrained_ae(model, hparams):
             del loaded_model_dict['decoding.FF.weight']
             del loaded_model_dict['decoding.FF.bias']
 
-            # TODO: get rid of other latent-related parameters
+            # TODO: get rid of other unnecessary parameters
             if model.hparams['model_class'] == 'vae':
                 pass
-            elif model.hparams['model_class'] == 'beta_tcvae':
+            elif model.hparams['model_class'] == 'beta-tcvae':
                 pass
-            elif model.hparams['model_class'] == 'sss_vae':
+            elif model.hparams['model_class'] == 'sss-vae':
+                pass
+            elif model.hparams['model_class'] == 'labels-images' \
+                    or model.hparams['model_class'] == 'predictions-images':
+                # todo: remove encoding layers
                 pass
 
             model.load_state_dict(loaded_model_dict, strict=False)

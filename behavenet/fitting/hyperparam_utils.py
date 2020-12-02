@@ -71,6 +71,7 @@ def add_dependent_params(parser, namespace):
             or namespace.model_class == 'ps-vae' \
             or namespace.model_class == 'msps-vae' \
             or namespace.model_class == 'labels-images':
+            or namespace.model_class == 'predictions-images':
 
         if namespace.model_type == 'conv':
             max_latents = 64

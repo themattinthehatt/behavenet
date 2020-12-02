@@ -427,6 +427,11 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
     elif model_class == 'labels-images':
         model_path = os.path.join(model_class, model_type)
         session_dir = hparams['session_dir']
+    elif model_class == 'predictions-images':
+        model_path = os.path.join(
+            model_class, '%02i_latents' % hparams['n_ae_latents'], hparams['ae_model_class'],
+            model_type)
+        session_dir = hparams['session_dir']
     else:
         raise ValueError('"%s" is an invalid model class' % model_class)
     expt_dir = os.path.join(session_dir, model_path, expt_name)
@@ -729,6 +734,21 @@ def get_model_params(hparams):
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
         hparams_less['l2_reg'] = hparams['l2_reg']
+    elif model_class == 'predictions-images':
+        # model
+        hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
+        hparams_less['learning_rate'] = hparams['learning_rate']
+        hparams_less['l2_reg'] = hparams['l2_reg']
+        # where targets come from
+        hparams_less['ae_experiment_name'] = hparams['ae_experiment_name']
+        hparams_less['ae_version'] = hparams['ae_version']
+        hparams_less['ae_model_class'] = hparams['ae_model_class']
+        hparams_less['ae_model_type'] = hparams['ae_model_type']
+        hparams_less['n_ae_latents'] = hparams['n_ae_latents']
+        # where predictions come from
+        hparams_less['neural_ae_experiment_name'] = hparams['neural_ae_experiment_name']
+        hparams_less['neural_ae_version'] = hparams['neural_ae_version']
+        hparams_less['neural_ae_model_type'] = hparams['neural_ae_model_type']
     else:
         raise NotImplementedError('"%s" is not a valid model class' % model_class)
 
@@ -1041,6 +1061,8 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
         elif hparams['model_class'] == 'msps-vae':
             from behavenet.models import MSPSVAE as Model
         elif hparams['model_class'] == 'labels-images':
+            from behavenet.models import ConvDecoder as Model
+        elif hparams['model_class'] == 'predictions-images':
             from behavenet.models import ConvDecoder as Model
         elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-ae-me' \
                 or hparams['model_class'] == 'neural-arhmm' \

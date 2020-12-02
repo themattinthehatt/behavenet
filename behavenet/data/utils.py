@@ -313,6 +313,23 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
             # transforms.append(None)
             # paths.append(os.path.join(data_dir, 'data.hdf5'))
 
+        elif hparams['model_class'] == 'predictions-images':
+
+            hparams['input_signal'] = 'ae_predictions'
+            hparams['output_signal'] = 'images'
+
+            # get neural-ae info
+            neural_ae_transform, neural_ae_path = get_transforms_paths(
+                'neural_ae_predictions', hparams, None, check_splits=check_splits)
+
+            signals = ['images', 'ae_predictions']
+            transforms = [None, neural_ae_transform]
+            paths = [os.path.join(data_dir, 'data.hdf5'), neural_ae_path]
+            if hparams.get('use_output_mask', False):
+                signals.append('masks')
+                transforms.append(None)
+                paths.append(os.path.join(data_dir, 'data.hdf5'))
+
         elif hparams['model_class'] == 'labels' or hparams['model_class'] == 'labels_sc':
 
             signals = [hparams['model_class']]

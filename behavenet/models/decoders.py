@@ -466,8 +466,10 @@ class ConvDecoder(BaseModel):
             data = {key: val.to('cuda') for key, val in data.items()}
 
         x = data['images'][0]
-        y = data['labels'][0]
+        y = data[self.hparams['input_signal']][0]
         m = data['masks'][0] if 'masks' in data else None
+
+        max_lags = self.hparams.get('n_max_lags', None)
 
         batch_size = x.shape[0]
         n_chunks = int(np.ceil(batch_size / chunk_size))
@@ -475,12 +477,22 @@ class ConvDecoder(BaseModel):
         loss_val = 0
         for chunk in range(n_chunks):
 
-            idx_beg = chunk * chunk_size
-            idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+            if max_lags is None:
+                # labels-images
+                idx_beg = chunk * chunk_size
+                idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                x_in = x[idx_beg:idx_end]
+                y_in = y[idx_beg:idx_end]
+                m_in = m[idx_beg:idx_end] if m is not None else None
+            else:
+                # predictions-images
+                # take chunks of size chunk_size, plus overlap due to max_lags
+                idx_beg = np.max([chunk * chunk_size - max_lags, 0])
+                idx_end = np.min([(chunk + 1) * chunk_size + max_lags, batch_size])
+                x_in = x[idx_beg:idx_end][max_lags:-max_lags]
+                y_in = y[idx_beg:idx_end][max_lags:-max_lags]
+                m_in = m[idx_beg:idx_end][max_lags:-max_lags] if m is not None else None
 
-            x_in = x[idx_beg:idx_end]
-            y_in = y[idx_beg:idx_end]
-            m_in = m[idx_beg:idx_end] if m is not None else None
             x_hat = self.forward(y_in, dataset=dataset)
 
             loss = losses.mse(x_in, x_hat, m_in)

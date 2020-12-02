@@ -736,6 +736,22 @@ class TestClass:
         assert expt_dir == model_path
 
         # -------------------------
+        # predictions-images
+        # -------------------------
+        hparams['model_class'] = 'predictions-images'
+        hparams['model_type'] = 'conv'
+        hparams['ae_model_class'] = 'vae'
+        hparams['experiment_name'] = 'tt_expt'
+        model_path = os.path.join(
+            session_dir, hparams['model_class'], '%02i_latents' % hparams['n_ae_latents'],
+            hparams['ae_model_class'], hparams['model_type'], hparams['experiment_name'])
+
+        expt_dir = utils.get_expt_dir(
+            hparams, model_class=hparams['model_class'], model_type=hparams['model_type'],
+            expt_name=hparams['experiment_name'])
+        assert expt_dir == model_path
+
+        # -------------------------
         # other
         # -------------------------
         hparams['model_class'] = 'testing'
@@ -1077,6 +1093,27 @@ class TestClass:
             'fit_sess_io_layers': True,
             'learning_rate': 1e-1,
             'l2_reg': 10}
+        ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
+        assert ret_hparams == {**base_hparams, **model_hparams}
+
+        # -----------------
+        # predictions-images
+        # -----------------
+        model_hparams = {
+            'model_class': 'predictions-images',
+            'model_type': '',
+            'fit_sess_io_layers': True,
+            'learning_rate': 1e-1,
+            'l2_reg': 10,
+            'ae_experiment_name': 'ae-expt',
+            'ae_version': 10,
+            'ae_model_class': 'vae',
+            'ae_model_type': 'conv',
+            'n_ae_latents': 6,
+            'neural_ae_experiment_name': 'neural-ae-expt',
+            'neural_ae_version': 5,
+            'neural_ae_model_type': 'mlp'
+        }
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
 

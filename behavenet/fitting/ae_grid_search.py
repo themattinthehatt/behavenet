@@ -14,7 +14,7 @@ from behavenet.fitting.utils import _clean_tt_dir
 from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
-from behavenet.models.aes import load_pretrained_ae
+from behavenet.models import load_pretrained_ae
 
 
 def main(hparams, *args):

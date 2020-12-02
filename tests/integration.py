@@ -45,8 +45,9 @@ SESSIONS = ['sess-0', 'sess-1']
 
 MODELS_TO_FIT = [  # ['model_file']_grid_search
     {'model_class': 'ae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
-    {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
+    # {'model_class': 'arhmm', 'model_file': 'arhmm', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-ae', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
+    {'model_class': 'predictions-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-ae-me', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-labels', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
     {'model_class': 'neural-arhmm', 'model_file': 'decoder', 'sessions': SESSIONS[0]},
@@ -126,6 +127,7 @@ def get_model_config_files(model, json_dir):
             or model == 'ps-vae' \
             or model == 'msps-vae' \
             or model == 'labels-images' \
+            or model == 'predictions-images' \
             or model == 'arhmm':
         if model != 'arhmm':
             model = 'ae'
@@ -253,7 +255,7 @@ def define_new_config_values(model, session='sess-0'):
             'model': {
                 'model_class': model,
                 'n_lags': 4,
-                'n_max_lags': 8,
+                'n_max_lags': n_max_lags,
                 'l2_reg': 1e-3,
                 'ae_experiment_name': ae_expt_name,
                 'ae_model_class': ae_model_class,
@@ -326,7 +328,35 @@ def define_new_config_values(model, session='sess-0'):
                 'model_class': 'labels-images',
                 'model_type': ae_model_type,
                 'n_ae_latents': 0,
-                'l2_reg': l2_reg},
+                'l2_reg': l2_reg,
+            },
+            'training': {
+                'export_train_plots': False,
+                'export_predictions': False,
+                'min_n_epochs': 1,
+                'max_n_epochs': 1,
+                'enable_early_stop': False,
+                'train_frac': train_frac,
+                'trial_splits': trial_splits},
+            'compute': compute_dict}
+    elif model == 'predictions-images':
+        new_values = {
+            'data': data_dict,
+            'model': {
+                'experiment_name': ae_expt_name,
+                'model_class': 'predictions-images',
+                'model_type': ae_model_type,
+                'l2_reg': l2_reg,
+                'ae_experiment_name': ae_expt_name,
+                'ae_model_class': ae_model_class,
+                'ae_model_type': ae_model_type,
+                'n_ae_latents': n_ae_latents,
+                'ae_version': 0,
+                'neural_ae_experiment_name': 'grid_search',
+                'neural_ae_version': 0,
+                'neural_ae_model_type': 'mlp',
+                'n_max_lags': n_max_lags,
+            },
             'training': {
                 'export_train_plots': False,
                 'export_predictions': False,

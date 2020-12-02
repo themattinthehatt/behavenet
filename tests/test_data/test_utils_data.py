@@ -464,6 +464,24 @@ def test_get_data_generator_inputs():
     hparams['use_output_mask'] = False
 
     # -----------------
+    # predictions-images
+    # -----------------
+    hparams['model_class'] = 'predictions-images'
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['images', 'ae_predictions']
+    assert transforms[0][0] is None  # don't check neural transforms
+    assert paths[0][0] == hdf5_path  # don't check neural path
+    assert hparams_['input_signal'] == 'ae_predictions'
+    assert hparams_['output_signal'] == 'images'
+
+    hparams['use_output_mask'] = True
+    hparams_, signals, transforms, paths = utils.get_data_generator_inputs(
+        hparams, sess_ids, check_splits=False)
+    assert signals[0] == ['images', 'ae_predictions', 'masks']
+    hparams['use_output_mask'] = False
+
+    # -----------------
     # labels
     # -----------------
     hparams['model_class'] = 'labels'

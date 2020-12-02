@@ -14,6 +14,7 @@ from behavenet.fitting.utils import _print_hparams
 from behavenet.fitting.utils import create_tt_experiment
 from behavenet.fitting.utils import export_hparams
 from behavenet.models import ConvDecoder
+from behavenet.models import load_pretrained_ae
 
 
 def main(hparams, *args):
@@ -50,14 +51,19 @@ def main(hparams, *args):
     torch_rnd_seed = torch.get_rng_state()
     hparams['model_build_rnd_seed'] = torch_rnd_seed
     hparams['n_datasets'] = len(sess_ids)
-    data, _ = data_generator.next_batch('train')
-    sh = data['labels'].shape
-    hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+    if hparams['model_class'] == 'labels-images':
+        data, _ = data_generator.next_batch('train')
+        sh = data['labels'].shape
+        hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
+    elif hparams['model_class'] == 'predictions-images':
+        hparams['n_labels'] = hparams['n_ae_latents']
+    else:
+        raise NotImplementedError
     model = ConvDecoder(hparams)
     model.to(hparams['device'])
 
     # Load pretrained weights if specified
-    # model = load_pretrained_ae(model, hparams)
+    model = load_pretrained_ae(model, hparams)
 
     model.version = exp.version
     torch_rnd_seed = torch.get_rng_state()
