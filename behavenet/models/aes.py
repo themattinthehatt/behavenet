@@ -1234,43 +1234,48 @@ def load_pretrained_ae(model, hparams):
 
     """
 
-    if hparams['model_type'] == 'conv' \
-            and hparams.get('pretrained_weights_path', False) \
+    if hparams.get('pretrained_weights_path', False) \
             and hparams['pretrained_weights_path'] is not None \
             and hparams['pretrained_weights_path'] != '':
 
-        print('Loading pretrained weights')
+        print('Loading pretrained weights from %s' % hparams['pretrained_weights_path'])
         loaded_model_dict = torch.load(hparams['pretrained_weights_path'])
 
-        if loaded_model_dict['encoding.FF.weight'].shape == model.encoding.FF.weight.shape:
-            model.load_state_dict(loaded_model_dict, strict=False)
-        else:
-            print('PRETRAINED MODEL HAS DIFFERENT SPATIAL DIMENSIONS OR N LATENTS: ' +
-                  'NOT LOADING FF PARAMETERS')
-            del loaded_model_dict['encoding.FF.weight']
-            del loaded_model_dict['encoding.FF.bias']
-            del loaded_model_dict['decoding.FF.weight']
-            del loaded_model_dict['decoding.FF.bias']
+        if hparams['model_class'] == 'labels-images' \
+                or hparams['model_class'] == 'predictions-images':
 
-            # TODO: get rid of other unnecessary parameters
-            if model.hparams['model_class'] == 'vae':
-                pass
-            elif model.hparams['model_class'] == 'beta-tcvae':
-                pass
-            elif model.hparams['model_class'] == 'sss-vae':
-                pass
-            elif model.hparams['model_class'] == 'labels-images' \
-                    or model.hparams['model_class'] == 'predictions-images':
-                # todo: remove encoding layers
-                pass
+            # delete all non-decoding weights
+            weight_keys = list(loaded_model_dict.keys())
+            for key in weight_keys:
+                if key[:8] != 'decoding':
+                    del loaded_model_dict[key]
 
             model.load_state_dict(loaded_model_dict, strict=False)
 
-    elif hparams['model_type'] == 'linear' \
-            and hparams.get('pretrained_weights_path', False) \
-            and hparams['pretrained_weights_path'] is not None \
-            and hparams['pretrained_weights_path'] != '':
-        raise NotImplementedError('Loading pretrained weights with linear AE')
+        elif hparams['model_type'] == 'conv':
+
+            if loaded_model_dict['encoding.FF.weight'].shape == model.encoding.FF.weight.shape:
+                model.load_state_dict(loaded_model_dict, strict=False)
+            else:
+                print('PRETRAINED MODEL HAS DIFFERENT SPATIAL DIMENSIONS OR N LATENTS: ' +
+                      'NOT LOADING FF PARAMETERS')
+                del loaded_model_dict['encoding.FF.weight']
+                del loaded_model_dict['encoding.FF.bias']
+                del loaded_model_dict['decoding.FF.weight']
+                del loaded_model_dict['decoding.FF.bias']
+
+                # TODO: get rid of other unnecessary parameters
+                if model.hparams['model_class'] == 'vae':
+                    pass
+                elif model.hparams['model_class'] == 'beta-tcvae':
+                    pass
+                elif model.hparams['model_class'] == 'sss-vae':
+                    pass
+
+                model.load_state_dict(loaded_model_dict, strict=False)
+
+        elif hparams['model_type'] == 'linear':
+            raise NotImplementedError('Cannot load pretrained weights with linear AE')
 
     else:
         print('Initializing with random weights')

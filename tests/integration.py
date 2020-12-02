@@ -340,6 +340,7 @@ def define_new_config_values(model, session='sess-0'):
                 'trial_splits': trial_splits},
             'compute': compute_dict}
     elif model == 'predictions-images':
+        ae_version = 0
         new_values = {
             'data': data_dict,
             'model': {
@@ -351,7 +352,7 @@ def define_new_config_values(model, session='sess-0'):
                 'ae_model_class': ae_model_class,
                 'ae_model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
-                'ae_version': 0,
+                'ae_version': ae_version,
                 'neural_ae_experiment_name': 'grid_search',
                 'neural_ae_version': 0,
                 'neural_ae_model_type': 'mlp',
@@ -364,7 +365,13 @@ def define_new_config_values(model, session='sess-0'):
                 'max_n_epochs': 1,
                 'enable_early_stop': False,
                 'train_frac': train_frac,
-                'trial_splits': trial_splits},
+                'trial_splits': trial_splits,
+                'pretrained_weights_path': os.path.join(
+                    '/home/mattw/.behavenet_tmp_save_AaA/', DATA_DICT['lab'], DATA_DICT['expt'],
+                    DATA_DICT['animal'], session, ae_model_class, ae_model_type,
+                    '%02i_latents' % n_ae_latents, ae_expt_name, 'version_%i' % ae_version,
+                    'best_val_model.pt')
+            },
             'compute': compute_dict}
     else:
         raise NotImplementedError
