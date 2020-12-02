@@ -771,7 +771,8 @@ def plot_real_vs_sampled(
 
 
 def plot_states_overlaid_with_latents(
-        latents, states, save_file=None, ax=None, xtick_locs=None, frame_rate=None, format='png'):
+        latents, states, save_file=None, ax=None, xtick_locs=None, frame_rate=None, cmap='tab20b',
+        format='png'):
     """Plot states for a single trial overlaid with latents.
 
     Parameters
@@ -788,6 +789,8 @@ def plot_states_overlaid_with_latents(
         tick locations in bin values for plot
     frame_rate : :obj:`float`, optional
         behavioral video framerate; to properly relabel xticks
+    cmap : :obj:`str`, optional
+        matplotlib colormap
     format : :obj:`str`, optional
         any accepted matplotlib save format, e.g. 'png' | 'pdf' | 'jpeg'
 
@@ -805,10 +808,10 @@ def plot_states_overlaid_with_latents(
     spc = 1.1 * abs(latents.max())
     n_latents = latents.shape[1]
     plotting_latents = latents + spc * np.arange(n_latents)
-    ymin = min(-spc - 1, np.min(plotting_latents))
+    ymin = min(-spc, np.min(plotting_latents))
     ymax = max(spc * n_latents, np.max(plotting_latents))
     ax.imshow(
-        states[None, :], aspect='auto', extent=(0, len(latents), ymin, ymax), cmap='tab20b',
+        states[None, :], aspect='auto', extent=(0, len(latents), ymin, ymax), cmap=cmap,
         alpha=1.0)
     ax.plot(plotting_latents, '-k', lw=3)
     ax.set_ylim([ymin, ymax])

@@ -548,7 +548,7 @@ def plot_neural_reconstruction_traces_wrapper(
 
 def plot_neural_reconstruction_traces(
         traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png',
-        scale=0.5, max_traces=8, add_r2=True):
+        scale=0.5, max_traces=8, add_r2=True, add_legend=True, colored_predictions=True):
     """Plot ae latents and their neural reconstructions.
 
     Parameters
@@ -571,6 +571,11 @@ def plot_neural_reconstruction_traces(
         maximum number of traces to plot, for easier visualization
     add_r2 : :obj:`bool`, optional
         print R2 value on plot
+    add_legend : :obj:`bool`, optional
+        print legend on plot
+    colored_predictions : :obj:`bool`, optional
+        color predictions using default seaborn colormap; else predictions are black
+
 
     Returns
     -------
@@ -596,23 +601,28 @@ def plot_neural_reconstruction_traces(
     traces_neural_sc = traces_neural_sc[:, :max_traces]
 
     fig = plt.figure(figsize=(12, 8))
-    plt.plot(traces_neural_sc + np.arange(traces_neural_sc.shape[1]), linewidth=3)
+    if colored_predictions:
+        plt.plot(traces_neural_sc + np.arange(traces_neural_sc.shape[1]), linewidth=3)
+    else:
+        plt.plot(traces_neural_sc + np.arange(traces_neural_sc.shape[1]), linewidth=3, color='k')
     plt.plot(
         traces_ae_sc + np.arange(traces_ae_sc.shape[1]), color=[0.2, 0.2, 0.2], linewidth=3,
         alpha=0.7)
 
-    # add legend
-    # original latents - gray
-    orig_line = mlines.Line2D([], [], color=[0.2, 0.2, 0.2], linewidth=3, alpha=0.7)
-    # predicted latents - cycle through some colors
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    dls = []
-    for c in range(5):
-        dls.append(mlines.Line2D(
-            [], [], linewidth=3, linestyle='--', dashes=(0, 3 * c, 20, 1), color='%s' % colors[c]))
-    plt.legend(
-        [orig_line, tuple(dls)], ['Original latents', 'Predicted latents'],
-        loc='lower right', frameon=True, framealpha=0.7, edgecolor=[1, 1, 1])
+    # add legend if desired
+    if add_legend:
+        # original latents - gray
+        orig_line = mlines.Line2D([], [], color=[0.2, 0.2, 0.2], linewidth=3, alpha=0.7)
+        # predicted latents - cycle through some colors
+        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        dls = []
+        for c in range(5):
+            dls.append(mlines.Line2D(
+                [], [], linewidth=3, linestyle='--', dashes=(0, 3 * c, 20, 1),
+                color='%s' % colors[c]))
+        plt.legend(
+            [orig_line, tuple(dls)], ['Original latents', 'Predicted latents'],
+            loc='lower right', frameon=True, framealpha=0.7, edgecolor=[1, 1, 1])
 
     # add r2 info if desired
     if add_r2:
