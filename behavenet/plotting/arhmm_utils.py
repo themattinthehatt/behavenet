@@ -7,9 +7,9 @@ import torch
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.animation as animation
-from matplotlib.animation import FFMpegWriter
 from behavenet import make_dir_if_not_exists
 from behavenet.models import AE as AE
+from behavenet.plotting import save_movie
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
@@ -495,7 +495,6 @@ def make_syllable_movies(
     ani = animation.ArtistAnimation(
         fig,
         [ims[i] for i in range(len(ims)) if ims[i] != []], interval=20, blit=True, repeat=False)
-    writer = FFMpegWriter(fps=max(frame_rate, 10), bitrate=-1)
     print('done')
 
     if save_file is not None:
@@ -508,10 +507,7 @@ def make_syllable_movies(
             state_str = ''
         save_file += state_str
         save_file += '.mp4'
-        make_dir_if_not_exists(save_file)
-        print('saving video to %s...' % save_file, end='')
-        ani.save(save_file, writer=writer)
-        print('done')
+        save_movie(save_file, ani, frame_rate=frame_rate)
 
 
 def real_vs_sampled_wrapper(
@@ -701,15 +697,7 @@ def make_real_vs_sampled_movies(
         ims.append(ims_curr)
 
     ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
-    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
-
-    if save_file is not None:
-        make_dir_if_not_exists(save_file)
-        if save_file[-3:] != 'mp4':
-            save_file += '.mp4'
-        print('saving video to %s...' % save_file, end='')
-        ani.save(save_file, writer=writer)
-        print('done')
+    save_movie(save_file, ani, frame_rate=frame_rate)
 
 
 def plot_real_vs_sampled(

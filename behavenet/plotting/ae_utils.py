@@ -3,11 +3,9 @@
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from matplotlib.animation import FFMpegWriter
-from behavenet import make_dir_if_not_exists
 from behavenet.fitting.eval import get_reconstruction
 from behavenet.fitting.utils import get_best_model_and_data
-from behavenet.plotting import concat
+from behavenet.plotting import concat, save_movie
 
 # to ignore imports for sphix-autoapidoc
 __all__ = ['make_ae_reconstruction_movie_wrapper', 'make_reconstruction_movie']
@@ -94,20 +92,7 @@ def make_reconstruction_movie(
     plt.tight_layout(pad=0)
 
     ani = animation.ArtistAnimation(fig, ims_ani, blit=True, repeat_delay=1000)
-
-    if save_file is not None:
-        make_dir_if_not_exists(save_file)
-        if save_file[-3:] == 'gif':
-            print('saving video to %s...' % save_file, end='')
-            ani.save(save_file, writer='imagemagick', fps=frame_rate)
-            print('done')
-        else:
-            if save_file[-3:] != 'mp4':
-                save_file += '.mp4'
-            writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
-            print('saving video to %s...' % save_file, end='')
-            ani.save(save_file, writer=writer)
-            print('done')
+    save_movie(save_file, ani, frame_rate=frame_rate)
 
 
 def make_ae_reconstruction_movie_wrapper(

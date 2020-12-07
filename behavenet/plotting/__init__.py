@@ -1,9 +1,11 @@
 """Utility functions shared across multiple plotting modules."""
 
+from matplotlib.animation import FFMpegWriter
 import numpy as np
 import os
 import pandas as pd
 
+from behavenet import make_dir_if_not_exists
 from behavenet.fitting.utils import experiment_exists
 from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_session_dir
@@ -12,7 +14,7 @@ from behavenet.fitting.utils import get_lab_example
 from behavenet.fitting.utils import read_session_info_from_csv
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['load_metrics_csv_as_df']
+__all__ = ['concat', 'load_metrics_csv_as_df', 'save_movie']
 
 # TODO: use load_metrics_csv_as_df in ae example notebook
 
@@ -118,3 +120,32 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, test=False, version
             #     tr_dict[metric] = row['tr_%s' % metric]
             # metrics_df.append(pd.DataFrame(tr_dict, index=[0]))
     return pd.concat(metrics_df, sort=True)
+
+
+def save_movie(save_file, ani, frame_rate=15):
+    """Save out matplotlib ArtistAnimation
+
+    Parameters
+    ----------
+    save_file : :obj:`str`
+        full save file (path and filename)
+    ani : :obj:`matplotlib.animation.ArtistAnimation` object
+        animation to save
+    frame_rate : :obj:`int`, optional
+        frame rate of saved movie
+
+    """
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        if save_file[-3:] == 'gif':
+            print('saving video to %s...' % save_file, end='')
+            ani.save(save_file, writer='imagemagick', fps=frame_rate)
+            print('done')
+        else:
+            if save_file[-3:] != 'mp4':
+                save_file += '.mp4'
+            writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
+            print('saving video to %s...' % save_file, end='')
+            ani.save(save_file, writer=writer)
+            print('done')

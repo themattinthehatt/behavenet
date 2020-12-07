@@ -5,7 +5,6 @@ import matplotlib.animation as animation
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from matplotlib.animation import FFMpegWriter
 import numpy as np
 import os
 import pandas as pd
@@ -17,7 +16,7 @@ from behavenet.data.utils import get_region_list
 from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_session_dir
 from behavenet.fitting.utils import get_subdirs
-from behavenet.plotting import concat
+from behavenet.plotting import concat, save_movie
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
@@ -533,15 +532,7 @@ def make_neural_reconstruction_movie(
     plt.tight_layout(pad=0)
 
     ani = animation.ArtistAnimation(fig, ims, blit=True, repeat_delay=1000)
-    writer = FFMpegWriter(fps=frame_rate, bitrate=-1)
-
-    if save_file is not None:
-        make_dir_if_not_exists(save_file)
-        if save_file[-3:] != 'mp4':
-            save_file += '.mp4'
-        print('saving video to %s...' % save_file, end='')
-        ani.save(save_file, writer=writer)
-        print('done')
+    save_movie(save_file, ani, frame_rate=frame_rate)
 
 
 def plot_neural_reconstruction_traces_wrapper(
