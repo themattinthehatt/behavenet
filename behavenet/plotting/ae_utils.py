@@ -1,6 +1,7 @@
 """Plotting and video making functions for autoencoders."""
 
 import matplotlib.animation as animation
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from behavenet.fitting.eval import get_reconstruction
