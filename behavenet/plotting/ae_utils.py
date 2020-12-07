@@ -2,6 +2,7 @@
 
 import copy
 import matplotlib.animation as animation
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.animation import FFMpegWriter
@@ -207,7 +208,8 @@ def make_ae_reconstruction_movie_wrapper(
 
 
 def make_neural_reconstruction_movie_wrapper(
-        hparams, save_file, trial=None, sess_idx=0, max_frames=400, max_latents=8, frame_rate=15):
+        hparams, save_file, trials=None, sess_idx=0, max_frames=400, max_latents=8,
+        zscore_by_dim=False, colored_predictions=False, xtick_locs=None, frame_rate=15):
     """Produce movie with original video, ae reconstructed video, and neural reconstructed video.
 
     This is a high-level function that loads the model described in the hparams dictionary and
@@ -221,7 +223,7 @@ def make_neural_reconstruction_movie_wrapper(
         needs to contain enough information to specify an autoencoder
     save_file : :obj:`str`
         full save file (path and filename)
-    trial : :obj:`int`, optional
+    trials : :obj:`int` or :obj:`list`, optional
         if :obj:`NoneType`, use first test trial
     sess_idx : :obj:`int`, optional
         session index into data generator
@@ -229,12 +231,21 @@ def make_neural_reconstruction_movie_wrapper(
         maximum number of frames to animate from a trial
     max_latents : :obj:`int`, optional
         maximum number of ae latents to plot
+    zscore_by_dim : :obj:`bool`, optional
+        True to z-score each dim, False to leave relative scales
+    colored_predictions : :obj:`bool`, optional
+        False to plot reconstructions in black, True to plot in different colors
+    xtick_locs : :obj:`array-like`, optional
+        tick locations in units of bins
     frame_rate : :obj:`float`, optional
         frame rate of saved movie
 
     """
 
     from behavenet.models import Decoder
+
+    # define number of frames that separate trials
+    n_buffer = 5
 
     ###############################
     # build ae model/data generator
@@ -247,26 +258,6 @@ def make_neural_reconstruction_movie_wrapper(
         hparams_ae, Model=None, version=hparams['ae_version'])
     # move model to cpu
     model_ae.to('cpu')
-
-    if trial is None:
-        # choose first test trial
-        trial = data_generator_ae.batch_idxs[sess_idx]['test'][0]
-
-    # get images from data generator (move to cpu)
-    batch = data_generator_ae.datasets[sess_idx][trial]
-    ims_orig_pt = batch['images'][:max_frames].cpu()  # 400
-    if hparams_ae['model_class'] == 'cond-ae':
-        labels_pt = batch['labels'][:max_frames]
-    else:
-        labels_pt = None
-
-    # push images through ae to get reconstruction
-    ims_recon_ae, latents_ae = get_reconstruction(
-        model_ae, ims_orig_pt, labels=labels_pt, return_latents=True)
-
-    # mask images for plotting
-    if hparams_ae.get('use_output_mask', False):
-        ims_orig_pt *= batch['masks'][:max_frames]
 
     #######################################
     # build decoder model/no data generator
@@ -281,28 +272,90 @@ def make_neural_reconstruction_movie_wrapper(
     # move model to cpu
     model_dec.to('cpu')
 
-    # get neural activity from data generator (move to cpu)
-    batch = data_generator_dec.datasets[0][trial]  # 0 not sess_idx since decoders only have 1 sess
-    neural_activity_pt = batch['neural'][:max_frames].cpu()
+    if trials is None:
+        # choose first test trial, put in list
+        trials = data_generator_ae.batch_idxs[sess_idx]['test'][0]
 
-    # push neural activity through decoder to get prediction
-    latents_dec_pt, _ = model_dec(neural_activity_pt)
-    # push prediction through ae to get reconstruction
-    ims_recon_dec = get_reconstruction(model_ae, latents_dec_pt, labels=labels_pt)
+    if isinstance(trials, int):
+        trials = [trials]
+
+    # loop over trials, putting black frames/nans in between
+    ims_orig = []
+    ims_recon_ae = []
+    ims_recon_neural = []
+    latents_ae = []
+    latents_neural = []
+    for i, trial in enumerate(trials):
+
+        # get images from data generator (move to cpu)
+        batch = data_generator_ae.datasets[sess_idx][trial]
+        ims_orig_pt = batch['images'][:max_frames].cpu()  # 400
+        if hparams_ae['model_class'] == 'cond-ae':
+            labels_pt = batch['labels'][:max_frames]
+        else:
+            labels_pt = None
+
+        # push images through ae to get reconstruction
+        ims_recon_ae_curr, latents_ae_curr = get_reconstruction(
+            model_ae, ims_orig_pt, labels=labels_pt, return_latents=True)
+
+        # mask images for plotting
+        if hparams_ae.get('use_output_mask', False):
+            ims_orig_pt *= batch['masks'][:max_frames]
+
+        # get neural activity from data generator (move to cpu)
+        # 0, not sess_idx, since decoders only have 1 sess
+        batch = data_generator_dec.datasets[0][trial]
+        neural_activity_pt = batch['neural'][:max_frames].cpu()
+
+        # push neural activity through decoder to get prediction
+        latents_dec_pt, _ = model_dec(neural_activity_pt)
+        # push prediction through ae to get reconstruction
+        ims_recon_dec_curr = get_reconstruction(model_ae, latents_dec_pt, labels=labels_pt)
+
+        # store all relevant quantities
+        ims_orig.append(ims_orig_pt.cpu().detach().numpy())
+        ims_recon_ae.append(ims_recon_ae_curr)
+        ims_recon_neural.append(ims_recon_dec_curr)
+        latents_ae.append(latents_ae_curr[:, :max_latents])
+        latents_neural.append(latents_dec_pt.cpu().detach().numpy()[:, :max_latents])
+
+        # add blank frames
+        if i < len(trials) - 1:
+            n_channels, y_pix, x_pix = ims_orig[-1].shape[1:]
+            n = latents_ae[-1].shape[1]
+            ims_orig.append(np.zeros((n_buffer, n_channels, y_pix, x_pix)))
+            ims_recon_ae.append(np.zeros((n_buffer, n_channels, y_pix, x_pix)))
+            ims_recon_neural.append(np.zeros((n_buffer, n_channels, y_pix, x_pix)))
+            latents_ae.append(np.nan * np.zeros((n_buffer, n)))
+            latents_neural.append(np.nan * np.zeros((n_buffer, n)))
+
+    latents_ae = np.vstack(latents_ae)
+    latents_neural = np.vstack(latents_neural)
+    if zscore_by_dim:
+        means = np.nanmean(latents_ae, axis=0)
+        std = np.nanstd(latents_ae, axis=0)
+        latents_ae = (latents_ae - means) / std
+        latents_neural = (latents_neural - means) / std
 
     # away
     make_neural_reconstruction_movie(
-        ims_orig=ims_orig_pt.cpu().detach().numpy(),
-        ims_recon_ae=ims_recon_ae,
-        ims_recon_neural=ims_recon_dec,
-        latents_ae=latents_ae[:, :max_latents],
-        latents_neural=latents_dec_pt.cpu().detach().numpy()[:, :max_latents],
+        ims_orig=np.vstack(ims_orig),
+        ims_recon_ae=np.vstack(ims_recon_ae),
+        ims_recon_neural=np.vstack(ims_recon_neural),
+        latents_ae=latents_ae,
+        latents_neural=latents_neural,
+        ae_model_class=hparams_ae['model_class'].upper(),
+        colored_predictions=colored_predictions,
+        xtick_locs=xtick_locs,
+        frame_rate_beh=hparams['frame_rate'],
         save_file=save_file,
         frame_rate=frame_rate)
 
 
 def make_neural_reconstruction_movie(
-        ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural, save_file=None,
+        ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural,  ae_model_class='AE',
+        colored_predictions=False, scale=0.5, xtick_locs=None, frame_rate_beh=None, save_file=None,
         frame_rate=15):
     """Produce movie with original video, ae reconstructed video, and neural reconstructed video.
 
@@ -312,13 +365,25 @@ def make_neural_reconstruction_movie(
     Parameters
     ----------
     ims_orig : :obj:`np.ndarray`
-        shape (n_frames, n_channels, y_pix, x_pix)
+        original images; shape (n_frames, n_channels, y_pix, x_pix)
     ims_recon_ae : :obj:`np.ndarray`
-        shape (n_frames, n_channels, y_pix, x_pix)
-    ims_recon_neural : :obj:`np.ndarray`, optional
-        shape (n_frames, n_channels, y_pix, x_pix)
-    latents_ae : :obj:`np.ndarray`, optional
-        shape (n_frames, n_latents)
+        images reconstructed by AE; shape (n_frames, n_channels, y_pix, x_pix)
+    ims_recon_neural : :obj:`np.ndarray`
+        images reconstructed by neural activity; shape (n_frames, n_channels, y_pix, x_pix)
+    latents_ae : :obj:`np.ndarray`
+        original AE latents; shape (n_frames, n_latents)
+    latents_neural : :obj:`np.ndarray`
+        latents reconstruted by neural activity; shape (n_frames, n_latents)
+    ae_model_class : :obj:`str`, optional
+        'AE', 'VAE', etc. for plot titles
+    colored_predictions : :obj:`bool`, optional
+        False to plot reconstructions in black, True to plot in different colors
+    scale : :obj:`int`, optional
+        scale magnitude of traces
+    xtick_locs : :obj:`array-like`, optional
+        tick locations in units of bins
+    frame_rate_beh : :obj:`float`, optional
+        frame rate of behavorial video; to properly relabel xticks
     save_file : :obj:`str`, optional
         full save file (path and filename)
     frame_rate : :obj:`float`, optional
@@ -326,8 +391,8 @@ def make_neural_reconstruction_movie(
 
     """
 
-    means = np.mean(latents_ae, axis=0)
-    std = np.std(latents_ae) * 2
+    means = np.nanmean(latents_ae, axis=0)
+    std = np.nanstd(latents_ae) / scale
 
     latents_ae_sc = (latents_ae - means) / std
     latents_dec_sc = (latents_neural - means) / std
@@ -364,14 +429,19 @@ def make_neural_reconstruction_movie(
     idx = 0
     axs[idx].set_title('Original', fontsize=fontsize)
     idx += 1
-    axs[idx].set_title('AE reconstructed', fontsize=fontsize)
+    axs[idx].set_title('%s reconstructed' % ae_model_class, fontsize=fontsize)
     idx += 1
     axs[idx].set_title('Neural reconstructed', fontsize=fontsize)
     idx += 1
     axs[idx].set_title('Reconstructions residual', fontsize=fontsize)
     idx += 1
-    axs[idx].set_title('AE latent predictions', fontsize=fontsize)
-    axs[idx].set_xlabel('Time (bins)', fontsize=fontsize)
+    axs[idx].set_title('%s latent predictions' % ae_model_class, fontsize=fontsize)
+    if xtick_locs is not None and frame_rate_beh is not None:
+        axs[idx].set_xticks(xtick_locs)
+        axs[idx].set_xticklabels((np.asarray(xtick_locs) / frame_rate_beh).astype('int'))
+        axs[idx].set_xlabel('Time (s)', fontsize=fontsize)
+    else:
+        axs[idx].set_xlabel('Time (bins)', fontsize=fontsize)
 
     time = np.arange(n_time)
 
@@ -380,7 +450,9 @@ def make_neural_reconstruction_movie(
     im_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
     tr_kwargs = {'animated': True, 'linewidth': 2}
     latents_ae_color = [0.2, 0.2, 0.2]
-    latents_dec_color = [0, 0, 0]
+
+    label_ae_base = '%s latents' % ae_model_class
+    label_dec_base = 'Predicted %s latents' % ae_model_class
 
     # ims is a list of lists, each row is a list of artists to draw in the
     # current frame; here we are just animating one artist, the image, in
@@ -425,11 +497,16 @@ def make_neural_reconstruction_movie(
         # traces
         ########
         # latents over time
+        axs[idx].set_prop_cycle(None)  # reset colors
         for latent in range(n_ae_latents):
+            if colored_predictions:
+                latents_dec_color = axs[idx]._get_lines.get_next_color()
+            else:
+                latents_dec_color = [0, 0, 0]
             # just put labels on last lvs
             if latent == n_ae_latents - 1 and i == 0:
-                label_ae = 'AE latents'
-                label_dec = 'Predicted AE latents'
+                label_ae = label_ae_base
+                label_dec = label_dec_base
             else:
                 label_ae = None
                 label_dec = None
@@ -447,9 +524,24 @@ def make_neural_reconstruction_movie(
             axs[idx].spines['top'].set_visible(False)
             axs[idx].spines['right'].set_visible(False)
             axs[idx].spines['left'].set_visible(False)
-            plt.legend(
-                loc='lower right', fontsize=fontsize, frameon=True,
-                framealpha=0.7, edgecolor=[1, 1, 1])
+            if colored_predictions:
+                # original latents - gray
+                orig_line = mlines.Line2D([], [], color=[0.2, 0.2, 0.2], linewidth=3, alpha=0.7)
+                # predicted latents - cycle through some colors
+                colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+                dls = []
+                for c in range(5):
+                    dls.append(mlines.Line2D(
+                        [], [], linewidth=3, linestyle='--', dashes=(0, 3 * c, 20, 1),
+                        color='%s' % colors[c]))
+                plt.legend(
+                    [orig_line, tuple(dls)], [label_ae_base, label_dec_base],
+                    loc='lower right', fontsize=fontsize, frameon=True, framealpha=0.7,
+                    edgecolor=[1, 1, 1])
+            else:
+                plt.legend(
+                    loc='lower right', fontsize=fontsize, frameon=True,
+                    framealpha=0.7, edgecolor=[1, 1, 1])
             ims_curr.append(im)
         ims.append(ims_curr)
 
@@ -584,8 +676,6 @@ def plot_neural_reconstruction_traces(
 
     """
 
-    import matplotlib.pyplot as plt
-    import matplotlib.lines as mlines
     import seaborn as sns
 
     sns.set_style('white')

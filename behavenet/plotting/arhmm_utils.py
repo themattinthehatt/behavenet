@@ -639,7 +639,8 @@ def real_vs_sampled_wrapper(
 
         fig = plot_real_vs_sampled(
             latents, latents_samp, states, states_samp, save_file=save_file, xtick_locs=xtick_locs,
-            frame_rate=frame_rate_beh, format=format)
+            frame_rate=hparams['frame_rate'] if frame_rate_beh is None else frame_rate_beh,
+            format=format)
 
     if output_type == 'movie':
         return None
