@@ -3,54 +3,37 @@ import copy
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 import torch
+from tqdm import tqdm
 
+from behavenet import get_user_dir
 from behavenet import make_dir_if_not_exists
 from behavenet.data.utils import build_data_generator
 from behavenet.data.utils import load_labels_like_latents
 from behavenet.fitting.eval import get_reconstruction
+from behavenet.fitting.utils import experiment_exists
+from behavenet.fitting.utils import get_best_model_and_data
+from behavenet.fitting.utils import get_expt_dir
+from behavenet.fitting.utils import get_lab_example
 from behavenet.fitting.utils import get_session_dir
+from behavenet.plotting import get_crop
+from behavenet.plotting import load_latents
+from behavenet.plotting import load_metrics_csv_as_df
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
-    'get_crop', 'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
-    'interpolate_2d', 'interpolate_1d', 'plot_2d_frame_array', 'plot_1d_frame_array']
+    'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
+    'interpolate_2d', 'interpolate_1d', 'plot_2d_frame_array', 'plot_1d_frame_array',
+    'plot_hyperparameter_search_results', 'plot_label_reconstructions',
+    'plot_label_latent_regression_barplots', 'plot_latent_traversals',
+    'make_latent_traversal_movie']
 
 
-def get_crop(im, y_0, y_ext, x_0, x_ext):
-    """Get crop of image, filling in borders with zeros.
-
-    Parameters
-    ----------
-    im : :obj:`np.ndarray`
-        input image
-    y_0 : :obj:`int`
-        y-pixel center value
-    y_ext : :obj:`int`
-        y-pixel extent; crop in y-direction will be [y_0 - y_ext, y_0 + y_ext]
-    x_0 : :obj:`int`
-        y-pixel center value
-    x_ext : :obj:`int`
-        x-pixel extent; crop in x-direction will be [x_0 - x_ext, x_0 + x_ext]
-
-    Returns
-    -------
-    :obj:`np.ndarray`
-        cropped image
-
-    """
-    y_min = y_0 - y_ext
-    y_max = y_0 + y_ext
-    y_pix = y_max - y_min
-    x_min = x_0 - x_ext
-    x_max = x_0 + x_ext
-    x_pix = x_max - x_min
-    im_crop = np.copy(im[y_min:y_max, x_min:x_max])
-    y_pix_, x_pix_ = im_crop.shape
-    im_tmp = np.zeros((y_pix, x_pix))
-    im_tmp[:y_pix_, :x_pix_] = im_crop
-    return im_tmp
-
+# ----------------------------------------
+# low-level util functions
+# ----------------------------------------
 
 def get_input_range(
         input_type, hparams, sess_ids=None, sess_idx=0, model=None, data_gen=None, version=0,
@@ -723,9 +706,13 @@ def _get_updated_scaled_labels(labels_og, idxs=None, vals=None):
     return labels_sc
 
 
+# ----------------------------------------
+# mid-level plotting functions
+# ----------------------------------------
+
 def plot_2d_frame_array(
         ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None,
-        **kwargs):
+        format='pdf'):
     """Plot list of list of interpolated images output by :func:`interpolate_2d()` in a 2d grid.
 
     Parameters
@@ -739,10 +726,12 @@ def plot_2d_frame_array(
         kwargs for `matplotlib.pyplot.imshow()` function (vmin, vmax, cmap, etc)
     marker_kwargs : :obj:`dict` or NoneType, optional
         kwargs for `matplotlib.pyplot.plot()` function (markersize, markeredgewidth, etc)
-    figsize : :obj:`tuple`
+    figsize : :obj:`tuple`, optional
         (width, height) in inches
     save_file : :obj:`str` or NoneType, optional
         figure saved if not None
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
 
     """
 
@@ -771,13 +760,13 @@ def plot_2d_frame_array(
     plt.subplots_adjust(wspace=0, hspace=0, bottom=0, left=0, top=1, right=1)
     if save_file is not None:
         make_dir_if_not_exists(save_file)
-        plt.savefig(save_file, dpi=300, bbox_inches='tight')
+        plt.savefig(save_file + '.' + format, dpi=300, bbox_inches='tight')
     plt.show()
 
 
 def plot_1d_frame_array(
-        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, figsize=None, save_file=None,
-        plot_ims=True, plot_diffs=True, **kwargs):
+        ims_list, markers=None, im_kwargs=None, marker_kwargs=None, plot_ims=True, plot_diffs=True,
+        figsize=None, save_file=None, format='pdf'):
     """Plot list of list of interpolated images output by :func:`interpolate_1d()` in a 2d grid.
 
     Parameters
@@ -791,14 +780,16 @@ def plot_1d_frame_array(
         kwargs for `matplotlib.pyplot.imshow()` function (vmin, vmax, cmap, etc)
     marker_kwargs : :obj:`dict` or NoneType, optional
         kwargs for `matplotlib.pyplot.plot()` function (markersize, markeredgewidth, etc)
-    figsize : :obj:`tuple`
+    plot_ims : :obj:`bool`, optional
+        plot images
+    plot_diffs : :obj:`bool`, optional
+        plot differences
+    figsize : :obj:`tuple`, optional
         (width, height) in inches
     save_file : :obj:`str` or NoneType, optional
         figure saved if not None
-    plot_ims : :obj:`bool`
-        plot images
-    plot_diffs : :obj:`bool`
-        plot differences
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
 
     """
 
@@ -848,5 +839,907 @@ def plot_1d_frame_array(
     plt.subplots_adjust(wspace=0, hspace=0, bottom=0, left=0, top=1, right=1)
     if save_file is not None:
         make_dir_if_not_exists(save_file)
-        plt.savefig(save_file, dpi=300, bbox_inches='tight')
+        plt.savefig(save_file + '.' + format, dpi=300, bbox_inches='tight')
     plt.show()
+
+
+# ----------------------------------------
+# high-level plotting functions
+# ----------------------------------------
+
+def _get_sssvae_hparams(**kwargs):
+    hparams = {
+        'data_dir': get_user_dir('data'),
+        'save_dir': get_user_dir('save'),
+        'model_class': 'sss-vae',
+        'model_type': 'conv',
+        'rng_seed_data': 0,
+        'trial_splits': '8;1;1;0',
+        'train_frac': 1.0,
+        'rng_seed_model': 0,
+        'fit_sess_io_layers': False,
+        'learning_rate': 1e-4,
+        'l2_reg': 0,
+        'conditional_encoder': False,
+        'vae.beta': 1}
+    # update hparams
+    for key, val in kwargs.items():
+        if key == 'alpha' or key == 'beta' or key == 'gamma':
+            hparams['sss_vae.%s' % key] = val
+        else:
+            hparams[key] = val
+    return hparams
+
+
+def plot_sssvae_training_curves(
+        lab, expt, animal, session, alphas, betas, gammas, n_ae_latents, rng_seeds_model,
+        experiment_name, n_labels, dtype='val', save_file=None, format='pdf', **kwargs):
+    """Create training plots for each term in the sss-vae objective function.
+
+    The `dtype` argument controls which type of trials are plotted ('train' or 'val').
+    Additionally, multiple models can be plotted simultaneously by varying one (and only one) of
+    the following parameters:
+
+    - alpha
+    - beta
+    - gamma
+    - number of unsupervised latents
+    - random seed used to initialize model weights
+
+    Each of these entries must be an array of length 1 except for one option, which can be an array
+    of arbitrary length (corresponding to already trained models). This function generates a single
+    plot with panels for each of the following terms:
+
+    - total loss
+    - pixel mse
+    - label R^2 (note the objective function contains the label MSE, but R^2 is easier to parse)
+    - KL divergence of supervised latents
+    - index-code mutual information of unsupervised latents
+    - total correlation of unsupervised latents
+    - dimension-wise KL of unsupervised latents
+    - subspace overlap
+
+    Parameters
+    ----------
+    lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
+    animal : :obj:`str`
+        animal id
+    session : :obj:`str`
+        session id
+    alphas : :obj:`array-like`
+        alpha values to plot
+    betas : :obj:`array-like`
+        beta values to plot
+    gammas : :obj:`array-like`
+        gamma values to plot
+    n_ae_latents : :obj:`array-like`
+        unsupervised dimensionalities to plot
+    rng_seeds_model : :obj:`array-like`
+        model seeds to plot
+    experiment_name : :obj:`str`
+        test-tube experiment name
+    n_labels : :obj:`str`
+        dimensionality of supervised latent space
+    dtype : :obj:`str`
+        'train' | 'val'
+    save_file : :obj:`str`, optional
+        absolute path of save file; does not need file extension
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    kwargs
+        keys are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+
+    """
+    # check for arrays, turn ints into lists
+    n_arrays = 0
+    if len(alphas) > 1:
+        n_arrays += 1
+        hue = 'alpha'
+    if len(betas) > 1:
+        n_arrays += 1
+        hue = 'beta'
+    if len(gammas) > 1:
+        n_arrays += 1
+        hue = 'gamma'
+    if len(n_ae_latents) > 1:
+        n_arrays += 1
+        hue = 'n latents'
+    if len(rng_seeds_model) > 1:
+        n_arrays += 1
+        hue = 'rng seed'
+    if n_arrays > 1:
+        raise ValueError(
+            'Can only set one of "alphas", "betas", "gammas", "n_ae_latents", or ' +
+            '"rng_seeds_model" as an array')
+
+    # set model info
+    hparams = _get_sssvae_hparams(experiment_name=experiment_name, **kwargs)
+
+    metrics_list = [
+        'loss', 'loss_data_mse', 'label_r2',
+        'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl', 'loss_AB_orth']
+
+    metrics_dfs = []
+    i = 0
+    for alpha in alphas:
+        for beta in betas:
+            for gamma in gammas:
+                for n_latents in n_ae_latents:
+                    for rng in rng_seeds_model:
+
+                        # update hparams
+                        hparams['sss_vae.alpha'] = alpha
+                        hparams['sss_vae.beta'] = beta
+                        hparams['sss_vae.gamma'] = gamma
+                        hparams['n_ae_latents'] = n_latents + n_labels
+                        hparams['rng_seed_model'] = rng
+
+                        try:
+
+                            get_lab_example(hparams, lab, expt)
+                            hparams['animal'] = animal
+                            hparams['session'] = session
+                            hparams['session_dir'], sess_ids = get_session_dir(hparams)
+                            hparams['expt_dir'] = get_expt_dir(hparams)
+                            _, version = experiment_exists(hparams, which_version=True)
+
+                            print(
+                                'loading results with alpha=%i, beta=%i, gamma=%i (version %i)' %
+                                (alpha, beta, gamma, version))
+
+                            metrics_dfs.append(load_metrics_csv_as_df(
+                                hparams, lab, expt, metrics_list, version=None))
+
+                            metrics_dfs[i]['alpha'] = alpha
+                            metrics_dfs[i]['beta'] = beta
+                            metrics_dfs[i]['gamma'] = gamma
+                            metrics_dfs[i]['n latents'] = hparams['n_ae_latents']
+                            metrics_dfs[i]['rng seed'] = rng
+                            i += 1
+
+                        except TypeError:
+                            print(
+                                'could not find model for alpha=%i, beta=%i, gamma=%i' %
+                                (alpha, beta, gamma))
+                            continue
+
+    metrics_df = pd.concat(metrics_dfs, sort=False)
+
+    sns.set_style('white')
+    sns.set_context('talk')
+    data_queried = metrics_df[
+        (metrics_df.epoch > 10) & ~pd.isna(metrics_df.val) & (metrics_df.dtype == dtype)]
+    g = sns.FacetGrid(
+        data_queried, col='loss', col_wrap=3, hue=hue, sharey=False, height=4)
+    g = g.map(plt.plot, 'epoch', 'val').add_legend()  # , color=".3", fit_reg=False, x_jitter=.1);
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        g.savefig(save_file + '.' + format, dpi=300, format=format)
+
+
+def plot_hyperparameter_search_results(
+        lab, expt, animal, session, n_labels, label_names, alpha_weights, alpha_n_ae_latents,
+        alpha_expt_name, beta_weights, gamma_weights, beta_gamma_n_ae_latents,
+        beta_gamma_expt_name, alpha, beta, gamma, save_file, format='pdf', **kwargs):
+    """Create a variety of diagnostic plots to assess the sss-vae hyperparameters.
+
+    These diagnostic plots are based on the recommended way to perform a hyperparameter search in
+    the sss-vae models; first, fix beta=1 and gamma=0, and do a sweep over alpha values and number
+    of latents (for example alpha=[50, 100, 500, 1000] and n_ae_latents=[2, 4, 8, 16]). The best
+    alpha value is subjective because it involves a tradeoff between pixel mse and label mse. After
+    choosing a suitable value, fix alpha and the number of latents and vary beta and gamma. This
+    function will then plot the following panels:
+
+    - pixel mse as a function of alpha/num latents (for fixed beta/gamma)
+    - label mse as a function of alpha/num_latents (for fixed beta/gamma)
+    - pixel mse as a function of beta/gamma (for fixed alpha/n_ae_latents)
+    - label mse as a function of beta/gamma (for fixed alpha/n_ae_latents)
+    - index-code mutual information (part of the KL decomposition) as a function of beta/gamma (for
+      fixed alpha/n_ae_latents)
+    - total correlation(part of the KL decomposition) as a function of beta/gamma (for fixed
+      alpha/n_ae_latents)
+    - dimension-wise KL (part of the KL decomposition) as a function of beta/gamma (for fixed
+      alpha/n_ae_latents)
+    - average correlation coefficient across all pairs of unsupervised latent dims as a function of
+      beta/gamma (for fixed alpha/n_ae_latents)
+    - subspace overlap computed as ||[A; B] - I||_2^2 for A, B the projections to the supervised
+      and unsupervised subspaces, respectively, and I the identity - as a function of beta/gamma
+      (for fixed alpha/n_ae_latents)
+    - example subspace overlap matrix for gamma=0 and beta=1, with fixed alpha/n_ae_latents
+    - example subspace overlap matrix for gamma=1000 and beta=1, with fixed alpha/n_ae_latents
+
+    Parameters
+    ----------
+    lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
+    animal : :obj:`str`
+        animal id
+    session : :obj:`str`
+        session id
+    n_labels : :obj:`str`
+        number of label dims
+    label_names : :obj:`array-like`
+        names of label dims
+    alpha_weights : :obj:`array-like`
+        array of alpha weights for fixed values of beta, gamma
+    alpha_n_ae_latents : :obj:`array-like`
+        array of latent dimensionalities for fixed values of beta, gamma using alpha_weights
+    alpha_expt_name : :obj:`str`
+        test-tube experiment name of alpha-based hyperparam search
+    beta_weights : :obj:`array-like`
+        array of beta weights for a fixed value of alpha
+    gamma_weights : :obj:`array-like`
+        array of beta weights for a fixed value of alpha
+    beta_gamma_n_ae_latents : :obj:`int`
+        latent dimensionality used for beta-gamma hyperparam search
+    beta_gamma_expt_name : :obj:`str`
+        test-tube experiment name of beta-gamma hyperparam search
+    alpha : :obj:`float`
+        fixed value of alpha for beta-gamma search
+    beta : :obj:`float`
+        fixed value of beta for alpha search
+    gamma : :obj:`float`
+        fixed value of gamma for alpha search
+    save_file : :obj:`str`
+        absolute path of save file; does not need file extension
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    kwargs
+        keys are keys of `hparams`, preceded by either `alpha_` or `beta_gamma_`. For example, to
+        set the train frac of the alpha models, use `alpha_train_frac`; to set the rng_data_seed of
+        the beta-gamma models, use `beta_gamma_rng_data_seed`.
+
+    """
+
+    def apply_masks(data, masks):
+        return data[masks == 1]
+
+    def get_label_r2(hparams, model, data_generator, version, dtype='val', overwrite=False):
+        from sklearn.metrics import r2_score
+        save_file = os.path.join(
+            hparams['expt_dir'], 'version_%i' % version, 'r2_supervised.csv')
+        if not os.path.exists(save_file) or overwrite:
+            if not os.path.exists(save_file):
+                print('R^2 metrics do not exist; computing from scratch')
+            else:
+                print('overwriting metrics at %s' % save_file)
+            metrics_df = []
+            data_generator.reset_iterators(dtype)
+            for i_test in tqdm(range(data_generator.n_tot_batches[dtype])):
+                # get next minibatch and put it on the device
+                data, sess = data_generator.next_batch(dtype)
+                x = data['images'][0]
+                y = data['labels'][0].cpu().detach().numpy()
+                if 'labels_masks' in data:
+                    n = data['labels_masks'][0].cpu().detach().numpy()
+                else:
+                    n = np.ones_like(y)
+                z = model.get_transformed_latents(x, dataset=sess)
+                for i in range(n_labels):
+                    y_true = apply_masks(y[:, i], n[:, i])
+                    y_pred = apply_masks(z[:, i], n[:, i])
+                    if len(y_true) > 10:
+                        r2 = r2_score(y_true, y_pred, multioutput='variance_weighted')
+                        mse = np.mean(np.square(y_true - y_pred))
+                    else:
+                        r2 = np.nan
+                        mse = np.nan
+                    metrics_df.append(pd.DataFrame({
+                        'Trial': data['batch_idx'].item(),
+                        'Label': label_names[i],
+                        'R2': r2,
+                        'MSE': mse,
+                        'Model': 'SSS-VAE'}, index=[0]))
+
+            metrics_df = pd.concat(metrics_df)
+            print('saving results to %s' % save_file)
+            metrics_df.to_csv(save_file, index=False, header=True)
+        else:
+            print('loading results from %s' % save_file)
+            metrics_df = pd.read_csv(save_file)
+        return metrics_df
+
+    # -----------------------------------------------------
+    # load pixel/label MSE as a function of n_latents/alpha
+    # -----------------------------------------------------
+
+    # set model info
+    hparams = _get_sssvae_hparams(experiment_name=alpha_expt_name)
+    # update hparams
+    for key, val in kwargs.items():
+        # hparam vals should be named 'alpha_[property]', for example 'alpha_train_frac'
+        if key.split('_')[0] == 'alpha':
+            prop = key[6:]
+            hparams[prop] = val
+
+    metrics_list = ['loss_data_mse']
+
+    metrics_dfs_frame = []
+    metrics_dfs_marker = []
+    for n_latent in alpha_n_ae_latents:
+        hparams['n_ae_latents'] = n_latent + n_labels
+        for alpha_ in alpha_weights:
+            hparams['sss_vae.alpha'] = alpha_
+            hparams['sss_vae.beta'] = beta
+            hparams['sss_vae.gamma'] = gamma
+            try:
+                get_lab_example(hparams, lab, expt)
+                hparams['animal'] = animal
+                hparams['session'] = session
+                hparams['session_dir'], sess_ids = get_session_dir(hparams)
+                hparams['expt_dir'] = get_expt_dir(hparams)
+                _, version = experiment_exists(hparams, which_version=True)
+                print('loading results with alpha=%i, beta=%i, gamma=%i (version %i)' % (
+                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma'],
+                    version))
+                # get frame mse
+                metrics_dfs_frame.append(load_metrics_csv_as_df(
+                    hparams, lab, expt, metrics_list, version=None, test=True))
+                metrics_dfs_frame[-1]['alpha'] = alpha_
+                metrics_dfs_frame[-1]['n_latents'] = hparams['n_ae_latents']
+                # get marker mse
+                model, data_gen = get_best_model_and_data(
+                    hparams, Model=None, load_data=True, version=version)
+                metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
+                metrics_df_['alpha'] = alpha_
+                metrics_df_['n_latents'] = hparams['n_ae_latents']
+                metrics_dfs_marker.append(metrics_df_[metrics_df_.Model == 'SSS-VAE'])
+            except TypeError:
+                print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
+                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma']))
+                continue
+    metrics_df_frame = pd.concat(metrics_dfs_frame, sort=False)
+    metrics_df_marker = pd.concat(metrics_dfs_marker, sort=False)
+    print('done')
+
+    # -----------------------------------------------------
+    # load pixel/label MSE as a function of beta/gamma
+    # -----------------------------------------------------
+    # update hparams
+    hparams['experiment_name'] = beta_gamma_expt_name
+    for key, val in kwargs.items():
+        # hparam vals should be named 'beta_gamma_[property]', for example 'alpha_train_frac'
+        if key.split('_')[0] == 'beta' and key.split('_')[1] == 'gamma':
+            prop = key[11:]
+            hparams[prop] = val
+
+    metrics_list = ['loss_data_mse', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl', 'loss_AB_orth']
+
+    metrics_dfs_frame_bg = []
+    metrics_dfs_marker_bg = []
+    metrics_dfs_corr_bg = []
+    overlaps = {}
+    for beta in beta_weights:
+        for gamma in gamma_weights:
+            hparams['n_ae_latents'] = beta_gamma_n_ae_latents + n_labels
+            hparams['sss_vae.alpha'] = alpha
+            hparams['sss_vae.beta'] = beta
+            hparams['sss_vae.gamma'] = gamma
+            try:
+                get_lab_example(hparams, lab, expt)
+                hparams['animal'] = animal
+                hparams['session'] = session
+                hparams['session_dir'], sess_ids = get_session_dir(hparams)
+                hparams['expt_dir'] = get_expt_dir(hparams)
+                _, version = experiment_exists(hparams, which_version=True)
+                print('loading results with alpha=%i, beta=%i, gamma=%i (version %i)' % (
+                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma'],
+                    version))
+                # get frame mse
+                metrics_dfs_frame_bg.append(load_metrics_csv_as_df(
+                    hparams, lab, expt, metrics_list, version=None, test=True))
+                metrics_dfs_frame_bg[-1]['beta'] = beta
+                metrics_dfs_frame_bg[-1]['gamma'] = gamma
+                # get marker mse
+                model, data_gen = get_best_model_and_data(
+                    hparams, Model=None, load_data=True, version=version)
+                metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
+                metrics_df_['beta'] = beta
+                metrics_df_['gamma'] = gamma
+                metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'SSS-VAE'])
+                # get subspace overlap
+                A = model.encoding.A.weight.data.cpu().detach().numpy()
+                B = model.encoding.B.weight.data.cpu().detach().numpy()
+                C = np.concatenate([A, B], axis=0)
+                overlap = np.matmul(C, C.T)
+                overlaps['beta=%i_gamma=%i' % (beta, gamma)] = overlap
+                # get corr
+                latents = load_latents(hparams, version, dtype='test')
+                corr = np.corrcoef(latents[:, n_labels + np.array([0, 1])].T)
+                metrics_dfs_corr_bg.append(pd.DataFrame({
+                    'loss': 'corr',
+                    'dtype': 'test',
+                    'val': np.abs(corr[0, 1]),
+                    'beta': beta,
+                    'gamma': gamma}, index=[0]))
+            except TypeError:
+                print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
+                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma']))
+                continue
+            print()
+    metrics_df_frame_bg = pd.concat(metrics_dfs_frame_bg, sort=False)
+    metrics_df_marker_bg = pd.concat(metrics_dfs_marker_bg, sort=False)
+    metrics_df_corr_bg = pd.concat(metrics_dfs_corr_bg, sort=False)
+    print('done')
+
+    # -----------------------------------------------------
+    # ----------------- PLOT DATA -------------------------
+    # -----------------------------------------------------
+    sns.set_style('white')
+    sns.set_context('paper', font_scale=1.2)
+
+    alpha_palette = sns.color_palette('Greens')
+    beta_palette = sns.color_palette('Reds', len(metrics_df_corr_bg.beta.unique()))
+    gamma_palette = sns.color_palette('Blues', len(metrics_df_corr_bg.gamma.unique()))
+
+    from matplotlib.gridspec import GridSpec
+
+    fig = plt.figure(figsize=(12, 10), dpi=300)
+
+    n_rows = 3
+    n_cols = 12
+    gs = GridSpec(n_rows, n_cols, figure=fig)
+
+    def despine(ax):
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+    sns.set_palette(alpha_palette)
+
+    # --------------------------------------------------
+    # MSE per pixel
+    # --------------------------------------------------
+    ax_pixel_mse_alpha = fig.add_subplot(gs[0, 0:3])
+    data_queried = metrics_df_frame[(metrics_df_frame.dtype == 'test')]
+    splt = sns.barplot(
+        x='n_latents', y='val', hue='alpha', data=data_queried, ax=ax_pixel_mse_alpha)
+    ax_pixel_mse_alpha.legend().set_visible(False)
+    ax_pixel_mse_alpha.set_xlabel('Latent dimension')
+    ax_pixel_mse_alpha.set_ylabel('MSE per pixel')
+    ax_pixel_mse_alpha.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
+    ax_pixel_mse_alpha.set_title('Beta=1, Gamma=0')
+    despine(ax_pixel_mse_alpha)
+
+    # --------------------------------------------------
+    # MSE per marker
+    # --------------------------------------------------
+    ax_marker_mse_alpha = fig.add_subplot(gs[0, 3:6])
+    data_queried = metrics_df_marker
+    splt = sns.barplot(
+        x='n_latents', y='MSE', hue='alpha', data=data_queried, ax=ax_marker_mse_alpha)
+    ax_marker_mse_alpha.set_xlabel('Latent dimension')
+    ax_marker_mse_alpha.set_ylabel('MSE per marker')
+    ax_marker_mse_alpha.set_title('Beta=1, Gamma=0')
+    ax_marker_mse_alpha.legend(frameon=True, title='Alpha')
+    despine(ax_marker_mse_alpha)
+
+    sns.set_palette(gamma_palette)
+
+    # --------------------------------------------------
+    # MSE per pixel (beta/gamma)
+    # --------------------------------------------------
+    ax_pixel_mse_bg = fig.add_subplot(gs[0, 6:9])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'test') &
+        (metrics_df_frame_bg.loss == 'loss_data_mse') &
+        (metrics_df_frame_bg.epoch == 200)]
+    splt = sns.barplot(
+        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_pixel_mse_bg)
+    ax_pixel_mse_bg.legend().set_visible(False)
+    ax_pixel_mse_bg.set_xlabel('Beta')
+    ax_pixel_mse_bg.set_ylabel('MSE per pixel')
+    ax_pixel_mse_bg.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
+    ax_pixel_mse_bg.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    despine(ax_pixel_mse_bg)
+
+    # --------------------------------------------------
+    # MSE per marker (beta/gamma)
+    # --------------------------------------------------
+    ax_marker_mse_bg = fig.add_subplot(gs[0, 9:12])
+    data_queried = metrics_df_marker_bg
+    splt = sns.barplot(
+        x='beta', y='MSE', hue='gamma', data=data_queried, ax=ax_marker_mse_bg)
+    ax_marker_mse_bg.set_xlabel('Beta')
+    ax_marker_mse_bg.set_ylabel('MSE per marker')
+    ax_marker_mse_bg.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    ax_marker_mse_bg.legend(frameon=True, title='Gamma', loc='lower left')
+    despine(ax_marker_mse_bg)
+
+    # --------------------------------------------------
+    # ICMI
+    # --------------------------------------------------
+    ax_icmi = fig.add_subplot(gs[1, 0:4])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'test') &
+        (metrics_df_frame_bg.loss == 'loss_zu_mi') &
+        (metrics_df_frame_bg.epoch == 200)]
+    splt = sns.lineplot(
+        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_icmi, ci=None,
+        palette=gamma_palette)
+    ax_icmi.legend().set_visible(False)
+    ax_icmi.set_xlabel('Beta')
+    ax_icmi.set_ylabel('Index-code Mutual Information')
+    ax_icmi.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    despine(ax_icmi)
+
+    # --------------------------------------------------
+    # TC
+    # --------------------------------------------------
+    ax_tc = fig.add_subplot(gs[1, 4:8])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'test') &
+        (metrics_df_frame_bg.loss == 'loss_zu_tc') &
+        (metrics_df_frame_bg.epoch == 200)]
+    splt = sns.lineplot(
+        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_tc, ci=None,
+        palette=gamma_palette)
+    ax_tc.legend().set_visible(False)
+    ax_tc.set_xlabel('Beta')
+    ax_tc.set_ylabel('Total Correlation')
+    ax_tc.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    despine(ax_tc)
+
+    # --------------------------------------------------
+    # DWKL
+    # --------------------------------------------------
+    ax_dwkl = fig.add_subplot(gs[1, 8:12])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'test') &
+        (metrics_df_frame_bg.loss == 'loss_zu_dwkl') &
+        (metrics_df_frame_bg.epoch == 200)]
+    splt = sns.lineplot(
+        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_dwkl, ci=None,
+        palette=gamma_palette)
+    ax_dwkl.legend().set_visible(False)
+    ax_dwkl.set_xlabel('Beta')
+    ax_dwkl.set_ylabel('Dimension-wise KL')
+    ax_dwkl.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    despine(ax_dwkl)
+
+    # --------------------------------------------------
+    # CC
+    # --------------------------------------------------
+    ax_cc = fig.add_subplot(gs[2, 0:3])
+    data_queried = metrics_df_corr_bg
+    splt = sns.lineplot(
+        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_cc, ci=None,
+        palette=gamma_palette)
+    ax_cc.legend().set_visible(False)
+    ax_cc.set_xlabel('Beta')
+    ax_cc.set_ylabel('Correlation Coefficient')
+    ax_cc.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    despine(ax_cc)
+
+    # --------------------------------------------------
+    # AB orth
+    # --------------------------------------------------
+    ax_orth = fig.add_subplot(gs[2, 3:6])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'test') &
+        (metrics_df_frame_bg.loss == 'loss_AB_orth') &
+        (metrics_df_frame_bg.epoch == 200) &
+        ~metrics_df_frame_bg.val.isna()]
+    splt = sns.lineplot(
+        x='gamma', y='val', hue='beta', data=data_queried, ax=ax_orth, ci=None,
+        palette=beta_palette)
+    ax_orth.legend(frameon=False, title='Beta')
+    ax_orth.set_xlabel('Gamma')
+    ax_orth.set_ylabel('Subspace overlap')
+    ax_orth.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    despine(ax_orth)
+
+    # --------------------------------------------------
+    # Gamma = 0 overlap
+    # --------------------------------------------------
+    ax_gamma0 = fig.add_subplot(gs[2, 6:9])
+    overlap = overlaps['beta=%i_gamma=%i' % (1, 0)]
+    im = ax_gamma0.imshow(overlap, cmap='PuOr', vmin=-1, vmax=1)
+    ax_gamma0.set_xticks(np.arange(overlap.shape[1]))
+    ax_gamma0.set_yticks(np.arange(overlap.shape[0]))
+    ax_gamma0.set_title('Subspace overlap\nGamma=0')
+    fig.colorbar(im, ax=ax_gamma0, orientation='vertical', shrink=0.75)
+
+    # --------------------------------------------------
+    # Gamma = 1000 overlap
+    # --------------------------------------------------
+    ax_gamma1 = fig.add_subplot(gs[2, 9:12])
+    overlap = overlaps['beta=%i_gamma=%i' % (1, 1000)]
+    im = ax_gamma1.imshow(overlap, cmap='PuOr', vmin=-1, vmax=1)
+    ax_gamma1.set_xticks(np.arange(overlap.shape[1]))
+    ax_gamma1.set_yticks(np.arange(overlap.shape[0]))
+    ax_gamma1.set_title('Subspace overlap\nGamma=1000')
+    fig.colorbar(im, ax=ax_gamma1, orientation='vertical', shrink=0.75)
+
+    plt.tight_layout(h_pad=3)  # h_pad is fraction of font size
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        plt.savefig(save_file + '.' + format, dpi=300, format=format)
+
+
+def plot_label_reconstructions(
+        lab, expt, animal, session, n_ae_latents, experiment_name, n_labels, trials, version=None,
+        plot_scale=0.5, sess_idx=0, save_file=None, format='pdf', **kwargs):
+    """Plot labels and their reconstructions from an sss-vae.
+
+    Parameters
+    ----------
+    lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
+    animal : :obj:`str`
+        animal id
+    session : :obj:`str`
+        session id
+    n_ae_latents : :obj:`str`
+        dimensionality of unsupervised latent space; n_labels will be added to this
+    experiment_name : :obj:`str`
+        test-tube experiment name
+    n_labels : :obj:`str`
+        dimensionality of supervised latent space
+    trials : :obj:`array-like`
+        array of trials to reconstruct
+    version : :obj:`str` or :obj:`int`, optional
+        can be 'best' to load best model, and integer to load a specific model, or NoneType to use
+        the values in hparams to load a specific model
+    plot_scale : :obj:`float`
+        scale the magnitude of reconstructions
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    save_file : :obj:`str`, optional
+        absolute path of save file; does not need file extension
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    kwargs
+        keys are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+
+    """
+
+    from behavenet.plotting.decoder_utils import plot_neural_reconstruction_traces
+
+    # set model info
+    hparams = _get_sssvae_hparams(
+        experiment_name=experiment_name, n_ae_latents=n_ae_latents + n_labels, **kwargs)
+
+    # programmatically fill out other hparams options
+    get_lab_example(hparams, lab, expt)
+    hparams['animal'] = animal
+    hparams['session'] = session
+
+    model, data_generator = get_best_model_and_data(
+        hparams, Model=None, load_data=True, version=version, data_kwargs=None)
+    print(data_generator)
+    print('alpha: %i' % model.hparams['sss_vae.alpha'])
+    print('beta: %i' % model.hparams['sss_vae.beta'])
+    print('gamma: %i' % model.hparams['sss_vae.gamma'])
+    print('model seed: %i' % model.hparams['rng_seed_model'])
+
+    for trial in trials:
+        batch = data_generator.datasets[sess_idx][trial]
+        labels_og = batch['labels'].detach().cpu().numpy()
+        labels_pred = model.get_predicted_labels(batch['images']).detach().cpu().numpy()
+        if save_file is not None:
+            save_file_trial = save_file + '_trial-%i' % trial
+        else:
+            save_file_trial = None
+        fig = plot_neural_reconstruction_traces(
+            labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format)
+
+
+def plot_label_latent_regression_barplots():
+    pass
+
+
+def plot_latent_traversals(
+        lab, expt, animal, session, model_class, alpha, beta, gamma, n_ae_latents, rng_seed_model,
+        experiment_name, n_labels, label_idxs, label_min_p=5, label_max_p=95,
+        channel=0, n_frames_zs=4, n_frames_zu=4, trial_idx=1, batch_idx=1, crop_type=None,
+        crop_kwargs=None, sess_idx=0, save_file=None, format='pdf', **kwargs):
+    """Plot video frames representing the traversal of individual dimensions of the latent space.
+
+    Parameters
+    ----------
+     lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
+    animal : :obj:`str`
+        animal id
+    session : :obj:`str`
+        session id
+    model_class : :obj:`str`
+        model class in which to perform traversal; currently supported models are:
+        'ae' | 'vae' | 'cond-ae' | 'cond-vae' | 'beta-tcvae' | 'cond-ae-msp' | 'sss-vae'
+        note that models with conditional encoders are not currently supported
+    alpha : :obj:`float`
+        sss-vae alpha value
+    beta : :obj:`float`
+        sss-vae beta value
+    gamma : :obj:`array-like`
+        sss-vae gamma value
+    n_ae_latents : :obj:`int`
+        dimensionality of unsupervised latents
+    rng_seed_model : :obj:`int`
+        model seed
+    experiment_name : :obj:`str`
+        test-tube experiment name
+    n_labels : :obj:`str`
+        dimensionality of supervised latent space (ignored when using fully unsupervised models)
+    label_idxs : :obj:`array-like`, optional
+        set of label indices (dimensions) to individually traverse
+    label_min_p : :obj:`float`, optional
+        lower percentile of training data used to compute range of traversal
+    label_max_p : :obj:`float`, optional
+        upper percentile of training data used to compute range of traversal
+    channel : :obj:`int`, optional
+        image channel to plot
+    n_frames_zs : :obj:`int`, optional
+        number of frames (points) to display for traversal through supervised dimensions
+    n_frames_zu : :obj:`int`, optional
+        number of frames (points) to display for traversal through unsupervised dimensions
+    trial_idx : :obj:`int`, optional
+        trial index of base frame used for interpolation
+    batch_idx : :obj:`int`, optional
+        batch index of base frame used for interpolation
+    crop_type : :obj:`str`, optional
+        cropping method used on interpolated frames
+        'fixed' | None
+    crop_kwargs : :obj:`dict`, optional
+        if crop_type is not None, provides information about the crop
+        keys for 'fixed' type: 'y_0', 'x_0', 'y_ext', 'x_ext'; window is
+        (y_0 - y_ext, y_0 + y_ext) in vertical direction and
+        (x_0 - x_ext, x_0 + x_ext) in horizontal direction
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    save_file : :obj:`str`, optional
+        absolute path of save file; does not need file extension
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    kwargs
+        keys are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+
+    """
+
+    hparams = _get_sssvae_hparams(
+        model_class=model_class, alpha=alpha, beta=beta, gamma=gamma, n_ae_latents=n_ae_latents,
+        experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
+
+    if model_class == 'cond-ae-msp' or model_class == 'sss-vae':
+        hparams['n_ae_latents'] += n_labels
+
+    # programmatically fill out other hparams options
+    get_lab_example(hparams, lab, expt)
+    hparams['animal'] = animal
+    hparams['session'] = session
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
+    _, version = experiment_exists(hparams, which_version=True)
+    model_ae, data_generator = get_best_model_and_data(hparams, Model=None, version=version)
+
+    # get latent/label info
+    latent_range = get_input_range(
+        'latents', hparams, model=model_ae, data_gen=data_generator, min_p=15, max_p=85,
+        version=version)
+    label_range = get_input_range(
+        'labels', hparams, sess_ids=sess_ids, sess_idx=sess_idx,
+        min_p=label_min_p, max_p=label_max_p)
+    try:
+        label_sc_range = get_input_range(
+            'labels_sc', hparams, sess_ids=sess_ids, sess_idx=sess_idx,
+            min_p=label_min_p, max_p=label_max_p)
+    except KeyError:
+        import copy
+        label_sc_range = copy.deepcopy(label_range)
+
+    # ----------------------------------------
+    # label traversals
+    # ----------------------------------------
+    interp_func_label = interpolate_1d
+    plot_func_label = plot_1d_frame_array
+    save_file_new = save_file + '_label-traversals'
+
+    if model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'sss-vae' or \
+            model_class == 'cond-vae':
+
+        # get model input for this trial
+        ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np = \
+            get_model_input(
+                data_generator, hparams, model_ae, trial_idx=trial_idx,
+                compute_latents=True, compute_scaled_labels=False, compute_2d_labels=False)
+
+        if labels_2d_np is None:
+            labels_2d_np = np.copy(labels_np)
+        if crop_type == 'fixed':
+            crop_kwargs_ = crop_kwargs
+        else:
+            crop_kwargs_ = None
+
+        # perform interpolation
+        ims_label, markers_loc_label, ims_crop_label = interp_func_label(
+            'labels', model_ae, ims_pt[None, batch_idx, :], latents_np[None, batch_idx, :],
+            labels_np[None, batch_idx, :], labels_2d_np[None, batch_idx, :],
+            mins=label_range['min'], maxes=label_range['max'],
+            n_frames=n_frames_zs, input_idxs=label_idxs, crop_type=crop_type,
+            mins_sc=label_sc_range['min'], maxes_sc=label_sc_range['max'],
+            crop_kwargs=crop_kwargs_, ch=channel)
+
+        # plot interpolation
+        if crop_type:
+            marker_kwargs = {
+                'markersize': 30, 'markeredgewidth': 8, 'markeredgecolor': [1, 1, 0],
+                'fillstyle': 'none'}
+            plot_func_label(
+                ims_crop_label, markers=None, marker_kwargs=marker_kwargs, save_file=save_file_new,
+                format=format)
+        else:
+            marker_kwargs = {
+                'markersize': 20, 'markeredgewidth': 5, 'markeredgecolor': [1, 1, 0],
+                'fillstyle': 'none'}
+            plot_func_label(
+                ims_label, markers=None, marker_kwargs=marker_kwargs, save_file=save_file_new,
+                format=format)
+
+    # ----------------------------------------
+    # latent traversals
+    # ----------------------------------------
+    interp_func_latent = interpolate_1d
+    plot_func_latent = plot_1d_frame_array
+    save_file_new = save_file + '_latent-traversals'
+
+    if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'sss-vae':
+        latent_idxs = n_labels + np.arange(n_ae_latents)
+    elif hparams['model_class'] == 'ae' \
+            or hparams['model_class'] == 'vae' \
+            or hparams['model_class'] == 'cond-vae' \
+            or hparams['model_class'] == 'beta-tcvae':
+        latent_idxs = np.arange(n_ae_latents)
+    else:
+        raise NotImplementedError
+
+    # simplify options here
+    scaled_labels = False
+    twod_labels = False
+    crop_type = None
+    crop_kwargs = None
+    labels_2d_np_sel = None
+
+    # get model input for this trial
+    ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np = \
+        get_model_input(
+            data_generator, hparams, model_ae, trial=None, trial_idx=trial_idx,
+            compute_latents=True, compute_scaled_labels=scaled_labels,
+            compute_2d_labels=twod_labels)
+
+    latents_np[:, n_labels:] = 0
+
+    if hparams['model_class'] == 'ae' or hparams['model_class'] == 'beta-tcvae':
+        labels_np_sel = labels_np
+    else:
+        labels_np_sel = labels_np[None, batch_idx, :]
+
+    # perform interpolation
+    ims_latent, markers_loc_latent_, ims_crop_latent = interp_func_latent(
+        'latents', model_ae, ims_pt[None, batch_idx, :], latents_np[None, batch_idx, :],
+        labels_np_sel, labels_2d_np_sel,
+        mins=latent_range['min'], maxes=latent_range['max'],
+        n_frames=n_frames_zu, input_idxs=latent_idxs, crop_type=crop_type,
+        mins_sc=None, maxes_sc=None, crop_kwargs=crop_kwargs, ch=channel)
+
+    # plot interpolation
+    marker_kwargs = {
+        'markersize': 20, 'markeredgewidth': 5, 'markeredgecolor': [1, 1, 0],
+        'fillstyle': 'none'}
+    plot_func_latent(
+        ims_latent, markers=None, marker_kwargs=marker_kwargs, save_file=save_file_new,
+        format=format)
+
+
+def make_latent_traversal_movie():
+    pass

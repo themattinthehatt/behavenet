@@ -3,6 +3,7 @@
 from matplotlib.animation import FFMpegWriter
 import numpy as np
 import os
+import pickle
 import pandas as pd
 
 from behavenet import make_dir_if_not_exists
@@ -14,7 +15,7 @@ from behavenet.fitting.utils import get_lab_example
 from behavenet.fitting.utils import read_session_info_from_csv
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['concat', 'load_metrics_csv_as_df', 'save_movie']
+__all__ = ['concat', 'get_crop', 'load_metrics_csv_as_df', 'save_movie']
 
 # TODO: use load_metrics_csv_as_df in ae example notebook
 
@@ -35,6 +36,75 @@ def concat(ims, axis=1):
         shape (2 * y_pix, x_pix) (if :obj:`axis=0`) or shape (y_pix, 2 * x_pix) (if :obj:`axis=1`)
     """
     return np.concatenate([ims[0, :, :], ims[1, :, :]], axis=axis)
+
+
+def get_crop(im, y_0, y_ext, x_0, x_ext):
+    """Get crop of image, filling in borders with zeros.
+
+    Parameters
+    ----------
+    im : :obj:`np.ndarray`
+        input image
+    y_0 : :obj:`int`
+        y-pixel center value
+    y_ext : :obj:`int`
+        y-pixel extent; crop in y-direction will be [y_0 - y_ext, y_0 + y_ext]
+    x_0 : :obj:`int`
+        y-pixel center value
+    x_ext : :obj:`int`
+        x-pixel extent; crop in x-direction will be [x_0 - x_ext, x_0 + x_ext]
+
+    Returns
+    -------
+    :obj:`np.ndarray`
+        cropped image
+
+    """
+    y_min = y_0 - y_ext
+    y_max = y_0 + y_ext
+    y_pix = y_max - y_min
+    x_min = x_0 - x_ext
+    x_max = x_0 + x_ext
+    x_pix = x_max - x_min
+    im_crop = np.copy(im[y_min:y_max, x_min:x_max])
+    y_pix_, x_pix_ = im_crop.shape
+    im_tmp = np.zeros((y_pix, x_pix))
+    im_tmp[:y_pix_, :x_pix_] = im_crop
+    return im_tmp
+
+
+def load_latents(hparams, version, dtype='val'):
+    """Load all latents as a single array.
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+        needs to contain enough information to specify both a model and the associated data
+    version : :obj:`int`
+        version from test tube experiment defined in :obj:`hparams`
+    dtype : :obj:`str`
+        'train' | 'val' | 'test'
+
+    Returns
+    -------
+    :obj:`np.ndarray`
+        shape (time, n_latents)
+
+    """
+    sess_id = str('%s_%s_%s_%s_latents.pkl' % (
+        hparams['lab'], hparams['expt'], hparams['animal'], hparams['session']))
+    filename = os.path.join(
+        hparams['expt_dir'], 'version_%i' % version, sess_id)
+    if not os.path.exists(filename):
+        raise FileNotFoundError('latents located at %s do not exist' % filename)
+    latent_dict = pickle.load(open(filename, 'rb'))
+    print('loaded latents from %s' % filename)
+    # get all test latents
+    latents = []
+    for trial in latent_dict['trials'][dtype]:
+        ls = latent_dict['latents'][trial]
+        latents.append(ls)
+    return np.concatenate(latents)
 
 
 def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, test=False, version='best'):
@@ -149,3 +219,5 @@ def save_movie(save_file, ani, frame_rate=15):
             print('saving video to %s...' % save_file, end='')
             ani.save(save_file, writer=writer)
             print('done')
+
+
