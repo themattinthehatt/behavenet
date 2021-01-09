@@ -15,7 +15,7 @@ from behavenet.fitting.utils import get_lab_example
 from behavenet.fitting.utils import read_session_info_from_csv
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['concat', 'get_crop', 'load_metrics_csv_as_df', 'save_movie']
+__all__ = ['concat', 'get_crop', 'load_latents', 'load_metrics_csv_as_df', 'save_movie']
 
 # TODO: use load_metrics_csv_as_df in ae example notebook
 

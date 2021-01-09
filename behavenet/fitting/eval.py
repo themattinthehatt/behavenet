@@ -300,8 +300,8 @@ def get_reconstruction(
     labels_2d : :obj:`torch.Tensor` object or :obj:`NoneType`, optional
         label tensor of shape (batch, n_labels, y_pix, x_pix)
     apply_inverse_transform : :obj:`bool`
-        if inputs are latents (and model class is 'cond-ae-msp'), apply inverse transform to put in
-        original latent space
+        if inputs are latents (and model class is 'cond-ae-msp' or 'sss-vae'), apply inverse
+        transform to put in original latent space
     use_mean : :obj:`bool`
         if inputs are images (and model class is variational), use mean of approximate posterior
         without sampling

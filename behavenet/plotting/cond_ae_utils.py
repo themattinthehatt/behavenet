@@ -2,6 +2,7 @@ import os
 import copy
 import pickle
 import numpy as np
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -18,17 +19,19 @@ from behavenet.fitting.utils import get_best_model_and_data
 from behavenet.fitting.utils import get_expt_dir
 from behavenet.fitting.utils import get_lab_example
 from behavenet.fitting.utils import get_session_dir
+from behavenet.plotting import concat
 from behavenet.plotting import get_crop
 from behavenet.plotting import load_latents
 from behavenet.plotting import load_metrics_csv_as_df
+from behavenet.plotting import save_movie
 
 # to ignore imports for sphix-autoapidoc
 __all__ = [
     'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
-    'interpolate_2d', 'interpolate_1d', 'plot_2d_frame_array', 'plot_1d_frame_array',
+    'interpolate_2d', 'interpolate_1d', 'interpolate_point_path', 'plot_2d_frame_array',
+    'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel',
     'plot_hyperparameter_search_results', 'plot_label_reconstructions',
-    'plot_label_latent_regression_barplots', 'plot_latent_traversals',
-    'make_latent_traversal_movie']
+    'plot_latent_traversals', 'make_latent_traversal_movie']
 
 
 # ----------------------------------------
@@ -676,6 +679,118 @@ def interpolate_1d(
     return ims_list, labels_list, ims_crop_list
 
 
+def interpolate_point_path(
+        interp_type, model, ims_0, labels_0, points, n_frames=10, ch=0, crop_kwargs=None,
+        apply_inverse_transform=True):
+    """Return reconstructed images created by interpolating through multiple points.
+
+    This function is a simplified version of :func:`interpolate_1d()`; this function computes a
+    traversal for a single dimension instead of all dimensions; also, this function does not
+    support conditional encoders, nor does it attempt to compute the interpolated, scaled values
+    of the labels as :func:`interpolate_1d()` does. This function should supercede
+    :func:`interpolate_1d()` in a future refactor. Also note that this function is utilized by
+    the code to make traversal movies, whereas :func:`interpolate_1d()` is utilized by the code to
+    make traversal plots.
+
+    Parameters
+    ----------
+    interp_type : :obj:`str`
+        'latents' | 'labels'
+    model : :obj:`behavenet.models` object
+        autoencoder model
+    ims_0 : :obj:`np.ndarray`
+        base images for interpolating labels, of shape (1, n_channels, y_pix, x_pix)
+    labels_0 : :obj:`np.ndarray`
+        base labels of shape (1, n_labels); these values will be used if
+        `interp_type='latents'`, and they will be ignored if `inter_type='labels'`
+        (since `points` will be used)
+    points : :obj:`list`
+        one entry for each point in path; each entry is an np.ndarray of shape (n_latents,)
+    n_frames : :obj:`int` or :obj:`array-like`
+        number of interpolation points between each point; can be an integer that is used
+        for all paths, or an array/list of length one less than number of points
+    ch : :obj:`int`, optional
+        specify which channel of input images to return (can only be a single value)
+    crop_kwargs : :obj:`dict`, optional
+        if crop_type is not None, provides information about the crop (for a fixed crop window)
+        keys : 'y_0', 'x_0', 'y_ext', 'x_ext'; window is
+        (y_0 - y_ext, y_0 + y_ext) in vertical direction and
+        (x_0 - x_ext, x_0 + x_ext) in horizontal direction
+    apply_inverse_transform : :obj:`bool`
+        if inputs are latents (and model class is 'cond-ae-msp' or 'sss-vae'), apply inverse
+        transform to put in original latent space
+
+    Returns
+    -------
+    :obj:`tuple`
+        - ims_list (:obj:`list` of :obj:`np.ndarray`) interpolated images
+        - inputs_list (:obj:`list` of :obj:`np.ndarray`) interpolated values
+
+    """
+
+    if model.hparams.get('conditional_encoder', False):
+        raise NotImplementedError
+
+    n_points = len(points)
+    if isinstance(n_frames, int):
+        n_frames = [n_frames] * (n_points - 1)
+    assert len(n_frames) == (n_points - 1)
+
+    ims_list = []
+    inputs_list = []
+
+    for p in range(n_points - 1):
+
+        p0 = points[None, p]
+        p1 = points[None, p + 1]
+        p_vec = (p1 - p0) / n_frames[p]
+
+        for pn in range(n_frames[p]):
+
+            vec = p0 + pn * p_vec
+
+            if interp_type == 'latents':
+
+                if model.hparams['model_class'] == 'cond-ae' \
+                        or model.hparams['model_class'] == 'cond-vae':
+                    im_tmp = get_reconstruction(
+                        model, vec, apply_inverse_transform=apply_inverse_transform,
+                        labels=torch.from_numpy(labels_0).float().to(model.hparams['device']))
+                else:
+                    im_tmp = get_reconstruction(
+                        model, vec, apply_inverse_transform=apply_inverse_transform)
+
+            elif interp_type == 'labels':
+
+                if model.hparams['model_class'] == 'cond-ae-msp' \
+                        or model.hparams['model_class'] == 'sss-vae':
+                    im_tmp = get_reconstruction(
+                        model, vec, apply_inverse_transform=True)
+                else:  # cond-ae
+                    im_tmp = get_reconstruction(
+                        model, ims_0,
+                        labels=torch.from_numpy(vec).float().to(model.hparams['device']))
+            else:
+                raise NotImplementedError
+
+            if crop_kwargs is not None:
+                if not isinstance(ch, int):
+                    raise ValueError('"ch" must be an integer to use crop_kwargs')
+                ims_list.append(get_crop(
+                    im_tmp[0, ch],
+                    crop_kwargs['y_0'], crop_kwargs['y_ext'],
+                    crop_kwargs['x_0'], crop_kwargs['x_ext']))
+            else:
+                if isinstance(ch, int):
+                    ims_list.append(np.copy(im_tmp[0, ch]))
+                else:
+                    ims_list.append(np.copy(concat(im_tmp[0])))
+
+            inputs_list.append(vec)
+
+    return ims_list, inputs_list
+
+
 def _get_updated_scaled_labels(labels_og, idxs=None, vals=None):
     """Helper function for interpolate_xd functions."""
 
@@ -843,6 +958,184 @@ def plot_1d_frame_array(
     plt.show()
 
 
+def make_interpolated(
+        ims, save_file, markers=None, text=None, text_title=None, text_color=[1, 1, 1],
+        frame_rate=20, scale=3, markersize=10, markeredgecolor='w', markeredgewidth=1, ax=None):
+    """Make a latent space interpolation movie.
+
+    Parameters
+    ----------
+    ims : :obj:`list` of :obj:`np.ndarray`
+        each list element is an array of shape (y_pix, x_pix)
+    save_file : :obj:`str`
+        absolute path of save file; does not need file extension, will automatically be saved as
+        mp4. To save as a gif, include the '.gif' file extension in `save_file`. The movie will
+        only be saved if `ax` is `NoneType`; else the list of animated frames is returned
+    markers : :obj:`array-like`, optional
+        array of size (n_frames, 2) which specifies the (x, y) coordinates of a marker on each
+        frame
+    text : :obj:`array-like`, optional
+        array of size (n_frames) which specifies text printed in the lower left corner of each
+        frame
+    text_title : :obj:`array-like`, optional
+        array of size (n_frames) which specifies text printed in the upper left corner of each
+        frame
+    text_color : :obj:`array-like`, optional
+        rgb array specifying color of `text` and `text_title`, if applicable
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+    scale : :obj:`float`, optional
+        width of panel is (scale / 2) inches
+    markersize : :obj:`float`, optional
+        size of marker if `markers` is not `NoneType`
+    markeredgecolor : :obj:`float`, optional
+        color of marker edge if `markers` is not `NoneType`
+    markeredgewidth : :obj:`float`, optional
+        width of marker edge if `markers` is not `NoneType`
+    ax : :obj:`matplotlib.axes.Axes` object
+        optional axis in which to plot the frames; if this argument is not `NoneType` the list of
+        animated frames is returned and the movie is not saved
+
+    Returns
+    -------
+    :obj:`list`
+        list of list of animated frames if `ax` is True; else save movie
+
+    """
+
+    y_pix, x_pix = ims[0].shape
+
+    if ax is None:
+        fig_width = scale / 2
+        fig_height = y_pix / x_pix * scale / 2
+        fig = plt.figure(figsize=(fig_width, fig_height), dpi=300)
+        ax = plt.gca()
+        return_ims = False
+    else:
+        return_ims = True
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    default_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
+    txt_kwargs = {
+        'fontsize': 4, 'color': text_color, 'fontname': 'monospace',
+        'horizontalalignment': 'left', 'verticalalignment': 'center',
+        'transform': ax.transAxes}
+
+    # ims is a list of lists, each row is a list of artists to draw in the current frame; here we
+    # are just animating one artist, the image, in each frame
+    ims_ani = []
+    for i, im in enumerate(ims):
+        im_tmp = []
+        im_tmp.append(ax.imshow(im, **default_kwargs))
+        # [s.set_visible(False) for s in ax.spines.values()]
+        if markers is not None:
+            im_tmp.append(ax.plot(
+                markers[i, 0], markers[i, 1], '.r', markersize=markersize,
+                markeredgecolor=markeredgecolor, markeredgewidth=markeredgewidth)[0])
+        if text is not None:
+            im_tmp.append(ax.text(0.02, 0.06, text[i], **txt_kwargs))
+        if text_title is not None:
+            im_tmp.append(ax.text(0.02, 0.92, text_title[i], **txt_kwargs))
+        ims_ani.append(im_tmp)
+
+    if return_ims:
+        return ims_ani
+    else:
+        plt.tight_layout(pad=0)
+        ani = animation.ArtistAnimation(fig, ims_ani, blit=True, repeat_delay=1000)
+        save_movie(save_file, ani, frame_rate=frame_rate)
+
+
+def make_interpolated_multipanel(
+        ims, save_file, markers=None, text=None, text_title=None, frame_rate=20, n_cols=3, scale=1,
+        **kwargs):
+    """Make a multi-panel latent space interpolation movie.
+
+    Parameters
+    ----------
+    ims : :obj:`list` of :obj:`list` of :obj:`np.ndarray`
+        each list element is used to for a single panel, and is another list that contains arrays
+        of shape (y_pix, x_pix)
+    save_file : :obj:`str`
+        absolute path of save file; does not need file extension, will automatically be saved as
+        mp4. To save as a gif, include the '.gif' file extension in `save_file`.
+    markers : :obj:`list` of :obj:`array-like`, optional
+        each list element is used for a single panel, and is an array of size (n_frames, 2)
+        which specifies the (x, y) coordinates of a marker on each frame for that panel
+    text : :obj:`list` of :obj:`array-like`, optional
+        each list element is used for a single panel, and is an array of size (n_frames) which
+        specifies text printed in the lower left corner of each frame for that panel
+    text_title : :obj:`list` of :obj:`array-like`, optional
+        each list element is used for a single panel, and is an array of size (n_frames) which
+        specifies text printed in the upper left corner of each frame for that panel
+    frame_rate : :obj:`float`, optional
+        frame rate of saved movie
+    n_cols : :obj:`int`, optional
+        movie is `n_cols` panels wide
+    scale : :obj:`float`, optional
+        width of panel is (scale / 2) inches
+    kwargs
+        arguments are additional arguments to :func:`make_interpolated`, like 'markersize',
+        'markeredgewidth', 'markeredgecolor', etc.
+
+    """
+
+    n_panels = len(ims)
+
+    markers = [None] * n_panels if markers is None else markers
+    text = [None] * n_panels if text is None else text
+
+    y_pix, x_pix = ims[0][0].shape
+    n_rows = int(np.ceil(n_panels / n_cols))
+    fig_width = scale / 2 * n_cols
+    fig_height = y_pix / x_pix * scale / 2 * n_rows
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height), dpi=300)
+    plt.subplots_adjust(wspace=0, hspace=0, left=0, bottom=0, right=1, top=1)
+
+    # fill out empty panels with black frames
+    while len(ims) < n_rows * n_cols:
+        ims.append(np.zeros(ims[0].shape))
+        markers.append(None)
+        text.append(None)
+
+    # ims is a list of lists, each row is a list of artists to draw in the current frame; here we
+    # are just animating one artist, the image, in each frame
+    ims_ani = []
+    for i, (ims_curr, markers_curr, text_curr) in enumerate(zip(ims, markers, text)):
+        col = i % n_cols
+        row = int(np.floor(i / n_cols))
+        if i == 0:
+            text_title_str = text_title
+        else:
+            text_title_str = None
+        ims_ani_curr = make_interpolated(
+            ims=ims_curr, markers=markers_curr, text=text_curr, text_title=text_title_str,
+            ax=axes[row, col], save_file=None, **kwargs)
+        ims_ani.append(ims_ani_curr)
+
+    # turn off other axes
+    i += 1
+    while i < n_rows * n_cols:
+        col = i % n_cols
+        row = int(np.floor(i / n_cols))
+        axes[row, col].set_axis_off()
+        i += 1
+
+    # rearrange ims:
+    # currently a list of length n_panels, each element of which is a list of length n_t
+    # we need a list of length n_t, each element of which is a list of length n_panels
+    n_frames = len(ims_ani[0])
+    ims_final = [[] for _ in range(n_frames)]
+    for i in range(n_frames):
+        for j in range(n_panels):
+            ims_final[i] += ims_ani[j][i]
+
+    ani = animation.ArtistAnimation(fig, ims_final, blit=True, repeat_delay=1000)
+    save_movie(save_file, ani, frame_rate=frame_rate)
+
+
 # ----------------------------------------
 # high-level plotting functions
 # ----------------------------------------
@@ -921,7 +1214,7 @@ def plot_sssvae_training_curves(
         model seeds to plot
     experiment_name : :obj:`str`
         test-tube experiment name
-    n_labels : :obj:`str`
+    n_labels : :obj:`int`
         dimensionality of supervised latent space
     dtype : :obj:`str`
         'train' | 'val'
@@ -930,7 +1223,7 @@ def plot_sssvae_training_curves(
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
     kwargs
-        keys are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+        arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
     """
     # check for arrays, turn ints into lists
@@ -1091,9 +1384,9 @@ def plot_hyperparameter_search_results(
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
     kwargs
-        keys are keys of `hparams`, preceded by either `alpha_` or `beta_gamma_`. For example, to
-        set the train frac of the alpha models, use `alpha_train_frac`; to set the rng_data_seed of
-        the beta-gamma models, use `beta_gamma_rng_data_seed`.
+        arguments are keys of `hparams`, preceded by either `alpha_` or `beta_gamma_`. For example,
+        to set the train frac of the alpha models, use `alpha_train_frac`; to set the rng_data_seed
+        of the beta-gamma models, use `beta_gamma_rng_data_seed`.
 
     """
 
@@ -1458,6 +1751,10 @@ def plot_hyperparameter_search_results(
 
     plt.tight_layout(h_pad=3)  # h_pad is fraction of font size
 
+    # reset to default color palette
+    # sns.set_palette(sns.color_palette(None, 10))
+    sns.reset_orig()
+    
     if save_file is not None:
         make_dir_if_not_exists(save_file)
         plt.savefig(save_file + '.' + format, dpi=300, format=format)
@@ -1498,7 +1795,7 @@ def plot_label_reconstructions(
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
     kwargs
-        keys are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+        arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
     """
 
@@ -1531,10 +1828,6 @@ def plot_label_reconstructions(
             save_file_trial = None
         fig = plot_neural_reconstruction_traces(
             labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format)
-
-
-def plot_label_latent_regression_barplots():
-    pass
 
 
 def plot_latent_traversals(
@@ -1603,7 +1896,7 @@ def plot_latent_traversals(
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
     kwargs
-        keys are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+        arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
     """
 
@@ -1741,5 +2034,265 @@ def plot_latent_traversals(
         format=format)
 
 
-def make_latent_traversal_movie():
-    pass
+def make_latent_traversal_movie(
+        lab, expt, animal, session, model_class, alpha, beta, gamma, n_ae_latents,
+        rng_seed_model, experiment_name, n_labels, trial_idxs, batch_idxs, trials,
+        label_min_p=5, label_max_p=95, channel=0, sess_idx=0, n_frames=10, n_buffer_frames=5,
+        crop_kwargs=None, n_cols=3, movie_kwargs={}, panel_titles=None, order_idxs=None,
+        save_file=None, **kwargs):
+    """Create a multi-panel movie with each panel showing traversals of an individual latent dim.
+
+    The traversals will start at a lower bound, increase to an upper bound, then return to a lower
+    bound; the traversal of each dimension occurs simultaneously. It is also possible to specify
+    multiple base frames for the traversals; the traversal of each base frame is separated by
+    several blank frames. Note that support for plotting markers on top of the corresponding
+    supervised dimensions is not supported by this function.
+
+    Parameters
+    ----------
+    lab : :obj:`str`
+        lab id
+    expt : :obj:`str`
+        expt id
+    animal : :obj:`str`
+        animal id
+    session : :obj:`str`
+        session id
+    model_class : :obj:`str`
+        model class in which to perform traversal; currently supported models are:
+        'ae' | 'vae' | 'cond-ae' | 'cond-vae' | 'sss-vae'
+        note that models with conditional encoders are not currently supported
+    alpha : :obj:`float`
+        sss-vae alpha value
+    beta : :obj:`float`
+        sss-vae beta value
+    gamma : :obj:`array-like`
+        sss-vae gamma value
+    n_ae_latents : :obj:`int`
+        dimensionality of unsupervised latents
+    rng_seed_model : :obj:`int`
+        model seed
+    experiment_name : :obj:`str`
+        test-tube experiment name
+    n_labels : :obj:`str`
+        dimensionality of supervised latent space (ignored when using fully unsupervised models)
+    trial_idxs : :obj:`array-like` of :obj:`int`
+        trial indices of base frames used for interpolation; if an entry is an integer, the
+        corresponding entry in `trials` must be `None`. This value is a trial index into all
+        *test* trials, and is not affected by how the test trials are shuffled. The `trials`
+        argument (see below) takes precedence over `trial_idxs`.
+    batch_idxs : :obj:`array-like` of :obj:`int`
+        batch indices of base frames used for interpolation; correspond to entries in `trial_idxs`
+        and `trials`
+    trials : :obj:`array-like` of :obj:`int`
+        trials of base frame used for interpolation; if an entry is an integer, the
+        corresponding entry in `trial_idxs` must be `None`. This value is a trial index into all
+        possible trials (train, val, test), whereas `trial_idxs` is an index only into test trials
+    label_min_p : :obj:`float`, optional
+        lower percentile of training data used to compute range of traversal
+    label_max_p : :obj:`float`, optional
+        upper percentile of training data used to compute range of traversal
+    channel : :obj:`int`, optional
+        image channel to plot
+    sess_idx : :obj:`int`, optional
+        session index into data generator
+    n_frames : :obj:`int`, optional
+        number of frames (points) to display for traversal across latent dimensions; the movie
+        will display a traversal of `n_frames` across each dim, then another traversal of
+        `n_frames` in the opposite direction
+    n_buffer_frames : :obj:`int`, optional
+        number of blank frames to insert between base frames
+    crop_kwargs : :obj:`dict`, optional
+        if crop_type is not None, provides information about the crop (for a fixed crop window)
+        keys : 'y_0', 'x_0', 'y_ext', 'x_ext'; window is
+        (y_0 - y_ext, y_0 + y_ext) in vertical direction and
+        (x_0 - x_ext, x_0 + x_ext) in horizontal direction
+    n_cols : :obj:`int`, optional
+        movie is `n_cols` panels wide
+    movie_kwargs : :obj:`dict`, optional
+        additional kwargs for individual panels; possible keys are 'markersize', 'markeredgecolor',
+        'markeredgewidth', and 'text_color'
+    panel_titles : :obj:`list` of :obj:`str`, optional
+        optional titles for each panel
+    order_idxs : :obj:`array-like`, optional
+        used to reorder panels (which are plotted in row-major order) if desired
+    save_file : :obj:`str`, optional
+        absolute path of save file; does not need file extension, will automatically be saved as
+        mp4. To save as a gif, include the '.gif' file extension in `save_file`
+    kwargs
+        arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+
+    """
+
+    panel_titles = [''] * (n_labels + n_ae_latents) if panel_titles is None else panel_titles
+
+    hparams = _get_sssvae_hparams(
+        model_class=model_class, alpha=alpha, beta=beta, gamma=gamma, n_ae_latents=n_ae_latents,
+        experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
+
+    if model_class == 'cond-ae-msp' or model_class == 'sss-vae':
+        hparams['n_ae_latents'] += n_labels
+
+    # programmatically fill out other hparams options
+    get_lab_example(hparams, lab, expt)
+    hparams['animal'] = animal
+    hparams['session'] = session
+    hparams['session_dir'], sess_ids = get_session_dir(hparams)
+    hparams['expt_dir'] = get_expt_dir(hparams)
+    _, version = experiment_exists(hparams, which_version=True)
+    model_ae, data_generator = get_best_model_and_data(hparams, Model=None, version=version)
+
+    # get latent/label info
+    latent_range = get_input_range(
+        'latents', hparams, model=model_ae, data_gen=data_generator, min_p=15, max_p=85,
+        version=version)
+    label_range = get_input_range(
+        'labels', hparams, sess_ids=sess_ids, sess_idx=sess_idx,
+        min_p=label_min_p, max_p=label_max_p)
+
+    # ----------------------------------------
+    # collect frames/latents/labels
+    # ----------------------------------------
+    if hparams['model_class'] == 'vae':
+        csl = False
+        c2dl = False
+    else:
+        csl = True
+        c2dl = False
+
+    ims_pt = []
+    ims_np = []
+    latents_np = []
+    labels_pt = []
+    labels_np = []
+    labels_2d_pt = []
+    labels_2d_np = []
+    for trial, trial_idx in zip(trials, trial_idxs):
+        ims_pt_, ims_np_, latents_np_, labels_pt_, labels_np_, labels_2d_pt_, labels_2d_np_ = \
+            get_model_input(
+                data_generator, hparams, model_ae, trial_idx=trial_idx, trial=trial,
+                compute_latents=True, compute_scaled_labels=csl, compute_2d_labels=c2dl,
+                max_frames=200)
+        ims_pt.append(ims_pt_)
+        ims_np.append(ims_np_)
+        latents_np.append(latents_np_)
+        labels_pt.append(labels_pt_)
+        labels_np.append(labels_np_)
+        labels_2d_pt.append(labels_2d_pt_)
+        labels_2d_np.append(labels_2d_np_)
+
+    if hparams['model_class'] == 'sss-vae':
+        label_idxs = np.arange(n_labels)
+        latent_idxs = n_labels + np.arange(n_ae_latents)
+    elif hparams['model_class'] == 'vae':
+        label_idxs = []
+        latent_idxs = np.arange(hparams['n_ae_latents'])
+    elif hparams['model_class'] == 'cond-vae':
+        label_idxs = np.arange(n_labels)
+        latent_idxs = np.arange(hparams['n_ae_latents'])
+    else:
+        raise Exception
+
+    # ----------------------------------------
+    # label traversals
+    # ----------------------------------------
+    ims_all = []
+    txt_strs_all = []
+    txt_strs_titles = []
+
+    for label_idx in label_idxs:
+
+        ims = []
+        txt_strs = []
+
+        for b, batch_idx in enumerate(batch_idxs):
+            if hparams['model_class'] == 'sss-vae':
+                points = np.array([latents_np[b][batch_idx, :]] * 3)
+            elif hparams['model_class'] == 'cond-vae':
+                points = np.array([labels_np[b][batch_idx, :]] * 3)
+            else:
+                raise Exception
+            points[0, label_idx] = label_range['min'][label_idx]
+            points[1, label_idx] = label_range['max'][label_idx]
+            points[2, label_idx] = label_range['min'][label_idx]
+            ims_curr, inputs = interpolate_point_path(
+                'labels', model_ae, ims_pt[b][None, batch_idx, :],
+                labels_np[b][None, batch_idx, :], points=points, n_frames=n_frames, ch=channel,
+                crop_kwargs=crop_kwargs)
+            ims.append(ims_curr)
+            txt_strs += [panel_titles[label_idx] for _ in range(len(ims_curr))]
+
+            if label_idx == 0:
+                tmp = trial_idxs[b] if trial_idxs[b] is not None else trials[b]
+                txt_strs_titles += [
+                    'base frame %02i-%02i' % (tmp, batch_idx) for _ in range(len(ims_curr))]
+
+            # add blank frames
+            y_pix, x_pix = ims_curr[0].shape
+            ims.append([np.zeros((y_pix, x_pix)) for _ in range(n_buffer_frames)])
+            txt_strs += ['' for _ in range(n_buffer_frames)]
+            if label_idx == 0:
+                txt_strs_titles += ['' for _ in range(n_buffer_frames)]
+
+        ims_all.append(np.vstack(ims))
+        txt_strs_all.append(txt_strs)
+
+    # ----------------------------------------
+    # latent traversals
+    # ----------------------------------------
+    crop_kwargs_ = None
+    for latent_idx in latent_idxs:
+
+        ims = []
+        txt_strs = []
+
+        for b, batch_idx in enumerate(batch_idxs):
+
+            points = np.array([latents_np[b][batch_idx, :]] * 3)
+
+            # points[:, latent_idxs] = 0
+            points[0, latent_idx] = latent_range['min'][latent_idx]
+            points[1, latent_idx] = latent_range['max'][latent_idx]
+            points[2, latent_idx] = latent_range['min'][latent_idx]
+            if hparams['model_class'] == 'vae':
+                labels_curr = None
+            else:
+                labels_curr = labels_np[b][None, batch_idx, :]
+            ims_curr, inputs = interpolate_point_path(
+                'latents', model_ae, ims_pt[b][None, batch_idx, :],
+                labels_curr, points=points, n_frames=n_frames, ch=channel,
+                crop_kwargs=crop_kwargs_)
+            ims.append(ims_curr)
+            if hparams['model_class'] == 'cond-vae':
+                txt_strs += [panel_titles[latent_idx + n_labels] for _ in range(len(ims_curr))]
+            else:
+                txt_strs += [panel_titles[latent_idx] for _ in range(len(ims_curr))]
+
+            if latent_idx == 0 and len(label_idxs) == 0:
+                # add frame ids here if skipping labels
+                tmp = trial_idxs[b] if trial_idxs[b] is not None else trials[b]
+                txt_strs_titles += [
+                    'base frame %02i-%02i' % (tmp, batch_idx) for _ in range(len(ims_curr))]
+
+            # add blank frames
+            y_pix, x_pix = ims_curr[0].shape
+            ims.append([np.zeros((y_pix, x_pix)) for _ in range(n_buffer_frames)])
+            txt_strs += ['' for _ in range(n_buffer_frames)]
+            if latent_idx == 0 and len(label_idxs) == 0:
+                txt_strs_titles += ['' for _ in range(n_buffer_frames)]
+
+        ims_all.append(np.vstack(ims))
+        txt_strs_all.append(txt_strs)
+
+    # ----------------------------------------
+    # make video
+    # ----------------------------------------
+    if order_idxs is None:
+        # don't change order of latents
+        order_idxs = np.arange(len(ims_all))
+
+    make_interpolated_multipanel(
+        ims=[ims_all[i] for i in order_idxs],
+        text=[txt_strs_all[i] for i in order_idxs],
+        text_title=txt_strs_titles,
+        save_file=save_file, scale=2, n_cols=n_cols, **movie_kwargs)
