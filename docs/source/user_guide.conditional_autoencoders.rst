@@ -110,3 +110,40 @@ reasonable starting value if the labels have each been z-scored.
 
 Then to fit the model, use the ``ae_grid_search.py`` function using this updated model json. All
 other input jsons remain unchanged.
+
+
+.. _sss_vae:
+
+Semi-supervised subspace variational autoencoder
+------------------------------------------------
+One downside to the MSP model introduced in the previous section is that the representation in the
+unsupervised latent space may be difficult to interpret. The semi-supervised subspace VAE (SSS-VAE)
+attempts to remedy this situation by encouraging the unsupervised representation to be factorized,
+which has shown to help with interpretability (see paper `here <TODO>`_).
+
+To fit a single SSS-VAE (and the default CAE BehaveNet
+architecture), edit the ``model_class``, ``sss_vae.alpha``,  ``sss_vae.beta`` and ``sss_vae.gamma``
+parameters of the ``ae_model.json`` file:
+
+.. code-block:: json
+
+    {
+    "experiment_name": "ae-example",
+    "model_type": "conv",
+    "n_ae_latents": 12,
+    "l2_reg": 0.0,
+    "rng_seed_model": 0,
+    "fit_sess_io_layers": false,
+    "ae_arch_json": null,
+    "model_class": "sss-vae",
+    "sss_vae.alpha": 1000,
+    "sss_vae.beta": 10,
+    "sss_vae.gamma": 1000,
+    "conditional_encoder": false
+    }
+
+The ``sss_vae.alpha``,  ``sss_vae.beta`` and ``sss_vae.gamma`` parameters need to be tuned for
+each dataset. See the guidelines for setting these parameters :ref:`here<sssvae_hparams>`.
+
+Then to fit the model, use the ``ae_grid_search.py`` function using this updated model json. All
+other input jsons remain unchanged.
