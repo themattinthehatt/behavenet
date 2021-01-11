@@ -149,7 +149,7 @@ single base frame to create all traversals.
 
 Latent traversals: movies
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-The function :func:`behavenet.plotting.cond_ae_utils.make_latent_traversal_movies` creates a
+The function :func:`behavenet.plotting.cond_ae_utils.make_latent_traversal_movie` creates a
 multi-panel movie with each panel showing traversals of an individual latent dimension.
 The traversals will start at a lower bound, increase to an upper bound, then return to a lower
 bound; the traversal of each dimension occurs simultaneously. It is also possible to specify
