@@ -30,8 +30,8 @@ __all__ = [
     'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
     'interpolate_2d', 'interpolate_1d', 'interpolate_point_path', 'plot_2d_frame_array',
     'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel',
-    'plot_hyperparameter_search_results', 'plot_label_reconstructions',
-    'plot_latent_traversals', 'make_latent_traversal_movie']
+    'plot_sssvae_training_curves', 'plot_hyperparameter_search_results',
+    'plot_label_reconstructions', 'plot_latent_traversals', 'make_latent_traversal_movie']
 
 
 # ----------------------------------------
@@ -1754,7 +1754,7 @@ def plot_hyperparameter_search_results(
     # reset to default color palette
     # sns.set_palette(sns.color_palette(None, 10))
     sns.reset_orig()
-    
+
     if save_file is not None:
         make_dir_if_not_exists(save_file)
         plt.savefig(save_file + '.' + format, dpi=300, format=format)
