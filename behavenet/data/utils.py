@@ -387,10 +387,12 @@ def check_same_training_split(model_path, hparams):
     import_params_file = os.path.join(os.path.dirname(model_path), 'meta_tags.pkl')
     import_params = pickle.load(open(import_params_file, 'rb'))
 
-    if import_params['rng_seed_data'] != hparams['rng_seed_data']:
+    if import_params['rng_seed_data'] != hparams['rng_seed_data'] and \
+            hparams.get('check_rng_seed_data', True):
         raise ValueError('Different data random seed from existing models')
 
-    if import_params['trial_splits'] != hparams['trial_splits']:
+    if import_params['trial_splits'] != hparams['trial_splits'] and \
+            hparams.get('check_trial_splits', True):
         raise ValueError('Different trial split from existing models')
 
 
