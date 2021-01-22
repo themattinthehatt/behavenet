@@ -409,7 +409,7 @@ def get_test_metric(
         batch, _ = data_generator.next_batch(dtype)
 
         # get true latents/states
-        if metric == 'r2':
+        if metric == 'r2' or metric == 'mse':
             if 'ae_latents' in batch:
                 curr_true = batch['ae_latents'][0].cpu().detach().numpy()
             elif 'labels' in batch:

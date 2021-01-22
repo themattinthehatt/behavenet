@@ -195,7 +195,7 @@ def get_labels_2d_for_trial(
 
 
 def get_model_input(
-        data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=100,
+        data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=200,
         compute_latents=False, compute_2d_labels=True, compute_scaled_labels=False, dtype='test'):
     """Return images, latents, and labels for a given trial.
 
@@ -242,6 +242,8 @@ def get_model_input(
 
     if (trial_idx is not None) and (trial is not None):
         raise ValueError('only one of "trial" or "trial_idx" can be specified')
+    if (trial_idx is None) and (trial is None):
+        raise ValueError('one of "trial" or "trial_idx" must be specified')
 
     # get trial
     if trial is None:
@@ -1317,7 +1319,8 @@ def plot_sssvae_training_curves(
 def plot_hyperparameter_search_results(
         lab, expt, animal, session, n_labels, label_names, alpha_weights, alpha_n_ae_latents,
         alpha_expt_name, beta_weights, gamma_weights, beta_gamma_n_ae_latents,
-        beta_gamma_expt_name, alpha, beta, gamma, save_file, format='pdf', **kwargs):
+        beta_gamma_expt_name, alpha, beta, gamma, save_file, batch_size=None, format='pdf',
+        **kwargs):
     """Create a variety of diagnostic plots to assess the sss-vae hyperparameters.
 
     These diagnostic plots are based on the recommended way to perform a hyperparameter search in
@@ -1381,6 +1384,9 @@ def plot_hyperparameter_search_results(
         fixed value of gamma for alpha search
     save_file : :obj:`str`
         absolute path of save file; does not need file extension
+    batch_size : :obj:`int`, optional
+        size of batches, used to compute correlation coefficient per batch; if NoneType, the
+        correlation coefficient is computed across all time points
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
     kwargs
@@ -1544,13 +1550,30 @@ def plot_hyperparameter_search_results(
                 overlaps['beta=%i_gamma=%i' % (beta, gamma)] = overlap
                 # get corr
                 latents = load_latents(hparams, version, dtype='test')
-                corr = np.corrcoef(latents[:, n_labels + np.array([0, 1])].T)
-                metrics_dfs_corr_bg.append(pd.DataFrame({
-                    'loss': 'corr',
-                    'dtype': 'test',
-                    'val': np.abs(corr[0, 1]),
-                    'beta': beta,
-                    'gamma': gamma}, index=[0]))
+                if batch_size is None:
+                    corr = np.corrcoef(latents[:, n_labels + np.array([0, 1])].T)
+                    metrics_dfs_corr_bg.append(pd.DataFrame({
+                        'loss': 'corr',
+                        'dtype': 'test',
+                        'val': np.abs(corr[0, 1]),
+                        'beta': beta,
+                        'gamma': gamma}, index=[0]))
+                else:
+                    n_batches = int(np.ceil(latents.shape[0] / batch_size))
+                    for i in range(n_batches):
+                        try:
+                            corr = np.corrcoef(
+                                latents[i * batch_size:(i + 1) * batch_size,
+                                        n_labels + np.array([0, 1])].T)
+                            metrics_dfs_corr_bg.append(pd.DataFrame({
+                                'loss': 'corr',
+                                'dtype': 'test',
+                                'val': np.abs(corr[0, 1]),
+                                'beta': beta,
+                                'gamma': gamma}, index=[0]))
+                        except:
+                            print(i)
+                            break
             except TypeError:
                 print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
                     hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma']))
@@ -1833,8 +1856,8 @@ def plot_label_reconstructions(
 def plot_latent_traversals(
         lab, expt, animal, session, model_class, alpha, beta, gamma, n_ae_latents, rng_seed_model,
         experiment_name, n_labels, label_idxs, label_min_p=5, label_max_p=95,
-        channel=0, n_frames_zs=4, n_frames_zu=4, trial_idx=1, batch_idx=1, crop_type=None,
-        crop_kwargs=None, sess_idx=0, save_file=None, format='pdf', **kwargs):
+        channel=0, n_frames_zs=4, n_frames_zu=4, trial=None, trial_idx=1, batch_idx=1,
+        crop_type=None, crop_kwargs=None, sess_idx=0, save_file=None, format='pdf', **kwargs):
     """Plot video frames representing the traversal of individual dimensions of the latent space.
 
     Parameters
@@ -1877,6 +1900,9 @@ def plot_latent_traversals(
         number of frames (points) to display for traversal through supervised dimensions
     n_frames_zu : :obj:`int`, optional
         number of frames (points) to display for traversal through unsupervised dimensions
+    trial : :obj:`int`, optional
+        trial index into all possible trials (train, val, test); one of `trial` or `trial_idx`
+        must be specified; `trial` takes precedence over `trial_idx`
     trial_idx : :obj:`int`, optional
         trial index of base frame used for interpolation
     batch_idx : :obj:`int`, optional
@@ -1944,7 +1970,7 @@ def plot_latent_traversals(
         # get model input for this trial
         ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np = \
             get_model_input(
-                data_generator, hparams, model_ae, trial_idx=trial_idx,
+                data_generator, hparams, model_ae, trial_idx=trial_idx, trial=trial,
                 compute_latents=True, compute_scaled_labels=False, compute_2d_labels=False)
 
         if labels_2d_np is None:
@@ -2006,7 +2032,7 @@ def plot_latent_traversals(
     # get model input for this trial
     ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np = \
         get_model_input(
-            data_generator, hparams, model_ae, trial=None, trial_idx=trial_idx,
+            data_generator, hparams, model_ae, trial=trial, trial_idx=trial_idx,
             compute_latents=True, compute_scaled_labels=scaled_labels,
             compute_2d_labels=twod_labels)
 
