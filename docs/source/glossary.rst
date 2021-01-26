@@ -110,7 +110,7 @@ All models:
     * 'cond-ae': conditional autoencoder
     * 'cond-vae': conditional variational autoencoder
     * 'cond-ae-msp': autoencoder with matrix subspace projection loss
-    * 'sss-vae': semi-supervised subspace variational autoencoder
+    * 'ps-vae': partitioned subspace variational autoencoder
     * 'hmm': hidden Markov model
     * 'arhmm': autoregressive hidden Markov model
     * 'neural-ae': decode AE latents from neural activity

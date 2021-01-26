@@ -68,7 +68,7 @@ def export_latents(data_generator, model, filename=None):
                     else:
                         y_in = y[idx_beg:idx_end]
                     output = model.encoding(y_in, dataset=sess)
-                    if model.hparams['model_class'] == 'sss-vae':
+                    if model.hparams['model_class'] == 'ps-vae':
                         curr_latents = torch.cat([output[0], output[1]], axis=1)
                     else:
                         curr_latents = output[0]
@@ -84,7 +84,7 @@ def export_latents(data_generator, model, filename=None):
                 else:
                     y_in = y
                 output = model.encoding(y_in, dataset=sess)
-                if model.hparams['model_class'] == 'sss-vae':
+                if model.hparams['model_class'] == 'ps-vae':
                     curr_latents = torch.cat([output[0], output[1]], axis=1)
                 else:
                     curr_latents = output[0]
@@ -300,7 +300,7 @@ def get_reconstruction(
     labels_2d : :obj:`torch.Tensor` object or :obj:`NoneType`, optional
         label tensor of shape (batch, n_labels, y_pix, x_pix)
     apply_inverse_transform : :obj:`bool`
-        if inputs are latents (and model class is 'cond-ae-msp' or 'sss-vae'), apply inverse
+        if inputs are latents (and model class is 'cond-ae-msp' or 'ps-vae'), apply inverse
         transform to put in original latent space
     use_mean : :obj:`bool`
         if inputs are images (and model class is variational), use mean of approximate posterior
@@ -331,7 +331,7 @@ def get_reconstruction(
         elif model.hparams['model_class'] == 'vae' \
                 or model.hparams['model_class'] == 'beta-tcvae':
             ims_recon, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
-        elif model.hparams['model_class'] == 'sss-vae':
+        elif model.hparams['model_class'] == 'ps-vae':
             ims_recon, _, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
         elif model.hparams['model_class'] == 'cond-ae':
             ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)
@@ -346,7 +346,7 @@ def get_reconstruction(
             inputs = torch.cat((inputs, labels), dim=1)
         elif model.hparams['model_class'] == 'cond-ae-msp' and apply_inverse_transform:
             inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
-        elif model.hparams['model_class'] == 'sss-vae' and apply_inverse_transform:
+        elif model.hparams['model_class'] == 'ps-vae' and apply_inverse_transform:
             # assume "inputs" are [labels, unsupervised latents] where "labels" need to be
             # transformed into N(0, 1) latent space
             inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)

@@ -338,7 +338,7 @@ def make_neural_reconstruction_movie_wrapper(
 
 
 def make_neural_reconstruction_movie(
-        ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural,  ae_model_class='AE',
+        ims_orig, ims_recon_ae, ims_recon_neural, latents_ae, latents_neural, ae_model_class='AE',
         colored_predictions=False, scale=0.5, xtick_locs=None, frame_rate_beh=None, save_file=None,
         frame_rate=15):
     """Produce movie with original video, ae reconstructed video, and neural reconstructed video.

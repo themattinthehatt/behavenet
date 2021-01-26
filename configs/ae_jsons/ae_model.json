@@ -42,12 +42,12 @@
 
 "beta_tcvae.beta_anneal_epochs": 100, # type: int, help: number of epochs to linearly increase betatcvae beta
 
-"sss_vae.alpha": 1, # type: int, help: weight on label reconstruction term
+"ps_vae.alpha": 1, # type: int, help: weight on label reconstruction term
 
-"sss_vae.beta": 1, # type: int, help: weight on total correlation term
+"ps_vae.beta": 1, # type: int, help: weight on total correlation term
 
-"sss_vae.gamma": 1, # type: int, help: weight on subspace overlap term
+"ps_vae.gamma": 1, # type: int, help: weight on subspace overlap term
 
-"sss_vae.anneal_epochs": 100 # type: int, help: number of epochs to linearly increase sss beta value
+"ps_vae.anneal_epochs": 100 # type: int, help: number of epochs to linearly increase sss beta value
 
 }

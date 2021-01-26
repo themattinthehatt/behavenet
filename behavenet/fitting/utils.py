@@ -350,7 +350,7 @@ def get_expt_dir(hparams, model_class=None, model_type=None, expt_name=None):
             or model_class == 'cond-vae' \
             or model_class == 'cond-ae' \
             or model_class == 'cond-ae-msp' \
-            or model_class == 'sss-vae':
+            or model_class == 'ps-vae':
         model_path = os.path.join(
             model_class, model_type, '%02i_latents' % hparams['n_ae_latents'])
         if hparams.get('ae_multisession', None) is not None:
@@ -657,7 +657,7 @@ def get_model_params(hparams):
             or model_class == 'cond-vae' \
             or model_class == 'cond-ae' \
             or model_class == 'cond-ae-msp' \
-            or model_class == 'sss-vae':
+            or model_class == 'ps-vae':
         hparams_less['n_ae_latents'] = hparams['n_ae_latents']
         hparams_less['fit_sess_io_layers'] = hparams['fit_sess_io_layers']
         hparams_less['learning_rate'] = hparams['learning_rate']
@@ -671,10 +671,10 @@ def get_model_params(hparams):
             # hparams_less['vae.beta_anneal_epochs'] = hparams['vae.beta_anneal_epochs']
         if model_class == 'beta-tcvae':
             hparams_less['beta_tcvae.beta'] = hparams['beta_tcvae.beta']
-        if model_class == 'sss-vae':
-            hparams_less['sss_vae.alpha'] = hparams['sss_vae.alpha']
-            hparams_less['sss_vae.beta'] = hparams['sss_vae.beta']
-            hparams_less['sss_vae.gamma'] = hparams['sss_vae.gamma']
+        if model_class == 'ps-vae':
+            hparams_less['ps_vae.alpha'] = hparams['ps_vae.alpha']
+            hparams_less['ps_vae.beta'] = hparams['ps_vae.beta']
+            hparams_less['ps_vae.gamma'] = hparams['ps_vae.gamma']
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
@@ -1024,8 +1024,8 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
             from behavenet.models import AEMSP as Model
         elif hparams['model_class'] == 'beta-tcvae':
             from behavenet.models import BetaTCVAE as Model
-        elif hparams['model_class'] == 'sss-vae':
-            from behavenet.models import SSSVAE as Model
+        elif hparams['model_class'] == 'ps-vae':
+            from behavenet.models import PSVAE as Model
         elif hparams['model_class'] == 'labels-images':
             from behavenet.models import ConvDecoder as Model
         elif hparams['model_class'] == 'neural-ae' or hparams['model_class'] == 'neural-ae-me' \

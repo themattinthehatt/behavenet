@@ -65,8 +65,8 @@ def main(hparams, *args):
         from behavenet.models import VAE as Model
     elif hparams['model_class'] == 'beta-tcvae':
         from behavenet.models import BetaTCVAE as Model
-    elif hparams['model_class'] == 'sss-vae':
-        from behavenet.models import SSSVAE as Model
+    elif hparams['model_class'] == 'ps-vae':
+        from behavenet.models import PSVAE as Model
         set_n_labels(data_generator, hparams)
     elif hparams['model_class'] == 'cond-vae':
         from behavenet.models import ConditionalVAE as Model

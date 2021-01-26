@@ -30,7 +30,7 @@ __all__ = [
     'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
     'interpolate_2d', 'interpolate_1d', 'interpolate_point_path', 'plot_2d_frame_array',
     'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel',
-    'plot_sssvae_training_curves', 'plot_hyperparameter_search_results',
+    'plot_psvae_training_curves', 'plot_hyperparameter_search_results',
     'plot_label_reconstructions', 'plot_latent_traversals', 'make_latent_traversal_movie']
 
 
@@ -261,7 +261,7 @@ def get_model_input(
     elif hparams['model_class'] == 'cond-ae' \
             or hparams['model_class'] == 'cond-vae' \
             or hparams['model_class'] == 'cond-ae-msp' \
-            or hparams['model_class'] == 'sss-vae' \
+            or hparams['model_class'] == 'ps-vae' \
             or hparams['model_class'] == 'labels-images':
         labels_pt = batch['labels'][:max_frames]
         labels_np = labels_pt.cpu().detach().numpy()
@@ -287,7 +287,7 @@ def get_model_input(
 
     # latents
     if compute_latents:
-        if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'sss-vae':
+        if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'ps-vae':
             latents_np = model.get_transformed_latents(ims_pt, dataset=sess_idx, as_numpy=True)
         else:
             _, latents_np = get_reconstruction(
@@ -412,7 +412,7 @@ def interpolate_2d(
                     if model.hparams['model_class'] == 'ae' \
                             or model.hparams['model_class'] == 'vae' \
                             or model.hparams['model_class'] == 'beta-tcvae' \
-                            or model.hparams['model_class'] == 'sss-vae':
+                            or model.hparams['model_class'] == 'ps-vae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae' \
                             or model.hparams['model_class'] == 'cond-vae':
@@ -438,7 +438,7 @@ def interpolate_2d(
                     labels_2d = None
 
                 if model.hparams['model_class'] == 'cond-ae-msp' \
-                        or model.hparams['model_class'] == 'sss-vae':
+                        or model.hparams['model_class'] == 'ps-vae':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
                     latents[0, input_idxs[0]] = inputs[0][i0]
@@ -602,7 +602,7 @@ def interpolate_1d(
                     if model.hparams['model_class'] == 'ae' \
                             or model.hparams['model_class'] == 'vae' \
                             or model.hparams['model_class'] == 'beta-tcvae' \
-                            or model.hparams['model_class'] == 'sss-vae':
+                            or model.hparams['model_class'] == 'ps-vae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae' \
                             or model.hparams['model_class'] == 'cond-vae':
@@ -628,7 +628,7 @@ def interpolate_1d(
                     labels_2d = None
 
                 if model.hparams['model_class'] == 'cond-ae-msp' \
-                        or model.hparams['model_class'] == 'sss-vae':
+                        or model.hparams['model_class'] == 'ps-vae':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
                     latents[0, input_idxs[i0]] = inputs[i0][i1]
@@ -719,7 +719,7 @@ def interpolate_point_path(
         (y_0 - y_ext, y_0 + y_ext) in vertical direction and
         (x_0 - x_ext, x_0 + x_ext) in horizontal direction
     apply_inverse_transform : :obj:`bool`
-        if inputs are latents (and model class is 'cond-ae-msp' or 'sss-vae'), apply inverse
+        if inputs are latents (and model class is 'cond-ae-msp' or 'ps-vae'), apply inverse
         transform to put in original latent space
 
     Returns
@@ -765,7 +765,7 @@ def interpolate_point_path(
             elif interp_type == 'labels':
 
                 if model.hparams['model_class'] == 'cond-ae-msp' \
-                        or model.hparams['model_class'] == 'sss-vae':
+                        or model.hparams['model_class'] == 'ps-vae':
                     im_tmp = get_reconstruction(
                         model, vec, apply_inverse_transform=True)
                 else:  # cond-ae
@@ -1142,11 +1142,11 @@ def make_interpolated_multipanel(
 # high-level plotting functions
 # ----------------------------------------
 
-def _get_sssvae_hparams(**kwargs):
+def _get_psvae_hparams(**kwargs):
     hparams = {
         'data_dir': get_user_dir('data'),
         'save_dir': get_user_dir('save'),
-        'model_class': 'sss-vae',
+        'model_class': 'ps-vae',
         'model_type': 'conv',
         'rng_seed_data': 0,
         'trial_splits': '8;1;1;0',
@@ -1160,16 +1160,16 @@ def _get_sssvae_hparams(**kwargs):
     # update hparams
     for key, val in kwargs.items():
         if key == 'alpha' or key == 'beta' or key == 'gamma':
-            hparams['sss_vae.%s' % key] = val
+            hparams['ps_vae.%s' % key] = val
         else:
             hparams[key] = val
     return hparams
 
 
-def plot_sssvae_training_curves(
+def plot_psvae_training_curves(
         lab, expt, animal, session, alphas, betas, gammas, n_ae_latents, rng_seeds_model,
         experiment_name, n_labels, dtype='val', save_file=None, format='pdf', **kwargs):
-    """Create training plots for each term in the sss-vae objective function.
+    """Create training plots for each term in the ps-vae objective function.
 
     The `dtype` argument controls which type of trials are plotted ('train' or 'val').
     Additionally, multiple models can be plotted simultaneously by varying one (and only one) of
@@ -1251,7 +1251,7 @@ def plot_sssvae_training_curves(
             '"rng_seeds_model" as an array')
 
     # set model info
-    hparams = _get_sssvae_hparams(experiment_name=experiment_name, **kwargs)
+    hparams = _get_psvae_hparams(experiment_name=experiment_name, **kwargs)
 
     metrics_list = [
         'loss', 'loss_data_mse', 'label_r2',
@@ -1266,9 +1266,9 @@ def plot_sssvae_training_curves(
                     for rng in rng_seeds_model:
 
                         # update hparams
-                        hparams['sss_vae.alpha'] = alpha
-                        hparams['sss_vae.beta'] = beta
-                        hparams['sss_vae.gamma'] = gamma
+                        hparams['ps_vae.alpha'] = alpha
+                        hparams['ps_vae.beta'] = beta
+                        hparams['ps_vae.gamma'] = gamma
                         hparams['n_ae_latents'] = n_latents + n_labels
                         hparams['rng_seed_model'] = rng
 
@@ -1321,10 +1321,10 @@ def plot_hyperparameter_search_results(
         alpha_expt_name, beta_weights, gamma_weights, beta_gamma_n_ae_latents,
         beta_gamma_expt_name, alpha, beta, gamma, save_file, batch_size=None, format='pdf',
         **kwargs):
-    """Create a variety of diagnostic plots to assess the sss-vae hyperparameters.
+    """Create a variety of diagnostic plots to assess the ps-vae hyperparameters.
 
     These diagnostic plots are based on the recommended way to perform a hyperparameter search in
-    the sss-vae models; first, fix beta=1 and gamma=0, and do a sweep over alpha values and number
+    the ps-vae models; first, fix beta=1 and gamma=0, and do a sweep over alpha values and number
     of latents (for example alpha=[50, 100, 500, 1000] and n_ae_latents=[2, 4, 8, 16]). The best
     alpha value is subjective because it involves a tradeoff between pixel mse and label mse. After
     choosing a suitable value, fix alpha and the number of latents and vary beta and gamma. This
@@ -1434,7 +1434,7 @@ def plot_hyperparameter_search_results(
                         'Label': label_names[i],
                         'R2': r2,
                         'MSE': mse,
-                        'Model': 'SSS-VAE'}, index=[0]))
+                        'Model': 'PS-VAE'}, index=[0]))
 
             metrics_df = pd.concat(metrics_df)
             print('saving results to %s' % save_file)
@@ -1449,7 +1449,7 @@ def plot_hyperparameter_search_results(
     # -----------------------------------------------------
 
     # set model info
-    hparams = _get_sssvae_hparams(experiment_name=alpha_expt_name)
+    hparams = _get_psvae_hparams(experiment_name=alpha_expt_name)
     # update hparams
     for key, val in kwargs.items():
         # hparam vals should be named 'alpha_[property]', for example 'alpha_train_frac'
@@ -1464,9 +1464,9 @@ def plot_hyperparameter_search_results(
     for n_latent in alpha_n_ae_latents:
         hparams['n_ae_latents'] = n_latent + n_labels
         for alpha_ in alpha_weights:
-            hparams['sss_vae.alpha'] = alpha_
-            hparams['sss_vae.beta'] = beta
-            hparams['sss_vae.gamma'] = gamma
+            hparams['ps_vae.alpha'] = alpha_
+            hparams['ps_vae.beta'] = beta
+            hparams['ps_vae.gamma'] = gamma
             try:
                 get_lab_example(hparams, lab, expt)
                 hparams['animal'] = animal
@@ -1475,7 +1475,7 @@ def plot_hyperparameter_search_results(
                 hparams['expt_dir'] = get_expt_dir(hparams)
                 _, version = experiment_exists(hparams, which_version=True)
                 print('loading results with alpha=%i, beta=%i, gamma=%i (version %i)' % (
-                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma'],
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma'],
                     version))
                 # get frame mse
                 metrics_dfs_frame.append(load_metrics_csv_as_df(
@@ -1488,10 +1488,10 @@ def plot_hyperparameter_search_results(
                 metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
                 metrics_df_['alpha'] = alpha_
                 metrics_df_['n_latents'] = hparams['n_ae_latents']
-                metrics_dfs_marker.append(metrics_df_[metrics_df_.Model == 'SSS-VAE'])
+                metrics_dfs_marker.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
             except TypeError:
                 print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
-                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma']))
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma']))
                 continue
     metrics_df_frame = pd.concat(metrics_dfs_frame, sort=False)
     metrics_df_marker = pd.concat(metrics_dfs_marker, sort=False)
@@ -1517,9 +1517,9 @@ def plot_hyperparameter_search_results(
     for beta in beta_weights:
         for gamma in gamma_weights:
             hparams['n_ae_latents'] = beta_gamma_n_ae_latents + n_labels
-            hparams['sss_vae.alpha'] = alpha
-            hparams['sss_vae.beta'] = beta
-            hparams['sss_vae.gamma'] = gamma
+            hparams['ps_vae.alpha'] = alpha
+            hparams['ps_vae.beta'] = beta
+            hparams['ps_vae.gamma'] = gamma
             try:
                 get_lab_example(hparams, lab, expt)
                 hparams['animal'] = animal
@@ -1528,7 +1528,7 @@ def plot_hyperparameter_search_results(
                 hparams['expt_dir'] = get_expt_dir(hparams)
                 _, version = experiment_exists(hparams, which_version=True)
                 print('loading results with alpha=%i, beta=%i, gamma=%i (version %i)' % (
-                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma'],
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma'],
                     version))
                 # get frame mse
                 metrics_dfs_frame_bg.append(load_metrics_csv_as_df(
@@ -1541,7 +1541,7 @@ def plot_hyperparameter_search_results(
                 metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
                 metrics_df_['beta'] = beta
                 metrics_df_['gamma'] = gamma
-                metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'SSS-VAE'])
+                metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
                 # get subspace overlap
                 A = model.encoding.A.weight.data.cpu().detach().numpy()
                 B = model.encoding.B.weight.data.cpu().detach().numpy()
@@ -1561,22 +1561,18 @@ def plot_hyperparameter_search_results(
                 else:
                     n_batches = int(np.ceil(latents.shape[0] / batch_size))
                     for i in range(n_batches):
-                        try:
-                            corr = np.corrcoef(
-                                latents[i * batch_size:(i + 1) * batch_size,
-                                        n_labels + np.array([0, 1])].T)
-                            metrics_dfs_corr_bg.append(pd.DataFrame({
-                                'loss': 'corr',
-                                'dtype': 'test',
-                                'val': np.abs(corr[0, 1]),
-                                'beta': beta,
-                                'gamma': gamma}, index=[0]))
-                        except:
-                            print(i)
-                            break
+                        corr = np.corrcoef(
+                            latents[i * batch_size:(i + 1) * batch_size,
+                                    n_labels + np.array([0, 1])].T)
+                        metrics_dfs_corr_bg.append(pd.DataFrame({
+                            'loss': 'corr',
+                            'dtype': 'test',
+                            'val': np.abs(corr[0, 1]),
+                            'beta': beta,
+                            'gamma': gamma}, index=[0]))
             except TypeError:
                 print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
-                    hparams['sss_vae.alpha'], hparams['sss_vae.beta'], hparams['sss_vae.gamma']))
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma']))
                 continue
             print()
     metrics_df_frame_bg = pd.concat(metrics_dfs_frame_bg, sort=False)
@@ -1613,8 +1609,7 @@ def plot_hyperparameter_search_results(
     # --------------------------------------------------
     ax_pixel_mse_alpha = fig.add_subplot(gs[0, 0:3])
     data_queried = metrics_df_frame[(metrics_df_frame.dtype == 'test')]
-    splt = sns.barplot(
-        x='n_latents', y='val', hue='alpha', data=data_queried, ax=ax_pixel_mse_alpha)
+    sns.barplot(x='n_latents', y='val', hue='alpha', data=data_queried, ax=ax_pixel_mse_alpha)
     ax_pixel_mse_alpha.legend().set_visible(False)
     ax_pixel_mse_alpha.set_xlabel('Latent dimension')
     ax_pixel_mse_alpha.set_ylabel('MSE per pixel')
@@ -1627,8 +1622,7 @@ def plot_hyperparameter_search_results(
     # --------------------------------------------------
     ax_marker_mse_alpha = fig.add_subplot(gs[0, 3:6])
     data_queried = metrics_df_marker
-    splt = sns.barplot(
-        x='n_latents', y='MSE', hue='alpha', data=data_queried, ax=ax_marker_mse_alpha)
+    sns.barplot(x='n_latents', y='MSE', hue='alpha', data=data_queried, ax=ax_marker_mse_alpha)
     ax_marker_mse_alpha.set_xlabel('Latent dimension')
     ax_marker_mse_alpha.set_ylabel('MSE per marker')
     ax_marker_mse_alpha.set_title('Beta=1, Gamma=0')
@@ -1645,8 +1639,7 @@ def plot_hyperparameter_search_results(
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_data_mse') &
         (metrics_df_frame_bg.epoch == 200)]
-    splt = sns.barplot(
-        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_pixel_mse_bg)
+    sns.barplot(x='beta', y='val', hue='gamma', data=data_queried, ax=ax_pixel_mse_bg)
     ax_pixel_mse_bg.legend().set_visible(False)
     ax_pixel_mse_bg.set_xlabel('Beta')
     ax_pixel_mse_bg.set_ylabel('MSE per pixel')
@@ -1659,8 +1652,7 @@ def plot_hyperparameter_search_results(
     # --------------------------------------------------
     ax_marker_mse_bg = fig.add_subplot(gs[0, 9:12])
     data_queried = metrics_df_marker_bg
-    splt = sns.barplot(
-        x='beta', y='MSE', hue='gamma', data=data_queried, ax=ax_marker_mse_bg)
+    sns.barplot(x='beta', y='MSE', hue='gamma', data=data_queried, ax=ax_marker_mse_bg)
     ax_marker_mse_bg.set_xlabel('Beta')
     ax_marker_mse_bg.set_ylabel('MSE per marker')
     ax_marker_mse_bg.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
@@ -1675,7 +1667,7 @@ def plot_hyperparameter_search_results(
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_zu_mi') &
         (metrics_df_frame_bg.epoch == 200)]
-    splt = sns.lineplot(
+    sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_icmi, ci=None,
         palette=gamma_palette)
     ax_icmi.legend().set_visible(False)
@@ -1692,7 +1684,7 @@ def plot_hyperparameter_search_results(
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_zu_tc') &
         (metrics_df_frame_bg.epoch == 200)]
-    splt = sns.lineplot(
+    sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_tc, ci=None,
         palette=gamma_palette)
     ax_tc.legend().set_visible(False)
@@ -1709,7 +1701,7 @@ def plot_hyperparameter_search_results(
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_zu_dwkl') &
         (metrics_df_frame_bg.epoch == 200)]
-    splt = sns.lineplot(
+    sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_dwkl, ci=None,
         palette=gamma_palette)
     ax_dwkl.legend().set_visible(False)
@@ -1723,7 +1715,7 @@ def plot_hyperparameter_search_results(
     # --------------------------------------------------
     ax_cc = fig.add_subplot(gs[2, 0:3])
     data_queried = metrics_df_corr_bg
-    splt = sns.lineplot(
+    sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_cc, ci=None,
         palette=gamma_palette)
     ax_cc.legend().set_visible(False)
@@ -1741,7 +1733,7 @@ def plot_hyperparameter_search_results(
         (metrics_df_frame_bg.loss == 'loss_AB_orth') &
         (metrics_df_frame_bg.epoch == 200) &
         ~metrics_df_frame_bg.val.isna()]
-    splt = sns.lineplot(
+    sns.lineplot(
         x='gamma', y='val', hue='beta', data=data_queried, ax=ax_orth, ci=None,
         palette=beta_palette)
     ax_orth.legend(frameon=False, title='Beta')
@@ -1786,7 +1778,7 @@ def plot_hyperparameter_search_results(
 def plot_label_reconstructions(
         lab, expt, animal, session, n_ae_latents, experiment_name, n_labels, trials, version=None,
         plot_scale=0.5, sess_idx=0, save_file=None, format='pdf', **kwargs):
-    """Plot labels and their reconstructions from an sss-vae.
+    """Plot labels and their reconstructions from an ps-vae.
 
     Parameters
     ----------
@@ -1825,7 +1817,7 @@ def plot_label_reconstructions(
     from behavenet.plotting.decoder_utils import plot_neural_reconstruction_traces
 
     # set model info
-    hparams = _get_sssvae_hparams(
+    hparams = _get_psvae_hparams(
         experiment_name=experiment_name, n_ae_latents=n_ae_latents + n_labels, **kwargs)
 
     # programmatically fill out other hparams options
@@ -1836,9 +1828,9 @@ def plot_label_reconstructions(
     model, data_generator = get_best_model_and_data(
         hparams, Model=None, load_data=True, version=version, data_kwargs=None)
     print(data_generator)
-    print('alpha: %i' % model.hparams['sss_vae.alpha'])
-    print('beta: %i' % model.hparams['sss_vae.beta'])
-    print('gamma: %i' % model.hparams['sss_vae.gamma'])
+    print('alpha: %i' % model.hparams['ps_vae.alpha'])
+    print('beta: %i' % model.hparams['ps_vae.beta'])
+    print('gamma: %i' % model.hparams['ps_vae.gamma'])
     print('model seed: %i' % model.hparams['rng_seed_model'])
 
     for trial in trials:
@@ -1849,7 +1841,7 @@ def plot_label_reconstructions(
             save_file_trial = save_file + '_trial-%i' % trial
         else:
             save_file_trial = None
-        fig = plot_neural_reconstruction_traces(
+        plot_neural_reconstruction_traces(
             labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format)
 
 
@@ -1872,14 +1864,14 @@ def plot_latent_traversals(
         session id
     model_class : :obj:`str`
         model class in which to perform traversal; currently supported models are:
-        'ae' | 'vae' | 'cond-ae' | 'cond-vae' | 'beta-tcvae' | 'cond-ae-msp' | 'sss-vae'
+        'ae' | 'vae' | 'cond-ae' | 'cond-vae' | 'beta-tcvae' | 'cond-ae-msp' | 'ps-vae'
         note that models with conditional encoders are not currently supported
     alpha : :obj:`float`
-        sss-vae alpha value
+        ps-vae alpha value
     beta : :obj:`float`
-        sss-vae beta value
+        ps-vae beta value
     gamma : :obj:`array-like`
-        sss-vae gamma value
+        ps-vae gamma value
     n_ae_latents : :obj:`int`
         dimensionality of unsupervised latents
     rng_seed_model : :obj:`int`
@@ -1926,11 +1918,11 @@ def plot_latent_traversals(
 
     """
 
-    hparams = _get_sssvae_hparams(
+    hparams = _get_psvae_hparams(
         model_class=model_class, alpha=alpha, beta=beta, gamma=gamma, n_ae_latents=n_ae_latents,
         experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
 
-    if model_class == 'cond-ae-msp' or model_class == 'sss-vae':
+    if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
         hparams['n_ae_latents'] += n_labels
 
     # programmatically fill out other hparams options
@@ -1964,7 +1956,7 @@ def plot_latent_traversals(
     plot_func_label = plot_1d_frame_array
     save_file_new = save_file + '_label-traversals'
 
-    if model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'sss-vae' or \
+    if model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'ps-vae' or \
             model_class == 'cond-vae':
 
         # get model input for this trial
@@ -2012,7 +2004,7 @@ def plot_latent_traversals(
     plot_func_latent = plot_1d_frame_array
     save_file_new = save_file + '_latent-traversals'
 
-    if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'sss-vae':
+    if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'ps-vae':
         latent_idxs = n_labels + np.arange(n_ae_latents)
     elif hparams['model_class'] == 'ae' \
             or hparams['model_class'] == 'vae' \
@@ -2086,14 +2078,14 @@ def make_latent_traversal_movie(
         session id
     model_class : :obj:`str`
         model class in which to perform traversal; currently supported models are:
-        'ae' | 'vae' | 'cond-ae' | 'cond-vae' | 'sss-vae'
+        'ae' | 'vae' | 'cond-ae' | 'cond-vae' | 'ps-vae'
         note that models with conditional encoders are not currently supported
     alpha : :obj:`float`
-        sss-vae alpha value
+        ps-vae alpha value
     beta : :obj:`float`
-        sss-vae beta value
+        ps-vae beta value
     gamma : :obj:`array-like`
-        sss-vae gamma value
+        ps-vae gamma value
     n_ae_latents : :obj:`int`
         dimensionality of unsupervised latents
     rng_seed_model : :obj:`int`
@@ -2152,11 +2144,11 @@ def make_latent_traversal_movie(
 
     panel_titles = [''] * (n_labels + n_ae_latents) if panel_titles is None else panel_titles
 
-    hparams = _get_sssvae_hparams(
+    hparams = _get_psvae_hparams(
         model_class=model_class, alpha=alpha, beta=beta, gamma=gamma, n_ae_latents=n_ae_latents,
         experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
 
-    if model_class == 'cond-ae-msp' or model_class == 'sss-vae':
+    if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
         hparams['n_ae_latents'] += n_labels
 
     # programmatically fill out other hparams options
@@ -2207,7 +2199,7 @@ def make_latent_traversal_movie(
         labels_2d_pt.append(labels_2d_pt_)
         labels_2d_np.append(labels_2d_np_)
 
-    if hparams['model_class'] == 'sss-vae':
+    if hparams['model_class'] == 'ps-vae':
         label_idxs = np.arange(n_labels)
         latent_idxs = n_labels + np.arange(n_ae_latents)
     elif hparams['model_class'] == 'vae':
@@ -2232,7 +2224,7 @@ def make_latent_traversal_movie(
         txt_strs = []
 
         for b, batch_idx in enumerate(batch_idxs):
-            if hparams['model_class'] == 'sss-vae':
+            if hparams['model_class'] == 'ps-vae':
                 points = np.array([latents_np[b][batch_idx, :]] * 3)
             elif hparams['model_class'] == 'cond-vae':
                 points = np.array([labels_np[b][batch_idx, :]] * 3)

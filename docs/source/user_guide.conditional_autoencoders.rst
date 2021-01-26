@@ -112,17 +112,17 @@ Then to fit the model, use the ``ae_grid_search.py`` function using this updated
 other input jsons remain unchanged.
 
 
-.. _sss_vae:
+.. _ps_vae:
 
-Semi-supervised subspace variational autoencoder
-------------------------------------------------
+Partitioned subspace variational autoencoder
+--------------------------------------------
 One downside to the MSP model introduced in the previous section is that the representation in the
-unsupervised latent space may be difficult to interpret. The semi-supervised subspace VAE (SSS-VAE)
+unsupervised latent space may be difficult to interpret. The partitioned subspace VAE (PS-VAE)
 attempts to remedy this situation by encouraging the unsupervised representation to be factorized,
 which has shown to help with interpretability (see paper `here <TODO>`_).
 
-To fit a single SSS-VAE (and the default CAE BehaveNet
-architecture), edit the ``model_class``, ``sss_vae.alpha``,  ``sss_vae.beta`` and ``sss_vae.gamma``
+To fit a single PS-VAE (and the default CAE BehaveNet
+architecture), edit the ``model_class``, ``ps_vae.alpha``,  ``ps_vae.beta`` and ``ps_vae.gamma``
 parameters of the ``ae_model.json`` file:
 
 .. code-block:: json
@@ -135,15 +135,15 @@ parameters of the ``ae_model.json`` file:
     "rng_seed_model": 0,
     "fit_sess_io_layers": false,
     "ae_arch_json": null,
-    "model_class": "sss-vae",
-    "sss_vae.alpha": 1000,
-    "sss_vae.beta": 10,
-    "sss_vae.gamma": 1000,
+    "model_class": "ps-vae",
+    "ps_vae.alpha": 1000,
+    "ps_vae.beta": 10,
+    "ps_vae.gamma": 1000,
     "conditional_encoder": false
     }
 
-The ``sss_vae.alpha``,  ``sss_vae.beta`` and ``sss_vae.gamma`` parameters need to be tuned for
-each dataset. See the guidelines for setting these parameters :ref:`here<sssvae_hparams>`.
+The ``ps_vae.alpha``,  ``ps_vae.beta`` and ``ps_vae.gamma`` parameters need to be tuned for
+each dataset. See the guidelines for setting these parameters :ref:`here<psvae_hparams>`.
 
 Then to fit the model, use the ``ae_grid_search.py`` function using this updated model json. All
 other input jsons remain unchanged.

@@ -1,14 +1,14 @@
-.. _sssvae_hparams:
+.. _psvae_hparams:
 
-SSS-VAE hyperparameter search guide
+PS-VAE hyperparameter search guide
 ===================================
 
-The SSS-VAE objective function :math:`\mathscr{L}_{\text{SSS-VAE}}` is comprised of several
+The PS-VAE objective function :math:`\mathscr{L}_{\text{PS-VAE}}` is comprised of several
 different terms:
 
 .. math::
 
-    \mathscr{L}_{\text{SSS-VAE}} =
+    \mathscr{L}_{\text{PS-VAE}} =
     \mathscr{L}_{\text{frames}} +
     \alpha \mathscr{L}_{\text{labels}} +
     \mathscr{L}_{\text{KL-s}} +
@@ -67,7 +67,7 @@ Ultimately, the choice of the "best" model comes down to a qualitative evaluatio
 traversal*. A latent traversal is the result of changing the value of a latent dimension while
 keeping the value of all other latent dimensions fixed. If the model has learned an interpretable
 representation then the resulting generated frames should show one single behavioral feature
-changing per dimension - an arm, or a jaw, or the chest (see :ref:`below<sss_vae_plotting>`
+changing per dimension - an arm, or a jaw, or the chest (see :ref:`below<ps_vae_plotting>`
 for more information on tools
 for constructing and visualizing these traversals). In order to choose the "best" model, we perform
 these latent traversals for all values of :math:`\beta` and look at the resulting latent traversal
@@ -76,14 +76,14 @@ outputs. The model with the (subjectively) most interpretable dimensions is then
 
 A note on model robustness
 --------------------------
-We have found the SSS-VAE to be somewhat sensitive to initialization of the neural network
+We have found the PS-VAE to be somewhat sensitive to initialization of the neural network
 parameters. We also recommend choosing the set of hyperparamters with the lowest pairwise
 correlations and refitting the model with several random seeds (by changing the ``rng_seed_model``
 parameter of the ``ae_model.json`` file), which may lead to even better results.
 
-.. _sss_vae_plotting:
+.. _ps_vae_plotting:
 
-Tools for investigating SSS-VAE model fits
+Tools for investigating PS-VAE model fits
 ------------------------------------------
 The functions listed below are provided in the BehaveNet plotting module (
 :mod:`behavenet.plotting`) to facilitate model checking and comparison at different stages.
@@ -118,8 +118,8 @@ These plots help with the selection of hyperparameter settings.
 
 Model training curves
 ^^^^^^^^^^^^^^^^^^^^^
-The function :func:`behavenet.plotting.cond_ae_utils.plot_sssvae_training_curves` creates training
-plots for each term in the SSS-VAE objective function for a *single* model:
+The function :func:`behavenet.plotting.cond_ae_utils.plot_psvae_training_curves` creates training
+plots for each term in the PS-VAE objective function for a *single* model:
 
 - total loss
 - pixel mse
@@ -136,8 +136,8 @@ the user to check whether or not models have trained to completion.
 Label reconstruction
 ^^^^^^^^^^^^^^^^^^^^
 The function :func:`behavenet.plotting.cond_ae_utils.plot_label_reconstructions` creates a series
-of plots that show the true labels and their SSS-VAE reconstructions for a given list of batches.
-These plots are useful for qualitatively evaluating the supervised subspace of the SSS-VAE;
+of plots that show the true labels and their PS-VAE reconstructions for a given list of batches.
+These plots are useful for qualitatively evaluating the supervised subspace of the PS-VAE;
 a quantitative evaluation (the label MSE) can be found in the ``metrics.csv`` file created in the
 model folder during training.
 

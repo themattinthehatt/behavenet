@@ -528,9 +528,9 @@ class TestClass:
         assert expt_dir == model_path
 
         # -------------------------
-        # sss-vae
+        # ps-vae
         # -------------------------
-        hparams['model_class'] = 'sss-vae'
+        hparams['model_class'] = 'ps-vae'
         hparams['model_type'] = 'conv'
         hparams['n_ae_latents'] = 10
         hparams['experiment_name'] = 'tt_expt'
@@ -925,17 +925,17 @@ class TestClass:
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
         assert ret_hparams == {**base_hparams, **model_hparams}
 
-        # sss-vae
+        # ps-vae
         model_hparams = {
-            'model_class': 'sss-vae',
+            'model_class': 'ps-vae',
             'model_type': 'conv',
             'n_ae_latents': 6,
             'fit_sess_io_layers': False,
             'learning_rate': 1e-4,
             'l2_reg': 1e-2,
-            'sss_vae.alpha': 1,
-            'sss_vae.beta': 2,
-            'sss_vae.gamma': 3,
+            'ps_vae.alpha': 1,
+            'ps_vae.beta': 2,
+            'ps_vae.gamma': 3,
             # 'beta_tcvae.beta_anneal_epochs': 100
         }
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})

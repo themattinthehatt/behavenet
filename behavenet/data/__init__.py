@@ -1,1 +1,1 @@
-"""Test string"""
+"""Data module"""

@@ -9,7 +9,7 @@ import behavenet.fitting.losses as losses
 from behavenet.models.aes import AE, ConvAEDecoder, ConvAEEncoder
 
 # to ignore imports for sphix-autoapidoc
-__all__ = ['reparameterize', 'VAE', 'ConditionalVAE', 'BetaTCVAE', 'SSSVAE', 'ConvAESSSEncoder']
+__all__ = ['reparameterize', 'VAE', 'ConditionalVAE', 'BetaTCVAE', 'PSVAE', 'ConvAEPSEncoder']
 
 
 def reparameterize(mu, logvar):
@@ -501,8 +501,8 @@ class BetaTCVAE(VAE):
         return loss_dict_vals
 
 
-class SSSVAE(AE):
-    """Semi-supervised subspace variational autoencoder class.
+class PSVAE(AE):
+    """Partitioned subspace variational autoencoder class.
 
     This class constructs a VAE that...
 
@@ -516,16 +516,16 @@ class SSSVAE(AE):
         hparams : :obj:`dict`
             in addition to the standard keys, must also contain:
             - 'n_labels' (:obj:`n_labels`)
-            - 'sss.alpha' (:obj:`float`)
-            - 'sss.beta' (:obj:`float`)
-            - 'sss.gamma' (:obj:`float`)
+            - 'ps_vae.alpha' (:obj:`float`)
+            - 'ps_vae.beta' (:obj:`float`)
+            - 'ps_vae.gamma' (:obj:`float`)
 
         """
 
         if hparams['model_type'] == 'linear':
             raise NotImplementedError
         if hparams['n_ae_latents'] < hparams['n_labels']:
-            raise ValueError('SSS-VAE model must contain at least as many latents as labels')
+            raise ValueError('PS-VAE model must contain at least as many latents as labels')
 
         self.n_latents = hparams['n_ae_latents']
         self.n_labels = hparams['n_labels']
@@ -534,9 +534,9 @@ class SSSVAE(AE):
         super().__init__(hparams)
 
         # set up beta annealing
-        anneal_epochs = self.hparams.get('sss_vae.anneal_epochs', 0)
+        anneal_epochs = self.hparams.get('ps_vae.anneal_epochs', 0)
         self.curr_epoch = 0  # must be modified by training script
-        beta = hparams['sss_vae.beta']
+        beta = hparams['ps_vae.beta']
         # TODO: these values should not be precomputed
         if anneal_epochs > 0:
             # annealing for total correlation term
@@ -555,7 +555,7 @@ class SSSVAE(AE):
         """Construct the model using hparams."""
         self.hparams['hidden_layer_size'] = self.hparams['n_ae_latents']
         if self.model_type == 'conv':
-            self.encoding = ConvAESSSEncoder(self.hparams)
+            self.encoding = ConvAEPSEncoder(self.hparams)
             self.decoding = ConvAEDecoder(self.hparams)
         elif self.model_type == 'linear':
             raise NotImplementedError
@@ -600,7 +600,7 @@ class SSSVAE(AE):
         return x_hat, z, mu, logvar, y_hat
 
     def loss(self, data, dataset=0, accumulate_grad=True, chunk_size=200):
-        """Calculate modified ELBO loss for SSSVAE.
+        """Calculate modified ELBO loss for PSVAE.
 
         The batch is split into chunks if larger than a hard-coded `chunk_size` to keep memory
         requirements low; gradients are accumulated across all chunks before a gradient step is
@@ -638,9 +638,9 @@ class SSSVAE(AE):
         # n_latents = self.hparams['n_ae_latents']
 
         # compute hyperparameters
-        alpha = self.hparams['sss_vae.alpha']
+        alpha = self.hparams['ps_vae.alpha']
         beta = self.beta_vals[self.curr_epoch]
-        gamma = self.hparams['sss_vae.gamma']
+        gamma = self.hparams['ps_vae.gamma']
         kl = self.kl_anneal_vals[self.curr_epoch]
 
         loss_strs = [
@@ -860,7 +860,7 @@ class SSSVAE(AE):
             return latents_tr
 
 
-class ConvAESSSEncoder(ConvAEEncoder):
+class ConvAEPSEncoder(ConvAEEncoder):
     """Convolutional encoder that separates label-related subspace."""
 
     def __init__(self, hparams):

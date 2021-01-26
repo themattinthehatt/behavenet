@@ -73,7 +73,7 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
         elif hparams['model_class'] == 'cond-ae' \
                 or hparams['model_class'] == 'cond-ae-msp' \
                 or hparams['model_class'] == 'cond-vae' \
-                or hparams['model_class'] == 'sss-vae':
+                or hparams['model_class'] == 'ps-vae':
 
             signals = ['images', 'labels']
             transforms = [None, None]
@@ -84,7 +84,7 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
             if hparams.get('use_label_mask', False) and (
                     hparams['model_class'] == 'cond-ae-msp'
-                    or hparams['model_class'] == 'sss-vae'):
+                    or hparams['model_class'] == 'ps-vae'):
                 signals.append('labels_masks')
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
