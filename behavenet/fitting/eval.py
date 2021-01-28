@@ -461,6 +461,7 @@ def export_train_plots(hparams, dtype, loss_type='mse', save_file=None, format='
     import pandas as pd
     import seaborn as sns
     import matplotlib.pyplot as plt
+    mpl.use('Agg') #deal with display-less machines
     from behavenet.fitting.utils import read_session_info_from_csv
 
     sns.set_style('white')
