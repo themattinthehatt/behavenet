@@ -705,16 +705,16 @@ def load_handcrafted_arches(
 
 
 def load_default_arch():
-    """Load default convolutional AE architecture used in Batty et al 2019"""
+    """Load default convolutional AE architecture used in Whiteway et al 2021."""
     arch = {
         'ae_network_type': 'strides_only',
         'ae_padding_type': 'same',
         'ae_batch_norm': 0,
         'ae_batch_norm_momentum': None,
         'symmetric_arch': 1,
-        'ae_encoding_n_channels': [32, 64, 256, 512],
-        'ae_encoding_kernel_size': [5, 5, 5, 5],
-        'ae_encoding_stride_size': [2, 2, 2, 2],
-        'ae_encoding_layer_type': ['conv', 'conv', 'conv', 'conv'],
+        'ae_encoding_n_channels': [32, 64, 128, 256, 512],
+        'ae_encoding_kernel_size': [5, 5, 5, 5, 5],
+        'ae_encoding_stride_size': [2, 2, 2, 2, 5],
+        'ae_encoding_layer_type': ['conv', 'conv', 'conv', 'conv', 'conv'],
         'ae_decoding_last_FF_layer': 0}
     return arch
