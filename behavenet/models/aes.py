@@ -91,7 +91,8 @@ class ConvAEEncoder(BaseModule):
                 if self.hparams['ae_batch_norm']:
                     module = nn.BatchNorm2d(
                         self.hparams['ae_encoding_n_channels'][i_layer],
-                        momentum=self.hparams['ae_batch_norm_momentum'])
+                        momentum=self.hparams.get('ae_batch_norm_momentum', 0.1),
+                        track_running_stats=self.hparams.get('track_running_stats', True))
                     self.encoder.add_module(
                         str('batchnorm%i' % global_layer_num), module)
 
@@ -331,7 +332,8 @@ class ConvAEDecoder(BaseModule):
                     if self.hparams['ae_batch_norm']:
                         module = nn.BatchNorm2d(
                             self.hparams['ae_decoding_n_channels'][i_layer],
-                            momentum=self.hparams['ae_batch_norm_momentum'])
+                            momentum=self.hparams.get('ae_batch_norm_momentum', 0.1),
+                            track_running_stats=self.hparams.get('track_running_stats', True))
                         self.decoder.add_module(
                             str('batchnorm%i' % global_layer_num), module)
 
