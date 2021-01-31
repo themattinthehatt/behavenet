@@ -12,7 +12,7 @@ for more information about how to install the software and begin fitting models 
 
 Additionally, we provide an example dataset and several jupyter notebooks that walk you through how 
 to download the dataset, fit models, and analyze the results. The jupyter notebooks can be found 
-[here](example).
+[here](examples).
 
 ## Bibtex
 
