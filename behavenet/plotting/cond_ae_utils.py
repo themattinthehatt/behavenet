@@ -1230,6 +1230,7 @@ def plot_psvae_training_curves(
     """
     # check for arrays, turn ints into lists
     n_arrays = 0
+    hue = None
     if len(alphas) > 1:
         n_arrays += 1
         hue = 'alpha'
