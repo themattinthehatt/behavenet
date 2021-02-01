@@ -377,14 +377,14 @@ def test_get_handcrafted_dims():
     arch0 = utils.load_default_arch()
     arch0['ae_input_dim'] = [2, 128, 128]
     arch0 = utils.get_handcrafted_dims(arch0, symmetric=True)
-    assert arch0['ae_encoding_x_dim'] == [64, 32, 16, 8]
-    assert arch0['ae_encoding_y_dim'] == [64, 32, 16, 8]
-    assert arch0['ae_encoding_x_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2)]
-    assert arch0['ae_encoding_y_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2)]
-    assert arch0['ae_decoding_x_dim'] == [16, 32, 64, 128]
-    assert arch0['ae_decoding_y_dim'] == [16, 32, 64, 128]
-    assert arch0['ae_decoding_x_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2)]
-    assert arch0['ae_decoding_y_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2)]
+    assert arch0['ae_encoding_x_dim'] == [64, 32, 16, 8, 2]
+    assert arch0['ae_encoding_y_dim'] == [64, 32, 16, 8, 2]
+    assert arch0['ae_encoding_x_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2), (1, 1)]
+    assert arch0['ae_encoding_y_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2), (1, 1)]
+    assert arch0['ae_decoding_x_dim'] == [8, 16, 32, 64, 128]
+    assert arch0['ae_decoding_y_dim'] == [8, 16, 32, 64, 128]
+    assert arch0['ae_decoding_x_padding'] == [(1, 1), (1, 2), (1, 2), (1, 2), (1, 2)]
+    assert arch0['ae_decoding_y_padding'] == [(1, 1), (1, 2), (1, 2), (1, 2), (1, 2)]
 
     # asymmetric arch (TODO: source code not updated)
     arch1 = utils.load_default_arch()
@@ -395,10 +395,10 @@ def test_get_handcrafted_dims():
     arch1['ae_decoding_layer_type'] = ['conv', 'conv', 'conv']
     arch1['ae_decoding_starting_dim'] = [1, 8, 8]
     arch1 = utils.get_handcrafted_dims(arch1, symmetric=False)
-    assert arch1['ae_encoding_x_dim'] == [64, 32, 16, 8]
-    assert arch1['ae_encoding_y_dim'] == [64, 32, 16, 8]
-    assert arch1['ae_encoding_x_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2)]
-    assert arch1['ae_encoding_y_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2)]
+    assert arch1['ae_encoding_x_dim'] == [64, 32, 16, 8, 2]
+    assert arch1['ae_encoding_y_dim'] == [64, 32, 16, 8, 2]
+    assert arch1['ae_encoding_x_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2), (1, 1)]
+    assert arch1['ae_encoding_y_padding'] == [(1, 2), (1, 2), (1, 2), (1, 2), (1, 1)]
     assert arch1['ae_decoding_x_dim'] == [15, 29, 57]
     assert arch1['ae_decoding_y_dim'] == [15, 29, 57]
     assert arch1['ae_decoding_x_padding'] == [(2, 2), (2, 2), (2, 2)]
@@ -425,7 +425,7 @@ def test_load_handcrafted_arch():
     assert arch['x_pixels'] == input_dim[2]
     assert arch['ae_input_dim'] == input_dim
     assert arch['n_ae_latents'] == n_ae_latents
-    assert arch['ae_encoding_n_channels'] == [32, 64, 256, 512]
+    assert arch['ae_encoding_n_channels'] == [32, 64, 128, 256, 512]
 
     # load arch from json
     ae_arch_json = os.path.join(
@@ -447,7 +447,7 @@ def test_load_handcrafted_arch():
     assert arch['x_pixels'] == input_dim[2]
     assert arch['ae_input_dim'] == input_dim
     assert arch['n_ae_latents'] == n_ae_latents
-    assert arch['ae_encoding_n_channels'] == [32, 64, 256, 512]
+    assert arch['ae_encoding_n_channels'] == [32, 64, 128, 256, 512]
 
     # check memory runs
     ae_arch_json = None
@@ -458,7 +458,7 @@ def test_load_handcrafted_arch():
     assert arch['x_pixels'] == input_dim[2]
     assert arch['ae_input_dim'] == input_dim
     assert arch['n_ae_latents'] == n_ae_latents
-    assert arch['ae_encoding_n_channels'] == [32, 64, 256, 512]
+    assert arch['ae_encoding_n_channels'] == [32, 64, 128, 256, 512]
 
     # raise exception when not enough gpu memory
     ae_arch_json = None
