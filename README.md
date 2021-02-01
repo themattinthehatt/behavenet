@@ -1,7 +1,5 @@
 # BehaveNet
 
-NOTE: The master branch contains the code version released with the neurips paper in November 2019; for more recent updates, see the develop branch.
-
 BehaveNet is a probabilistic framework for the analysis of behavioral video and neural activity. 
 This framework provides tools for compression, segmentation, generation, and decoding of behavioral 
 videos. Please see the 
