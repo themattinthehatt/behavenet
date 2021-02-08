@@ -659,6 +659,10 @@ def plot_neural_reconstruction_traces(
 
     means = np.nanmean(traces_ae, axis=0)
     std = np.nanstd(traces_ae) / scale  # scale for better visualization
+    # check to make sure targets aren't nans
+    for m, mean in enumerate(means):
+        if np.isnan(mean):
+            means[m] = np.nanmean(traces_neural[:, m])
 
     traces_ae_sc = (traces_ae - means) / std
     traces_neural_sc = (traces_neural - means) / std
@@ -700,7 +704,10 @@ def plot_neural_reconstruction_traces(
             bbox=dict(facecolor='white', alpha=0.7, edgecolor=[1, 1, 1]))
 
     if xtick_locs is not None and frame_rate is not None:
-        plt.xticks(xtick_locs, (np.asarray(xtick_locs) / frame_rate).astype('int'))
+        if xtick_locs[0] / frame_rate < 1:
+            plt.xticks(xtick_locs, (np.asarray(xtick_locs) / frame_rate))
+        else:
+            plt.xticks(xtick_locs, (np.asarray(xtick_locs) / frame_rate).astype('int'))
         plt.xlabel('Time (s)')
     else:
         plt.xlabel('Time (bins)')

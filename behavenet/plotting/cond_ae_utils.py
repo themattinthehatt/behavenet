@@ -712,7 +712,8 @@ def interpolate_point_path(
         number of interpolation points between each point; can be an integer that is used
         for all paths, or an array/list of length one less than number of points
     ch : :obj:`int`, optional
-        specify which channel of input images to return (can only be a single value)
+        specify which channel of input images to return; if not an int, all channels are
+        concatenated in the horizontal dimension
     crop_kwargs : :obj:`dict`, optional
         if crop_type is not None, provides information about the crop (for a fixed crop window)
         keys : 'y_0', 'x_0', 'y_ext', 'x_ext'; window is
@@ -1112,9 +1113,15 @@ def make_interpolated_multipanel(
             text_title_str = text_title
         else:
             text_title_str = None
+        if n_rows == 1:
+            ax = axes[col]
+        elif n_cols == 1:
+            ax = axes[row]
+        else:
+            ax = axes[row, col]
         ims_ani_curr = make_interpolated(
-            ims=ims_curr, markers=markers_curr, text=text_curr, text_title=text_title_str,
-            ax=axes[row, col], save_file=None, **kwargs)
+            ims=ims_curr, markers=markers_curr, text=text_curr, text_title=text_title_str, ax=ax,
+            save_file=None, **kwargs)
         ims_ani.append(ims_ani_curr)
 
     # turn off other axes
@@ -1747,22 +1754,22 @@ def plot_hyperparameter_search_results(
     # Gamma = 0 overlap
     # --------------------------------------------------
     ax_gamma0 = fig.add_subplot(gs[2, 6:9])
-    overlap = overlaps['beta=%i_gamma=%i' % (1, 0)]
+    overlap = overlaps['beta=%i_gamma=%i' % (np.min(beta_weights), np.min(gamma_weights))]
     im = ax_gamma0.imshow(overlap, cmap='PuOr', vmin=-1, vmax=1)
     ax_gamma0.set_xticks(np.arange(overlap.shape[1]))
     ax_gamma0.set_yticks(np.arange(overlap.shape[0]))
-    ax_gamma0.set_title('Subspace overlap\nGamma=0')
+    ax_gamma0.set_title('Subspace overlap\nGamma=%i' % np.max(gamma_weights))
     fig.colorbar(im, ax=ax_gamma0, orientation='vertical', shrink=0.75)
 
     # --------------------------------------------------
     # Gamma = 1000 overlap
     # --------------------------------------------------
     ax_gamma1 = fig.add_subplot(gs[2, 9:12])
-    overlap = overlaps['beta=%i_gamma=%i' % (1, 1000)]
+    overlap = overlaps['beta=%i_gamma=%i' % (np.min(beta_weights), np.max(gamma_weights))]
     im = ax_gamma1.imshow(overlap, cmap='PuOr', vmin=-1, vmax=1)
     ax_gamma1.set_xticks(np.arange(overlap.shape[1]))
     ax_gamma1.set_yticks(np.arange(overlap.shape[0]))
-    ax_gamma1.set_title('Subspace overlap\nGamma=1000')
+    ax_gamma1.set_title('Subspace overlap\nGamma=%i' % np.max(gamma_weights))
     fig.colorbar(im, ax=ax_gamma1, orientation='vertical', shrink=0.75)
 
     plt.tight_layout(h_pad=3)  # h_pad is fraction of font size
@@ -1778,7 +1785,8 @@ def plot_hyperparameter_search_results(
 
 def plot_label_reconstructions(
         lab, expt, animal, session, n_ae_latents, experiment_name, n_labels, trials, version=None,
-        plot_scale=0.5, sess_idx=0, save_file=None, format='pdf', **kwargs):
+        plot_scale=0.5, sess_idx=0, save_file=None, format='pdf', xtick_locs=None, frame_rate=None,
+        max_traces=8, add_r2=True, add_legend=True, colored_predictions=True, **kwargs):
     """Plot labels and their reconstructions from an ps-vae.
 
     Parameters
@@ -1810,6 +1818,18 @@ def plot_label_reconstructions(
         absolute path of save file; does not need file extension
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    xtick_locs : :obj:`array-like`, optional
+        tick locations in units of bins
+    frame_rate : :obj:`float`, optional
+        frame rate of behavorial video; to properly relabel xticks
+    max_traces : :obj:`int`, optional
+        maximum number of traces to plot, for easier visualization
+    add_r2 : :obj:`bool`, optional
+        print R2 value on plot
+    add_legend : :obj:`bool`, optional
+        print legend on plot
+    colored_predictions : :obj:`bool`, optional
+        color predictions using default seaborn colormap; else predictions are black
     kwargs
         arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
@@ -1838,12 +1858,17 @@ def plot_label_reconstructions(
         batch = data_generator.datasets[sess_idx][trial]
         labels_og = batch['labels'].detach().cpu().numpy()
         labels_pred = model.get_predicted_labels(batch['images']).detach().cpu().numpy()
+        if 'labels_masks' in batch:
+            labels_masks = batch['labels_masks'].detach().cpu().numpy()
+            labels_og[labels_masks == 0] = np.nan
         if save_file is not None:
             save_file_trial = save_file + '_trial-%i' % trial
         else:
             save_file_trial = None
         plot_neural_reconstruction_traces(
-            labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format)
+            labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format,
+            xtick_locs=xtick_locs, frame_rate=frame_rate, max_traces=max_traces, add_r2=add_r2,
+            add_legend=add_legend, colored_predictions=colored_predictions)
 
 
 def plot_latent_traversals(
@@ -2058,7 +2083,7 @@ def make_latent_traversal_movie(
         rng_seed_model, experiment_name, n_labels, trial_idxs, batch_idxs, trials,
         label_min_p=5, label_max_p=95, channel=0, sess_idx=0, n_frames=10, n_buffer_frames=5,
         crop_kwargs=None, n_cols=3, movie_kwargs={}, panel_titles=None, order_idxs=None,
-        save_file=None, **kwargs):
+        split_movies=False, save_file=None, **kwargs):
     """Create a multi-panel movie with each panel showing traversals of an individual latent dim.
 
     The traversals will start at a lower bound, increase to an upper bound, then return to a lower
@@ -2134,7 +2159,10 @@ def make_latent_traversal_movie(
     panel_titles : :obj:`list` of :obj:`str`, optional
         optional titles for each panel
     order_idxs : :obj:`array-like`, optional
-        used to reorder panels (which are plotted in row-major order) if desired
+        used to reorder panels (which are plotted in row-major order) if desired; can also be used
+        to choose a subset of latent dimensions to include
+    split_movies : :obj:`bool`, optional
+        True to save a separate latent traversal movie for each latent dimension
     save_file : :obj:`str`, optional
         absolute path of save file; does not need file extension, will automatically be saved as
         mp4. To save as a gif, include the '.gif' file extension in `save_file`
@@ -2176,7 +2204,7 @@ def make_latent_traversal_movie(
         csl = False
         c2dl = False
     else:
-        csl = True
+        csl = False
         c2dl = False
 
     ims_pt = []
@@ -2184,8 +2212,8 @@ def make_latent_traversal_movie(
     latents_np = []
     labels_pt = []
     labels_np = []
-    labels_2d_pt = []
-    labels_2d_np = []
+    # labels_2d_pt = []
+    # labels_2d_np = []
     for trial, trial_idx in zip(trials, trial_idxs):
         ims_pt_, ims_np_, latents_np_, labels_pt_, labels_np_, labels_2d_pt_, labels_2d_np_ = \
             get_model_input(
@@ -2197,8 +2225,8 @@ def make_latent_traversal_movie(
         latents_np.append(latents_np_)
         labels_pt.append(labels_pt_)
         labels_np.append(labels_np_)
-        labels_2d_pt.append(labels_2d_pt_)
-        labels_2d_np.append(labels_2d_np_)
+        # labels_2d_pt.append(labels_2d_pt_)
+        # labels_2d_np.append(labels_2d_np_)
 
     if hparams['model_class'] == 'ps-vae':
         label_idxs = np.arange(n_labels)
@@ -2310,8 +2338,22 @@ def make_latent_traversal_movie(
         # don't change order of latents
         order_idxs = np.arange(len(ims_all))
 
-    make_interpolated_multipanel(
-        ims=[ims_all[i] for i in order_idxs],
-        text=[txt_strs_all[i] for i in order_idxs],
-        text_title=txt_strs_titles,
-        save_file=save_file, scale=2, n_cols=n_cols, **movie_kwargs)
+    if split_movies:
+        for idx in order_idxs:
+            if save_file.split('.')[-1] == 'gif':
+                save_file_new = save_file[:-4] + '_latent-%i.gif' % idx
+            elif save_file.split('.')[-1] == 'mp4':
+                save_file_new = save_file[:-4] + '_latent-%i.mp4' % idx
+            else:
+                save_file_new = save_file + '_latent-%i' % 0
+            make_interpolated(
+                ims=ims_all[idx],
+                text=txt_strs_all[idx],
+                text_title=txt_strs_titles,
+                save_file=save_file_new, scale=3, **movie_kwargs)
+    else:
+        make_interpolated_multipanel(
+            ims=[ims_all[i] for i in order_idxs],
+            text=[txt_strs_all[i] for i in order_idxs],
+            text_title=txt_strs_titles,
+            save_file=save_file, scale=2, n_cols=n_cols, **movie_kwargs)
