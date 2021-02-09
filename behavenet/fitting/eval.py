@@ -326,7 +326,9 @@ def get_reconstruction(
         input_type = 'images'
 
     if input_type == 'images':
-        if model.hparams['model_class'] == 'cond-ae-msp':
+        if model.hparams['model_class'] == 'ae':
+            ims_recon, latents = model(inputs, dataset=dataset)
+        elif model.hparams['model_class'] == 'cond-ae-msp':
             ims_recon, latents, _ = model(inputs, dataset=dataset)
         elif model.hparams['model_class'] == 'vae' \
                 or model.hparams['model_class'] == 'beta-tcvae':
