@@ -80,6 +80,7 @@ def test_add_dependent_params(tmpdir):
     # arch params correctly added to parser
     parser = HyperOptArgumentParser(strategy='grid_search')
     utils.add_to_parser(parser, 'model_class', 'ae')
+    utils.add_to_parser(parser, 'model_type', 'conv')
     utils.add_to_parser(parser, 'n_ae_latents', 32)
     utils.add_to_parser(parser, 'n_input_channels', 2)
     utils.add_to_parser(parser, 'y_pixels', 32)
@@ -90,6 +91,23 @@ def test_add_dependent_params(tmpdir):
     namespace, _ = parser.parse_known_args([])
     utils.add_dependent_params(parser, namespace)
     assert '--architecture_params' in parser.opt_args
+
+    # linear autoencoder
+    parser = HyperOptArgumentParser(strategy='grid_search')
+    utils.add_to_parser(parser, 'model_class', 'ae')
+    utils.add_to_parser(parser, 'model_type', 'linear')
+    utils.add_to_parser(parser, 'n_ae_latents', 32)
+    utils.add_to_parser(parser, 'n_input_channels', 2)
+    utils.add_to_parser(parser, 'y_pixels', 32)
+    utils.add_to_parser(parser, 'x_pixels', 32)
+    utils.add_to_parser(parser, 'ae_arch_json', None)
+    utils.add_to_parser(parser, 'approx_batch_size', 200)
+    utils.add_to_parser(parser, 'mem_limit_gb', 10)
+    namespace, _ = parser.parse_known_args([])
+    utils.add_dependent_params(parser, namespace)
+    print(parser)
+    assert namespace.model_type == 'linear'
+    assert namespace.n_latents == '32'
 
     # raise exception when max latents exceeded
     # parser = HyperOptArgumentParser(strategy='grid_search')
@@ -111,6 +129,7 @@ def test_add_dependent_params(tmpdir):
     # arch params correctly added to parser
     parser = HyperOptArgumentParser(strategy='grid_search')
     utils.add_to_parser(parser, 'model_class', 'vae')
+    utils.add_to_parser(parser, 'model_type', 'conv')
     utils.add_to_parser(parser, 'n_ae_latents', 32)
     utils.add_to_parser(parser, 'n_input_channels', 2)
     utils.add_to_parser(parser, 'y_pixels', 32)

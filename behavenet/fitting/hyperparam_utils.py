@@ -71,16 +71,23 @@ def add_dependent_params(parser, namespace):
             or namespace.model_class == 'ps-vae' \
             or namespace.model_class == 'labels-images':
 
-        max_latents = 64
-        parser.add_argument('--max_latents', default=max_latents)
-        arch_dicts = load_handcrafted_arches(
-            [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
-            namespace.n_latents,
-            namespace.ae_arch_json,
-            check_memory=False,
-            batch_size=namespace.approx_batch_size,
-            mem_limit_gb=namespace.mem_limit_gb)
-        parser.opt_list('--architecture_params', options=arch_dicts, tunable=True)
+        if namespace.model_type == 'conv':
+            max_latents = 64
+            parser.add_argument('--max_latents', default=max_latents)
+            arch_dicts = load_handcrafted_arches(
+                [namespace.n_input_channels, namespace.y_pixels, namespace.x_pixels],
+                namespace.n_latents,
+                namespace.ae_arch_json,
+                check_memory=False,
+                batch_size=namespace.approx_batch_size,
+                mem_limit_gb=namespace.mem_limit_gb)
+            parser.opt_list('--architecture_params', options=arch_dicts, tunable=True)
+
+        elif namespace.model_type == 'linear':
+            parser.add_argument('--n_ae_latents', default=namespace.n_latents, type=int)
+
+        else:
+            raise ValueError('%s is not a valid model type' % namespace.model_type)
 
         # for i, arch_dict in enumerate(arch_dicts):
         #     if (arch_dict['ae_encoding_n_channels'][-1]
