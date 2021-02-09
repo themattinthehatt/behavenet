@@ -2275,11 +2275,12 @@ def make_latent_traversal_movie(
                     'base frame %02i-%02i' % (tmp, batch_idx) for _ in range(len(ims_curr))]
 
             # add blank frames
-            y_pix, x_pix = ims_curr[0].shape
-            ims.append([np.zeros((y_pix, x_pix)) for _ in range(n_buffer_frames)])
-            txt_strs += ['' for _ in range(n_buffer_frames)]
-            if label_idx == 0:
-                txt_strs_titles += ['' for _ in range(n_buffer_frames)]
+            if len(batch_idxs) > 1:
+                y_pix, x_pix = ims_curr[0].shape
+                ims.append([np.zeros((y_pix, x_pix)) for _ in range(n_buffer_frames)])
+                txt_strs += ['' for _ in range(n_buffer_frames)]
+                if label_idx == 0:
+                    txt_strs_titles += ['' for _ in range(n_buffer_frames)]
 
         ims_all.append(np.vstack(ims))
         txt_strs_all.append(txt_strs)
@@ -2322,11 +2323,12 @@ def make_latent_traversal_movie(
                     'base frame %02i-%02i' % (tmp, batch_idx) for _ in range(len(ims_curr))]
 
             # add blank frames
-            y_pix, x_pix = ims_curr[0].shape
-            ims.append([np.zeros((y_pix, x_pix)) for _ in range(n_buffer_frames)])
-            txt_strs += ['' for _ in range(n_buffer_frames)]
-            if latent_idx == 0 and len(label_idxs) == 0:
-                txt_strs_titles += ['' for _ in range(n_buffer_frames)]
+            if len(batch_idxs) > 1:
+                y_pix, x_pix = ims_curr[0].shape
+                ims.append([np.zeros((y_pix, x_pix)) for _ in range(n_buffer_frames)])
+                txt_strs += ['' for _ in range(n_buffer_frames)]
+                if latent_idx == 0 and len(label_idxs) == 0:
+                    txt_strs_titles += ['' for _ in range(n_buffer_frames)]
 
         ims_all.append(np.vstack(ims))
         txt_strs_all.append(txt_strs)
