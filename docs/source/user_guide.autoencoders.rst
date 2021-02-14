@@ -1,11 +1,16 @@
 Autoencoders
 ============
 
-BehaveNet uses convolutional autoencoders to perform nonlinear dimensionality reduction on behavioral videos. The steps below demonstrate how to fit these models on an arbitrary dataset.
+BehaveNet uses convolutional autoencoders to perform nonlinear dimensionality reduction on
+behavioral videos. The steps below demonstrate how to fit these models on an arbitrary dataset.
 
-Within the behavenet package there is a directory named ``configs``, which contains example config files. First copy the following config files to the ``.behavenet`` directory that was automatically created in your home directory: ``ae_compute.json``, ``ae_model.json``, and ``ae_training.json``. You can then update the hyperparameters in these files in a text editor.
+Within the behavenet package there is a directory named ``configs``, which contains example config
+files. First copy the following config files to the ``.behavenet`` directory that was automatically
+created in your home directory: ``ae_compute.json``, ``ae_model.json``, and ``ae_training.json``.
+You can then update the hyperparameters in these files in a text editor.
 
-To fit a single model with the default CAE BehaveNet architecture (details in paper), edit the ``ae_model.json`` file to look like the following:
+To fit a single model with the default CAE BehaveNet architecture (details in paper), edit the
+``ae_model.json`` file to look like the following:
 
 .. code-block:: json
 
@@ -26,9 +31,11 @@ Then to fit the model, ``cd`` to the ``behavenet`` directory in the terminal and
 
     $: python behavenet/fitting/ae_grid_search.py --data_config /user_home/.behavenet/musall_vistrained_params.json --model_config /user_home/.behavenet/ae_model.json --training_config /user_home/.behavenet/ae_training.json --compute_config /user_home/.behavenet/ae_compute.json
 
-where ``~/.behavenet/musall_vistrained_params.json`` can be replaced by any dataset config file created by running the ``behavenet.add_dataset()`` function (example :ref:`here <add_dataset>`).
+where ``~/.behavenet/musall_vistrained_params.json`` can be replaced by any dataset config file
+created by running the ``behavenet.add_dataset()`` function (example :ref:`here <add_dataset>`).
 
-Performing a search over multiple latents is as simple as editing the ``ae_model.json`` as below and rerunning the same command.
+Performing a search over multiple latents is as simple as editing the ``ae_model.json`` as below
+and rerunning the same command.
 
 .. code-block:: json
 
@@ -43,5 +50,7 @@ Performing a search over multiple latents is as simple as editing the ``ae_model
     "model_class": "ae"
     }
     
-Training an AE can be slow: you can speed up the training by parallelizing over multiple gpus. To do this, just specify ``n_parallel_gpus`` to be the number of gpus you wish to use per model. The code will split up the gpus specified in ``gpus_viz`` into groups of size n_parallel_gpus (or less if there are leftover gpus) and run the models accordingly. 
-
+Training an AE can be slow: you can speed up the training by parallelizing over multiple gpus. To
+do this, just specify ``n_parallel_gpus`` to be the number of gpus you wish to use per model.
+The code will split up the gpus specified in ``gpus_viz`` into groups of size n_parallel_gpus (or
+less if there are leftover gpus) and run the models accordingly.

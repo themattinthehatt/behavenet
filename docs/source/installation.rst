@@ -41,6 +41,14 @@ To make the package modules visible to the python interpreter, locally run pip i
 
     (behavenet) $: pip install -e .
 
+You can test the installation by running
+
+.. code-block:: console
+
+    (behavenet) $: python -c "import behavenet"
+
+If this command does not return an error the package has been successfully installed.
+
 Installing the BehaveNet package automatically installed the ``ipykernel`` package, which allows you to work with python code in Jupyter notebooks. To be able to use the behavenet conda environment for Jupyter notebooks, run the following command from the terminal:
 
 .. code-block:: console

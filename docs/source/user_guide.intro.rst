@@ -33,7 +33,7 @@ For example, the command line call to fit an autoencoder would be (using the def
     
     $: cd /behavenet/code/directory/
     $: cd behavenet
-    $: python fitting/ae_grid_search.py --data_config ../configs/data_default.json --model_config ../configs/ae_model.json --training_config ../configs/ae_training.json --compute_config ../configs/ae_compute.json
+    $: python fitting/ae_grid_search.py --data_config ../configs/data_default.json --model_config ../configs/ae_jsons/ae_model.json --training_config ../configs/ae_jsons/ae_training.json --compute_config ../configs/ae_jsons/ae_compute.json
 
 We recommend that you copy the default config files in the behavenet repo into a separate directory
 on your local machine and make edits there. For more information on the different hyperparameters,
