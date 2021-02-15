@@ -78,6 +78,8 @@ video or neural data differently than the rate at which it was acquired.
             # neural_np[trial] should be of shape (n_frames, n_neurons)
             group_n.create_dataset('trial_%04i' % trial, data=neural_np[trial], dtype='float32')
 
+A more in-depth example can be found in the function :func:`behavenet.data.preprocess.build_hdf5`.
+
 .. _data_structure_subsets:
 
 Identifying subsets of neurons

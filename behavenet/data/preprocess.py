@@ -6,6 +6,9 @@ from numpy import genfromtxt
 import numpy as np
 import os
 
+# to ignore imports for sphinx-autoapidoc
+__all__ = ['build_hdf5', 'load_raw_labels', 'resize_labels', 'get_frames_from_idxs']
+
 
 def build_hdf5(
         save_file, video_file, label_file=None, pose_algo=None, batch_size=128, xpix=None,
@@ -14,8 +17,8 @@ def build_hdf5(
 
     This function provides a basic example for how to convert raw video and label files into the
     processed version required by Behavenet. In doing so no additional assumptions are made about
-    a possible trial structure; equally-sized batches are created. For more complex data users will
-    need to adapt this function.
+    a possible trial structure; equally-sized batches are created. For more complex data, users
+    will need to adapt this function to suit their own needs.
 
     Parameters
     ----------
@@ -25,7 +28,7 @@ def build_hdf5(
         absolute file path of the video (.mp4, .avi)
     label_file : :obj:`str`, optional
         absolute file path of the labels; current formats include DLC/DGP csv or h5 files
-    pose_algo : :obj:``str, optional
+    pose_algo : :obj:`str`, optional
         'dlc' | 'dgp'
     batch_size : :obj:`int`, optional
         uniform batch size of data
