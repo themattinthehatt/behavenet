@@ -1,4 +1,5 @@
 commentjson==0.8.2
+flake8
 h5py==2.9.0
 ipykernel==5.1.0
 matplotlib==3.0.3

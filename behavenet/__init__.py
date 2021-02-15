@@ -23,9 +23,16 @@ def get_user_dir(type):
     """
     import json
     dirs_file = os.path.join(get_params_dir(), 'directories.json')
-    with open(dirs_file, 'r') as f:
-        dirs = json.load(f)
-    return dirs[str('%s_dir' % type)]
+    if os.path.exists(dirs_file):
+        with open(dirs_file, 'r') as f:
+            dirs = json.load(f)
+        return dirs[str('%s_dir' % type)]
+    else:
+        # create subdirectory in .behavenet directory
+        home_dir = os.path.dirname(get_params_dir())
+        if not os.path.exists(home_dir):
+            os.makedirs(home_dir)
+        return os.path.join(home_dir, '.behavenet', type)
 
 
 def make_dir_if_not_exists(save_file):

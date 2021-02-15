@@ -11,7 +11,7 @@ install:
 script:
   - flake8 .
   - pytest
-  - python test/integration.py
+  - python tests/integration.py
 # only build master and develop
 branches:
   only:
