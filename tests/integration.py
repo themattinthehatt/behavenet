@@ -453,7 +453,12 @@ def main(args):
 
     # update directories to include new temp dirs
     dirs_file = os.path.join(get_params_dir(), 'directories.json')
-    dirs_old = json.load(open(dirs_file, 'r'))
+    if os.path.exists(dirs_file):
+        dirs_old = json.load(open(dirs_file, 'r'))
+    else:
+        if not os.path.exists(get_params_dir()):
+            os.makedirs(get_params_dir())
+        dirs_old = None
     dirs_new = {'data_dir': args.data_dir, 'save_dir': args.save_dir}
     json.dump(dirs_new, open(dirs_file, 'w'))
 
@@ -489,7 +494,8 @@ def main(args):
     # clean up
     # -------------------------------------------
     # restore old directories
-    json.dump(dirs_old, open(dirs_file, 'w'))
+    if dirs_old is not None:
+        json.dump(dirs_old, open(dirs_file, 'w'))
 
     # remove temp dirs
     shutil.rmtree(args.data_dir)
