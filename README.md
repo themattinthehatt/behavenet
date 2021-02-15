@@ -1,4 +1,4 @@
-# BehaveNet
+# BehaveNet [![Build Status](https://travis-ci.com/themattinthehatt/behavenet.svg?branch=master)](https://travis-ci.com/themattinthehatt/behavenet)
 
 BehaveNet is a probabilistic framework for the analysis of behavioral video and neural activity. 
 This framework provides tools for compression, segmentation, generation, and decoding of behavioral 
