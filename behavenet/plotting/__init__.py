@@ -210,7 +210,8 @@ def save_movie(save_file, ani, frame_rate=15):
         make_dir_if_not_exists(save_file)
         if save_file[-3:] == 'gif':
             print('saving video to %s...' % save_file, end='')
-            ani.save(save_file, writer='imagemagick', fps=frame_rate)
+            ani.save(save_file, writer='imagemagick', fps=frame_rate,
+                     savefig_kwargs={'facecolor': 'k', 'edgecolor': 'none'})
             print('done')
         else:
             if save_file[-3:] != 'mp4':

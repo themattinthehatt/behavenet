@@ -962,7 +962,8 @@ def plot_1d_frame_array(
 
 def make_interpolated(
         ims, save_file, markers=None, text=None, text_title=None, text_color=[1, 1, 1],
-        frame_rate=20, scale=3, markersize=10, markeredgecolor='w', markeredgewidth=1, ax=None):
+        text_fontsize=4, frame_rate=20, scale=3, markersize=10, markeredgecolor='w',
+        markeredgewidth=1, ax=None):
     """Make a latent space interpolation movie.
 
     Parameters
@@ -1018,10 +1019,12 @@ def make_interpolated(
 
     ax.set_xticks([])
     ax.set_yticks([])
+    # ax.set_facecolor('k')
+    fig.patch.set_facecolor('k')
 
     default_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
     txt_kwargs = {
-        'fontsize': 4, 'color': text_color, 'fontname': 'monospace',
+        'fontsize': text_fontsize, 'color': text_color, 'fontname': 'monospace',
         'horizontalalignment': 'left', 'verticalalignment': 'center',
         'transform': ax.transAxes}
 
