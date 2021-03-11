@@ -29,6 +29,10 @@ def export_latents(data_generator, model, filename=None):
     import os
     import torch
 
+    if model.hparams['model_class'] == 'msps-vae':
+        print('cannot currently export predictions')
+        return
+
     model.eval()
 
     # initialize container for latents
@@ -333,7 +337,8 @@ def get_reconstruction(
         elif model.hparams['model_class'] == 'vae' \
                 or model.hparams['model_class'] == 'beta-tcvae':
             ims_recon, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
-        elif model.hparams['model_class'] == 'ps-vae':
+        elif model.hparams['model_class'] == 'ps-vae' \
+                or model.hparams['model_class'] == 'msps-vae':
             ims_recon, _, latents, _, _ = model(inputs, dataset=dataset, use_mean=use_mean)
         elif model.hparams['model_class'] == 'cond-ae':
             ims_recon, latents = model(inputs, dataset=dataset, labels=labels, labels_2d=labels_2d)

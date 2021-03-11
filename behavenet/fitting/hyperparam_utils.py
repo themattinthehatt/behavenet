@@ -69,6 +69,7 @@ def add_dependent_params(parser, namespace):
             or namespace.model_class == 'cond-ae' \
             or namespace.model_class == 'cond-ae-msp' \
             or namespace.model_class == 'ps-vae' \
+            or namespace.model_class == 'msps-vae' \
             or namespace.model_class == 'labels-images':
 
         if namespace.model_type == 'conv':

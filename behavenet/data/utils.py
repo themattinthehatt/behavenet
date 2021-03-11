@@ -73,7 +73,8 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
         elif hparams['model_class'] == 'cond-ae' \
                 or hparams['model_class'] == 'cond-ae-msp' \
                 or hparams['model_class'] == 'cond-vae' \
-                or hparams['model_class'] == 'ps-vae':
+                or hparams['model_class'] == 'ps-vae' \
+                or hparams['model_class'] == 'msps-vae':
 
             signals = ['images', 'labels']
             transforms = [None, None]
@@ -353,7 +354,7 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
         data generator
 
     """
-    from behavenet.data.data_generator import ConcatSessionsGenerator
+    from behavenet.data.data_generator import ConcatSessionsGenerator, ConcatSessionsGeneratorMulti
     print('using data from following sessions:')
     for ids in sess_ids:
         print('%s' % os.path.join(
@@ -366,12 +367,21 @@ def build_data_generator(hparams, sess_ids, export_csv=True):
     else:
         trial_splits = None
     print('constructing data generator...', end='')
-    data_generator = ConcatSessionsGenerator(
-        hparams['data_dir'], sess_ids,
-        signals_list=signals, transforms_list=transforms, paths_list=paths,
-        device=hparams['device'], as_numpy=hparams['as_numpy'], batch_load=hparams['batch_load'],
-        rng_seed=hparams['rng_seed_data'], trial_splits=trial_splits,
-        train_frac=hparams['train_frac'])
+    if hparams.get('n_sessions_per_batch', 1) == 1:
+        data_generator = ConcatSessionsGenerator(
+            hparams['data_dir'], sess_ids,
+            signals_list=signals, transforms_list=transforms, paths_list=paths,
+            device=hparams['device'], as_numpy=hparams['as_numpy'],
+            batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed_data'],
+            trial_splits=trial_splits, train_frac=hparams['train_frac'])
+    else:
+        data_generator = ConcatSessionsGeneratorMulti(
+            hparams['data_dir'], sess_ids,
+            signals_list=signals, transforms_list=transforms, paths_list=paths,
+            device=hparams['device'], as_numpy=hparams['as_numpy'],
+            batch_load=hparams['batch_load'], rng_seed=hparams['rng_seed_data'],
+            trial_splits=trial_splits, train_frac=hparams['train_frac'],
+            n_sessions_per_batch=hparams['n_sessions_per_batch'])
     # csv order will reflect dataset order in data generator
     if export_csv:
         export_session_info_to_csv(os.path.join(
