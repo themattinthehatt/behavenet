@@ -89,7 +89,7 @@ class Logger(object):
             self.metrics[dtype][key] += val
 
             # update separated metrics
-            if dataset is not None and self.n_datasets > 1:
+            if isinstance(dataset, int) and self.n_datasets > 1:
                 if key not in self.metrics_by_dataset[dataset][dtype]:
                     self.metrics_by_dataset[dataset][dtype][key] = 0
                 self.metrics_by_dataset[dataset][dtype][key] += val
@@ -341,13 +341,15 @@ def fit(hparams, model, data_generator, exp, method='ae'):
             # get next minibatch and put it on the device
             data, dataset = data_generator.next_batch('train')
 
-            # call the appropriate loss function
-            loss_dict = model.loss(data, dataset=dataset, accumulate_grad=True)
-            logger.update_metrics('train', loss_dict, dataset=dataset)
+            if data is not None:  # this happens when n_tot_batches is incorrectly calculated
 
-            # step (evaluate untrained network on epoch 0)
-            if i_epoch > 0:
-                optimizer.step()
+                # call the appropriate loss function
+                loss_dict = model.loss(data, dataset=dataset, accumulate_grad=True)
+                logger.update_metrics('train', loss_dict, dataset=dataset)
+
+                # step (evaluate untrained network on epoch 0)
+                if i_epoch > 0:
+                    optimizer.step()
 
             # check validation according to schedule
             curr_batch = (i_train + 1) + i_epoch * data_generator.n_tot_batches['train']
@@ -383,7 +385,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     'val', i_epoch, i_train, -1, trial=-1,
                     by_dataset=False, best_epoch=best_val_epoch))
                 # export individual session metrics on val data
-                if data_generator.n_datasets > 1:
+                if isinstance(dataset, int) and data_generator.n_datasets > 1:
                     exp.log(logger.create_metric_row(
                         'val', i_epoch, i_train, dataset, trial=-1,
                         by_dataset=True, best_epoch=best_val_epoch))
@@ -397,7 +399,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     'train', i_epoch, i_train, -1, trial=-1,
                     by_dataset=False, best_epoch=best_val_epoch))
                 # export individual session metrics on train/val data
-                if data_generator.n_datasets > 1:
+                if isinstance(dataset, int) and data_generator.n_datasets > 1:
                     for dataset in range(data_generator.n_datasets):
                         exp.log(logger.create_metric_row(
                             'train', i_epoch, i_train, dataset, trial=-1,

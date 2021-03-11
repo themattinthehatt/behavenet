@@ -50,7 +50,7 @@ def main(hparams, *args):
     # ####################
 
     def set_n_labels(data_generator, hparams):
-        data, _ = data_generator.next_batch('train')
+        data, _ = data_generator.next_batch('val')
         sh = data['labels'].shape
         hparams['n_labels'] = sh[2]  # [1, n_t, n_labels]
 
@@ -67,6 +67,9 @@ def main(hparams, *args):
         from behavenet.models import BetaTCVAE as Model
     elif hparams['model_class'] == 'ps-vae':
         from behavenet.models import PSVAE as Model
+        set_n_labels(data_generator, hparams)
+    elif hparams['model_class'] == 'msps-vae':
+        from behavenet.models import MSPSVAE as Model
         set_n_labels(data_generator, hparams)
     elif hparams['model_class'] == 'cond-vae':
         from behavenet.models import ConditionalVAE as Model

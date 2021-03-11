@@ -371,24 +371,89 @@ def _gaussian_log_density_unsummed_std_normal(z):
     return - 0.5 * (diff_sq + LN2PI)
 
 
-def subspace_overlap(A, B):
+def subspace_overlap(A, B, C=None):
     """Compute inner product between subspaces defined by matrices A and B.
 
     Parameters
     ----------
     A : :obj:`torch.Tensor`
-        shape (a, b)
+        shape (a, d)
     B : :obj:`torch.Tensor`
-        shape (c, b)
+        shape (b, d)
+    C : :obj:`torch.Tensor`, optional
+        shape (c, d)
 
     Returns
     -------
     :obj:`torch.Tensor`
-        scalar value; Frobenious norm of AB^T divided by number of entries
+        scalar value; Frobenious norm of UU^T divided by number of entries
 
     """
-    C = torch.cat([A, B], dim=0)
-    d = C.shape[0]
-    eye = torch.eye(d, device=C.device)
-    return torch.mean((torch.matmul(C, torch.transpose(C, 1, 0)) - eye).pow(2))
-    # return torch.mean(torch.matmul(A, torch.transpose(B, 1, 0)).pow(2))
+    if C is None:
+        U = torch.cat([A, B], dim=0)
+    else:
+        U = torch.cat([A, B, C], dim=0)
+    d = U.shape[0]
+    eye = torch.eye(d, device=U.device)
+    return torch.mean((torch.matmul(U, torch.transpose(U, 1, 0)) - eye).pow(2))
+
+
+def triplet_loss(triplet_loss_obj, z, datasets):
+    """Compute triplet loss to learn separated embedding space.
+
+    Currently only supported for 2- and 3-dataset batches
+
+    Parameters
+    ----------
+    triplet_loss_obj : :obj:`torch.TripletMarginLoss` object
+        already instantiated triplet loss object; this function splits up the data to give to this
+        object
+    z : :obj:`torch.Tensor`
+        low-dim data embeddings; shape (N, d), where N is number of samples and d is embedding dim
+    datasets : :obj:`torch.Tensor`
+        identifies the dataset that each sample belongs to; shape (N,)
+
+    Returns
+    -------
+    :obj:`torch.Tensor`
+        scalar value; triplet loss
+
+    """
+
+    dataset_ids = np.unique(datasets)
+    n_datasets = len(dataset_ids)
+
+    if n_datasets == 2:
+        # randomly split dataset into 3 chunks
+        n_chunks = 3
+        a_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[0])[0])
+        b_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[1])[0])
+        # make sure chunks are all same length
+        m = np.min([len(a_idxs_) // n_chunks, len(b_idxs_) // n_chunks])
+        a_idxs = [a_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        b_idxs = [b_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        loss = \
+            triplet_loss_obj(z[a_idxs[0]], z[a_idxs[1]], z[b_idxs[2]]) + \
+            triplet_loss_obj(z[b_idxs[0]], z[b_idxs[1]], z[a_idxs[2]])
+    elif n_datasets == 3:
+        # randomly split dataset into 6 chunks
+        n_chunks = 6
+        a_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[0])[0])
+        b_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[1])[0])
+        c_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[2])[0])
+        # make sure all chunks are same length
+        m = np.min([len(a_idxs_) // n_chunks, len(b_idxs_) // n_chunks, len(c_idxs_) // n_chunks])
+        a_idxs = [a_idxs_[i:m:n_chunks][:m] for i in range(n_chunks)]
+        b_idxs = [b_idxs_[i:m:n_chunks][:m] for i in range(n_chunks)]
+        c_idxs = [c_idxs_[i:m:n_chunks][:m] for i in range(n_chunks)]
+        loss = \
+            triplet_loss_obj(z[a_idxs[0]], z[a_idxs[1]], z[b_idxs[4]]) + \
+            triplet_loss_obj(z[a_idxs[2]], z[a_idxs[3]], z[c_idxs[4]]) + \
+            triplet_loss_obj(z[b_idxs[0]], z[b_idxs[1]], z[a_idxs[4]]) + \
+            triplet_loss_obj(z[b_idxs[2]], z[b_idxs[3]], z[c_idxs[5]]) + \
+            triplet_loss_obj(z[c_idxs[0]], z[c_idxs[1]], z[a_idxs[5]]) + \
+            triplet_loss_obj(z[c_idxs[2]], z[c_idxs[3]], z[b_idxs[5]])
+    else:
+        raise NotImplementedError
+
+    return loss / n_chunks

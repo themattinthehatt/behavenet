@@ -35,7 +35,8 @@ __all__ = [
     'split_trials',
     'SingleSessionDatasetBatchedLoad',
     'SingleSessionDataset',
-    'ConcatSessionsGenerator']
+    'ConcatSessionsGenerator',
+    'ConcatSessionsGeneratorMulti']
 
 
 def split_trials(n_trials, rng_seed=0, train_tr=8, val_tr=1, test_tr=1, gap_tr=0):
@@ -630,3 +631,174 @@ class ConcatSessionsGenerator(object):
                 sample = {key: val.to('cuda') for key, val in sample.items()}
 
         return sample, dataset
+
+
+class ConcatSessionsGeneratorMulti(ConcatSessionsGenerator):
+    """Dataset class for multiple sessions, which returns multiple sessions per training batch.
+
+    This class contains a list of single session data generators. It handles shuffling and
+    iterating over these sessions.
+    """
+
+    _dtypes = {'train', 'val', 'test'}
+
+    def __init__(
+            self, data_dir, ids_list, signals_list=None, transforms_list=None, paths_list=None,
+            device='cuda', as_numpy=False, batch_load=True, rng_seed=0, trial_splits=None,
+            train_frac=1.0, n_sessions_per_batch=2):
+        """
+
+        Parameters
+        ----------
+        data_dir : :obj:`str`
+            root directory of data
+        ids_list : :obj:`list` of :obj:`dict`
+            each element has the following keys: 'lab', 'expt', 'animal', and 'session'; the data
+            (images, masks, neural activity) is assumed to be located in:
+            :obj:`data_dir/lab/expt/animal/session/data.hdf5`
+        signals_list : :obj:`list` of :obj:`list`
+            list of signals for each session
+        transforms_list : :obj:`list` of :obj:`list`
+            list of transforms for each session
+        paths_list : :obj:`list` of :obj:`list`
+            list of paths for each session
+        device : :obj:`str`, optional
+            location of data; options are :obj:`cpu | cuda`
+        as_numpy : bool, optional
+            if :obj:`True` return data as a numpy array, else return as a torch tensor
+        batch_load : :obj:`bool`, optional
+            :obj:`True` to load data one batch at a time, :obj:`False` to load all data at once and
+            store in memory (data is still served one trial at a time).
+        rng_seed : :obj:`int`, optional
+            controls split of train/val/test trials
+        trial_splits : :obj:`dict`, optional
+            determines number of train/val/test trials using the keys 'train_tr', 'val_tr',
+            'test_tr', and 'gap_tr'; see :func:`split_trials` for how these are used.
+        train_frac : :obj:`float`, optional
+            if :obj:`0 < train_frac < 1.0`, defines the fraction of assigned training trials to
+            actually use; if :obj:`train_frac > 1.0`, defines the number of assigned training
+            trials to actually use
+        n_sessions_per_batch : :obj:`int`, optional
+            number of session per training batch to serve model; the combination of datasets and
+            batches will be shuffled when the data iterator is reset
+
+        """
+
+        if n_sessions_per_batch > 3:
+            raise NotImplementedError
+        self.n_sessions_per_batch = n_sessions_per_batch
+
+        super().__init__(
+            data_dir, ids_list, signals_list=signals_list, transforms_list=transforms_list,
+            paths_list=paths_list, device=device, as_numpy=as_numpy, batch_load=batch_load,
+            rng_seed=rng_seed, trial_splits=trial_splits, train_frac=train_frac)
+
+        # redefine total number of training batches to reflect the fact that multiple batches are
+        # served per iteration (but only for training data)
+        self.n_tot_batches['train'] = int(self.n_tot_batches['train'] / n_sessions_per_batch)
+
+    def __str__(self):
+        """Pretty printing of dataset info"""
+        if self.batch_load:
+            dataset_type = 'SingleSessionDatasetBatchedLoad'
+        else:
+            dataset_type = 'SingleSessionDataset'
+        format_str = 'MultiGenerator contains %i %s objects:\n' % (self.n_datasets, dataset_type)
+        for dataset in self.datasets:
+            format_str += dataset.__str__()
+        return format_str
+
+    def __len__(self):
+        return self.n_datasets
+
+    def next_batch(self, dtype):
+        """Return next batch of data.
+
+        The data generator iterates randomly through sessions and trials. Once a session runs out
+        of trials it is skipped.
+
+        Parameters
+        ----------
+        dtype : :obj:`str`
+            'train' | 'val' | 'test'
+
+        Returns
+        -------
+        :obj:`tuple`
+            - **samples** (:obj:`dict`): data batch with keys given by :obj:`signals` input to class
+            - **datasets** (:obj:`int`): dataset from which data batch is drawn
+
+        """
+
+        def renormalize(array):
+            if np.sum(array) == 0:
+                return array
+            else:
+                return array / np.sum(array)
+
+        if dtype == 'train':
+
+            samples = []
+            datasets = []
+
+            curr_batch_ratios = np.copy(self.batch_ratios)
+
+            for sess in range(self.n_sessions_per_batch):
+
+                while True:
+
+                    # check to see if there are enough available batches
+                    if np.sum(curr_batch_ratios > 0) < (self.n_sessions_per_batch - sess):
+                        return None, None
+
+                    # get next dataset
+                    dataset = np.random.choice(np.arange(self.n_datasets), p=curr_batch_ratios)
+
+                    # don't choose this dataset in the future
+                    curr_batch_ratios[dataset] = 0
+                    curr_batch_ratios = renormalize(curr_batch_ratios)
+
+                    # get this session data
+                    try:
+                        sample = next(self.dataset_iters[dataset][dtype])
+                        break
+                    except StopIteration:
+                        continue
+
+                if self.as_numpy:
+                    raise NotImplementedError
+                    # for i, signal in enumerate(sample):
+                    #     if signal != 'batch_idx':
+                    #         sample[signal] = [ss.cpu().detach().numpy() for ss in sample[signal]]
+                else:
+                    if self.device == 'cuda':
+                        sample = {key: val.to('cuda') for key, val in sample.items()}
+
+                samples.append(sample)
+                datasets.append(dataset)
+
+            # print(datasets)
+            # print([s['batch_idx'].item() for s in samples])
+
+        else:
+
+            while True:
+                # get next session
+                datasets = np.random.choice(np.arange(self.n_datasets), p=self.batch_ratios)
+
+                # get this session data
+                try:
+                    samples = next(self.dataset_iters[datasets][dtype])
+                    break
+                except StopIteration:
+                    continue
+
+            if self.as_numpy:
+                for i, signal in enumerate(samples):
+                    if signal != 'batch_idx':
+                        samples[signal] = [ss.cpu().detach().numpy() for ss in samples[signal]]
+            else:
+                if self.device == 'cuda':
+                    samples = {key: val.to('cuda') for key, val in samples.items()}
+
+        return samples, datasets
