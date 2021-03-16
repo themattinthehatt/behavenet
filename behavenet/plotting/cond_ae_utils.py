@@ -1786,7 +1786,8 @@ def plot_hyperparameter_search_results(
 def plot_label_reconstructions(
         lab, expt, animal, session, n_ae_latents, experiment_name, n_labels, trials, version=None,
         plot_scale=0.5, sess_idx=0, save_file=None, format='pdf', xtick_locs=None, frame_rate=None,
-        max_traces=8, add_r2=True, add_legend=True, colored_predictions=True, **kwargs):
+        max_traces=8, add_r2=True, add_legend=True, colored_predictions=True, concat_trials=False,
+        **kwargs):
     """Plot labels and their reconstructions from an ps-vae.
 
     Parameters
@@ -1830,12 +1831,17 @@ def plot_label_reconstructions(
         print legend on plot
     colored_predictions : :obj:`bool`, optional
         color predictions using default seaborn colormap; else predictions are black
+    concat_trials : :obj:`bool`, optional
+        True to plot all trials together, separated by a small gap
     kwargs
         arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
     """
 
     from behavenet.plotting.decoder_utils import plot_neural_reconstruction_traces
+
+    if len(trials) == 1:
+        concat_trials = False
 
     # set model info
     hparams = _get_psvae_hparams(
@@ -1854,19 +1860,43 @@ def plot_label_reconstructions(
     print('gamma: %i' % model.hparams['ps_vae.gamma'])
     print('model seed: %i' % model.hparams['rng_seed_model'])
 
+    n_blank = 5  # buffer time points between trials if concatenating
+    labels_og_all = []
+    labels_pred_all = []
     for trial in trials:
+        # collect data
         batch = data_generator.datasets[sess_idx][trial]
         labels_og = batch['labels'].detach().cpu().numpy()
         labels_pred = model.get_predicted_labels(batch['images']).detach().cpu().numpy()
         if 'labels_masks' in batch:
             labels_masks = batch['labels_masks'].detach().cpu().numpy()
             labels_og[labels_masks == 0] = np.nan
+        # store data
+        labels_og_all.append(labels_og)
+        labels_pred_all.append(labels_pred)
+        if trial != trials[-1]:
+            labels_og_all.append(np.nan * np.zeros((n_blank, labels_og.shape[1])))
+            labels_pred_all.append(np.nan * np.zeros((n_blank, labels_pred.shape[1])))
+        # plot data from single trial
+        if not concat_trials:
+            if save_file is not None:
+                save_file_trial = save_file + '_trial-%i' % trial
+            else:
+                save_file_trial = None
+            plot_neural_reconstruction_traces(
+                labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format,
+                xtick_locs=xtick_locs, frame_rate=frame_rate, max_traces=max_traces, add_r2=add_r2,
+                add_legend=add_legend, colored_predictions=colored_predictions)
+
+    # plot data from all trials
+    if concat_trials:
         if save_file is not None:
-            save_file_trial = save_file + '_trial-%i' % trial
+            save_file_trial = save_file + '_trial-{}'.format(trials)
         else:
             save_file_trial = None
         plot_neural_reconstruction_traces(
-            labels_og, labels_pred, scale=plot_scale, save_file=save_file_trial, format=format,
+            np.vstack(labels_og_all), np.vstack(labels_pred_all), scale=plot_scale,
+            save_file=save_file_trial, format=format,
             xtick_locs=xtick_locs, frame_rate=frame_rate, max_traces=max_traces, add_r2=add_r2,
             add_legend=add_legend, colored_predictions=colored_predictions)
 
