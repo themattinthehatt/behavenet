@@ -911,7 +911,7 @@ class MSPSVAE(PSVAE):
             - logvar (:obj:`torch.Tensor`): logvar paramter of shape (n_frames, n_latents)
 
         """
-        z_s, z, z_b, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
+        z_s, z_b, z, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
         mu = torch.cat([z_s, z_b, z], axis=1)
         if use_mean:
             z = mu
@@ -950,7 +950,7 @@ class MSPSVAE(PSVAE):
 
         """
 
-        if len(datas) > 1:
+        if isinstance(datas, list):
             x = torch.cat([data['images'][0] for data in datas], dim=0)
             y = torch.cat([data['labels'][0] for data in datas], dim=0)
             m = torch.cat([data['masks'][0] for data in datas], dim=0) \
@@ -959,10 +959,11 @@ class MSPSVAE(PSVAE):
                 if 'labels_masks' in datas[0] else None
             datasets = np.concatenate([d * np.ones(datas[d]['images'].shape[1]) for d in dataset])
         else:
-            x = datas[0]['images'][0]
-            y = datas[0]['labels'][0]
-            m = datas[0]['masks'][0] if 'masks' in datas[0] else None
-            n = datas[0]['labels_masks'][0] if 'labels_masks' in datas[0] else None
+            x = datas['images'][0]
+            y = datas['labels'][0]
+            m = datas['masks'][0] if 'masks' in datas else None
+            n = datas['labels_masks'][0] if 'labels_masks' in datas else None
+            datasets = None
 
         n_labels = self.hparams['n_labels']
         n_background = self.hparams['n_background']
@@ -1030,12 +1031,13 @@ class MSPSVAE(PSVAE):
         # loss_dict_torch['loss'] += gamma * loss_dict_torch['loss_AB_orth']
 
         # triplet loss
-        if len(datas) > 1:
+        if isinstance(datas, list):
             loss_dict_torch['loss_triplet'] = losses.triplet_loss(
                 self.TripletLoss, mu[:, n_labels:n_labels + n_background:], datasets)
             loss_dict_torch['loss'] += delta * loss_dict_torch['loss_triplet']
         else:
             # don't record triplet loss info
+            del loss_dict_torch['loss_triplet']
             pass
 
         if accumulate_grad:
@@ -1131,8 +1133,8 @@ class MSPSVAE(PSVAE):
             z_s_og, z_b_og, z_og, logvar, _, _ = self.encoding(inputs, dataset=dataset)
         else:
             z_s_og = inputs[:, :self.hparams['n_labels']]
-            z_b_og = inputs[:, self.hparams['n_labels']:
-                               self.hparams['n_labels'] + self.hparams['n_background']]
+            z_b_og = inputs[:,
+                self.hparams['n_labels']:self.hparams['n_labels'] + self.hparams['n_background']]
             z_og = inputs[:, self.hparams['n_labels'] + self.hparams['n_background']:]
 
         # transform supervised latents to label space
@@ -1180,8 +1182,8 @@ class MSPSVAE(PSVAE):
             raise NotImplementedError
         else:
             z_s_og = inputs[:, :self.hparams['n_labels']]
-            z_b_og = inputs[:, self.hparams['n_labels']:
-                               self.hparams['n_labels'] + self.hparams['n_background']]
+            z_b_og = inputs[:,
+                self.hparams['n_labels']:self.hparams['n_labels'] + self.hparams['n_background']]
             z_og = inputs[:, self.hparams['n_labels'] + self.hparams['n_background']:]
 
         # transform given labels to latent space
@@ -1193,6 +1195,81 @@ class MSPSVAE(PSVAE):
             return latents_tr.cpu().detach().numpy()
         else:
             return latents_tr
+
+    def export_latents(self, data_gen, filename=None):
+        """Need to create standard data generator in order to export latents."""
+
+        import os
+        import pickle
+
+        from behavenet.data.utils import build_data_generator
+        from copy import deepcopy
+        hp_new = deepcopy(self.hparams)
+        hp_new['n_sessions_per_batch'] = 1  # force standard data generator
+        hp_new['train_frac'] = 1  # use all training batches
+        hp_new['trial_splits'] = '1;0;0;0'  # no gaps
+        data_generator = build_data_generator(hp_new, data_gen.datasets_info)
+
+        self.eval()
+
+        # initialize container for latents
+        latents = [[] for _ in range(data_generator.n_datasets)]
+        for sess, dataset in enumerate(data_generator.datasets):
+            latents[sess] = [np.array([]) for _ in range(dataset.n_trials)]
+
+        # partially fill container (gap trials will be included as nans)
+        dtypes = ['train', 'val', 'test']
+        for dtype in dtypes:
+            data_generator.reset_iterators(dtype)
+            for i in range(data_generator.n_tot_batches[dtype]):
+                data, sess = data_generator.next_batch(dtype)
+
+                # process batch, perhaps in chunks if full batch is too large to fit on gpu
+                chunk_size = 200
+                y = data['images'][0]
+                batch_size = y.shape[0]
+                if batch_size > chunk_size:
+                    latents[sess][data['batch_idx'].item()] = np.full(
+                        shape=(data['images'].shape[1], self.hparams['n_ae_latents']),
+                        fill_value=np.nan)
+                    # split into chunks
+                    n_chunks = int(np.ceil(batch_size / chunk_size))
+                    for chunk in range(n_chunks):
+                        # take chunks of size chunk_size, plus overlap due to
+                        # max_lags
+                        idx_beg = chunk * chunk_size
+                        idx_end = np.min([(chunk + 1) * chunk_size, batch_size])
+                        y_in = y[idx_beg:idx_end]
+                        output = self.encoding(y_in, dataset=sess)
+                        curr_latents = torch.cat([output[0], output[1], output[2]], axis=1)
+                        latents[sess][data['batch_idx'].item()][idx_beg:idx_end, :] = \
+                            curr_latents.cpu().detach().numpy()
+                else:
+                    y_in = y
+                    output = self.encoding(y_in, dataset=sess)
+                    curr_latents = torch.cat([output[0], output[1], output[2]], axis=1)
+                    latents[sess][data['batch_idx'].item()] = curr_latents.cpu().detach().numpy()
+
+        # save latents separately for each dataset
+        filenames = []
+        for sess, dataset in enumerate(data_generator.datasets):
+            if filename is None:
+                # get save name which includes lab/expt/animal/session
+                sess_id = str('%s_%s_%s_%s_latents.pkl' % (
+                    dataset.lab, dataset.expt, dataset.animal, dataset.session))
+                filename_save = os.path.join(
+                    self.hparams['expt_dir'], 'version_%i' % self.version, sess_id)
+            else:
+                filename_save = filename
+            # save out array in pickle file
+            print('saving latents %i of %i:\n%s' % (
+                sess + 1, data_generator.n_datasets, filename_save))
+            latents_dict = {'latents': latents[sess], 'trials': dataset.batch_idxs}
+            with open(filename_save, 'wb') as f:
+                pickle.dump(latents_dict, f)
+            filenames.append(filename_save)
+
+        return filenames
 
 
 class ConvAEPSEncoder(ConvAEEncoder):

@@ -613,7 +613,7 @@ class ConcatSessionsGenerator(object):
         """
         while True:
             # get next session
-            dataset = np.random.choice(np.arange(self.n_datasets), p=self.batch_ratios)
+            dataset = int(np.random.choice(np.arange(self.n_datasets), p=self.batch_ratios))
 
             # get this session data
             try:
@@ -711,7 +711,7 @@ class ConcatSessionsGeneratorMulti(ConcatSessionsGenerator):
     def __len__(self):
         return self.n_datasets
 
-    def next_batch(self, dtype):
+    def next_batch(self, dtype, return_multiple=True):
         """Return next batch of data.
 
         The data generator iterates randomly through sessions and trials. Once a session runs out
@@ -721,6 +721,8 @@ class ConcatSessionsGeneratorMulti(ConcatSessionsGenerator):
         ----------
         dtype : :obj:`str`
             'train' | 'val' | 'test'
+        return_multiple : :obj:`bool`
+            True to return multiple batches for train data
 
         Returns
         -------
@@ -736,7 +738,7 @@ class ConcatSessionsGeneratorMulti(ConcatSessionsGenerator):
             else:
                 return array / np.sum(array)
 
-        if dtype == 'train':
+        if dtype == 'train' and return_multiple:
 
             samples = []
             datasets = []
@@ -784,21 +786,24 @@ class ConcatSessionsGeneratorMulti(ConcatSessionsGenerator):
 
             while True:
                 # get next session
-                datasets = np.random.choice(np.arange(self.n_datasets), p=self.batch_ratios)
+                dataset = np.random.choice(np.arange(self.n_datasets), p=self.batch_ratios)
 
                 # get this session data
                 try:
-                    samples = next(self.dataset_iters[datasets][dtype])
+                    sample = next(self.dataset_iters[dataset][dtype])
                     break
                 except StopIteration:
                     continue
 
             if self.as_numpy:
-                for i, signal in enumerate(samples):
+                for i, signal in enumerate(sample):
                     if signal != 'batch_idx':
-                        samples[signal] = [ss.cpu().detach().numpy() for ss in samples[signal]]
+                        sample[signal] = [ss.cpu().detach().numpy() for ss in sample[signal]]
             else:
                 if self.device == 'cuda':
-                    samples = {key: val.to('cuda') for key, val in samples.items()}
+                    sample = {key: val.to('cuda') for key, val in sample.items()}
+
+            datasets = int(dataset)
+            samples = sample
 
         return samples, datasets

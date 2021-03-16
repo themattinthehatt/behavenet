@@ -31,7 +31,8 @@ __all__ = [
     'interpolate_2d', 'interpolate_1d', 'interpolate_point_path', 'plot_2d_frame_array',
     'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel',
     'plot_psvae_training_curves', 'plot_hyperparameter_search_results',
-    'plot_label_reconstructions', 'plot_latent_traversals', 'make_latent_traversal_movie']
+    'plot_label_reconstructions', 'plot_latent_traversals', 'make_latent_traversal_movie',
+    'plot_mspsvae_training_curves']
 
 
 # ----------------------------------------
@@ -295,6 +296,7 @@ def get_model_input(
             or hparams['model_class'] == 'cond-vae' \
             or hparams['model_class'] == 'cond-ae-msp' \
             or hparams['model_class'] == 'ps-vae' \
+            or hparams['model_class'] == 'msps-vae' \
             or hparams['model_class'] == 'labels-images':
         labels_pt = batch['labels'][:max_frames]
         labels_np = labels_pt.cpu().detach().numpy()
@@ -799,7 +801,8 @@ def interpolate_point_path(
             elif interp_type == 'labels':
 
                 if model.hparams['model_class'] == 'cond-ae-msp' \
-                        or model.hparams['model_class'] == 'ps-vae':
+                        or model.hparams['model_class'] == 'ps-vae' \
+                        or model.hparams['model_class'] == 'msps-vae':
                     im_tmp = get_reconstruction(
                         model, vec, apply_inverse_transform=True)
                 else:  # cond-ae
@@ -2330,3 +2333,102 @@ def make_latent_traversal_movie(
             text=[txt_strs_all[i] for i in order_idxs],
             text_title=txt_strs_titles,
             save_file=save_file, scale=2, n_cols=n_cols, **movie_kwargs)
+
+
+def plot_mspsvae_training_curves(
+        hparams, alpha, beta, delta, rng_seed_model, n_latents, n_background, n_labels, lab=None,
+        expt=None, dtype='val', version_dir=None, save_file=None, format='pdf', **kwargs):
+    """Create training plots for each term in the ps-vae objective function.
+
+    The `dtype` argument controls which type of trials are plotted ('train' or 'val').
+    Additionally, multiple models can be plotted simultaneously by varying one (and only one) of
+    the following parameters:
+
+    - alpha
+    - beta
+    - gamma
+    - number of unsupervised latents
+    - random seed used to initialize model weights
+
+    Each of these entries must be an array of length 1 except for one option, which can be an array
+    of arbitrary length (corresponding to already trained models). This function generates a single
+    plot with panels for each of the following terms:
+
+    - total loss
+    - pixel mse
+    - label R^2 (note the objective function contains the label MSE, but R^2 is easier to parse)
+    - KL divergence of supervised latents
+    - index-code mutual information of unsupervised latents
+    - total correlation of unsupervised latents
+    - dimension-wise KL of unsupervised latents
+    - subspace overlap
+
+    Parameters
+    ----------
+    hparams
+    alpha : :obj:`array-like`
+        alpha values to plot
+    beta : :obj:`array-like`
+        beta values to plot
+    delta : :obj:`array-like`
+        delta values to plot
+    n_ae_latents : :obj:`array-like`
+        unsupervised dimensionalities to plot
+    rng_seeds_model : :obj:`array-like`
+        model seeds to plot
+    n_labels : :obj:`int`
+        dimensionality of supervised latent space
+    dtype : :obj:`str`
+        'train' | 'val'
+    save_file : :obj:`str`, optional
+        absolute path of save file; does not need file extension
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    kwargs
+        arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+
+    """
+    if dtype == 'val':
+        hue = 'dataset'
+    else:
+        hue = None
+
+    metrics_list = [
+        'loss', 'loss_data_mse', 'label_r2',
+        'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl', 'loss_triplet']
+
+    # update hparams
+    hparams['ps_vae.alpha'] = alpha
+    hparams['ps_vae.beta'] = beta
+    hparams['ps_vae.delta'] = delta
+    hparams['n_ae_latents'] = n_latents + n_background + n_labels
+    hparams['rng_seed_model'] = rng_seed_model
+
+    if version_dir is None:
+        try:
+            _, version = experiment_exists(hparams, which_version=True)
+            print(
+                'loading results with alpha=%i, beta=%i, delta=%i (version %i)' %
+                (alpha, beta, delta, version))
+            metrics_df = load_metrics_csv_as_df(hparams, lab, expt, metrics_list, version=None)
+        except TypeError:
+            print('could not find model for alpha=%i, beta=%i, delta=%i' % (alpha, beta, delta))
+            return None
+    else:
+        metrics_df = load_metrics_csv_as_df(
+            hparams, lab=None, expt=None, metrics_list=metrics_list, version_dir=version_dir)
+
+    sns.set_style('white')
+    sns.set_context('talk')
+    data_queried = metrics_df[
+        (metrics_df.epoch > 10) & ~pd.isna(metrics_df.val) & (metrics_df.dtype == dtype)]
+    g = sns.FacetGrid(
+        data_queried, col='loss', col_wrap=3, hue=hue, sharey=False, height=4)
+    g = g.map(plt.plot, 'epoch', 'val').add_legend()  # , color=".3", fit_reg=False, x_jitter=.1);
+
+    g.fig.subplots_adjust(top=0.9)
+    g.fig.suptitle('alpha=%i, beta=%i, delta=%i, rng=%i' % (alpha, beta, delta, rng_seed_model))
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        g.savefig(save_file + '.' + format, dpi=300, format=format)
