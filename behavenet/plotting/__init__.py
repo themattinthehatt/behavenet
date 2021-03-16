@@ -107,7 +107,8 @@ def load_latents(hparams, version, dtype='val'):
     return np.concatenate(latents)
 
 
-def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, test=False, version='best'):
+def load_metrics_csv_as_df(
+        hparams, lab, expt, metrics_list, test=False, version='best', version_dir=None):
     """Load metrics csv file and return as a pandas dataframe for easy plotting.
 
     Parameters
@@ -133,18 +134,20 @@ def load_metrics_csv_as_df(hparams, lab, expt, metrics_list, test=False, version
     """
 
     # programmatically fill out other hparams options
-    get_lab_example(hparams, lab, expt)
-    hparams['session_dir'], sess_ids = get_session_dir(hparams)
-    hparams['expt_dir'] = get_expt_dir(hparams)
+    if version_dir is None:
+        get_lab_example(hparams, lab, expt)
+        hparams['session_dir'], sess_ids = get_session_dir(hparams)
+        hparams['expt_dir'] = get_expt_dir(hparams)
 
-    # find metrics csv file
-    if version is 'best':
-        version = get_best_model_version(hparams['expt_dir'])[0]
-    elif isinstance(version, int):
-        version = version
-    else:
-        _, version = experiment_exists(hparams, which_version=True)
-    version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % version)
+        # find metrics csv file
+        if version is 'best':
+            version = get_best_model_version(hparams['expt_dir'])[0]
+        elif isinstance(version, int):
+            version = version
+        else:
+            _, version = experiment_exists(hparams, which_version=True)
+        version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % version)
+
     metric_file = os.path.join(version_dir, 'metrics.csv')
     metrics = pd.read_csv(metric_file)
 

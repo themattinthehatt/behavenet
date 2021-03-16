@@ -697,7 +697,9 @@ def plot_neural_reconstruction_traces(
     # add r2 info if desired
     if add_r2:
         from sklearn.metrics import r2_score
-        r2 = r2_score(traces_ae, traces_neural, multioutput='variance_weighted')
+        nan_idxs = np.isnan(np.sum(traces_ae, axis=1)) | np.isnan(np.sum(traces_neural, axis=1))
+        r2 = r2_score(
+            traces_ae[~nan_idxs], traces_neural[~nan_idxs], multioutput='variance_weighted')
         plt.text(
             0.05, 0.06, '$R^2$=%1.3f' % r2, horizontalalignment='left', verticalalignment='bottom',
             transform=plt.gca().transAxes,

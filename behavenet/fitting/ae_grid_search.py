@@ -111,22 +111,39 @@ def main(hparams, *args):
 
     fit(hparams, model, data_generator, exp, method='ae')
 
-    # export training plots
-    if hparams['export_train_plots']:
-        print('creating training plots...', end='')
-        version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
-        save_file = os.path.join(version_dir, 'loss_training')
-        export_train_plots(hparams, 'train', save_file=save_file)
-        save_file = os.path.join(version_dir, 'loss_validation')
-        export_train_plots(hparams, 'val', save_file=save_file)
-        print('done')
-
     # update hparams upon successful training
     hparams['training_completed'] = True
     export_hparams(hparams, exp)
 
     # get rid of unneeded logging info
     _clean_tt_dir(hparams)
+
+    # export training plots
+    if hparams['export_train_plots']:
+        print('creating training plots...', end='')
+        version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % hparams['version'])
+        if hparams['model_class'] == 'msps-vae':
+            from behavenet.plotting.cond_ae_utils import plot_mspsvae_training_curves
+            save_file = os.path.join(version_dir, 'loss_training')
+            plot_mspsvae_training_curves(
+                hparams, alpha=hparams['ps_vae.alpha'], beta=hparams['ps_vae.beta'],
+                delta=hparams['ps_vae.delta'], rng_seed_model=hparams['rng_seed_model'],
+                n_latents=hparams['n_ae_latents'] - hparams['n_background'] - hparams['n_labels'],
+                n_background=hparams['n_background'], n_labels=hparams['n_labels'], dtype='train',
+                save_file=save_file, format='png', version_dir=version_dir)
+            save_file = os.path.join(version_dir, 'loss_validation')
+            plot_mspsvae_training_curves(
+                hparams, alpha=hparams['ps_vae.alpha'], beta=hparams['ps_vae.beta'],
+                delta=hparams['ps_vae.delta'], rng_seed_model=hparams['rng_seed_model'],
+                n_latents=hparams['n_ae_latents'] - hparams['n_background'] - hparams['n_labels'],
+                n_background=hparams['n_background'], n_labels=hparams['n_labels'], dtype='val',
+                save_file=save_file, format='png', version_dir=version_dir)
+        else:
+            save_file = os.path.join(version_dir, 'loss_training')
+            export_train_plots(hparams, 'train', save_file=save_file)
+            save_file = os.path.join(version_dir, 'loss_validation')
+            export_train_plots(hparams, 'val', save_file=save_file)
+        print('done')
 
 
 if __name__ == '__main__':

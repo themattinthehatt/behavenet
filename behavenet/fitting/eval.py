@@ -30,8 +30,8 @@ def export_latents(data_generator, model, filename=None):
     import torch
 
     if model.hparams['model_class'] == 'msps-vae':
-        print('cannot currently export predictions')
-        return
+        filenames = model.export_latents(data_generator, filename=filename)
+        return filenames
 
     model.eval()
 
@@ -356,6 +356,10 @@ def get_reconstruction(
         elif model.hparams['model_class'] == 'ps-vae' and apply_inverse_transform:
             # assume "inputs" are [labels, unsupervised latents] where "labels" need to be
             # transformed into N(0, 1) latent space
+            inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
+        elif model.hparams['model_class'] == 'msps-vae' and apply_inverse_transform:
+            # assume "inputs" are [labels, background latents, unsupervised latents] where "labels"
+            # need to be transformed into N(0, 1) latent space
             inputs = model.get_inverse_transformed_latents(inputs, as_numpy=False)
         else:
             pass
