@@ -676,7 +676,6 @@ def get_model_params(hparams):
         if model_class == 'ps-vae':
             hparams_less['ps_vae.alpha'] = hparams['ps_vae.alpha']
             hparams_less['ps_vae.beta'] = hparams['ps_vae.beta']
-            hparams_less['ps_vae.gamma'] = hparams['ps_vae.gamma']
     elif model_class == 'arhmm' or model_class == 'hmm':
         hparams_less['n_arhmm_lags'] = hparams['n_arhmm_lags']
         hparams_less['noise_type'] = hparams['noise_type']
