@@ -1166,7 +1166,7 @@ def _get_psvae_hparams(**kwargs):
         'vae.beta': 1}
     # update hparams
     for key, val in kwargs.items():
-        if key == 'alpha' or key == 'beta' or key == 'gamma':
+        if key == 'alpha' or key == 'beta':
             hparams['ps_vae.%s' % key] = val
         else:
             hparams[key] = val
@@ -1174,7 +1174,7 @@ def _get_psvae_hparams(**kwargs):
 
 
 def plot_psvae_training_curves(
-        lab, expt, animal, session, alphas, betas, gammas, n_ae_latents, rng_seeds_model,
+        lab, expt, animal, session, alphas, betas, n_ae_latents, rng_seeds_model,
         experiment_name, n_labels, dtype='val', save_file=None, format='pdf', **kwargs):
     """Create training plots for each term in the ps-vae objective function.
 
@@ -1184,7 +1184,6 @@ def plot_psvae_training_curves(
 
     - alpha
     - beta
-    - gamma
     - number of unsupervised latents
     - random seed used to initialize model weights
 
@@ -1215,8 +1214,6 @@ def plot_psvae_training_curves(
         alpha values to plot
     betas : :obj:`array-like`
         beta values to plot
-    gammas : :obj:`array-like`
-        gamma values to plot
     n_ae_latents : :obj:`array-like`
         unsupervised dimensionalities to plot
     rng_seeds_model : :obj:`array-like`
@@ -1244,9 +1241,6 @@ def plot_psvae_training_curves(
     if len(betas) > 1:
         n_arrays += 1
         hue = 'beta'
-    if len(gammas) > 1:
-        n_arrays += 1
-        hue = 'gamma'
     if len(n_ae_latents) > 1:
         n_arrays += 1
         hue = 'n latents'
@@ -1255,59 +1249,54 @@ def plot_psvae_training_curves(
         hue = 'rng seed'
     if n_arrays > 1:
         raise ValueError(
-            'Can only set one of "alphas", "betas", "gammas", "n_ae_latents", or ' +
-            '"rng_seeds_model" as an array')
+            'Can only set one of "alphas", "betas", "n_ae_latents", or "rng_seeds_model"' +
+            'as an array')
 
     # set model info
     hparams = _get_psvae_hparams(experiment_name=experiment_name, **kwargs)
 
     metrics_list = [
-        'loss', 'loss_data_mse', 'label_r2',
-        'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl', 'loss_AB_orth']
+        'loss', 'loss_data_mse', 'label_r2', 'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc',
+        'loss_zu_dwkl']
 
     metrics_dfs = []
     i = 0
     for alpha in alphas:
         for beta in betas:
-            for gamma in gammas:
-                for n_latents in n_ae_latents:
-                    for rng in rng_seeds_model:
+            for n_latents in n_ae_latents:
+                for rng in rng_seeds_model:
 
-                        # update hparams
-                        hparams['ps_vae.alpha'] = alpha
-                        hparams['ps_vae.beta'] = beta
-                        hparams['ps_vae.gamma'] = gamma
-                        hparams['n_ae_latents'] = n_latents + n_labels
-                        hparams['rng_seed_model'] = rng
+                    # update hparams
+                    hparams['ps_vae.alpha'] = alpha
+                    hparams['ps_vae.beta'] = beta
+                    hparams['n_ae_latents'] = n_latents + n_labels
+                    hparams['rng_seed_model'] = rng
 
-                        try:
+                    try:
 
-                            get_lab_example(hparams, lab, expt)
-                            hparams['animal'] = animal
-                            hparams['session'] = session
-                            hparams['session_dir'], sess_ids = get_session_dir(hparams)
-                            hparams['expt_dir'] = get_expt_dir(hparams)
-                            _, version = experiment_exists(hparams, which_version=True)
+                        get_lab_example(hparams, lab, expt)
+                        hparams['animal'] = animal
+                        hparams['session'] = session
+                        hparams['session_dir'], sess_ids = get_session_dir(hparams)
+                        hparams['expt_dir'] = get_expt_dir(hparams)
+                        _, version = experiment_exists(hparams, which_version=True)
 
-                            print(
-                                'loading results with alpha=%i, beta=%i, gamma=%i (version %i)' %
-                                (alpha, beta, gamma, version))
+                        print(
+                            'loading results with alpha=%i, beta=%i (version %i)' %
+                            (alpha, beta, version))
 
-                            metrics_dfs.append(load_metrics_csv_as_df(
-                                hparams, lab, expt, metrics_list, version=None))
+                        metrics_dfs.append(load_metrics_csv_as_df(
+                            hparams, lab, expt, metrics_list, version=None))
 
-                            metrics_dfs[i]['alpha'] = alpha
-                            metrics_dfs[i]['beta'] = beta
-                            metrics_dfs[i]['gamma'] = gamma
-                            metrics_dfs[i]['n latents'] = hparams['n_ae_latents']
-                            metrics_dfs[i]['rng seed'] = rng
-                            i += 1
+                        metrics_dfs[i]['alpha'] = alpha
+                        metrics_dfs[i]['beta'] = beta
+                        metrics_dfs[i]['n latents'] = hparams['n_ae_latents']
+                        metrics_dfs[i]['rng seed'] = rng
+                        i += 1
 
-                        except TypeError:
-                            print(
-                                'could not find model for alpha=%i, beta=%i, gamma=%i' %
-                                (alpha, beta, gamma))
-                            continue
+                    except TypeError:
+                        print('could not find model for alpha=%i, beta=%i' % (alpha, beta))
+                        continue
 
     metrics_df = pd.concat(metrics_dfs, sort=False)
 
@@ -1326,35 +1315,29 @@ def plot_psvae_training_curves(
 
 def plot_hyperparameter_search_results(
         lab, expt, animal, session, n_labels, label_names, alpha_weights, alpha_n_ae_latents,
-        alpha_expt_name, beta_weights, gamma_weights, beta_gamma_n_ae_latents,
-        beta_gamma_expt_name, alpha, beta, gamma, save_file, batch_size=None, format='pdf',
-        **kwargs):
+        alpha_expt_name, beta_weights, beta_n_ae_latents, beta_expt_name, alpha, beta, save_file,
+        batch_size=None, format='pdf', **kwargs):
     """Create a variety of diagnostic plots to assess the ps-vae hyperparameters.
 
     These diagnostic plots are based on the recommended way to perform a hyperparameter search in
-    the ps-vae models; first, fix beta=1 and gamma=0, and do a sweep over alpha values and number
+    the ps-vae models; first, fix beta=1, and do a sweep over alpha values and number
     of latents (for example alpha=[50, 100, 500, 1000] and n_ae_latents=[2, 4, 8, 16]). The best
     alpha value is subjective because it involves a tradeoff between pixel mse and label mse. After
-    choosing a suitable value, fix alpha and the number of latents and vary beta and gamma. This
-    function will then plot the following panels:
+    choosing a suitable value, fix alpha and the number of latents and vary beta. This function
+    will then plot the following panels:
 
-    - pixel mse as a function of alpha/num latents (for fixed beta/gamma)
-    - label mse as a function of alpha/num_latents (for fixed beta/gamma)
-    - pixel mse as a function of beta/gamma (for fixed alpha/n_ae_latents)
-    - label mse as a function of beta/gamma (for fixed alpha/n_ae_latents)
-    - index-code mutual information (part of the KL decomposition) as a function of beta/gamma (for
+    - pixel mse as a function of alpha/num latents (for fixed beta)
+    - label mse as a function of alpha/num_latents (for fixed beta)
+    - pixel mse as a function of beta (for fixed alpha/n_ae_latents)
+    - label mse as a function of beta (for fixed alpha/n_ae_latents)
+    - index-code mutual information (part of the KL decomposition) as a function of beta (for
       fixed alpha/n_ae_latents)
-    - total correlation(part of the KL decomposition) as a function of beta/gamma (for fixed
+    - total correlation(part of the KL decomposition) as a function of beta (for fixed
       alpha/n_ae_latents)
-    - dimension-wise KL (part of the KL decomposition) as a function of beta/gamma (for fixed
+    - dimension-wise KL (part of the KL decomposition) as a function of beta (for fixed
       alpha/n_ae_latents)
     - average correlation coefficient across all pairs of unsupervised latent dims as a function of
-      beta/gamma (for fixed alpha/n_ae_latents)
-    - subspace overlap computed as ||[A; B] - I||_2^2 for A, B the projections to the supervised
-      and unsupervised subspaces, respectively, and I the identity - as a function of beta/gamma
-      (for fixed alpha/n_ae_latents)
-    - example subspace overlap matrix for gamma=0 and beta=1, with fixed alpha/n_ae_latents
-    - example subspace overlap matrix for gamma=1000 and beta=1, with fixed alpha/n_ae_latents
+      beta (for fixed alpha/n_ae_latents)
 
     Parameters
     ----------
@@ -1371,25 +1354,21 @@ def plot_hyperparameter_search_results(
     label_names : :obj:`array-like`
         names of label dims
     alpha_weights : :obj:`array-like`
-        array of alpha weights for fixed values of beta, gamma
+        array of alpha weights for fixed values of beta
     alpha_n_ae_latents : :obj:`array-like`
-        array of latent dimensionalities for fixed values of beta, gamma using alpha_weights
+        array of latent dimensionalities for fixed values of beta using alpha_weights
     alpha_expt_name : :obj:`str`
         test-tube experiment name of alpha-based hyperparam search
     beta_weights : :obj:`array-like`
         array of beta weights for a fixed value of alpha
-    gamma_weights : :obj:`array-like`
-        array of beta weights for a fixed value of alpha
-    beta_gamma_n_ae_latents : :obj:`int`
-        latent dimensionality used for beta-gamma hyperparam search
-    beta_gamma_expt_name : :obj:`str`
-        test-tube experiment name of beta-gamma hyperparam search
+    beta_n_ae_latents : :obj:`int`
+        latent dimensionality used for beta hyperparam search
+    beta_expt_name : :obj:`str`
+        test-tube experiment name of beta hyperparam search
     alpha : :obj:`float`
-        fixed value of alpha for beta-gamma search
+        fixed value of alpha for beta search
     beta : :obj:`float`
         fixed value of beta for alpha search
-    gamma : :obj:`float`
-        fixed value of gamma for alpha search
     save_file : :obj:`str`
         absolute path of save file; does not need file extension
     batch_size : :obj:`int`, optional
@@ -1398,9 +1377,9 @@ def plot_hyperparameter_search_results(
     format : :obj:`str`, optional
         format of saved image; 'pdf' | 'png' | 'jpeg' | ...
     kwargs
-        arguments are keys of `hparams`, preceded by either `alpha_` or `beta_gamma_`. For example,
+        arguments are keys of `hparams`, preceded by either `alpha_` or `beta_`. For example,
         to set the train frac of the alpha models, use `alpha_train_frac`; to set the rng_data_seed
-        of the beta-gamma models, use `beta_gamma_rng_data_seed`.
+        of the beta models, use `beta_rng_data_seed`.
 
     """
 
@@ -1474,7 +1453,6 @@ def plot_hyperparameter_search_results(
         for alpha_ in alpha_weights:
             hparams['ps_vae.alpha'] = alpha_
             hparams['ps_vae.beta'] = beta
-            hparams['ps_vae.gamma'] = gamma
             try:
                 get_lab_example(hparams, lab, expt)
                 hparams['animal'] = animal
@@ -1482,9 +1460,8 @@ def plot_hyperparameter_search_results(
                 hparams['session_dir'], sess_ids = get_session_dir(hparams)
                 hparams['expt_dir'] = get_expt_dir(hparams)
                 _, version = experiment_exists(hparams, which_version=True)
-                print('loading results with alpha=%i, beta=%i, gamma=%i (version %i)' % (
-                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma'],
-                    version))
+                print('loading results with alpha=%i, beta=%i (version %i)' % (
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], version))
                 # get frame mse
                 metrics_dfs_frame.append(load_metrics_csv_as_df(
                     hparams, lab, expt, metrics_list, version=None, test=True))
@@ -1498,91 +1475,77 @@ def plot_hyperparameter_search_results(
                 metrics_df_['n_latents'] = hparams['n_ae_latents']
                 metrics_dfs_marker.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
             except TypeError:
-                print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
-                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma']))
+                print('could not find model for alpha=%i, beta=%i' % (
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta']))
                 continue
     metrics_df_frame = pd.concat(metrics_dfs_frame, sort=False)
     metrics_df_marker = pd.concat(metrics_dfs_marker, sort=False)
     print('done')
 
     # -----------------------------------------------------
-    # load pixel/label MSE as a function of beta/gamma
+    # load pixel/label MSE as a function of beta
     # -----------------------------------------------------
     # update hparams
-    hparams['experiment_name'] = beta_gamma_expt_name
+    hparams['experiment_name'] = beta_expt_name
     for key, val in kwargs.items():
-        # hparam vals should be named 'beta_gamma_[property]', for example 'alpha_train_frac'
-        if key.split('_')[0] == 'beta' and key.split('_')[1] == 'gamma':
-            prop = key[11:]
+        # hparam vals should be named 'beta_[property]', for example 'beta_train_frac'
+        if key.split('_')[0] == 'beta':
+            prop = key[5:]
             hparams[prop] = val
 
-    metrics_list = ['loss_data_mse', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl', 'loss_AB_orth']
+    metrics_list = ['loss_data_mse', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl']
 
     metrics_dfs_frame_bg = []
     metrics_dfs_marker_bg = []
     metrics_dfs_corr_bg = []
-    overlaps = {}
     for beta in beta_weights:
-        for gamma in gamma_weights:
-            hparams['n_ae_latents'] = beta_gamma_n_ae_latents + n_labels
-            hparams['ps_vae.alpha'] = alpha
-            hparams['ps_vae.beta'] = beta
-            hparams['ps_vae.gamma'] = gamma
-            try:
-                get_lab_example(hparams, lab, expt)
-                hparams['animal'] = animal
-                hparams['session'] = session
-                hparams['session_dir'], sess_ids = get_session_dir(hparams)
-                hparams['expt_dir'] = get_expt_dir(hparams)
-                _, version = experiment_exists(hparams, which_version=True)
-                print('loading results with alpha=%i, beta=%i, gamma=%i (version %i)' % (
-                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma'],
-                    version))
-                # get frame mse
-                metrics_dfs_frame_bg.append(load_metrics_csv_as_df(
-                    hparams, lab, expt, metrics_list, version=None, test=True))
-                metrics_dfs_frame_bg[-1]['beta'] = beta
-                metrics_dfs_frame_bg[-1]['gamma'] = gamma
-                # get marker mse
-                model, data_gen = get_best_model_and_data(
-                    hparams, Model=None, load_data=True, version=version)
-                metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
-                metrics_df_['beta'] = beta
-                metrics_df_['gamma'] = gamma
-                metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
-                # get subspace overlap
-                A = model.encoding.A.weight.data.cpu().detach().numpy()
-                B = model.encoding.B.weight.data.cpu().detach().numpy()
-                C = np.concatenate([A, B], axis=0)
-                overlap = np.matmul(C, C.T)
-                overlaps['beta=%i_gamma=%i' % (beta, gamma)] = overlap
-                # get corr
-                latents = load_latents(hparams, version, dtype='test')
-                if batch_size is None:
-                    corr = np.corrcoef(latents[:, n_labels + np.array([0, 1])].T)
+        hparams['n_ae_latents'] = beta_n_ae_latents + n_labels
+        hparams['ps_vae.alpha'] = alpha
+        hparams['ps_vae.beta'] = beta
+        try:
+            get_lab_example(hparams, lab, expt)
+            hparams['animal'] = animal
+            hparams['session'] = session
+            hparams['session_dir'], sess_ids = get_session_dir(hparams)
+            hparams['expt_dir'] = get_expt_dir(hparams)
+            _, version = experiment_exists(hparams, which_version=True)
+            print('loading results with alpha=%i, beta=%i, (version %i)' % (
+                hparams['ps_vae.alpha'], hparams['ps_vae.beta'], version))
+            # get frame mse
+            metrics_dfs_frame_bg.append(load_metrics_csv_as_df(
+                hparams, lab, expt, metrics_list, version=None, test=True))
+            metrics_dfs_frame_bg[-1]['beta'] = beta
+            # get marker mse
+            model, data_gen = get_best_model_and_data(
+                hparams, Model=None, load_data=True, version=version)
+            metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
+            metrics_df_['beta'] = beta
+            metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
+            # get corr
+            latents = load_latents(hparams, version, dtype='test')
+            if batch_size is None:
+                corr = np.corrcoef(latents[:, n_labels + np.array([0, 1])].T)
+                metrics_dfs_corr_bg.append(pd.DataFrame({
+                    'loss': 'corr',
+                    'dtype': 'test',
+                    'val': np.abs(corr[0, 1]),
+                    'beta': beta}, index=[0]))
+            else:
+                n_batches = int(np.ceil(latents.shape[0] / batch_size))
+                for i in range(n_batches):
+                    corr = np.corrcoef(
+                        latents[i * batch_size:(i + 1) * batch_size,
+                                n_labels + np.array([0, 1])].T)
                     metrics_dfs_corr_bg.append(pd.DataFrame({
                         'loss': 'corr',
                         'dtype': 'test',
                         'val': np.abs(corr[0, 1]),
-                        'beta': beta,
-                        'gamma': gamma}, index=[0]))
-                else:
-                    n_batches = int(np.ceil(latents.shape[0] / batch_size))
-                    for i in range(n_batches):
-                        corr = np.corrcoef(
-                            latents[i * batch_size:(i + 1) * batch_size,
-                                    n_labels + np.array([0, 1])].T)
-                        metrics_dfs_corr_bg.append(pd.DataFrame({
-                            'loss': 'corr',
-                            'dtype': 'test',
-                            'val': np.abs(corr[0, 1]),
-                            'beta': beta,
-                            'gamma': gamma}, index=[0]))
-            except TypeError:
-                print('could not find model for alpha=%i, beta=%i, gamma=%i' % (
-                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.gamma']))
-                continue
-            print()
+                        'beta': beta}, index=[0]))
+        except TypeError:
+            print('could not find model for alpha=%i, beta=%i' % (
+                hparams['ps_vae.alpha'], hparams['ps_vae.beta']))
+            continue
+        print()
     metrics_df_frame_bg = pd.concat(metrics_dfs_frame_bg, sort=False)
     metrics_df_marker_bg = pd.concat(metrics_dfs_marker_bg, sort=False)
     metrics_df_corr_bg = pd.concat(metrics_dfs_corr_bg, sort=False)
@@ -1596,13 +1559,12 @@ def plot_hyperparameter_search_results(
 
     alpha_palette = sns.color_palette('Greens')
     beta_palette = sns.color_palette('Reds', len(metrics_df_corr_bg.beta.unique()))
-    gamma_palette = sns.color_palette('Blues', len(metrics_df_corr_bg.gamma.unique()))
 
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(12, 10), dpi=300)
+    fig = plt.figure(figsize=(12, 7), dpi=300)
 
-    n_rows = 3
+    n_rows = 2
     n_cols = 12
     gs = GridSpec(n_rows, n_cols, figure=fig)
 
@@ -1637,140 +1599,89 @@ def plot_hyperparameter_search_results(
     ax_marker_mse_alpha.legend(frameon=True, title='Alpha')
     despine(ax_marker_mse_alpha)
 
-    sns.set_palette(gamma_palette)
-
     # --------------------------------------------------
-    # MSE per pixel (beta/gamma)
+    # MSE per pixel (beta)
     # --------------------------------------------------
     ax_pixel_mse_bg = fig.add_subplot(gs[0, 6:9])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_data_mse') &
         (metrics_df_frame_bg.epoch == 200)]
-    sns.barplot(x='beta', y='val', hue='gamma', data=data_queried, ax=ax_pixel_mse_bg)
+    sns.barplot(x='beta', y='val', data=data_queried, ax=ax_pixel_mse_bg)
     ax_pixel_mse_bg.legend().set_visible(False)
     ax_pixel_mse_bg.set_xlabel('Beta')
     ax_pixel_mse_bg.set_ylabel('MSE per pixel')
     ax_pixel_mse_bg.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
-    ax_pixel_mse_bg.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    ax_pixel_mse_bg.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
     despine(ax_pixel_mse_bg)
 
     # --------------------------------------------------
-    # MSE per marker (beta/gamma)
+    # MSE per marker (beta)
     # --------------------------------------------------
     ax_marker_mse_bg = fig.add_subplot(gs[0, 9:12])
     data_queried = metrics_df_marker_bg
-    sns.barplot(x='beta', y='MSE', hue='gamma', data=data_queried, ax=ax_marker_mse_bg)
+    sns.barplot(x='beta', y='MSE', data=data_queried, ax=ax_marker_mse_bg)
     ax_marker_mse_bg.set_xlabel('Beta')
     ax_marker_mse_bg.set_ylabel('MSE per marker')
-    ax_marker_mse_bg.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
-    ax_marker_mse_bg.legend(frameon=True, title='Gamma', loc='lower left')
+    ax_marker_mse_bg.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
     despine(ax_marker_mse_bg)
 
     # --------------------------------------------------
     # ICMI
     # --------------------------------------------------
-    ax_icmi = fig.add_subplot(gs[1, 0:4])
+    ax_icmi = fig.add_subplot(gs[1, 0:3])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_zu_mi') &
         (metrics_df_frame_bg.epoch == 200)]
-    sns.lineplot(
-        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_icmi, ci=None,
-        palette=gamma_palette)
+    sns.lineplot(x='beta', y='val', data=data_queried, ax=ax_icmi, ci=None)
     ax_icmi.legend().set_visible(False)
     ax_icmi.set_xlabel('Beta')
     ax_icmi.set_ylabel('Index-code Mutual Information')
-    ax_icmi.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    ax_icmi.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
     despine(ax_icmi)
 
     # --------------------------------------------------
     # TC
     # --------------------------------------------------
-    ax_tc = fig.add_subplot(gs[1, 4:8])
+    ax_tc = fig.add_subplot(gs[1, 3:6])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_zu_tc') &
         (metrics_df_frame_bg.epoch == 200)]
-    sns.lineplot(
-        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_tc, ci=None,
-        palette=gamma_palette)
+    sns.lineplot(x='beta', y='val', data=data_queried, ax=ax_tc, ci=None)
     ax_tc.legend().set_visible(False)
     ax_tc.set_xlabel('Beta')
     ax_tc.set_ylabel('Total Correlation')
-    ax_tc.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    ax_tc.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
     despine(ax_tc)
 
     # --------------------------------------------------
     # DWKL
     # --------------------------------------------------
-    ax_dwkl = fig.add_subplot(gs[1, 8:12])
+    ax_dwkl = fig.add_subplot(gs[1, 6:9])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_zu_dwkl') &
         (metrics_df_frame_bg.epoch == 200)]
-    sns.lineplot(
-        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_dwkl, ci=None,
-        palette=gamma_palette)
+    sns.lineplot(x='beta', y='val', data=data_queried, ax=ax_dwkl, ci=None)
     ax_dwkl.legend().set_visible(False)
     ax_dwkl.set_xlabel('Beta')
     ax_dwkl.set_ylabel('Dimension-wise KL')
-    ax_dwkl.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    ax_dwkl.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
     despine(ax_dwkl)
 
     # --------------------------------------------------
     # CC
     # --------------------------------------------------
-    ax_cc = fig.add_subplot(gs[2, 0:3])
+    ax_cc = fig.add_subplot(gs[1, 9:12])
     data_queried = metrics_df_corr_bg
-    sns.lineplot(
-        x='beta', y='val', hue='gamma', data=data_queried, ax=ax_cc, ci=None,
-        palette=gamma_palette)
+    sns.lineplot(x='beta', y='val', data=data_queried, ax=ax_cc, ci=None)
     ax_cc.legend().set_visible(False)
     ax_cc.set_xlabel('Beta')
     ax_cc.set_ylabel('Correlation Coefficient')
-    ax_cc.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
+    ax_cc.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
     despine(ax_cc)
-
-    # --------------------------------------------------
-    # AB orth
-    # --------------------------------------------------
-    ax_orth = fig.add_subplot(gs[2, 3:6])
-    data_queried = metrics_df_frame_bg[
-        (metrics_df_frame_bg.dtype == 'test') &
-        (metrics_df_frame_bg.loss == 'loss_AB_orth') &
-        (metrics_df_frame_bg.epoch == 200) &
-        ~metrics_df_frame_bg.val.isna()]
-    sns.lineplot(
-        x='gamma', y='val', hue='beta', data=data_queried, ax=ax_orth, ci=None,
-        palette=beta_palette)
-    ax_orth.legend(frameon=False, title='Beta')
-    ax_orth.set_xlabel('Gamma')
-    ax_orth.set_ylabel('Subspace overlap')
-    ax_orth.set_title('Latents=%i, Alpha=1000' % hparams['n_ae_latents'])
-    despine(ax_orth)
-
-    # --------------------------------------------------
-    # Gamma = 0 overlap
-    # --------------------------------------------------
-    ax_gamma0 = fig.add_subplot(gs[2, 6:9])
-    overlap = overlaps['beta=%i_gamma=%i' % (np.min(beta_weights), np.min(gamma_weights))]
-    im = ax_gamma0.imshow(overlap, cmap='PuOr', vmin=-1, vmax=1)
-    ax_gamma0.set_xticks(np.arange(overlap.shape[1]))
-    ax_gamma0.set_yticks(np.arange(overlap.shape[0]))
-    ax_gamma0.set_title('Subspace overlap\nGamma=%i' % np.max(gamma_weights))
-    fig.colorbar(im, ax=ax_gamma0, orientation='vertical', shrink=0.75)
-
-    # --------------------------------------------------
-    # Gamma = 1000 overlap
-    # --------------------------------------------------
-    ax_gamma1 = fig.add_subplot(gs[2, 9:12])
-    overlap = overlaps['beta=%i_gamma=%i' % (np.min(beta_weights), np.max(gamma_weights))]
-    im = ax_gamma1.imshow(overlap, cmap='PuOr', vmin=-1, vmax=1)
-    ax_gamma1.set_xticks(np.arange(overlap.shape[1]))
-    ax_gamma1.set_yticks(np.arange(overlap.shape[0]))
-    ax_gamma1.set_title('Subspace overlap\nGamma=%i' % np.max(gamma_weights))
-    fig.colorbar(im, ax=ax_gamma1, orientation='vertical', shrink=0.75)
 
     plt.tight_layout(h_pad=3)  # h_pad is fraction of font size
 
@@ -1857,7 +1768,6 @@ def plot_label_reconstructions(
     print(data_generator)
     print('alpha: %i' % model.hparams['ps_vae.alpha'])
     print('beta: %i' % model.hparams['ps_vae.beta'])
-    print('gamma: %i' % model.hparams['ps_vae.gamma'])
     print('model seed: %i' % model.hparams['rng_seed_model'])
 
     n_blank = 5  # buffer time points between trials if concatenating
@@ -1902,7 +1812,7 @@ def plot_label_reconstructions(
 
 
 def plot_latent_traversals(
-        lab, expt, animal, session, model_class, alpha, beta, gamma, n_ae_latents, rng_seed_model,
+        lab, expt, animal, session, model_class, alpha, beta, n_ae_latents, rng_seed_model,
         experiment_name, n_labels, label_idxs, label_min_p=5, label_max_p=95,
         channel=0, n_frames_zs=4, n_frames_zu=4, trial=None, trial_idx=1, batch_idx=1,
         crop_type=None, crop_kwargs=None, sess_idx=0, save_file=None, format='pdf', **kwargs):
@@ -1926,8 +1836,6 @@ def plot_latent_traversals(
         ps-vae alpha value
     beta : :obj:`float`
         ps-vae beta value
-    gamma : :obj:`array-like`
-        ps-vae gamma value
     n_ae_latents : :obj:`int`
         dimensionality of unsupervised latents
     rng_seed_model : :obj:`int`
@@ -1975,7 +1883,7 @@ def plot_latent_traversals(
     """
 
     hparams = _get_psvae_hparams(
-        model_class=model_class, alpha=alpha, beta=beta, gamma=gamma, n_ae_latents=n_ae_latents,
+        model_class=model_class, alpha=alpha, beta=beta, n_ae_latents=n_ae_latents,
         experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
 
     if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
@@ -2109,7 +2017,7 @@ def plot_latent_traversals(
 
 
 def make_latent_traversal_movie(
-        lab, expt, animal, session, model_class, alpha, beta, gamma, n_ae_latents,
+        lab, expt, animal, session, model_class, alpha, beta, n_ae_latents,
         rng_seed_model, experiment_name, n_labels, trial_idxs, batch_idxs, trials,
         label_min_p=5, label_max_p=95, channel=0, sess_idx=0, n_frames=10, n_buffer_frames=5,
         crop_kwargs=None, n_cols=3, movie_kwargs={}, panel_titles=None, order_idxs=None,
@@ -2140,8 +2048,6 @@ def make_latent_traversal_movie(
         ps-vae alpha value
     beta : :obj:`float`
         ps-vae beta value
-    gamma : :obj:`array-like`
-        ps-vae gamma value
     n_ae_latents : :obj:`int`
         dimensionality of unsupervised latents
     rng_seed_model : :obj:`int`
@@ -2204,7 +2110,7 @@ def make_latent_traversal_movie(
     panel_titles = [''] * (n_labels + n_ae_latents) if panel_titles is None else panel_titles
 
     hparams = _get_psvae_hparams(
-        model_class=model_class, alpha=alpha, beta=beta, gamma=gamma, n_ae_latents=n_ae_latents,
+        model_class=model_class, alpha=alpha, beta=beta, n_ae_latents=n_ae_latents,
         experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
 
     if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
