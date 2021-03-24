@@ -643,7 +643,7 @@ class PSVAE(AE):
 
         loss_strs = [
             'loss', 'loss_data_ll', 'loss_label_ll', 'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc',
-            'loss_zu_dwkl', 'loss_AB_orth']
+            'loss_zu_dwkl']
 
         loss_dict_vals = {loss: 0 for loss in loss_strs}
         loss_dict_vals['loss_data_mse'] = 0
