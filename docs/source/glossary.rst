@@ -145,6 +145,9 @@ In addition to the autoencoder parameters defined above,
 * **vae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase VAE beta
 * **beta_tcvae.beta** (*float*) weight on total correlation term in Beta TC-VAE ELBO
 * **beta_tcvae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase Beta TC-VAE beta
+* **ps_vae.alpha** (*float*) weight on label reconstruction term in PS-VAE ELBO
+* **ps_vae.beta** (*float*) weight on unsupervised disentangling term in PS-VAE ELBO
+* **ps_vae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase PS-VAE beta
 
 Conditional autoencoders
 ------------------------
