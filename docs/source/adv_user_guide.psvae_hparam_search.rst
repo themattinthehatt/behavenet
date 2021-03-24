@@ -14,8 +14,7 @@ different terms:
     \mathscr{L}_{\text{KL-s}} +
     \mathscr{L}_{\text{ICMI}} +
     \beta \mathscr{L}_{\text{TC}} +
-    \mathscr{L}_{\text{DWKL}} +
-    \gamma \mathscr{L}_{\text{orth}}
+    \mathscr{L}_{\text{DWKL}}
 
 where
 
@@ -25,12 +24,11 @@ where
  * :math:`\mathscr{L}_{\text{ICMI}}`: index-code mutual information of the unsupervised latents
  * :math:`\mathscr{L}_{\text{TC}}`: total correlation of the unsupervised latents
  * :math:`\mathscr{L}_{\text{DWKL}}`: dimension-wise KL of the unsupervised latents
- * :math:`\mathscr{L}_{\text{orth}}`: orthogonality of the full latent space (supervised + unsupervised)
 
-There are three important hyperparameters of the model that we address below: :math:`\alpha`, which
-weights the reconstruction of the labels; :math:`\beta`, which weights the factorization of the
-unsupervised latent space; and :math:`\gamma`, which weights the orthogonality of the entire latent
-space. The purpose of this guide is to propose a series of model fits that efficiently explores
+There are two important hyperparameters of the model that we address below: :math:`\alpha`, which
+weights the reconstruction of the labels, and :math:`\beta`, which weights the factorization of the
+unsupervised latent space.
+The purpose of this guide is to propose a series of model fits that efficiently explores
 this space of hyperparameters, as well as point out several BehaveNet plotting utilities to assist
 in this exploration.
 
@@ -41,24 +39,22 @@ The hyperparameter :math:`\alpha` controls the strength of the label log-likelih
 needs to be balanced against the frame log-likelihood term. We first recommend z-scoring each
 individual label, which removes the scale of the labels as a confound. We then recommend fitting
 models with a range of :math:`\alpha` values, while setting the defaults :math:`\beta=1` (no extra
-weight on the total correlation term) and :math:`\gamma=0` (no constraint on orthogonality). In our
+weight on the total correlation term). In our
 experience the range :math:`\alpha=[50, 100, 500, 1000]` is a reasonable range to start with. The
 "best" value for :math:`\alpha` is subjective because it involves a tradeoff between pixel
 log-likelihood (or the related mean square error, MSE) and label log-likelihood (or MSE).
-After choosing a suitable value, we will fix :math:`\alpha` and vary :math:`\beta` and
-:math:`\gamma`.
+After choosing a suitable value, we will fix :math:`\alpha` and vary :math:`\beta`.
 
 
-How to select :math:`\beta` and :math:`\gamma`
-----------------------------------------------
-The choice of :math:`\beta` and :math:`\gamma` is more difficult because there does not yet exist
+How to select :math:`\beta`
+---------------------------
+The choice of :math:`\beta` is more difficult because there does not yet exist
 a single robust measure of "disentanglement" that can tell us which models learn a suitable
 unsupervised representation. Instead we will fit models with a range of hypeparameters, then use
 a quantitative metric to guide a qualitative analysis.
 
-A reasonable range to start with is :math:`\beta=[1, 5, 10, 20]` and :math:`\gamma=1000`. While it
-is possible to extend the range for :math:`\gamma`, we have found :math:`\gamma=1000` to work for
-many datasets. How, then, do we choose a good value for :math:`\beta`? Currently our best advice is
+A reasonable range to start with is :math:`\beta=[1, 5, 10, 20]`.
+How, then, do we choose the "best" value of :math:`\beta`? Currently our best advice is
 to compute the correlation of the training data across all pairs of unsupervised dimensions. The
 value of :math:`\beta` that minimizes the average of the pairwise correlations is a good place to
 start more qualitative evaluations.
@@ -92,27 +88,20 @@ Hyperparameter search visualization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The function :func:`behavenet.plotting.cond_ae_utils.plot_hyperparameter_search_results` creates
 a variety of diagnostic plots after the user has performed the :math:`\alpha` search and the
-:math:`\beta/\gamma` search detailed above:
+:math:`\beta` search detailed above:
 
-- pixel mse as a function of :math:`\alpha`, num latents (for fixed :math:`\beta, \gamma`)
-- label mse as a function of :math:`\alpha`, num_latents (for fixed :math:`\beta, \gamma`)
-- pixel mse as a function of :math:`\beta, \gamma` (for fixed :math:`\alpha`, n_ae_latents)
-- label mse as a function of :math:`\beta, \gamma` (for fixed :math:`\alpha`, n_ae_latents)
+- pixel mse as a function of :math:`\alpha`, num latents (for fixed :math:`\beta`)
+- label mse as a function of :math:`\alpha`, num_latents (for fixed :math:`\beta`)
+- pixel mse as a function of :math:`\beta` (for fixed :math:`\alpha`, n_ae_latents)
+- label mse as a function of :math:`\beta` (for fixed :math:`\alpha`, n_ae_latents)
 - index-code mutual information (part of the KL decomposition) as a function of
-  :math:`\beta, \gamma` (for fixed :math:`\alpha`, n_ae_latents)
-- total correlation(part of the KL decomposition) as a function of :math:`\beta, \gamma`
+  :math:`\beta` (for fixed :math:`\alpha`, n_ae_latents)
+- total correlation(part of the KL decomposition) as a function of :math:`\beta`
   (for fixed :math:`\alpha`, n_ae_latents)
-- dimension-wise KL (part of the KL decomposition) as a function of :math:`\beta, \gamma`
+- dimension-wise KL (part of the KL decomposition) as a function of :math:`\beta`
   (for fixed :math:`\alpha`, n_ae_latents)
 - average correlation coefficient across all pairs of unsupervised latent dims as a function of
-  :math:`\beta, \gamma` (for fixed :math:`\alpha`, n_ae_latents)
-- subspace overlap computed as :math:`||[A; B] - I||_2^2` for :math:`A, B` the projections to the
-  supervised and unsupervised subspaces, respectively, and :math:`I` the identity - as a function
-  of :math:`\beta, \gamma` (for fixed :math:`\alpha`, n_ae_latents)
-- example subspace overlap matrix for :math:`\gamma=0` and :math:`\beta=1`, with fixed
-  :math:`\alpha`, n_ae_latents
-- example subspace overlap matrix for :math:`\gamma=1000` and :math:`\beta=1`, with fixed
-  :math:`\alpha`, n_ae_latents
+  :math:`\beta` (for fixed :math:`\alpha`, n_ae_latents)
 
 These plots help with the selection of hyperparameter settings.
 
@@ -128,7 +117,6 @@ plots for each term in the PS-VAE objective function for a *single* model:
 - index-code mutual information of unsupervised latents
 - total correlation of unsupervised latents
 - dimension-wise KL of unsupervised latents
-- subspace overlap
 
 A function argument allows the user to plot either training or validation curves. These plots allow
 the user to check whether or not models have trained to completion.
