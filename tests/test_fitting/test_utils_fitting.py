@@ -935,7 +935,6 @@ class TestClass:
             'l2_reg': 1e-2,
             'ps_vae.alpha': 1,
             'ps_vae.beta': 2,
-            'ps_vae.gamma': 3,
             # 'beta_tcvae.beta_anneal_epochs': 100
         }
         ret_hparams = utils.get_model_params({**misc_hparams, **base_hparams, **model_hparams})
