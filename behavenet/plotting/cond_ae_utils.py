@@ -172,7 +172,8 @@ def compute_range(values_list, min_p=5, max_p=95):
         values = np.vstack(values_list)
     ranges = {
         'min': np.nanpercentile(values, min_p, axis=0),
-        'max': np.nanpercentile(values, max_p, axis=0)}
+        'max': np.nanpercentile(values, max_p, axis=0),
+        'med': np.nanpercentile(values, 50, axis=0)}
     return ranges
 
 
@@ -322,7 +323,9 @@ def get_model_input(
 
     # latents
     if compute_latents:
-        if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'ps-vae':
+        if hparams['model_class'] == 'cond-ae-msp' \
+                or hparams['model_class'] == 'ps-vae' \
+                or hparams['model_class'] == 'msps-vae':
             latents_np = model.get_transformed_latents(ims_pt, dataset=sess_idx, as_numpy=True)
         else:
             _, latents_np = get_reconstruction(
@@ -999,7 +1002,8 @@ def plot_1d_frame_array(
 
 def make_interpolated(
         ims, save_file, markers=None, text=None, text_title=None, text_color=[1, 1, 1],
-        frame_rate=20, scale=3, markersize=10, markeredgecolor='w', markeredgewidth=1, ax=None):
+        fontsize=4, frame_rate=20, scale=3, markersize=10, markeredgecolor='w', markeredgewidth=1,
+        ax=None):
     """Make a latent space interpolation movie.
 
     Parameters
@@ -1058,7 +1062,7 @@ def make_interpolated(
 
     default_kwargs = {'animated': True, 'cmap': 'gray', 'vmin': 0, 'vmax': 1}
     txt_kwargs = {
-        'fontsize': 4, 'color': text_color, 'fontname': 'monospace',
+        'fontsize': fontsize, 'color': text_color, 'fontname': 'monospace',
         'horizontalalignment': 'left', 'verticalalignment': 'center',
         'transform': ax.transAxes}
 

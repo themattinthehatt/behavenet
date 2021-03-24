@@ -616,7 +616,8 @@ def plot_neural_reconstruction_traces_wrapper(
 
 def plot_neural_reconstruction_traces(
         traces_ae, traces_neural, save_file=None, xtick_locs=None, frame_rate=None, format='png',
-        scale=0.5, max_traces=8, add_r2=True, add_legend=True, colored_predictions=True):
+        scale=0.5, max_traces=8, add_r2=True, add_legend=True, colored_predictions=True,
+        title=None):
     """Plot ae latents and their neural reconstructions.
 
     Parameters
@@ -643,7 +644,8 @@ def plot_neural_reconstruction_traces(
         print legend on plot
     colored_predictions : :obj:`bool`, optional
         color predictions using default seaborn colormap; else predictions are black
-
+    title: :obj:`str`, optional
+        add title to plot
 
     Returns
     -------
@@ -715,6 +717,8 @@ def plot_neural_reconstruction_traces(
         plt.xlabel('Time (bins)')
     plt.ylabel('Latent state')
     plt.yticks([])
+    if title is not None:
+        plt.title(title)
 
     if save_file is not None:
         make_dir_if_not_exists(save_file)
