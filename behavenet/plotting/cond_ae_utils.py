@@ -1464,6 +1464,8 @@ def plot_hyperparameter_search_results(
         if key.split('_')[0] == 'alpha':
             prop = key[6:]
             hparams[prop] = val
+        else:
+            hparams[key] = val
 
     metrics_list = ['loss_data_mse']
 
