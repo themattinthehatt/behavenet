@@ -573,7 +573,7 @@ class PSVAE(AE):
         Parameters
         ----------
         x : :obj:`torch.Tensor` object
-            input data
+            input data of shape (n_frames, n_channels, y_pix, x_pix)
         dataset : :obj:`int`
             used with session-specific io layers
         use_mean : :obj:`bool`
@@ -583,10 +583,10 @@ class PSVAE(AE):
         -------
         :obj:`tuple`
             - x_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
-            - y_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
             - z (:obj:`torch.Tensor`): sampled latent variable of shape (n_frames, n_latents)
             - mu (:obj:`torch.Tensor`): mean paramter of shape (n_frames, n_latents)
             - logvar (:obj:`torch.Tensor`): logvar paramter of shape (n_frames, n_latents)
+            - y_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_labels)
 
         """
         y, w, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
@@ -744,7 +744,7 @@ class PSVAE(AE):
         Parameters
         ----------
         x : :obj:`torch.Tensor` object
-            input data
+            input data of shape (n_frames, n_channels, y_pix, x_pix)
         dataset : :obj:`int`
             used with session-specific io layers
         use_mean : :obj:`bool`
@@ -752,12 +752,8 @@ class PSVAE(AE):
 
         Returns
         -------
-        :obj:`tuple`
-            - x_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
-            - y_hat (:obj:`torch.Tensor`): output of shape (n_frames, n_channels, y_pix, x_pix)
-            - z (:obj:`torch.Tensor`): sampled latent variable of shape (n_frames, n_latents)
-            - mu (:obj:`torch.Tensor`): mean paramter of shape (n_frames, n_latents)
-            - logvar (:obj:`torch.Tensor`): logvar paramter of shape (n_frames, n_latents)
+        :obj:`torch.Tensor`
+            output of shape (n_frames, n_labels)
 
         """
         y, w, logvar, pool_idx, outsize = self.encoding(x, dataset=dataset)
@@ -772,8 +768,8 @@ class PSVAE(AE):
         Parameters
         ----------
         inputs : :obj:`torch.Tensor` object
-            - image tensor of shape (batch, n_channels, y_pix, x_pix)
-            - latents tensor of shape (batch, n_ae_latents)
+            - image tensor of shape (n_frames, n_channels, y_pix, x_pix)
+            - latents tensor of shape (n_frames, n_ae_latents)
         dataset : :obj:`int`, optional
             used with session-specific io layers
         as_numpy : :obj:`bool`, optional
@@ -782,7 +778,7 @@ class PSVAE(AE):
         Returns
         -------
         :obj:`np.ndarray` or :obj:`torch.Tensor` object
-            array of latents in transformed latent space
+            array of latents in transformed latent space of shape (n_frames, n_latents)
 
         """
 
@@ -818,8 +814,8 @@ class PSVAE(AE):
         Parameters
         ----------
         inputs : :obj:`torch.Tensor` object
-            - image tensor of shape (batch, n_channels, y_pix, x_pix)
-            - latents tensor of shape (batch, n_ae_latents) where the first n_labels entries are
+            - image tensor of shape (n_frames, n_channels, y_pix, x_pix)
+            - latents tensor of shape (n_frames, n_ae_latents) where the first n_labels entries are
               assumed to be labels in the original pixel space
         dataset : :obj:`int`, optional
             used with session-specific io layers
@@ -829,7 +825,7 @@ class PSVAE(AE):
         Returns
         -------
         :obj:`np.ndarray` or :obj:`torch.Tensor` object
-            array of latents in transformed latent space
+            array of latents in transformed latent space of shape (n_frames, n_latents)
 
         """
 
