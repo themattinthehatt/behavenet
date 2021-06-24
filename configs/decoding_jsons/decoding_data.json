@@ -10,9 +10,9 @@
 
 "expt": "vistrained", # type: str
 
-"animal": "mSM30", # type: str
+"animal": "mSM36", # type: str
 
-"session": "10-Oct-2017", # type: str
+"session": "05-Dec-2017", # type: str
 
 "sessions_csv": "", # type: str, help: specify multiple sessions
 

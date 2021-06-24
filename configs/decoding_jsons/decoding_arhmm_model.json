@@ -39,6 +39,8 @@
 
 "noise_type": "gaussian", # type: str
 
+"transitions": "stationary", # type: str
+
 "arhmm_version": "best", # type: str
 
 "arhmm_multisession": null, # type: int
