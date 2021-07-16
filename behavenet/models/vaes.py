@@ -518,7 +518,6 @@ class PSVAE(AE):
             - 'n_labels' (:obj:`n_labels`)
             - 'ps_vae.alpha' (:obj:`float`)
             - 'ps_vae.beta' (:obj:`float`)
-            - 'ps_vae.gamma' (:obj:`float`)
 
         """
 
@@ -640,12 +639,11 @@ class PSVAE(AE):
         # compute hyperparameters
         alpha = self.hparams['ps_vae.alpha']
         beta = self.beta_vals[self.curr_epoch]
-        gamma = self.hparams['ps_vae.gamma']
         kl = self.kl_anneal_vals[self.curr_epoch]
 
         loss_strs = [
             'loss', 'loss_data_ll', 'loss_label_ll', 'loss_zs_kl', 'loss_zu_mi', 'loss_zu_tc',
-            'loss_zu_dwkl', 'loss_AB_orth']
+            'loss_zu_dwkl']
 
         loss_dict_vals = {loss: 0 for loss in loss_strs}
         loss_dict_vals['loss_data_mse'] = 0
@@ -695,15 +693,6 @@ class PSVAE(AE):
             loss_dict_torch['loss_zu_dwkl'] = dimension_wise_kl
             loss_dict_torch['loss'] += kl * loss_dict_torch['loss_zu_dwkl']
 
-            # orthogonality between A and B
-            # A shape: [n_labels, n_latents]
-            # B shape: [n_latents - n_labels, n_latents]
-            # compute ||AB^T||^2
-            loss_dict_torch['loss_AB_orth'] = losses.subspace_overlap(
-                self.encoding.A.weight, self.encoding.B.weight)
-
-            loss_dict_torch['loss'] += gamma * loss_dict_torch['loss_AB_orth']
-
             if accumulate_grad:
                 loss_dict_torch['loss'].backward()
 
@@ -733,7 +722,6 @@ class PSVAE(AE):
         # store hyperparams
         loss_dict_vals['alpha'] = alpha
         loss_dict_vals['beta'] = beta
-        loss_dict_vals['gamma'] = gamma
         loss_dict_vals['label_r2'] = r2
 
         return loss_dict_vals
@@ -874,6 +862,15 @@ class ConvAEPSEncoder(ConvAEEncoder):
         self.B = nn.Linear(n_latents, n_latents - n_labels, bias=False)
         # constrained latents -> labels (diagonal matrix + bias)
         self.D = DiagLinear(n_labels, bias=True)
+
+        # fix A, B to be orthogonal (and not trainable)
+        from scipy.stats import ortho_group
+        m = ortho_group.rvs(dim=n_latents).astype('float32')
+        with torch.no_grad():
+            self.A.weight = nn.Parameter(
+                torch.from_numpy(m[:n_labels, :]), requires_grad=False)
+            self.B.weight = nn.Parameter(
+                torch.from_numpy(m[n_labels:, :]), requires_grad=False)
 
     def __str__(self):
         """Pretty print encoder architecture."""

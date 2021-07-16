@@ -119,11 +119,12 @@ Partitioned subspace variational autoencoder
 One downside to the MSP model introduced in the previous section is that the representation in the
 unsupervised latent space may be difficult to interpret. The partitioned subspace VAE (PS-VAE)
 attempts to remedy this situation by encouraging the unsupervised representation to be factorized,
-which has shown to help with interpretability (see paper `here <TODO>`_).
+which has shown to help with interpretability (see paper
+`here <https://www.biorxiv.org/content/10.1101/2021.02.22.432309v1.full.pdf>`_).
 
 To fit a single PS-VAE (and the default CAE BehaveNet
-architecture), edit the ``model_class``, ``ps_vae.alpha``,  ``ps_vae.beta`` and ``ps_vae.gamma``
-parameters of the ``ae_model.json`` file:
+architecture), edit the ``model_class``, ``ps_vae.alpha``, ``ps_vae.beta``, and
+``ps_vae.anneal_epochs`` parameters of the ``ae_model.json`` file:
 
 .. code-block:: json
 
@@ -138,11 +139,11 @@ parameters of the ``ae_model.json`` file:
     "model_class": "ps-vae",
     "ps_vae.alpha": 1000,
     "ps_vae.beta": 10,
-    "ps_vae.gamma": 1000,
+    "ps_vae.anneal_epochs": 100,
     "conditional_encoder": false
     }
 
-The ``ps_vae.alpha``,  ``ps_vae.beta`` and ``ps_vae.gamma`` parameters need to be tuned for
+The ``ps_vae.alpha`` and ``ps_vae.beta`` parameters need to be tuned for
 each dataset. See the guidelines for setting these parameters :ref:`here<psvae_hparams>`.
 
 Then to fit the model, use the ``ae_grid_search.py`` function using this updated model json. All
