@@ -359,7 +359,7 @@ def fit(hparams, model, data_generator, exp, method='ae'):
                     'train', i_epoch, i_train, -1, trial=-1,
                     by_dataset=False, best_epoch=best_val_epoch))
                 # export individual session metrics on train/val data
-                if data_generator.n_datasets > 1 and \
+                if data_generator.n_datasets > 1 and dataset is not None and \
                         (isinstance(dataset, int) or len(dataset) == 1):
                     for dataset in range(data_generator.n_datasets):
                         exp.log(logger.create_metric_row(

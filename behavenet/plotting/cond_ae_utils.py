@@ -758,7 +758,7 @@ def interpolate_point_path(
         p1 = points[None, p + 1]
         p_vec = (p1 - p0) / n_frames[p]
 
-        for pn in range(n_frames[p]):
+        for pn in range(n_frames[p] + 1):
 
             vec = p0 + pn * p_vec
 

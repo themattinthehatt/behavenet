@@ -678,8 +678,6 @@ def get_model_params(hparams):
         if model_class == 'ps-vae' or model_class == 'msps-vae':
             hparams_less['ps_vae.alpha'] = hparams['ps_vae.alpha']
             hparams_less['ps_vae.beta'] = hparams['ps_vae.beta']
-            if model_class == 'ps-vae':
-                hparams_less['ps_vae.gamma'] = hparams['ps_vae.gamma']
             if model_class == 'msps-vae':
                 hparams_less['ps_vae.delta'] = hparams['ps_vae.delta']
                 hparams_less['n_background'] = hparams['n_background']

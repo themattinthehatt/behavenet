@@ -957,7 +957,8 @@ class MSPSVAE(PSVAE):
                 if 'masks' in datas[0] else None
             n = torch.cat([data['labels_masks'][0] for data in datas], dim=0) \
                 if 'labels_masks' in datas[0] else None
-            datasets = np.concatenate([d * np.ones(datas[d]['images'].shape[1]) for d in dataset])
+            datasets = np.concatenate(
+                [d * np.ones(datas[d_idx]['images'].shape[1]) for d_idx, d in enumerate(dataset)])
         else:
             x = datas['images'][0]
             y = datas['labels'][0]
@@ -972,7 +973,7 @@ class MSPSVAE(PSVAE):
         # compute hyperparameters
         alpha = self.hparams['ps_vae.alpha']
         beta = self.beta_vals[self.curr_epoch]
-        gamma = self.hparams['ps_vae.gamma']
+        # gamma = self.hparams['ps_vae.gamma']
         delta = self.hparams['ps_vae.delta']
         kl = self.kl_anneal_vals[self.curr_epoch]
 
@@ -1061,7 +1062,7 @@ class MSPSVAE(PSVAE):
         # store hyperparams
         loss_dict_vals['alpha'] = alpha
         loss_dict_vals['beta'] = beta
-        loss_dict_vals['gamma'] = gamma
+        # loss_dict_vals['gamma'] = gamma
         loss_dict_vals['delta'] = delta
         loss_dict_vals['label_r2'] = r2
 
