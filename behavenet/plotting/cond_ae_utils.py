@@ -32,7 +32,7 @@ __all__ = [
     'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel',
     'plot_psvae_training_curves', 'plot_hyperparameter_search_results',
     'plot_label_reconstructions', 'plot_latent_traversals', 'make_latent_traversal_movie',
-    'plot_mspsvae_training_curves']
+    'plot_mspsvae_training_curves', 'plot_mspsvae_hyperparameter_search_results']
 
 
 # ----------------------------------------
@@ -450,7 +450,8 @@ def interpolate_2d(
                     if model.hparams['model_class'] == 'ae' \
                             or model.hparams['model_class'] == 'vae' \
                             or model.hparams['model_class'] == 'beta-tcvae' \
-                            or model.hparams['model_class'] == 'ps-vae':
+                            or model.hparams['model_class'] == 'ps-vae' \
+                            or model.hparams['model_class'] == 'msps-vae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae' \
                             or model.hparams['model_class'] == 'cond-vae':
@@ -476,7 +477,8 @@ def interpolate_2d(
                     labels_2d = None
 
                 if model.hparams['model_class'] == 'cond-ae-msp' \
-                        or model.hparams['model_class'] == 'ps-vae':
+                        or model.hparams['model_class'] == 'ps-vae' \
+                        or model.hparams['model_class'] == 'msps-vae':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
                     latents[0, input_idxs[0]] = inputs[0][i0]
@@ -640,7 +642,8 @@ def interpolate_1d(
                     if model.hparams['model_class'] == 'ae' \
                             or model.hparams['model_class'] == 'vae' \
                             or model.hparams['model_class'] == 'beta-tcvae' \
-                            or model.hparams['model_class'] == 'ps-vae':
+                            or model.hparams['model_class'] == 'ps-vae' \
+                            or model.hparams['model_class'] == 'msps-vae':
                         labels = None
                     elif model.hparams['model_class'] == 'cond-ae' \
                             or model.hparams['model_class'] == 'cond-vae':
@@ -666,7 +669,8 @@ def interpolate_1d(
                     labels_2d = None
 
                 if model.hparams['model_class'] == 'cond-ae-msp' \
-                        or model.hparams['model_class'] == 'ps-vae':
+                        or model.hparams['model_class'] == 'ps-vae' \
+                        or model.hparams['model_class'] == 'msps-vae':
                     # change latents that correspond to desired labels
                     latents = np.copy(latents_0)
                     latents[0, input_idxs[i0]] = inputs[i0][i1]
@@ -1186,7 +1190,7 @@ def make_interpolated_multipanel(
 
 
 # ----------------------------------------
-# high-level plotting functions
+# helper functions for high-level plotting
 # ----------------------------------------
 
 def _get_psvae_hparams(**kwargs):
@@ -1206,12 +1210,158 @@ def _get_psvae_hparams(**kwargs):
         'vae.beta': 1}
     # update hparams
     for key, val in kwargs.items():
-        if key == 'alpha' or key == 'beta':
+        if key == 'alpha' or key == 'beta' or key == 'delta':
             hparams['ps_vae.%s' % key] = val
         else:
             hparams[key] = val
     return hparams
 
+
+def apply_masks(data, masks):
+    return data[masks == 1]
+
+
+def get_label_r2(
+        hparams, model, data_generator, version, label_names, dtype='val', overwrite=False):
+    from sklearn.metrics import r2_score
+    n_labels = len(label_names)
+    save_file = os.path.join(
+        hparams['expt_dir'], 'version_%i' % version, 'r2_supervised.csv')
+    if not os.path.exists(save_file) or overwrite:
+        if not os.path.exists(save_file):
+            print('R^2 metrics do not exist; computing from scratch')
+        else:
+            print('overwriting metrics at %s' % save_file)
+        metrics_df = []
+        data_generator.reset_iterators(dtype)
+        for i_test in tqdm(range(data_generator.n_tot_batches[dtype])):
+            # get next minibatch and put it on the device
+            data, sess = data_generator.next_batch(dtype)
+            x = data['images'][0]
+            y = data['labels'][0].cpu().detach().numpy()
+            if 'labels_masks' in data:
+                n = data['labels_masks'][0].cpu().detach().numpy()
+            else:
+                n = np.ones_like(y)
+            z = model.get_transformed_latents(x, dataset=sess)
+            for i in range(n_labels):
+                y_true = apply_masks(y[:, i], n[:, i])
+                y_pred = apply_masks(z[:, i], n[:, i])
+                if len(y_true) > 10:
+                    r2 = r2_score(y_true, y_pred, multioutput='variance_weighted')
+                    mse = np.mean(np.square(y_true - y_pred))
+                else:
+                    r2 = np.nan
+                    mse = np.nan
+                metrics_df.append(pd.DataFrame({
+                    'Trial': data['batch_idx'].item(),
+                    'Label': label_names[i],
+                    'R2': r2,
+                    'MSE': mse,
+                    'Model': 'MSPS-VAE'}, index=[0]))
+
+        metrics_df = pd.concat(metrics_df)
+        print('saving results to %s' % save_file)
+        metrics_df.to_csv(save_file, index=False, header=True)
+    else:
+        print('loading results from %s' % save_file)
+        metrics_df = pd.read_csv(save_file)
+    return metrics_df
+
+
+def collect_data(data_generator, model, dtype, fit_full=False):
+    ys = []
+    zs = []
+    masks = []
+    trials = []
+    sessions = []
+    data_generator.reset_iterators(dtype)
+    for _ in tqdm(range(data_generator.n_tot_batches[dtype])):
+        data, sess = data_generator.next_batch(dtype)
+        x = data['images'][0]
+        y = data['labels'][0] if 'labels' in data else None
+        n = data['labels_masks'][0] if 'labels_masks' in data else None
+        if model.hparams['model_class'] == 'ae':
+            z, _, _ = model.encoding(x, dataset=sess)
+        elif model.hparams['model_class'] == 'vae' or model.hparams['model_class'] == 'cond-vae':
+            z, _, _, _ = model.encoding(x, dataset=sess)
+        elif model.hparams['model_class'] == 'sss-vae' or model.hparams['model_class'] == 'ps-vae':
+            yhat, w, _, _, _ = model.encoding(x, dataset=sess)
+            if fit_full:
+                z = torch.cat([yhat, w], axis=1)
+            else:
+                z = w
+        elif model.hparams['model_class'] == 'msps-vae':
+            z_s, z_b, z, _, _, _ = model.encoding(x, dataset=sess)
+        else:
+            raise NotImplementedError
+        if y is not None:
+            ys.append(y.cpu().detach().numpy())
+        zs.append(z.cpu().detach().numpy())
+        if n is None:
+            if len(ys) > 0:
+                masks.append(np.ones_like(ys[-1]))
+            else:
+                masks.append(None)
+        else:
+            masks.append(n.cpu().detach().numpy())
+        trials.append(data['batch_idx'].item())
+        sessions.append(sess * np.ones(zs[-1].shape[0]))
+    return ys, zs, masks, trials, sessions
+
+
+def fit_classifier(model, data_generator, dtype='val', fit_full=False, overwrite=False):
+    """Fit classifier model from latent space to session id."""
+
+    from sklearn.linear_model import LogisticRegressionCV as LR
+    from sklearn.metrics import accuracy_score
+
+    save_file = os.path.join(
+        model.hparams['expt_dir'], 'version_%i' % model.version, 'fc_session_classification.npy')
+    if not os.path.exists(save_file) or overwrite:
+        if not os.path.exists(save_file):
+            print('FC metrics do not exist; computing from scratch')
+        else:
+            print('overwriting metrics at %s' % save_file)
+
+        print('collecting training labels and latents')
+        _, zs_tr, _, _, sessions_tr = collect_data(
+            data_generator, model, dtype='train', fit_full=fit_full)
+        print('done')
+
+        print('collecting %s labels and latents' % dtype)
+        _, zs, _, _, sessions = collect_data(data_generator, model, dtype=dtype, fit_full=fit_full)
+        print('done')
+
+        print('fitting linear classifier model with training data')
+        ys_mat = np.concatenate(sessions_tr)
+        zs_mat = np.concatenate(zs_tr, axis=0)
+        lr = LR(
+            Cs=[0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100], cv=5, penalty='l2',
+            multi_class='multinomial').fit(zs_mat, ys_mat)
+        print('done')
+
+        print('computing fraction correct on %s data' % dtype)
+        y_pred = lr.predict(np.concatenate(zs))
+        y_true = np.concatenate(sessions)
+        fc = accuracy_score(y_true, y_pred)
+        print('done')
+
+        print('saving results to %s' % save_file)
+        np.save(save_file, np.array([fc]))
+
+    else:
+
+        print('loading results from %s' % save_file)
+        fc = np.load(save_file)[0]
+        lr = None
+
+    return fc, lr
+
+
+# ----------------------------------------
+# high-level plotting functions
+# ----------------------------------------
 
 def plot_psvae_training_curves(
         lab, expt, animal, session, alphas, betas, n_ae_latents, rng_seeds_model,
@@ -1423,54 +1573,6 @@ def plot_hyperparameter_search_results(
 
     """
 
-    def apply_masks(data, masks):
-        return data[masks == 1]
-
-    def get_label_r2(hparams, model, data_generator, version, dtype='val', overwrite=False):
-        from sklearn.metrics import r2_score
-        save_file = os.path.join(
-            hparams['expt_dir'], 'version_%i' % version, 'r2_supervised.csv')
-        if not os.path.exists(save_file) or overwrite:
-            if not os.path.exists(save_file):
-                print('R^2 metrics do not exist; computing from scratch')
-            else:
-                print('overwriting metrics at %s' % save_file)
-            metrics_df = []
-            data_generator.reset_iterators(dtype)
-            for i_test in tqdm(range(data_generator.n_tot_batches[dtype])):
-                # get next minibatch and put it on the device
-                data, sess = data_generator.next_batch(dtype)
-                x = data['images'][0]
-                y = data['labels'][0].cpu().detach().numpy()
-                if 'labels_masks' in data:
-                    n = data['labels_masks'][0].cpu().detach().numpy()
-                else:
-                    n = np.ones_like(y)
-                z = model.get_transformed_latents(x, dataset=sess)
-                for i in range(n_labels):
-                    y_true = apply_masks(y[:, i], n[:, i])
-                    y_pred = apply_masks(z[:, i], n[:, i])
-                    if len(y_true) > 10:
-                        r2 = r2_score(y_true, y_pred, multioutput='variance_weighted')
-                        mse = np.mean(np.square(y_true - y_pred))
-                    else:
-                        r2 = np.nan
-                        mse = np.nan
-                    metrics_df.append(pd.DataFrame({
-                        'Trial': data['batch_idx'].item(),
-                        'Label': label_names[i],
-                        'R2': r2,
-                        'MSE': mse,
-                        'Model': 'PS-VAE'}, index=[0]))
-
-            metrics_df = pd.concat(metrics_df)
-            print('saving results to %s' % save_file)
-            metrics_df.to_csv(save_file, index=False, header=True)
-        else:
-            print('loading results from %s' % save_file)
-            metrics_df = pd.read_csv(save_file)
-        return metrics_df
-
     # -----------------------------------------------------
     # load pixel/label MSE as a function of n_latents/alpha
     # -----------------------------------------------------
@@ -1512,7 +1614,8 @@ def plot_hyperparameter_search_results(
                 # get marker mse
                 model, data_gen = get_best_model_and_data(
                     hparams, Model=None, load_data=True, version=version)
-                metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
+                metrics_df_ = get_label_r2(
+                    hparams, model, data_gen, version, label_names, dtype='val')
                 metrics_df_['alpha'] = alpha_
                 metrics_df_['n_latents'] = hparams['n_ae_latents']
                 metrics_dfs_marker.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
@@ -1560,7 +1663,7 @@ def plot_hyperparameter_search_results(
             # get marker mse
             model, data_gen = get_best_model_and_data(
                 hparams, Model=None, load_data=True, version=version)
-            metrics_df_ = get_label_r2(hparams, model, data_gen, version, dtype='val')
+            metrics_df_ = get_label_r2(hparams, model, data_gen, version, label_names, dtype='val')
             metrics_df_['beta'] = beta
             metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'PS-VAE'])
             # get corr
@@ -1740,7 +1843,7 @@ def plot_label_reconstructions(
         lab, expt, animal, session, n_ae_latents, experiment_name, n_labels, trials, version=None,
         plot_scale=0.5, sess_idx=0, save_file=None, format='pdf', xtick_locs=None, frame_rate=None,
         max_traces=8, add_r2=True, add_legend=True, colored_predictions=True, concat_trials=False,
-        **kwargs):
+        hparams=None, **kwargs):
     """Plot labels and their reconstructions from an ps-vae.
 
     Parameters
@@ -1786,6 +1889,8 @@ def plot_label_reconstructions(
         color predictions using default seaborn colormap; else predictions are black
     concat_trials : :obj:`bool`, optional
         True to plot all trials together, separated by a small gap
+    hparams : :obj:`dict`, optional
+        If not NoneType, uses these hparams instead of required args
     kwargs
         arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
@@ -1797,13 +1902,12 @@ def plot_label_reconstructions(
         concat_trials = False
 
     # set model info
-    hparams = _get_psvae_hparams(
-        experiment_name=experiment_name, n_ae_latents=n_ae_latents + n_labels, **kwargs)
-
-    # programmatically fill out other hparams options
-    get_lab_example(hparams, lab, expt)
-    hparams['animal'] = animal
-    hparams['session'] = session
+    if hparams is None:
+        hparams = _get_psvae_hparams(
+            experiment_name=experiment_name, n_ae_latents=n_ae_latents + n_labels, **kwargs)
+        get_lab_example(hparams, lab, expt)
+        hparams['animal'] = animal
+        hparams['session'] = session
 
     model, data_generator = get_best_model_and_data(
         hparams, Model=None, load_data=True, version=version, data_kwargs=None)
@@ -1855,9 +1959,10 @@ def plot_label_reconstructions(
 
 def plot_latent_traversals(
         lab, expt, animal, session, model_class, alpha, beta, n_ae_latents, rng_seed_model,
-        experiment_name, n_labels, label_idxs, label_min_p=5, label_max_p=95,
+        experiment_name, n_labels, label_idxs, hparams=None, label_min_p=5, label_max_p=95,
         channel=0, n_frames_zs=4, n_frames_zu=4, trial=None, trial_idx=1, batch_idx=1,
-        crop_type=None, crop_kwargs=None, sess_idx=0, save_file=None, format='pdf', **kwargs):
+        crop_type=None, crop_kwargs=None, sess_idx=0, sess_ids=None, save_file=None, format='pdf',
+        **kwargs):
     """Plot video frames representing the traversal of individual dimensions of the latent space.
 
     Parameters
@@ -1888,6 +1993,8 @@ def plot_latent_traversals(
         dimensionality of supervised latent space (ignored when using fully unsupervised models)
     label_idxs : :obj:`array-like`, optional
         set of label indices (dimensions) to individually traverse
+    hparams : :obj:`str`, optional
+        If not NoneType, uses these hparams instead of required args
     label_min_p : :obj:`float`, optional
         lower percentile of training data used to compute range of traversal
     label_max_p : :obj:`float`, optional
@@ -1915,6 +2022,9 @@ def plot_latent_traversals(
         (x_0 - x_ext, x_0 + x_ext) in horizontal direction
     sess_idx : :obj:`int`, optional
         session index into data generator
+    sess_ids : :obj:`list`, optional
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'; for loading
+        labels and labels_sc
     save_file : :obj:`str`, optional
         absolute path of save file; does not need file extension
     format : :obj:`str`, optional
@@ -1924,33 +2034,44 @@ def plot_latent_traversals(
 
     """
 
-    hparams = _get_psvae_hparams(
-        model_class=model_class, alpha=alpha, beta=beta, n_ae_latents=n_ae_latents,
-        experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
+    if hparams is None:
+        hparams = _get_psvae_hparams(
+            model_class=model_class, alpha=alpha, beta=beta, n_ae_latents=n_ae_latents,
+            experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
 
-    if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
-        hparams['n_ae_latents'] += n_labels
+        if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
+            hparams['n_ae_latents'] += n_labels
+        if model_class == 'msps-vae':
+            hparams['n_ae_latents'] += hparams.get('n_background', 0)
 
-    # programmatically fill out other hparams options
-    get_lab_example(hparams, lab, expt)
-    hparams['animal'] = animal
-    hparams['session'] = session
-    hparams['session_dir'], sess_ids = get_session_dir(hparams)
-    hparams['expt_dir'] = get_expt_dir(hparams)
+        # programmatically fill out other hparams options
+        get_lab_example(hparams, lab, expt)
+        hparams['animal'] = animal
+        hparams['session'] = session
+        hparams['session_dir'], sess_ids = get_session_dir(hparams)
+        hparams['expt_dir'] = get_expt_dir(hparams)
+
     _, version = experiment_exists(hparams, which_version=True)
     model_ae, data_generator = get_best_model_and_data(hparams, Model=None, version=version)
 
+    # temporarily set n_sessions_per_batch to 1 for msps; reset at end of function
+    n_sessions_per_batch = hparams.get('n_sessions_per_batch', 1)
+    hparams['n_sessions_per_batch'] = 1
+    n_background = hparams.get('n_background', 0)
+
+    model_class = hparams['model_class']
+
     # get latent/label info
     latent_range = get_input_range(
-        'latents', hparams, model=model_ae, data_gen=data_generator, min_p=15, max_p=85,
-        version=version)
+        'latents', hparams, sess_ids=sess_ids, sess_idx=sess_idx, model=model_ae,
+        data_gen=data_generator, min_p=15, max_p=85, version=version, apply_label_masks=True)
     label_range = get_input_range(
-        'labels', hparams, sess_ids=sess_ids, sess_idx=sess_idx,
-        min_p=label_min_p, max_p=label_max_p)
+        'labels', hparams, sess_ids=sess_ids, sess_idx=sess_idx, min_p=label_min_p,
+        max_p=label_max_p, apply_label_masks=True)
     try:
         label_sc_range = get_input_range(
-            'labels_sc', hparams, sess_ids=sess_ids, sess_idx=sess_idx,
-            min_p=label_min_p, max_p=label_max_p)
+            'labels_sc', hparams, sess_ids=sess_ids, sess_idx=sess_idx, min_p=label_min_p,
+            max_p=label_max_p, apply_label_masks=True)
     except KeyError:
         import copy
         label_sc_range = copy.deepcopy(label_range)
@@ -1960,16 +2081,18 @@ def plot_latent_traversals(
     # ----------------------------------------
     interp_func_label = interpolate_1d
     plot_func_label = plot_1d_frame_array
-    save_file_new = save_file + '_label-traversals'
+    tmp = trial_idx if trial_idx is not None else trial
+    save_file_new = save_file + '_label-traversals_%i-%i' % (tmp, batch_idx)
 
-    if (model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'ps-vae' or \
-            model_class == 'cond-vae') and len(label_idxs) > 0:
+    if model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'ps-vae' or \
+            model_class == 'cond-vae' or model_class == 'msps-vae':
 
         # get model input for this trial
         ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np = \
             get_model_input(
                 data_generator, hparams, model_ae, trial_idx=trial_idx, trial=trial,
-                compute_latents=True, compute_scaled_labels=False, compute_2d_labels=False)
+                compute_latents=True, compute_scaled_labels=False, compute_2d_labels=False,
+                sess_idx=sess_idx)
 
         if labels_2d_np is None:
             labels_2d_np = np.copy(labels_np)
@@ -2008,14 +2131,22 @@ def plot_latent_traversals(
     # ----------------------------------------
     interp_func_latent = interpolate_1d
     plot_func_latent = plot_1d_frame_array
-    save_file_new = save_file + '_latent-traversals'
+    save_file_new = save_file + '_latent-traversals_%i-%i' % (tmp, batch_idx)
 
     if hparams['model_class'] == 'cond-ae-msp' or hparams['model_class'] == 'ps-vae':
+        if n_ae_latents is None:
+            n_ae_latents = hparams['n_ae_latents'] - n_labels
         latent_idxs = n_labels + np.arange(n_ae_latents)
+    elif hparams['model_class'] == 'msps-vae':
+        if n_ae_latents is None:
+            n_ae_latents = hparams['n_ae_latents'] - n_labels - n_background
+        latent_idxs = n_labels + n_background + np.arange(n_ae_latents)
     elif hparams['model_class'] == 'ae' \
             or hparams['model_class'] == 'vae' \
             or hparams['model_class'] == 'cond-vae' \
             or hparams['model_class'] == 'beta-tcvae':
+        if n_ae_latents is None:
+            n_ae_latents = hparams['n_ae_latents']
         latent_idxs = np.arange(n_ae_latents)
     else:
         raise NotImplementedError
@@ -2032,9 +2163,9 @@ def plot_latent_traversals(
         get_model_input(
             data_generator, hparams, model_ae, trial=trial, trial_idx=trial_idx,
             compute_latents=True, compute_scaled_labels=scaled_labels,
-            compute_2d_labels=twod_labels)
+            compute_2d_labels=twod_labels, sess_idx=sess_idx)
 
-    latents_np[:, n_labels:] = 0
+    # latents_np[:, n_labels:] = 0
 
     if hparams['model_class'] == 'ae' or hparams['model_class'] == 'beta-tcvae':
         labels_np_sel = labels_np
@@ -2057,13 +2188,15 @@ def plot_latent_traversals(
         ims_latent, markers=None, marker_kwargs=marker_kwargs, save_file=save_file_new,
         format=format)
 
+    hparams['n_sessions_per_batch'] = n_sessions_per_batch
+
 
 def make_latent_traversal_movie(
         lab, expt, animal, session, model_class, alpha, beta, n_ae_latents,
-        rng_seed_model, experiment_name, n_labels, trial_idxs, batch_idxs, trials,
-        label_min_p=5, label_max_p=95, channel=0, sess_idx=0, n_frames=10, n_buffer_frames=5,
-        crop_kwargs=None, n_cols=3, movie_kwargs={}, panel_titles=None, order_idxs=None,
-        split_movies=False, save_file=None, **kwargs):
+        rng_seed_model, experiment_name, n_labels, trial_idxs, batch_idxs, trials, hparams=None,
+        label_min_p=5, label_max_p=95, channel=0, sess_idx=0, sess_ids=None, n_frames=10,
+        n_buffer_frames=5, crop_kwargs=None, n_cols=3, movie_kwargs={}, panel_titles=None,
+        order_idxs=None, split_movies=False, save_file=None, **kwargs):
     """Create a multi-panel movie with each panel showing traversals of an individual latent dim.
 
     The traversals will start at a lower bound, increase to an upper bound, then return to a lower
@@ -2110,6 +2243,8 @@ def make_latent_traversal_movie(
         trials of base frame used for interpolation; if an entry is an integer, the
         corresponding entry in `trial_idxs` must be `None`. This value is a trial index into all
         possible trials (train, val, test), whereas `trial_idxs` is an index only into test trials
+    hparams : :obj:`str`, optional
+        If not NoneType, uses these hparams instead of required args
     label_min_p : :obj:`float`, optional
         lower percentile of training data used to compute range of traversal
     label_max_p : :obj:`float`, optional
@@ -2118,6 +2253,9 @@ def make_latent_traversal_movie(
         image channel to plot
     sess_idx : :obj:`int`, optional
         session index into data generator
+    sess_ids : :obj:`list`, optional
+        each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'; for loading
+        labels and labels_sc
     n_frames : :obj:`int`, optional
         number of frames (points) to display for traversal across latent dimensions; the movie
         will display a traversal of `n_frames` across each dim, then another traversal of
@@ -2144,36 +2282,47 @@ def make_latent_traversal_movie(
     save_file : :obj:`str`, optional
         absolute path of save file; does not need file extension, will automatically be saved as
         mp4. To save as a gif, include the '.gif' file extension in `save_file`
+        hparams : :obj:`dict`, optional
     kwargs
         arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
 
     """
 
-    panel_titles = [''] * (n_labels + n_ae_latents) if panel_titles is None else panel_titles
+    if hparams is None:
+        hparams = _get_psvae_hparams(
+            model_class=model_class, alpha=alpha, beta=beta, n_ae_latents=n_ae_latents,
+            experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
+        if model_class == 'cond-ae-msp' or model_class == 'ps-vae' or model_class == 'beta-tcvae':
+            hparams['n_ae_latents'] += n_labels
+        elif model_class == 'msps-vae':
+            hparams['n_ae_latents'] += n_labels + hparams['n_background']
+        get_lab_example(hparams, lab, expt)
+        hparams['animal'] = animal
+        hparams['session'] = session
+        hparams['session_dir'], sess_ids = get_session_dir(hparams)
+        hparams['expt_dir'] = get_expt_dir(hparams)
 
-    hparams = _get_psvae_hparams(
-        model_class=model_class, alpha=alpha, beta=beta, n_ae_latents=n_ae_latents,
-        experiment_name=experiment_name, rng_seed_model=rng_seed_model, **kwargs)
-
-    if model_class == 'cond-ae-msp' or model_class == 'ps-vae':
-        hparams['n_ae_latents'] += n_labels
-
-    # programmatically fill out other hparams options
-    get_lab_example(hparams, lab, expt)
-    hparams['animal'] = animal
-    hparams['session'] = session
-    hparams['session_dir'], sess_ids = get_session_dir(hparams)
-    hparams['expt_dir'] = get_expt_dir(hparams)
     _, version = experiment_exists(hparams, which_version=True)
     model_ae, data_generator = get_best_model_and_data(hparams, Model=None, version=version)
 
+    # temporarily set n_sessions_per_batch to 1 for msps; reset at end of function
+    n_sessions_per_batch = hparams.get('n_sessions_per_batch', 1)
+    hparams['n_sessions_per_batch'] = 1
+
+    n_background = hparams.get('n_background', 0)
+    panel_titles = [''] * (n_labels + n_background + n_ae_latents) if panel_titles is None \
+        else panel_titles
+
     # get latent/label info
+    # latent_range = get_input_range(
+    #     'latents', hparams, sess_ids=sess_ids, sess_idx=sess_idx, model=model_ae,
+    #     data_gen=data_generator, min_p=15, max_p=85, version=version, apply_label_masks=True)
     latent_range = get_input_range(
-        'latents', hparams, model=model_ae, data_gen=data_generator, min_p=15, max_p=85,
-        version=version)
+        'latents', hparams, sess_ids=sess_ids, sess_idx=np.arange(len(sess_ids)), model=model_ae,
+        data_gen=data_generator, min_p=15, max_p=85, version=version, apply_label_masks=True)
     label_range = get_input_range(
-        'labels', hparams, sess_ids=sess_ids, sess_idx=sess_idx,
-        min_p=label_min_p, max_p=label_max_p)
+        'labels', hparams, sess_ids=sess_ids, sess_idx=sess_idx, min_p=label_min_p,
+        max_p=label_max_p, apply_label_masks=True)
 
     # ----------------------------------------
     # collect frames/latents/labels
@@ -2196,8 +2345,8 @@ def make_latent_traversal_movie(
         ims_pt_, ims_np_, latents_np_, labels_pt_, labels_np_, labels_2d_pt_, labels_2d_np_ = \
             get_model_input(
                 data_generator, hparams, model_ae, trial_idx=trial_idx, trial=trial,
-                compute_latents=True, compute_scaled_labels=csl, compute_2d_labels=c2dl,
-                max_frames=200)
+                sess_idx=sess_idx, compute_latents=True, compute_scaled_labels=csl,
+                compute_2d_labels=c2dl, max_frames=200)
         ims_pt.append(ims_pt_)
         ims_np.append(ims_np_)
         latents_np.append(latents_np_)
@@ -2209,12 +2358,15 @@ def make_latent_traversal_movie(
     if hparams['model_class'] == 'ps-vae':
         label_idxs = np.arange(n_labels)
         latent_idxs = n_labels + np.arange(n_ae_latents)
-    elif hparams['model_class'] == 'vae':
+    elif hparams['model_class'] == 'vae' or hparams['model_class'] == 'beta-tcvae':
         label_idxs = []
         latent_idxs = np.arange(hparams['n_ae_latents'])
     elif hparams['model_class'] == 'cond-vae':
         label_idxs = np.arange(n_labels)
         latent_idxs = np.arange(hparams['n_ae_latents'])
+    elif hparams['model_class'] == 'msps-vae':
+        label_idxs = np.arange(n_labels)
+        latent_idxs = n_labels + np.arange(n_ae_latents + n_background)
     else:
         raise Exception
 
@@ -2231,7 +2383,7 @@ def make_latent_traversal_movie(
         txt_strs = []
 
         for b, batch_idx in enumerate(batch_idxs):
-            if hparams['model_class'] == 'ps-vae':
+            if hparams['model_class'] == 'ps-vae' or hparams['model_class'] == 'msps-vae':
                 points = np.array([latents_np[b][batch_idx, :]] * 3)
             elif hparams['model_class'] == 'cond-vae':
                 points = np.array([labels_np[b][batch_idx, :]] * 3)
@@ -2280,7 +2432,7 @@ def make_latent_traversal_movie(
             points[0, latent_idx] = latent_range['min'][latent_idx]
             points[1, latent_idx] = latent_range['max'][latent_idx]
             points[2, latent_idx] = latent_range['min'][latent_idx]
-            if hparams['model_class'] == 'vae':
+            if hparams['model_class'] == 'vae' or hparams['model_class'] == 'beta-tcvae':
                 labels_curr = None
             else:
                 labels_curr = labels_np[b][None, batch_idx, :]
@@ -2337,6 +2489,8 @@ def make_latent_traversal_movie(
             text=[txt_strs_all[i] for i in order_idxs],
             text_title=txt_strs_titles,
             save_file=save_file, scale=2, n_cols=n_cols, **movie_kwargs)
+
+    hparams['n_sessions_per_batch'] = n_sessions_per_batch
 
 
 def plot_mspsvae_training_curves(
@@ -2436,3 +2590,547 @@ def plot_mspsvae_training_curves(
     if save_file is not None:
         make_dir_if_not_exists(save_file)
         g.savefig(save_file + '.' + format, dpi=300, format=format)
+
+
+def plot_mspsvae_hyperparameter_search_results(
+        hparams, sess_ids, label_names, n_background, alpha_weights, alpha_n_ae_latents,
+        alpha_expt_name, beta_weights, delta_weights, beta_delta_n_ae_latents,
+        beta_delta_expt_name, alpha, beta, delta, save_file, batch_size=None, format='pdf',
+        **kwargs):
+    """Create a variety of diagnostic plots to assess the msps-vae hyperparameters.
+
+    These diagnostic plots are based on the recommended way to perform a hyperparameter search in
+    the ps-vae models; first, fix beta=1 and gamma=0, and do a sweep over alpha values and number
+    of latents (for example alpha=[50, 100, 500, 1000] and n_ae_latents=[2, 4, 8, 16]). The best
+    alpha value is subjective because it involves a tradeoff between pixel mse and label mse. After
+    choosing a suitable value, fix alpha and the number of latents and vary beta and gamma. This
+    function will then plot the following panels:
+
+    - pixel mse as a function of alpha/num latents (for fixed beta/gamma)
+    - label mse as a function of alpha/num_latents (for fixed beta/gamma)
+    - pixel mse as a function of beta/gamma (for fixed alpha/n_ae_latents)
+    - label mse as a function of beta/gamma (for fixed alpha/n_ae_latents)
+    - index-code mutual information (part of the KL decomposition) as a function of beta/gamma (for
+      fixed alpha/n_ae_latents)
+    - total correlation(part of the KL decomposition) as a function of beta/gamma (for fixed
+      alpha/n_ae_latents)
+    - dimension-wise KL (part of the KL decomposition) as a function of beta/gamma (for fixed
+      alpha/n_ae_latents)
+    - average correlation coefficient across all pairs of unsupervised latent dims as a function of
+      beta/gamma (for fixed alpha/n_ae_latents)
+    - subspace overlap computed as ||[A; B] - I||_2^2 for A, B the projections to the supervised
+      and unsupervised subspaces, respectively, and I the identity - as a function of beta/gamma
+      (for fixed alpha/n_ae_latents)
+    - example subspace overlap matrix for gamma=0 and beta=1, with fixed alpha/n_ae_latents
+    - example subspace overlap matrix for gamma=1000 and beta=1, with fixed alpha/n_ae_latents
+
+    Parameters
+    ----------
+    hparams : :obj:`dict`
+    sess_ids : :obj:`list`
+    label_names : :obj:`array-like`
+        names of label dims
+    n_background : :obj:`int`
+        dimensionality of background latents
+    alpha_weights : :obj:`array-like`
+        array of alpha weights for fixed values of beta, delta
+    alpha_n_ae_latents : :obj:`array-like`
+        array of latent dimensionalities for fixed values of beta, delta using alpha_weights
+    alpha_expt_name : :obj:`str`
+        test-tube experiment name of alpha-based hyperparam search
+    beta_weights : :obj:`array-like`
+        array of beta weights for a fixed value of alpha
+    delta_weights : :obj:`array-like`
+        array of beta weights for a fixed value of alpha
+    beta_delta_n_ae_latents : :obj:`int`
+        latent dimensionality used for beta-delta hyperparam search
+    beta_delta_expt_name : :obj:`str`
+        test-tube experiment name of beta-delta hyperparam search
+    alpha : :obj:`float`
+        fixed value of alpha for beta-delta search
+    beta : :obj:`float`
+        fixed value of beta for alpha search
+    delta : :obj:`float`
+        fixed value of gamma for alpha search
+    save_file : :obj:`str`
+        absolute path of save file; does not need file extension
+    batch_size : :obj:`int`, optional
+        size of batches, used to compute correlation coefficient per batch; if NoneType, the
+        correlation coefficient is computed across all time points
+    format : :obj:`str`, optional
+        format of saved image; 'pdf' | 'png' | 'jpeg' | ...
+    kwargs
+        arguments are keys of `hparams`, preceded by either `alpha_` or `beta_delta_`. For example,
+        to set the train frac of the alpha models, use `alpha_train_frac`; to set the rng_data_seed
+        of the beta-delta models, use `beta_delta_rng_data_seed`.
+
+    """
+
+    # -----------------------------------------------------
+    # load pixel/label MSE as a function of n_latents/alpha
+    # -----------------------------------------------------
+
+    n_labels = len(label_names)
+
+    # set model info
+    # hparams = _get_psvae_hparams(experiment_name=alpha_expt_name)
+    hparams['experiment_name'] = alpha_expt_name
+    # update hparams
+    for key, val in kwargs.items():
+        # hparam vals should be named 'alpha_[property]', for example 'alpha_train_frac'
+        if key.split('_')[0] == 'alpha':
+            prop = key[6:]
+            hparams[prop] = val
+
+    metrics_list = ['loss_data_mse']
+
+    metrics_dfs_frame = []
+    metrics_dfs_marker = []
+    for n_latent in alpha_n_ae_latents:
+        hparams['n_ae_latents'] = n_latent + n_labels + n_background
+        hparams['expt_dir'] = get_expt_dir(hparams)
+        for alpha_ in alpha_weights:
+            hparams['ps_vae.alpha'] = alpha_
+            hparams['ps_vae.beta'] = beta
+            hparams['ps_vae.delta'] = delta
+            try:
+                _, version = experiment_exists(hparams, which_version=True)
+                version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % version)
+                print('loading results with alpha=%i, beta=%i, delta=%i (version %i)' % (
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.delta'],
+                    version))
+                # get frame mse
+                metrics_dfs_frame.append(load_metrics_csv_as_df(
+                    hparams, None, None, metrics_list, version=None, test=False,
+                    version_dir=version_dir))
+                metrics_dfs_frame[-1]['alpha'] = alpha_
+                metrics_dfs_frame[-1]['n_latents'] = hparams['n_ae_latents']
+                # get marker mse
+                hparams_new = copy.deepcopy(hparams)
+                hparams_new['n_sessions_per_bach'] = 1
+                model, data_gen = get_best_model_and_data(
+                    hparams_new, Model=None, load_data=True, version=version)
+                metrics_df_ = get_label_r2(
+                    hparams, model, data_gen, version, label_names, dtype='val')
+                metrics_df_['alpha'] = alpha_
+                metrics_df_['n_latents'] = hparams['n_ae_latents']
+                metrics_dfs_marker.append(metrics_df_[metrics_df_.Model == 'MSPS-VAE'])
+            except TypeError:
+                print('could not find model for alpha=%i, beta=%i, delta=%i' % (
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.delta']))
+                continue
+    metrics_df_frame = pd.concat(metrics_dfs_frame, sort=False)
+    metrics_df_marker = pd.concat(metrics_dfs_marker, sort=False)
+    print('done')
+
+    # -----------------------------------------------------
+    # load pixel/label MSE as a function of beta/delta
+    # -----------------------------------------------------
+    # update hparams
+    hparams['experiment_name'] = beta_delta_expt_name
+    for key, val in kwargs.items():
+        # hparam vals should be named 'beta_delta_[property]', for example 'alpha_train_frac'
+        if key.split('_')[0] == 'beta' and key.split('_')[1] == 'delta':
+            prop = key[11:]
+            hparams[prop] = val
+
+    metrics_list = ['loss_data_mse', 'loss_zu_mi', 'loss_zu_tc', 'loss_zu_dwkl', 'loss_triplet']
+
+    metrics_dfs_frame_bg = []
+    metrics_dfs_marker_bg = []
+    metrics_dfs_corr_bg = []
+    for beta in beta_weights:
+        for delta in delta_weights:
+            if delta < 50:
+                continue
+            hparams['n_ae_latents'] = beta_delta_n_ae_latents + n_labels + n_background
+            hparams['ps_vae.alpha'] = alpha
+            hparams['ps_vae.beta'] = beta
+            hparams['ps_vae.delta'] = delta
+            hparams['rng_seed_model'] = 3 if (beta == 10 and delta == 50) else 0
+            try:
+                hparams['expt_dir'] = get_expt_dir(hparams)
+                _, version = experiment_exists(hparams, which_version=True)
+                version_dir = os.path.join(hparams['expt_dir'], 'version_%i' % version)
+                print('loading results with alpha=%i, beta=%i, delta=%i (version %i)' % (
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.delta'],
+                    version))
+                # get frame mse -------------------------------------------------------------------
+                metrics_dfs_frame_bg.append(load_metrics_csv_as_df(
+                    hparams, None, None, metrics_list, version=None, test=False,
+                    version_dir=version_dir))
+                metrics_dfs_frame_bg[-1]['beta'] = beta
+                metrics_dfs_frame_bg[-1]['delta'] = delta
+                # get marker mse ------------------------------------------------------------------
+                hparams_new = copy.deepcopy(hparams)
+                hparams_new['n_sessions_per_bach'] = 1
+                model, data_gen = get_best_model_and_data(
+                    hparams_new, Model=None, load_data=True, version=version)
+                metrics_df_ = get_label_r2(
+                    hparams, model, data_gen, version, label_names, dtype='val')
+                metrics_df_['beta'] = beta
+                metrics_df_['delta'] = delta
+                metrics_dfs_marker_bg.append(metrics_df_[metrics_df_.Model == 'MSPS-VAE'])
+                # get classification accuracy -----------------------------------------------------
+                fc, _ = fit_classifier(model, data_gen, dtype='val')
+                metrics_dfs_corr_bg.append(pd.DataFrame({
+                    'loss': 'fc',
+                    'dtype': 'val',
+                    'val': fc,
+                    'beta': beta,
+                    'delta': delta}, index=[0]))
+                # get corr ------------------------------------------------------------------------
+                latents = []
+                for sess_id in sess_ids:
+                    hparams['lab'] = sess_id['lab']
+                    hparams['expt'] = sess_id['expt']
+                    hparams['animal'] = sess_id['animal']
+                    hparams['session'] = sess_id['session']
+                    latents.append(load_latents(hparams, version, dtype='train'))
+                latents = np.vstack(latents)
+                if batch_size is None:
+                    corr = np.corrcoef(latents[:, n_labels + n_background + np.array([0, 1])].T)
+                    metrics_dfs_corr_bg.append(pd.DataFrame({
+                        'loss': 'corr',
+                        'dtype': 'val',
+                        'val': np.abs(corr[0, 1]),
+                        'beta': beta,
+                        'delta': delta}, index=[0]))
+                else:
+                    n_batches = int(np.ceil(latents.shape[0] / batch_size))
+                    for i in range(n_batches):
+                        corr = np.corrcoef(
+                            latents[i * batch_size:(i + 1) * batch_size,
+                                    n_labels + n_background + np.array([0, 1])].T)
+                        metrics_dfs_corr_bg.append(pd.DataFrame({
+                            'loss': 'corr',
+                            'dtype': 'val',
+                            'val': np.abs(corr[0, 1]),
+                            'beta': beta,
+                            'delta': delta}, index=[0]))
+            except TypeError:
+                print('could not find model for alpha=%i, beta=%i, delta=%i' % (
+                    hparams['ps_vae.alpha'], hparams['ps_vae.beta'], hparams['ps_vae.delta']))
+                continue
+            print()
+    metrics_df_frame_bg = pd.concat(metrics_dfs_frame_bg, sort=False)
+    metrics_df_marker_bg = pd.concat(metrics_dfs_marker_bg, sort=False)
+    metrics_df_corr_bg = pd.concat(metrics_dfs_corr_bg, sort=False)
+    print('done')
+
+    # -----------------------------------------------------
+    # ----------------- PLOT DATA -------------------------
+    # -----------------------------------------------------
+    sns.set_style('white')
+    sns.set_context('paper', font_scale=1.2)
+
+    alpha_palette = sns.color_palette('Greens')
+    beta_palette = sns.color_palette('Reds', len(metrics_df_corr_bg.beta.unique()))
+    delta_palette = sns.color_palette('Blues', len(metrics_df_corr_bg.delta.unique()))
+
+    from matplotlib.gridspec import GridSpec
+
+    fig = plt.figure(figsize=(12, 10), dpi=300)
+
+    n_rows = 3
+    n_cols = 12
+    gs = GridSpec(n_rows, n_cols, figure=fig)
+
+    def despine(ax):
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+    sns.set_palette(alpha_palette)
+
+    # --------------------------------------------------
+    # MSE per pixel
+    # --------------------------------------------------
+    ax_pixel_mse_alpha = fig.add_subplot(gs[0, 0:3])
+    data_queried = metrics_df_frame[
+        (metrics_df_frame.dtype == 'val') &
+        (metrics_df_frame.epoch == metrics_df_frame.epoch.max())]
+    sns.barplot(x='n_latents', y='val', hue='alpha', data=data_queried, ax=ax_pixel_mse_alpha)
+    ax_pixel_mse_alpha.legend().set_visible(False)
+    ax_pixel_mse_alpha.set_xlabel('Latent dimension')
+    ax_pixel_mse_alpha.set_ylabel('MSE per pixel')
+    ax_pixel_mse_alpha.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
+    ax_pixel_mse_alpha.set_title('Beta=%i, Delta=%i' % (beta, delta))
+    despine(ax_pixel_mse_alpha)
+
+    # --------------------------------------------------
+    # MSE per marker
+    # --------------------------------------------------
+    ax_marker_mse_alpha = fig.add_subplot(gs[0, 3:6])
+    data_queried = metrics_df_marker
+    sns.barplot(x='n_latents', y='MSE', hue='alpha', data=data_queried, ax=ax_marker_mse_alpha)
+    ax_marker_mse_alpha.set_xlabel('Latent dimension')
+    ax_marker_mse_alpha.set_ylabel('MSE per marker')
+    ax_marker_mse_alpha.set_title('Beta=%i, Delta=%i' % (beta, delta))
+    ax_marker_mse_alpha.legend(frameon=True, title='Alpha')
+    despine(ax_marker_mse_alpha)
+
+    sns.set_palette(delta_palette)
+
+    # --------------------------------------------------
+    # MSE per pixel (beta/delta)
+    # --------------------------------------------------
+    ax_pixel_mse_bg = fig.add_subplot(gs[0, 6:9])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'val') &
+        (metrics_df_frame_bg.loss == 'loss_data_mse') &
+        (metrics_df_frame_bg.epoch == 200)]
+    sns.barplot(x='beta', y='val', hue='delta', data=data_queried, ax=ax_pixel_mse_bg)
+    ax_pixel_mse_bg.legend().set_visible(False)
+    ax_pixel_mse_bg.set_xlabel('Beta')
+    ax_pixel_mse_bg.set_ylabel('MSE per pixel')
+    ax_pixel_mse_bg.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
+    ax_pixel_mse_bg.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_pixel_mse_bg)
+
+    # --------------------------------------------------
+    # MSE per marker (beta/delta)
+    # --------------------------------------------------
+    ax_marker_mse_bg = fig.add_subplot(gs[0, 9:12])
+    data_queried = metrics_df_marker_bg
+    sns.barplot(x='beta', y='MSE', hue='delta', data=data_queried, ax=ax_marker_mse_bg)
+    ax_marker_mse_bg.set_xlabel('Beta')
+    ax_marker_mse_bg.set_ylabel('MSE per marker')
+    ax_marker_mse_bg.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    ax_marker_mse_bg.legend(frameon=True, title='Delta', loc='lower left')
+    despine(ax_marker_mse_bg)
+
+    # --------------------------------------------------
+    # ICMI
+    # --------------------------------------------------
+    ax_icmi = fig.add_subplot(gs[1, 0:4])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'val') &
+        (metrics_df_frame_bg.loss == 'loss_zu_mi') &
+        (metrics_df_frame_bg.epoch == 200)]
+    sns.lineplot(
+        x='beta', y='val', hue='delta', data=data_queried, ax=ax_icmi, ci=None,
+        palette=delta_palette)
+    ax_icmi.legend().set_visible(False)
+    ax_icmi.set_xlabel('Beta')
+    ax_icmi.set_ylabel('Index-code Mutual Information')
+    ax_icmi.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_icmi)
+
+    # --------------------------------------------------
+    # TC
+    # --------------------------------------------------
+    ax_tc = fig.add_subplot(gs[1, 4:8])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'val') &
+        (metrics_df_frame_bg.loss == 'loss_zu_tc') &
+        (metrics_df_frame_bg.epoch == 200)]
+    sns.lineplot(
+        x='beta', y='val', hue='delta', data=data_queried, ax=ax_tc, ci=None,
+        palette=delta_palette)
+    ax_tc.legend().set_visible(False)
+    ax_tc.set_xlabel('Beta')
+    ax_tc.set_ylabel('Total Correlation')
+    ax_tc.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_tc)
+
+    # --------------------------------------------------
+    # DWKL
+    # --------------------------------------------------
+    ax_dwkl = fig.add_subplot(gs[1, 8:12])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'val') &
+        (metrics_df_frame_bg.loss == 'loss_zu_dwkl') &
+        (metrics_df_frame_bg.epoch == 200)]
+    sns.lineplot(
+        x='beta', y='val', hue='delta', data=data_queried, ax=ax_dwkl, ci=None,
+        palette=delta_palette)
+    ax_dwkl.legend().set_visible(False)
+    ax_dwkl.set_xlabel('Beta')
+    ax_dwkl.set_ylabel('Dimension-wise KL')
+    ax_dwkl.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_dwkl)
+
+    # --------------------------------------------------
+    # CC
+    # --------------------------------------------------
+    ax_cc = fig.add_subplot(gs[2, 0:4])
+    data_queried = metrics_df_corr_bg[metrics_df_corr_bg.loss == 'corr']
+    sns.lineplot(
+        x='beta', y='val', hue='delta', data=data_queried, ax=ax_cc, ci=None,
+        palette=delta_palette)
+    ax_cc.legend().set_visible(False)
+    ax_cc.set_xlabel('Beta')
+    ax_cc.set_ylabel('Correlation Coefficient')
+    ax_cc.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_cc)
+
+    # --------------------------------------------------
+    # session classification
+    # --------------------------------------------------
+    ax_fc = fig.add_subplot(gs[2, 4:8])
+    data_queried = metrics_df_corr_bg[metrics_df_corr_bg.loss == 'fc']
+    sns.lineplot(
+        x='beta', y='val', hue='delta', data=data_queried, ax=ax_fc, ci=None,
+        palette=delta_palette)
+    ax_fc.legend().set_visible(False)
+    ax_fc.set_xlabel('Beta')
+    ax_fc.set_ylabel('Session Classification')
+    ax_fc.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_fc)
+
+    # --------------------------------------------------
+    # triplet loss
+    # --------------------------------------------------
+    ax_orth = fig.add_subplot(gs[2, 8:12])
+    data_queried = metrics_df_frame_bg[
+        (metrics_df_frame_bg.dtype == 'train') &
+        (metrics_df_frame_bg.loss == 'loss_triplet') &
+        (metrics_df_frame_bg.epoch == 200) &
+        ~metrics_df_frame_bg.val.isna()]
+    sns.lineplot(
+        x='delta', y='val', hue='beta', data=data_queried, ax=ax_orth, ci=None,
+        palette=beta_palette)
+    ax_orth.legend(frameon=False, title='Beta')
+    ax_orth.set_xlabel('Delta')
+    ax_orth.set_ylabel('Triplet loss')
+    ax_orth.set_title('Latents=%i, Alpha=%i' % (hparams['n_ae_latents'], alpha))
+    despine(ax_orth)
+
+    plt.tight_layout(h_pad=3)  # h_pad is fraction of font size
+
+    # reset to default color palette
+    # sns.set_palette(sns.color_palette(None, 10))
+    sns.reset_orig()
+
+    if save_file is not None:
+        make_dir_if_not_exists(save_file)
+        plt.savefig(save_file + '.' + format, dpi=300, format=format)
+
+
+def make_session_swap_movie(
+        sess_ids, hparams, version, n_labels, n_background, sess_idx, trials, trial_idxs=None,
+        n_buffer_frames=5, frame_rate=15, layout_pattern=None, save_file=None, **kwargs):
+    """Create a multipanel movie, each panel showing reconstruction with different session context.
+
+    TODO
+
+    Parameters
+    ----------
+    sess_ids : :obj:`list` of `dicts`
+    hparams
+    version
+    n_labels : :obj:`int`
+        dimensionality of supervised latent space (ignored when using fully unsupervised models)
+    n_background : :obj:`int`
+    sess_idx : :obj:`int`
+        session index into data generator
+    trials : :obj:`array-like` of :obj:`int`
+        trials of base frame used for interpolation; if an entry is an integer, the
+        corresponding entry in `trial_idxs` must be `None`. This value is a trial index into all
+        possible trials (train, val, test), whereas `trial_idxs` is an index only into test trials
+    trial_idxs : :obj:`list`, optional
+        list of test trials to construct videos from; if :obj:`NoneType`, use first test
+        trial
+    n_buffer_frames : :obj:`int`, optional
+        number of blank frames to insert between base frames
+    frame_rate
+    layout_pattern : :obj:`np.ndarray`
+        boolean array that determines where reconstructed frames are placed in a grid
+    save_file : :obj:`str`, optional
+        absolute path of save file; does not need file extension, will automatically be saved as
+        mp4. To save as a gif, include the '.gif' file extension in `save_file`
+    kwargs
+        arguments are keys of `hparams`, for example to set `train_frac`, `rng_seed_model`, etc.
+
+    """
+
+    from behavenet.plotting.ae_utils import make_reconstruction_movie
+
+    panel_titles = ['Original'] + ['Transfer %i' % i for i in range(len(sess_ids) - 1)]
+
+    # load standard data generator
+    hp = copy.deepcopy(hparams)
+    hp['n_sessions_per_batch'] = 1
+    model_ae, data_generator = get_best_model_and_data(hp, Model=None, version=version)
+
+    # get latent/label info
+    background_idxs = np.arange(n_labels, n_labels + n_background)
+    background_medians = []
+    for s in range(len(sess_ids)):
+        latent_range = get_input_range(
+            'latents', hp, sess_ids=sess_ids, sess_idx=s, model=model_ae,
+            data_gen=data_generator, min_p=15, max_p=85, version=version,
+            apply_label_masks=True)
+        background_medians.append(latent_range['med'][background_idxs])
+
+    if trial_idxs is None:
+        trial_idxs = [None] * len(trials)
+    if trials is None:
+        trials = [None] * len(trial_idxs)
+
+    ims_recon = [[] for _ in panel_titles]
+
+    for trial_idx, trial in zip(trial_idxs, trials):
+
+        # get model inputs
+        ims_orig_pt, ims_orig_np, latents_np, labels_pt, _, labels_2d_pt, _ = get_model_input(
+            data_generator, hp, model_ae, trial_idx=trial_idx, trial=trial,
+            sess_idx=sess_idx, max_frames=400, compute_latents=True,
+            compute_2d_labels=False)
+
+        for s in range(len(sess_ids)):
+
+            # get model outputs
+            # if s == sess_idx:
+            #     # get normal reconstruction
+            #     ims_recon_tmp = get_reconstruction(
+            #         model_ae, ims_orig_pt, labels=labels_pt, labels_2d=labels_2d_pt,
+            #         dataset=sess_idx)
+            # else:
+            # swap out context latents
+            latents_np[:, background_idxs] = background_medians[s]
+            ims_recon_tmp = get_reconstruction(
+                model_ae, latents_np, apply_inverse_transform=False)
+            ims_recon[s].append(ims_recon_tmp)
+
+            # add a couple black frames to separate trials
+            final_trial = True
+            if (trial_idx is not None and (trial_idx != trial_idxs[-1])) or \
+                    (trial is not None and (trial != trials[-1])):
+                final_trial = False
+
+            if not final_trial:
+                _, n, y_p, x_p = ims_recon[s][-1].shape
+                ims_recon[s].append(np.zeros((n_buffer_frames, n, y_p, x_p)))
+
+    # concatenate everything along time dimension
+    for i, ims in enumerate(ims_recon):
+        ims_recon[i] = np.concatenate(ims, axis=0)
+
+    # put original session in first position
+    if sess_idx != 0:
+        ims_recon[0], ims_recon[sess_idx] = ims_recon[sess_idx], ims_recon[0]
+
+    if layout_pattern is None:
+        if len(panel_titles) < 4:
+            n_rows, n_cols = 1, len(panel_titles)
+        elif len(panel_titles) == 4:
+            n_rows, n_cols = 2, 2
+        elif len(panel_titles) > 4:
+            n_rows, n_cols = 2, 3
+        else:
+            raise ValueError('too many sessions')
+    else:
+        assert np.sum(layout_pattern) == len(ims_recon)
+        n_rows, n_cols = layout_pattern.shape
+        count = 0
+        for pos_r in layout_pattern:
+            for pos_c in pos_r:
+                if not pos_c:
+                    ims_recon.insert(count, [])
+                    panel_titles.insert(count, [])
+                count += 1
+
+    make_reconstruction_movie(
+        ims=ims_recon, titles=panel_titles, n_rows=n_rows, n_cols=n_cols,
+        save_file=save_file, frame_rate=frame_rate)
