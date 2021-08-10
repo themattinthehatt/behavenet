@@ -222,5 +222,3 @@ def save_movie(save_file, ani, frame_rate=15):
             print('saving video to %s...' % save_file, end='')
             ani.save(save_file, writer=writer)
             print('done')
-
-
