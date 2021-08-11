@@ -437,6 +437,7 @@ def triplet_loss(triplet_loss_obj, z, datasets):
             triplet_loss_obj(z[b_idxs[0]], z[b_idxs[1]], z[a_idxs[2]]) + \
             torch.pairwise_distance(z[a_idxs[0]], z[a_idxs[1]]).mean() + \
             torch.pairwise_distance(z[b_idxs[0]], z[b_idxs[1]]).mean()
+        n_loss_terms = 3  # legacy error for now
     elif n_datasets == 3:
         # randomly split dataset into 6 chunks
         n_chunks = 6
@@ -445,9 +446,9 @@ def triplet_loss(triplet_loss_obj, z, datasets):
         c_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[2])[0])
         # make sure all chunks are same length
         m = np.min([len(a_idxs_) // n_chunks, len(b_idxs_) // n_chunks, len(c_idxs_) // n_chunks])
-        a_idxs = [a_idxs_[i:m:n_chunks][:m] for i in range(n_chunks)]
-        b_idxs = [b_idxs_[i:m:n_chunks][:m] for i in range(n_chunks)]
-        c_idxs = [c_idxs_[i:m:n_chunks][:m] for i in range(n_chunks)]
+        a_idxs = [a_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        b_idxs = [b_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        c_idxs = [c_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
         loss = \
             triplet_loss_obj(z[a_idxs[0]], z[a_idxs[1]], z[b_idxs[4]]) + \
             triplet_loss_obj(z[a_idxs[2]], z[a_idxs[3]], z[c_idxs[4]]) + \
@@ -461,7 +462,49 @@ def triplet_loss(triplet_loss_obj, z, datasets):
             torch.pairwise_distance(z[b_idxs[2]], z[b_idxs[3]]).mean() + \
             torch.pairwise_distance(z[c_idxs[0]], z[c_idxs[1]]).mean() + \
             torch.pairwise_distance(z[c_idxs[2]], z[c_idxs[3]]).mean()
+        n_loss_terms = 6
+    elif n_datasets == 4:
+        # randomly split dataset into 9 chunks
+        n_chunks = 9
+        a_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[0])[0])
+        b_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[1])[0])
+        c_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[2])[0])
+        d_idxs_ = np.random.permutation(np.where(datasets == dataset_ids[3])[0])
+        # make sure all chunks are same length
+        m = np.min([
+            len(a_idxs_) // n_chunks, len(b_idxs_) // n_chunks, len(c_idxs_) // n_chunks,
+            len(d_idxs_) // n_chunks])
+        a_idxs = [a_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        b_idxs = [b_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        c_idxs = [c_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        d_idxs = [d_idxs_[i::n_chunks][:m] for i in range(n_chunks)]
+        loss = \
+            triplet_loss_obj(z[a_idxs[0]], z[a_idxs[1]], z[b_idxs[6]]) + \
+            triplet_loss_obj(z[a_idxs[2]], z[a_idxs[3]], z[c_idxs[6]]) + \
+            triplet_loss_obj(z[a_idxs[4]], z[a_idxs[5]], z[d_idxs[6]]) + \
+            triplet_loss_obj(z[b_idxs[0]], z[b_idxs[1]], z[a_idxs[6]]) + \
+            triplet_loss_obj(z[b_idxs[2]], z[b_idxs[3]], z[c_idxs[7]]) + \
+            triplet_loss_obj(z[b_idxs[4]], z[b_idxs[5]], z[d_idxs[7]]) + \
+            triplet_loss_obj(z[c_idxs[0]], z[c_idxs[1]], z[a_idxs[7]]) + \
+            triplet_loss_obj(z[c_idxs[2]], z[c_idxs[3]], z[b_idxs[7]]) + \
+            triplet_loss_obj(z[c_idxs[4]], z[c_idxs[5]], z[d_idxs[8]]) + \
+            triplet_loss_obj(z[d_idxs[0]], z[d_idxs[1]], z[a_idxs[8]]) + \
+            triplet_loss_obj(z[d_idxs[2]], z[d_idxs[3]], z[b_idxs[8]]) + \
+            triplet_loss_obj(z[d_idxs[4]], z[d_idxs[5]], z[c_idxs[8]]) + \
+            torch.pairwise_distance(z[a_idxs[0]], z[a_idxs[1]]).mean() + \
+            torch.pairwise_distance(z[a_idxs[2]], z[a_idxs[3]]).mean() + \
+            torch.pairwise_distance(z[a_idxs[4]], z[a_idxs[5]]).mean() + \
+            torch.pairwise_distance(z[b_idxs[0]], z[b_idxs[1]]).mean() + \
+            torch.pairwise_distance(z[b_idxs[2]], z[b_idxs[3]]).mean() + \
+            torch.pairwise_distance(z[b_idxs[4]], z[b_idxs[5]]).mean() + \
+            torch.pairwise_distance(z[c_idxs[0]], z[c_idxs[1]]).mean() + \
+            torch.pairwise_distance(z[c_idxs[2]], z[c_idxs[3]]).mean() + \
+            torch.pairwise_distance(z[c_idxs[4]], z[c_idxs[5]]).mean() + \
+            torch.pairwise_distance(z[d_idxs[0]], z[d_idxs[1]]).mean() + \
+            torch.pairwise_distance(z[d_idxs[2]], z[d_idxs[3]]).mean() + \
+            torch.pairwise_distance(z[d_idxs[4]], z[d_idxs[5]]).mean()
+        n_loss_terms = 12
     else:
         raise NotImplementedError
 
-    return loss / n_chunks
+    return loss / n_loss_terms
