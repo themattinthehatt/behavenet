@@ -8,7 +8,8 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 # to ignore imports for sphix-autoapidoc
 __all__ = [
     'mse', 'gaussian_ll', 'gaussian_ll_to_mse', 'kl_div_to_std_normal', 'index_code_mi',
-    'total_correlation', 'dimension_wise_kl_to_std_normal', 'decomposed_kl', 'subspace_overlap']
+    'total_correlation', 'dimension_wise_kl_to_std_normal', 'decomposed_kl', 'subspace_overlap',
+    'triplet_loss']
 
 LN2PI = np.log(2 * np.pi)
 
