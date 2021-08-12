@@ -684,7 +684,7 @@ class ConcatSessionsGeneratorMulti(ConcatSessionsGenerator):
 
         """
 
-        if n_sessions_per_batch > 3:
+        if n_sessions_per_batch > 4:
             # requires more implementation in behavenet.fitting.losses.triplet_loss()
             raise NotImplementedError
         self.n_sessions_per_batch = n_sessions_per_batch
