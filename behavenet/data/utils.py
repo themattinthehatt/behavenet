@@ -630,6 +630,7 @@ def load_labels_like_latents(hparams, sess_ids, sess_idx, data_key='labels'):
     hparams_new['device'] = 'cpu'
     hparams_new['as_numpy'] = True
     hparams_new['batch_load'] = False
+    hparams_new['n_sessions_per_batch'] = 1
 
     data_generator = build_data_generator(hparams_new, sess_ids, export_csv=False)
     dtypes = data_generator._dtypes
