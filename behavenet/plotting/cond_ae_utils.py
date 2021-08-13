@@ -1203,6 +1203,9 @@ def _get_psvae_hparams(**kwargs):
         'trial_splits': '8;1;1;0',
         'train_frac': 1.0,
         'rng_seed_model': 0,
+        'device': 'cpu',
+        'as_numpy': False,
+        'batch_load': True,
         'fit_sess_io_layers': False,
         'learning_rate': 1e-4,
         'l2_reg': 0,
@@ -2194,9 +2197,9 @@ def plot_latent_traversals(
 def make_latent_traversal_movie(
         lab, expt, animal, session, model_class, alpha, beta, n_ae_latents,
         rng_seed_model, experiment_name, n_labels, trial_idxs, batch_idxs, trials, hparams=None,
-        label_min_p=5, label_max_p=95, channel=0, sess_idx=0, sess_ids=None, n_frames=10,
-        n_buffer_frames=5, crop_kwargs=None, n_cols=3, movie_kwargs={}, panel_titles=None,
-        order_idxs=None, split_movies=False, save_file=None, **kwargs):
+        label_min_p=5, label_max_p=95, channel=0, sess_idx=0, sess_ids=None, force_sess_ids=False,
+        n_frames=10, n_buffer_frames=5, crop_kwargs=None, n_cols=3, movie_kwargs={},
+        panel_titles=None, order_idxs=None, split_movies=False, save_file=None, **kwargs):
     """Create a multi-panel movie with each panel showing traversals of an individual latent dim.
 
     The traversals will start at a lower bound, increase to an upper bound, then return to a lower
@@ -2256,6 +2259,10 @@ def make_latent_traversal_movie(
     sess_ids : :obj:`list`, optional
         each entry is a session dict with keys 'lab', 'expt', 'animal', 'session'; for loading
         labels and labels_sc
+    force_sess_ids : :obj:`bool`, optional
+        True to force the creation of a new data generator based on the provided sess_ids, rather
+        than the default associated with the model; necessary for performing latent traversals on
+        sessions that were not used for training
     n_frames : :obj:`int`, optional
         number of frames (points) to display for traversal across latent dimensions; the movie
         will display a traversal of `n_frames` across each dim, then another traversal of
@@ -2303,7 +2310,13 @@ def make_latent_traversal_movie(
         hparams['expt_dir'] = get_expt_dir(hparams)
 
     _, version = experiment_exists(hparams, which_version=True)
-    model_ae, data_generator = get_best_model_and_data(hparams, Model=None, version=version)
+
+    # load model and data
+    if force_sess_ids:
+        model_ae, _ = get_best_model_and_data(hparams, version=version, load_data=False)
+        data_generator = build_data_generator(hparams, sess_ids, export_csv=False)
+    else:
+        model_ae, data_generator = get_best_model_and_data(hparams, version=version)
 
     # temporarily set n_sessions_per_batch to 1 for msps; reset at end of function
     n_sessions_per_batch = hparams.get('n_sessions_per_batch', 1)
