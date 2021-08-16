@@ -231,7 +231,8 @@ def get_labels_2d_for_trial(
 
 def get_model_input(
         data_generator, hparams, model, trial=None, trial_idx=None, sess_idx=0, max_frames=200,
-        compute_latents=False, compute_2d_labels=True, compute_scaled_labels=False, dtype='test'):
+        compute_latents=False, compute_2d_labels=True, compute_scaled_labels=False,
+        mask_labels=False, dtype='test'):
     """Return images, latents, and labels for a given trial.
 
     Parameters
@@ -260,6 +261,8 @@ def get_model_input(
         ignored if `compute_2d_labels` is `True`; if `compute_scaled_labels=True`, return scaled
         labels as shape (batch, n_labels) rather than 2d labels as shape
         (batch, n_labels, y_pix, x_pix).
+    mask_labels : :obj:`bool`, optional
+        True to return numpy labels where nan values indicate masked time points
     dtype : :obj:`str`, optional
         data type that is indexed by `trial_idx`; 'train' | 'val' | 'test'
 
@@ -301,6 +304,9 @@ def get_model_input(
             or hparams['model_class'] == 'labels-images':
         labels_pt = batch['labels'][:max_frames]
         labels_np = labels_pt.cpu().detach().numpy()
+        if mask_labels and 'labels_masks' in batch.keys():
+            masks_np = batch['labels_masks'][:max_frames].cpu().detach().numpy()
+            labels_np[masks_np == 0] = np.nan
     else:
         raise NotImplementedError
 

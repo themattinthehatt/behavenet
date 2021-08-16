@@ -309,6 +309,9 @@ def get_data_generator_inputs(hparams, sess_ids, check_splits=True):
                 signals.append('masks')
                 transforms.append(None)
                 paths.append(os.path.join(data_dir, 'data.hdf5'))
+            # signals.append('labels_masks')
+            # transforms.append(None)
+            # paths.append(os.path.join(data_dir, 'data.hdf5'))
 
         elif hparams['model_class'] == 'labels' or hparams['model_class'] == 'labels_sc':
 
