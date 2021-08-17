@@ -2014,8 +2014,8 @@ def plot_latent_traversals(
     plot_func_label = plot_1d_frame_array
     save_file_new = save_file + '_label-traversals'
 
-    if model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'ps-vae' or \
-            model_class == 'cond-vae':
+    if (model_class == 'cond-ae' or model_class == 'cond-ae-msp' or model_class == 'ps-vae' or \
+            model_class == 'cond-vae') and len(label_idxs) > 0:
 
         # get model input for this trial
         ims_pt, ims_np, latents_np, labels_pt, labels_np, labels_2d_pt, labels_2d_np = \

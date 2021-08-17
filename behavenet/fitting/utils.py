@@ -995,6 +995,7 @@ def get_best_model_and_data(hparams, Model=None, load_data=True, version='best',
     hparams_new['session_dir'] = hparams['session_dir']
     hparams_new['expt_dir'] = expt_dir
     hparams_new['use_output_mask'] = hparams.get('use_output_mask', False)
+    hparams_new['use_label_mask'] = hparams.get('use_label_mask', False)
     hparams_new['device'] = hparams.get('device', 'cpu')
 
     # build data generator
