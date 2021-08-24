@@ -75,36 +75,69 @@ def get_input_range(
     """
     if input_type == 'latents':
         # load latents
-        latent_file = str('%s_%s_%s_%s_latents.pkl' % (
-            hparams['lab'], hparams['expt'], hparams['animal'], hparams['session']))
-        filename = os.path.join(
-            hparams['expt_dir'], 'version_%i' % version, latent_file)
-        if not os.path.exists(filename):
-            from behavenet.fitting.eval import export_latents
-            print('latents file not found at %s' % filename)
-            print('exporting latents...', end='')
-            filenames = export_latents(data_gen, model)
-            filename = filenames[0]
-            print('done')
-        latents = pickle.load(open(filename, 'rb'))
-        inputs = latents['latents']
+        if isinstance(sess_idx, list) or isinstance(sess_idx, np.ndarray):
+            inputs = []
+            for s_idx in sess_idx:
+                latent_file = str('%s_%s_%s_%s_latents.pkl' % (
+                    sess_ids[s_idx]['lab'], sess_ids[s_idx]['expt'],
+                    sess_ids[s_idx]['animal'], sess_ids[s_idx]['session']))
+                filename = os.path.join(
+                    hparams['expt_dir'], 'version_%i' % version, latent_file)
+                latents = pickle.load(open(filename, 'rb'))
+                inputs += latents['latents']
+        else:
+            if sess_ids is not None and sess_idx is not None:
+                latent_file = str('%s_%s_%s_%s_latents.pkl' % (
+                    sess_ids[sess_idx]['lab'], sess_ids[sess_idx]['expt'],
+                    sess_ids[sess_idx]['animal'], sess_ids[sess_idx]['session']))
+            else:
+                latent_file = str('%s_%s_%s_%s_latents.pkl' % (
+                    hparams['lab'], hparams['expt'], hparams['animal'], hparams['session']))
+            filename = os.path.join(
+                hparams['expt_dir'], 'version_%i' % version, latent_file)
+            if not os.path.exists(filename):
+                from behavenet.fitting.eval import export_latents
+                print('latents file not found at %s' % filename)
+                print('exporting latents...', end='')
+                filenames = export_latents(data_gen, model)
+                filename = filenames[0]
+                print('done')
+            latents = pickle.load(open(filename, 'rb'))
+            inputs = latents['latents']
     elif input_type == 'labels':
-        labels = load_labels_like_latents(hparams, sess_ids, sess_idx=sess_idx)
-        inputs = labels['latents']
+        if not isinstance(sess_idx, list) and not isinstance(sess_idx, np.ndarray):
+            sess_idx = [sess_idx]
+        inputs = []
+        for s_idx in sess_idx:
+            labels = load_labels_like_latents(hparams, sess_ids, sess_idx=s_idx)
+            inputs += labels['latents']
     elif input_type == 'labels_sc':
+        if not isinstance(sess_idx, list) and not isinstance(sess_idx, np.ndarray):
+            sess_idx = [sess_idx]
+        inputs = []
         hparams2 = copy.deepcopy(hparams)
         hparams2['conditional_encoder'] = True  # to actually return labels
-        labels_sc = load_labels_like_latents(
-            hparams2, sess_ids, sess_idx=sess_idx, data_key='labels_sc')
-        inputs = labels_sc['latents']
+        for s_idx in sess_idx:
+            labels_sc = load_labels_like_latents(
+                hparams2, sess_ids, sess_idx=s_idx, data_key='labels_sc')
+            inputs += labels_sc['latents']
     else:
         raise NotImplementedError
 
     if apply_label_masks:
-        masks = load_labels_like_latents(
-            hparams, sess_ids, sess_idx=sess_idx, data_key='labels_masks')
-        for i, m in zip(inputs, masks):
-            i[m == 0] = np.nan
+        if not isinstance(sess_idx, list) and not isinstance(sess_idx, np.ndarray):
+            sess_idx = [sess_idx]
+        masks = []
+        for s_idx in sess_idx:
+            try:
+                masks += load_labels_like_latents(
+                    hparams, sess_ids, sess_idx=s_idx, data_key='labels_masks')['latents']
+            except KeyError:
+                print('no label masks!')
+                break
+        if len(masks) > 0:
+            for i, m in zip(inputs, masks):
+                i[m == 0] = np.nan
 
     input_range = compute_range(inputs, min_p=min_p, max_p=max_p)
     return input_range
