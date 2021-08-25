@@ -1680,8 +1680,7 @@ def plot_hyperparameter_search_results(
     ax_pixel_mse_bg = fig.add_subplot(gs[0, 6:9])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
-        (metrics_df_frame_bg.loss == 'loss_data_mse') &
-        (metrics_df_frame_bg.epoch == 200)]
+        (metrics_df_frame_bg.loss == 'loss_data_mse')]
     sns.barplot(x='beta', y='val', hue='gamma', data=data_queried, ax=ax_pixel_mse_bg)
     ax_pixel_mse_bg.legend().set_visible(False)
     ax_pixel_mse_bg.set_xlabel('Beta')
@@ -1708,8 +1707,7 @@ def plot_hyperparameter_search_results(
     ax_icmi = fig.add_subplot(gs[1, 0:4])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
-        (metrics_df_frame_bg.loss == 'loss_zu_mi') &
-        (metrics_df_frame_bg.epoch == 200)]
+        (metrics_df_frame_bg.loss == 'loss_zu_mi')]
     sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_icmi, ci=None,
         palette=gamma_palette)
@@ -1725,8 +1723,7 @@ def plot_hyperparameter_search_results(
     ax_tc = fig.add_subplot(gs[1, 4:8])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
-        (metrics_df_frame_bg.loss == 'loss_zu_tc') &
-        (metrics_df_frame_bg.epoch == 200)]
+        (metrics_df_frame_bg.loss == 'loss_zu_tc')]
     sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_tc, ci=None,
         palette=gamma_palette)
@@ -1742,8 +1739,7 @@ def plot_hyperparameter_search_results(
     ax_dwkl = fig.add_subplot(gs[1, 8:12])
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
-        (metrics_df_frame_bg.loss == 'loss_zu_dwkl') &
-        (metrics_df_frame_bg.epoch == 200)]
+        (metrics_df_frame_bg.loss == 'loss_zu_dwkl')]
     sns.lineplot(
         x='beta', y='val', hue='gamma', data=data_queried, ax=ax_dwkl, ci=None,
         palette=gamma_palette)
@@ -1774,7 +1770,6 @@ def plot_hyperparameter_search_results(
     data_queried = metrics_df_frame_bg[
         (metrics_df_frame_bg.dtype == 'test') &
         (metrics_df_frame_bg.loss == 'loss_AB_orth') &
-        (metrics_df_frame_bg.epoch == 200) &
         ~metrics_df_frame_bg.val.isna()]
     sns.lineplot(
         x='gamma', y='val', hue='beta', data=data_queried, ax=ax_orth, ci=None,
