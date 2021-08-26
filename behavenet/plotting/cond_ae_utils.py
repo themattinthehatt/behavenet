@@ -126,7 +126,7 @@ def get_input_range(
     else:
         raise NotImplementedError
 
-    if apply_label_masks:
+    if apply_label_masks and input_type == 'labels':
         if not isinstance(sess_idx, list) and not isinstance(sess_idx, np.ndarray):
             sess_idx = [sess_idx]
         masks = []
