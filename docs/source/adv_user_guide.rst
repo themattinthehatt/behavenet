@@ -10,3 +10,4 @@ Advanced user guide
    adv_user_guide.load_model
    adv_user_guide.multisession
    adv_user_guide.psvae_hparam_search
+   adv_user_guide.mspsvae_hparam_search

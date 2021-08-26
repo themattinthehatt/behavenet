@@ -1,3 +1,5 @@
+.. _multisession:
+
 Training a model with multiple datasets
 =======================================
 
