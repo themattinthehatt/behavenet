@@ -147,4 +147,6 @@ The ``ps_vae.alpha`` and ``ps_vae.beta`` parameters need to be tuned for
 each dataset. See the guidelines for setting these parameters :ref:`here<psvae_hparams>`.
 
 Then to fit the model, use the ``ae_grid_search.py`` function using this updated model json. All
-other input jsons remain unchanged.
+other input jsons remain unchanged. See the :ref:`hyperparameter search guide<psvae_hparams>` for
+information on how to efficiently search over the ``ps_vae.alpha`` and ``ps_vae.beta``
+hyperparameters.

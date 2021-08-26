@@ -111,6 +111,7 @@ All models:
     * 'cond-vae': conditional variational autoencoder
     * 'cond-ae-msp': autoencoder with matrix subspace projection loss
     * 'ps-vae': partitioned subspace variational autoencoder
+    * 'msps-vae': multi-session partitioned subspace variational autoencoder
     * 'hmm': hidden Markov model
     * 'arhmm': autoregressive hidden Markov model
     * 'neural-ae': decode AE latents from neural activity
@@ -145,9 +146,13 @@ In addition to the autoencoder parameters defined above,
 * **vae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase VAE beta
 * **beta_tcvae.beta** (*float*) weight on total correlation term in Beta TC-VAE ELBO
 * **beta_tcvae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase Beta TC-VAE beta
-* **ps_vae.alpha** (*float*) weight on label reconstruction term in PS-VAE ELBO
-* **ps_vae.beta** (*float*) weight on unsupervised disentangling term in PS-VAE ELBO
-* **ps_vae.beta_anneal_epochs** (*int*): number of epochs over which to linearly increase PS-VAE beta
+* **ps_vae.alpha** (*float*) weight on label reconstruction term in (MS)PS-VAE ELBO
+* **ps_vae.beta** (*float*) weight on unsupervised disentangling term in (MS)PS-VAE ELBO
+* **ps_vae.delta** (*float*): weight on triplet loss for the background subspace of the MSPS-VAE
+* **ps_vae.anneal_epochs** (*int*): number of epochs over which to linearly increase (MS)PS-VAE beta
+* **n_background** (*int*): dimensionality of background subspace in the MSPS-VAE
+* **n_sessions_per_batch** (*int*): number of sessions to use for a single batch when training the MSPS-VAE (triplet loss needs data from multiple sessions)
+
 
 Conditional autoencoders
 ------------------------

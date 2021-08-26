@@ -29,10 +29,11 @@ from behavenet.plotting import save_movie
 __all__ = [
     'get_input_range', 'compute_range', 'get_labels_2d_for_trial', 'get_model_input',
     'interpolate_2d', 'interpolate_1d', 'interpolate_point_path', 'plot_2d_frame_array',
-    'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel',
+    'plot_1d_frame_array', 'make_interpolated', 'make_interpolated_multipanel', 'fit_classifier',
     'plot_psvae_training_curves', 'plot_hyperparameter_search_results',
     'plot_label_reconstructions', 'plot_latent_traversals', 'make_latent_traversal_movie',
-    'plot_mspsvae_training_curves', 'plot_mspsvae_hyperparameter_search_results']
+    'plot_mspsvae_training_curves', 'plot_mspsvae_hyperparameter_search_results',
+    'make_session_swap_movie']
 
 
 # ----------------------------------------
