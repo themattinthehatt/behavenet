@@ -56,6 +56,7 @@ MODELS_TO_FIT = [  # ['model_file']_grid_search
     {'model_class': 'cond-ae-msp', 'model_file': 'ae', 'sessions': SESSIONS[0]},
     {'model_class': 'cond-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
     {'model_class': 'ps-vae', 'model_file': 'ae', 'sessions': SESSIONS[0]},
+    {'model_class': 'msps-vae', 'model_file': 'ae', 'sessions': 'all'},
     {'model_class': 'labels-images', 'model_file': 'label_decoder', 'sessions': SESSIONS[0]},
 ]
 
@@ -123,6 +124,7 @@ def get_model_config_files(model, json_dir):
             or model == 'beta-tcvae' \
             or model == 'cond-ae-msp' \
             or model == 'ps-vae' \
+            or model == 'msps-vae' \
             or model == 'labels-images' \
             or model == 'arhmm':
         if model != 'arhmm':
@@ -188,7 +190,8 @@ def define_new_config_values(model, session='sess-0'):
     transitions = 'stationary'
     noise_type = 'gaussian'
 
-    if model == 'ae' or model == 'vae' or model == 'beta-tcvae' or model == 'ps-vae':
+    if model == 'ae' or model == 'vae' or model == 'beta-tcvae' or model == 'ps-vae' \
+            or model == 'msps-vae':
         new_values = {
             'data': data_dict,
             'model': {
@@ -196,6 +199,7 @@ def define_new_config_values(model, session='sess-0'):
                 'model_class': model,
                 'model_type': ae_model_type,
                 'n_ae_latents': n_ae_latents,
+                'n_sessions_per_batch': 2 if model == 'msps-vae' else 1,
                 'l2_reg': l2_reg},
             'training': training_dict,
             'compute': compute_dict}
