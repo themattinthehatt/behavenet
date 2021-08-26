@@ -68,8 +68,11 @@ def _get_multisession_paths(base_dir, lab='', expt='', animal=''):
                 multi_paths.append(os.path.join(base_dir, lab, expt, animal, sub_dir))
     except ValueError:
         print('warning: did not find requested multisession(s)')
+    except NotADirectoryError:
+        print('warning: did not find any sessions')
     except StopIteration:
         print('warning: did not find any sessions')
+
     return multi_paths
 
 

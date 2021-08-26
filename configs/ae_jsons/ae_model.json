@@ -48,6 +48,12 @@
 
 "ps_vae.gamma": 1, # type: int, help: weight on subspace overlap term
 
-"ps_vae.anneal_epochs": 100 # type: int, help: number of epochs to linearly increase sss beta value
+"ps_vae.delta": 1, # type: int, help: weight on background subspace triplet loss for msps-vae
+
+"ps_vae.anneal_epochs": 100, # type: int, help: number of epochs to linearly increase psvae beta value
+
+"n_background": 3, # type: int, help: dimensionality of background subspace in msps-vae
+
+"n_sessions_per_batch": 1 # type: int, help: number of sessions to load per batch in msps-vae
 
 }

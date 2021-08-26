@@ -127,3 +127,66 @@ def test_subspace_overlap():
     M = torch.from_numpy(np.eye(k)).float()
     overlap = losses.subspace_overlap(M, M)
     assert overlap == 2 * k / ((2 * k) ** 2)
+
+
+def test_triplet_loss():
+
+    from torch.nn import TripletMarginLoss
+    tl = TripletMarginLoss(margin=1.0, p=2)
+
+    # test with 2 datasets
+    n_batch = 6
+    n_dims = 3
+    x = torch.zeros((n_batch, n_dims))
+    y = torch.ones((n_batch, n_dims))
+    datasets = np.concatenate([np.zeros((n_batch,)), np.ones((n_batch,))])
+    loss = losses.triplet_loss(tl, torch.cat([x, y], 0), datasets)
+    assert np.isclose(loss.item(), 0, atol=1e-5)
+
+    x = torch.zeros((n_batch, n_dims))
+    y = 2 * torch.ones((n_batch, n_dims))
+    datasets = np.concatenate([np.zeros((n_batch,)), np.ones((n_batch,))])
+    loss = losses.triplet_loss(tl, torch.cat([x, y], 0), datasets)
+    assert np.isclose(loss.item(), 0, atol=1e-5)
+
+    t1 = 0.50
+    x = torch.zeros((n_batch, n_dims))
+    y = t1 * torch.ones((n_batch, n_dims))
+    datasets = np.concatenate([np.zeros((n_batch,)), np.ones((n_batch,))])
+    loss = losses.triplet_loss(tl, torch.cat([x, y], 0), datasets)
+    val = (-np.sqrt(n_dims * t1 ** 2) + 1) * 2 / 3
+    assert np.isclose(loss.item(), val, atol=1e-5)
+
+    # test with 3 datasets
+    t1 = 0.25
+    t2 = 0.50
+    x = torch.zeros((n_batch, n_dims))
+    y = t1 * torch.ones((n_batch, n_dims))
+    z = t2 * torch.ones((n_batch, n_dims))
+    datasets = np.concatenate([np.zeros((n_batch,)), np.ones((n_batch,)), 2 * np.ones((n_batch,))])
+    loss = losses.triplet_loss(tl, torch.cat([x, y, z], 0), datasets)
+    val1 = (-np.sqrt(n_dims * t1 ** 2) + 1)
+    val2 = (-np.sqrt(n_dims * t2 ** 2) + 1)
+    val = (4 * val1 + 2 * val2) / 6
+    assert np.isclose(loss.item(), val, atol=1e-5)
+
+    # test with 4 datasets
+    n_batch = 9
+    t1 = 0.1
+    t2 = 0.2
+    t3 = 0.3
+    x = torch.zeros((n_batch, n_dims))
+    y = t1 * torch.ones((n_batch, n_dims))
+    z = t2 * torch.ones((n_batch, n_dims))
+    v = t3 * torch.ones((n_batch, n_dims))
+    datasets = np.concatenate(
+        [np.zeros((n_batch,)), np.ones((n_batch,)), 2 * np.ones((n_batch,)),
+         3 * np.ones((n_batch,))])
+    loss = losses.triplet_loss(tl, torch.cat([x, y, z, v], 0), datasets)
+    val1 = (-np.sqrt(n_dims * t1 ** 2) + 1)
+    val2 = (-np.sqrt(n_dims * t2 ** 2) + 1)
+    val3 = (-np.sqrt(n_dims * t3 ** 2) + 1)
+    val = (6 * val1 + 4 * val2 + 2 * val3) / 12
+    print(val)
+    print(loss.item())
+    assert np.isclose(loss.item(), val, atol=1e-5)

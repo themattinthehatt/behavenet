@@ -231,6 +231,11 @@ class TestClass:
             self.tmpdir, lab='lab1', expt='expt0', animal='animal0')
         assert len(paths) == 0
 
+        # incorrect path
+        paths = utils._get_multisession_paths(
+            'fakepath', lab='lab1', expt='expt0', animal='animal0')
+        assert len(paths) == 0
+
     def test_get_single_sessions(self):
 
         sess_ret = utils._get_single_sessions(self.tmpdir, depth=4, curr_depth=0)
