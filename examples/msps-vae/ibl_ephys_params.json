@@ -1,0 +1,16 @@
+{
+    "lab": "single-view",
+    "expt": "churchlandlab",
+    "animal": "CSHL047",
+    "session": "2020-01-20-001",
+    "sessions_csv": "/path/to/4-sessions.csv",
+    "x_pixels": 192,
+    "y_pixels": 192,
+    "n_input_channels": 1,
+    "use_output_mask": false,
+    "use_label_mask": true,
+    "frame_rate": 60.0,
+    "neural_type": "spikes",
+    "neural_bin_size": 0.0167,
+    "approx_batch_size": 200
+}

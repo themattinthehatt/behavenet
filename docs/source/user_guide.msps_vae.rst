@@ -4,7 +4,7 @@ Multi-session PS-VAE
 ====================
 
 The :ref:`Partitioned Subspace VAE (PS-VAE)<ps_vae>` (see preprint
-`here <https://www.biorxiv.org/content/10.1101/2021.02.22.432309v2>`_)
+`here <https://www.biorxiv.org/content/10.1101/2021.02.22.432309v3>`_)
 finds a low-dimensional latent representation of a single behavioral video that is partitioned into
 two subspaces: a supervised subspace that reconstructs user-provided labels, and an unsupervised
 subspace that captures remaining variability. In practice, though, we will typically want to
@@ -28,7 +28,7 @@ contains 100 frames (a numpy array of shape [100, n_channels, y_pix, x_pix]), th
 [100, n_labels]). See the :ref:`data structure documentation<data_structure>` for more
 information. Also see the documentation for
 :ref:`fitting models on multiple sessions<multisession>` for more information on how to specify
-which sessions are used for fitting.
+which sessions are used for fitting in the data json.
 
 To fit an MSPS-VAE with the default CAE BehaveNet architecture, edit the ``model_class``,
 ``ps_vae.alpha``, ``ps_vae.beta``, ``ps_vae.delta``, ``n_background``, ``n_sessions_per_batch`` and
@@ -59,7 +59,8 @@ well in practice. The ``n_sessions_per_batch`` parameter determines how many man
 a single batch during training; this value should be greater than 1 for the triplet loss to work.
 The current implementation supports values of ``n_sessions_per_batch = [2, 3, 4]``.
 
-To fit the model, use the ``ae_grid_search.py`` function using this updated model json. All
-other input jsons remain unchanged. See the :ref:`hyperparameter search guide<mspsvae_hparams>` for
+To fit the model, use the ``ae_grid_search.py`` function using this updated model json. You will
+also need to update the data json as detailed :ref:`here<multisession>`. See the
+:ref:`hyperparameter search guide<mspsvae_hparams>` for
 information on how to efficiently search over the ``ps_vae.alpha``, ``ps_vae.beta``, and
 ``ps_vae.delta`` hyperparameters.
