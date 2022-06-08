@@ -25,3 +25,16 @@ If you use BehaveNet in your analysis of behavioral data, please cite us!
       pages={15680--15691},
       year={2019}
     }
+
+Citation for the Partioned Subspace VAE (PS-VAE)
+
+    @article{whiteway2021partitioning,
+      title={Partitioning variability in animal behavioral videos using semi-supervised variational autoencoders},
+      author={Whiteway, Matthew R and Biderman, Dan and Friedman, Yoni and Dipoppa, Mario and Buchanan, E Kelly and Wu, Anqi and Zhou, John and Bonacchi, Niccol{\`o} and Miska, Nathaniel J and Noel, Jean-Paul and others},
+      journal={PLoS computational biology},
+      volume={17},
+      number={9},
+      pages={e1009439},
+      year={2021},
+      publisher={Public Library of Science San Francisco, CA USA}
+    }
