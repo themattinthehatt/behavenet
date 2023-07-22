@@ -13,5 +13,5 @@ scikit-learn
 scipy
 seaborn
 test-tube==0.7.3
-torch==1.3.1
+torch==1.13.1
 tqdm
