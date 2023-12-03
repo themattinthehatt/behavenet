@@ -1,6 +1,6 @@
-sphinx==3.2.0
-sphinx_rtd_theme==0.4.3
-sphinx-automodapi==0.12
+sphinx
+sphinx_rtd_theme
+sphinx-automodapi
 commentjson
 h5py
 matplotlib
